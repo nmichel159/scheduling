@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    env_file: .env # Docker načíta POSTGRES_USER, PASSWORD atď. zo súboru
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: appdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    env_file: .env # Tu sa načíta DATABASE_URL pre Python
+    volumes:
+      - ./backend:/app # Umožňuje meniť kód bez reštartu kontajnera
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    env_file: .env # Tu sa načíta VITE_API_URL pre React
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Dôležité: neprepíše knižnice z tvojho PC
+
+volumes:
+  postgres_data:

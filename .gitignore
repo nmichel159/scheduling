@@ -1,0 +1,31 @@
+# 1. TAJNÉ ÚDAJE (Kritické!)
+.env
+.env.local
+.env.*.local
+
+# 2. PYTHON (Backend)
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.pytest_cache/
+
+# 3. NODE / REACT (Frontend)
+node_modules/
+dist/
+dist-ssr/
+*.local
+.eslintcache
+
+# 4. DOCKER
+.docker/
+
+# 5. SYSTÉM (Windows/Mac)
+Thumbs.db
+.DS_Store
+*.log
+
+
+.vs/
