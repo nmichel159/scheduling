@@ -2,28 +2,28 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios'; // Importujeme axios pre API volania
+import axios from 'axios';
 import './LoginView.css';
 
 const LoginView = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
+  // Načítanie URL z .env cez Vite
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
   const login = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       console.log('Google Success:', tokenResponse);
       
       try {
-        // 1. Pošleme token do nášho Python backendu
-        const response = await axios.post('http://localhost:8000/auth/google', {
+        // Používame premennú API_URL namiesto statického textu
+        const response = await axios.post(`${API_URL}/auth/google`, {
           token: tokenResponse.access_token,
         });
 
-        // 2. Ak backend vráti 200 OK, uložíme si dáta o užívateľovi (vrátane login_count)
         console.log('Backend Response:', response.data);
         localStorage.setItem('user', JSON.stringify(response.data));
-
-        // 3. Presmerujeme na dashboard
         navigate('/dashboard');
       } catch (error) {
         console.error('Chyba pri prihlasovaní na backend:', error);
@@ -59,12 +59,11 @@ const LoginView = () => {
             <span className="button-icon">G</span> 
             {t('login_google')}
           </button>
-          
+          {/* Ostatné tlačidlá zostávajú... */}
           <button className="social-button">
             <span className="button-icon">f</span> 
             {t('login_facebook')}
           </button>
-          
           <button className="social-button">
             <span className="button-icon">O</span> 
             {t('login_outlook')}
