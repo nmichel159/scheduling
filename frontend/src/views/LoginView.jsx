@@ -1,27 +1,38 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useGoogleLogin } from '@react-oauth/google'; // Hook pre prihlásenie
-import { useNavigate } from 'react-router-dom';     // Na presmerovanie po úspechu
+import { useGoogleLogin } from '@react-oauth/google';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios'; // Importujeme axios pre API volania
 import './LoginView.css';
 
 const LoginView = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
-  // Definujeme akciu po kliknutí na Google tlačidlo
   const login = useGoogleLogin({
-    onSuccess: (tokenResponse) => {
-      console.log('Google Token:', tokenResponse);
+    onSuccess: async (tokenResponse) => {
+      console.log('Google Success:', tokenResponse);
       
-      // TODO: Tu neskôr pošleme token na náš backend (Python), 
-      // aby sme užívateľa uložili do Postgres databázy.
-      
-      // Zatiaľ ťa len presmerujeme, aby si videl, že to funguje
-      navigate('/dashboard');
+      try {
+        // 1. Pošleme token do nášho Python backendu
+        const response = await axios.post('http://localhost:8000/auth/google', {
+          token: tokenResponse.access_token,
+        });
+
+        // 2. Ak backend vráti 200 OK, uložíme si dáta o užívateľovi (vrátane login_count)
+        console.log('Backend Response:', response.data);
+        localStorage.setItem('user', JSON.stringify(response.data));
+
+        // 3. Presmerujeme na dashboard
+        navigate('/dashboard');
+      } catch (error) {
+        console.error('Chyba pri prihlasovaní na backend:', error);
+        alert('Backend je offline alebo nastala chyba pri overovaní.');
+      }
     },
     onError: () => {
-      console.log('Login Failed');
-      alert('Prihlásenie zlyhalo, skúste to znova.');
+      console.log('Google Login Failed');
+      alert('Prihlásenie cez Google zlyhalo.');
     },
   });
 
@@ -44,7 +55,6 @@ const LoginView = () => {
         <p className="subtitle">{t('login_subtitle')}</p>
 
         <div id="social" className="social-grid">
-          {/* Pridaný onClick event pre Google */}
           <button className="social-button" onClick={() => login()}>
             <span className="button-icon">G</span> 
             {t('login_google')}

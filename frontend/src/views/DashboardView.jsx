@@ -1,23 +1,31 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 
 const DashboardView = () => {
-  const { t } = useTranslation();
+  // Vytiahneme dáta, ktoré sme v LoginView uložili do localStorage
+  const userString = localStorage.getItem('user');
+  const user = userString ? JSON.parse(userString) : null;
+
+  if (!user) {
+    return <h1>Prosím, prihláste sa.</h1>;
+  }
 
   return (
-    <div style={{ padding: '40px', textAlign: 'left' }}>
-      <header style={{ marginBottom: '40px' }}>
-        <h2 style={{ color: 'var(--accent)' }}>{t('welcome_back') || 'Vitaj späť!'}</h2>
-        <p>Tu je tvoj prehľad úloh na dnes.</p>
-      </header>
+    <div style={{ padding: '40px', textAlign: 'center' }}>
+      <h1>Vitaj, {user.full_name}! 👋</h1>
+      <p>Email: {user.email}</p>
       
       <div style={{ 
+        marginTop: '20px', 
         padding: '20px', 
-        border: '1px solid var(--border)', 
+        border: '2px solid #646cff',
         borderRadius: '12px',
-        background: 'var(--social-bg)' 
+        display: 'inline-block'
       }}>
-        <code>// Sem neskôr vložíme FullCalendar komponent</code>
+        <h2>Štatistika prihlásení</h2>
+        <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#646cff' }}>
+          {user.login_count}
+        </p>
+        <p>krát si sa úspešne prihlásil do systému.</p>
       </div>
     </div>
   );

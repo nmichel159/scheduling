@@ -1,7 +1,8 @@
 services:
   postgres:
     image: postgres:15-alpine
-    env_file: .env # Docker načíta POSTGRES_USER, PASSWORD atď. zo súboru
+    container_name: scheduling-db
+    env_file: .env
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
@@ -11,31 +12,42 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d appdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: scheduling-backend
     ports:
       - "8000:8000"
     depends_on:
-      - postgres
-    env_file: .env # Tu sa načíta DATABASE_URL pre Python
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/appdb
+      - PYTHONUNBUFFERED=1
     volumes:
-      - ./backend:/app # Umožňuje meniť kód bez reštartu kontajnera
+      - ./backend:/app
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    container_name: scheduling-frontend
     ports:
       - "5173:5173"
     depends_on:
       - backend
-    env_file: .env # Tu sa načíta VITE_API_URL pre React
+    env_file: .env
     volumes:
       - ./frontend:/app
-      - /app/node_modules # Dôležité: neprepíše knižnice z tvojho PC
+      - /app/node_modules
 
 volumes:
   postgres_data:
