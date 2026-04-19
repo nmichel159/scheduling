@@ -2,7 +2,7 @@ import { useState } from 'react'
 import axios from 'axios'
 
 function App() {
-  const [displayText, setDisplayText] = useState('Hello world56')
+  const [displayText, setDisplayText] = useState('Hello world567')
 
   // 1. DYNAMICKÁ ADRESA BACKENDU
   // Vite hľadá premennú VITE_API_URL v systéme. 

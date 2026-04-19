@@ -1,0 +1,83 @@
+.login-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 40px;
+}
+
+.login-content {
+    max-width: 480px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.subtitle {
+    margin-bottom: 48px;
+    color: var(--text);
+}
+
+.social-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.social-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 14px;
+    background: var(--social-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-h);
+    font-family: var(--sans);
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+    .social-button:hover {
+        border-color: var(--accent);
+        background: var(--accent-bg);
+        transform: translateY(-1px);
+    }
+
+.button-icon {
+    font-family: var(--mono);
+    font-weight: bold;
+    font-size: 18px;
+    color: var(--accent);
+}
+
+.language-selector {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    font-family: var(--mono);
+    font-size: 14px;
+}
+
+    .language-selector button {
+        background: none;
+        border: none;
+        color: var(--text);
+        cursor: pointer;
+        padding: 4px 8px;
+    }
+
+        .language-selector button.active {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+.separator {
+    color: var(--border);
+}
+
+.footer-note {
+    margin-top: 64px;
+    font-size: 14px;
+}

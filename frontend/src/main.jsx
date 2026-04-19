@@ -1,10 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { RouterProvider } from 'react-router-dom'
+import { router } from './router' // Importujeme tvoju mapu stránok
 import './index.css'
-import App from './App.jsx'
+import './i18n' // Toto aktivuje viacjazyčnosť v celom projekte
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    <RouterProvider router={router} />
   </StrictMode>,
 )
