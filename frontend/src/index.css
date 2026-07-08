@@ -1,11 +1,11 @@
 :root {
-  --primary:  #aa3bff;      /* hlavná farba */
-  --secondary: #8a8494;    /* doplnková farba */
-  --background: #fff;        /* pozadie */
+  --primary:  #aa3bff;     
+  --secondary: #8a8494;   
+  --background: #fff;        
 
   --text: #6b6375;
   --text-h: #08060d;
-  --border: #e5e4e7;
+  /* --border: #e5e4e7; */
   --code-background: #f4f3ec;
   --primary-background: rgba(170, 59, 255, 0.1);
   --primary-border: rgba(170, 59, 255, 0.5);
@@ -34,9 +34,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-  --primary: #c084fc;      /* hlavná farba */
-  --secondary: #8b8695;    /* doplnková farba */
-  --background: #16171d;        /* pozadie */
+  --primary: #c084fc;     
+  --secondary: #8b8695;
+  --background: #16171d;        
 
     --text: #9ca3af;
     --text-h: #f3f4f6;
