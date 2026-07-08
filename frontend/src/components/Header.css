@@ -1,0 +1,27 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px 12px 12px;   /* vľavo menej (12px), vpravo pôvodných 20px */
+  border-bottom: 1px solid var(--primary-border);
+  background: var(--background);
+}
+
+.header-title {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.menu-btn {
+  display: none;
+  border: none;
+  background: none;
+  font-size: 20px;
+  color: var(--text-h);
+  cursor: pointer;
+  padding: 4px;
+}
+
+@media (max-width: 768px) {
+  .menu-btn { display: block; }
+}

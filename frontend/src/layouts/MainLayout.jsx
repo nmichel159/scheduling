@@ -1,22 +1,24 @@
-import React from 'react';
-import { Outlet, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Outlet } from 'react-router-dom';
+import Sidebar from '../components/Sidebar';
+import Header from '../components/Header';
 import './MainLayout.css';
 
 const MainLayout = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <div className="app-container">
-      <aside className="sidebar">
-        <div className="logo">S</div>
-        <nav>
-          <Link to="/dashboard" className="nav-item">📅</Link>
-          <Link to="/settings" className="nav-item">⚙️</Link>
-        </nav>
-        <div className="user-avatar">👤</div>
-      </aside>
-      
-      <main className="content">
-        <Outlet /> {/* Tu sa bude vykresľovať konkrétna podstránka */}
-      </main>
+      <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen(o => !o)} />
+      {sidebarOpen && (
+        <div className="backdrop" onClick={() => setSidebarOpen(false)} />
+      )}
+      <div className="main-area">
+        <Header onToggle={() => setSidebarOpen(o => !o)} />
+        <main className="content">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 };

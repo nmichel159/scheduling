@@ -1,12 +1,12 @@
 :root {
   --primary:  #aa3bff;     
   --secondary: #8a8494;   
-  --background: #fff;        
+  --background: #f4f4f4;        
 
   --text: #6b6375;
   --text-h: #08060d;
   --border: #e5e4e7; 
-  --code-background: #f4f3ec;
+  --code-background: #f4f4f4;
   --primary-background: rgba(170, 59, 255, 0.1);
   --primary-border: rgba(170, 59, 255, 0.5);
   --social-background: rgba(244, 243, 236, 0.5);
@@ -17,7 +17,7 @@
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
-  font: 18px/145% var(--sans);
+  font: 18px/1.45 var(--sans);
   letter-spacing: 0.18px;
   color-scheme: light dark;
   color: var(--text);
@@ -59,11 +59,11 @@ body {
 }
 
 #root {
-  width: 1126px;
+  /* width: 1126px;
   max-width: 100%;
   margin: 0 auto;
-  text-align: center;
-  /* border-inline: 1px solid var(--border); */
+  text-align: center; */   /* sidebar chcem uplne na lavy okraj*/
+  /* border-inline: 1px solid var(--border); */  /* ciary co boli v uvode stranky */
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -78,7 +78,8 @@ h2 {
 }
 
 h1 {
-  font-size: 56px;
+  font-size: clamp(28px, 6vw, 56px);
+  line-height: 110%;
   letter-spacing: -1.68px;
   margin: 32px 0;
   @media (max-width: 1024px) {

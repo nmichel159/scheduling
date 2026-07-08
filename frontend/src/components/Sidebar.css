@@ -1,0 +1,79 @@
+.sidebar {
+  width: 56px;                       /* zatvorená lišta */
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--code-background);
+  border-right: 1px solid var(--border);
+  padding: 8px;
+  box-sizing: border-box;
+  text-align: left;
+  transition: width 0.25s ease;
+  overflow: hidden;
+}
+
+.sidebar.is-open {
+  width: 260px;                      /* otvorený sidebar */
+}
+
+/* logo hore – pri hoveri sa vymení za šípku */
+.logo-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+.logo-btn:hover { background: var(--primary-background); }
+.logo-img { width: 28px; height: 28px; object-fit: contain; }
+.toggle-icon { display: none; color: var(--text); }
+.logo-btn:hover .logo-img { display: none; }
+.logo-btn:hover .toggle-icon { display: inline; }
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.nav-item, .user-avatar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  white-space: nowrap;               /* text sa neláme pri animácii */
+}
+.nav-item:hover { background: var(--primary-background); }
+.nav-item.active { background: var(--primary-background); color: var(--text-h); }
+
+/* texty vidno len v otvorenom stave */
+.label { display: none; }
+.sidebar.is-open .label { display: inline; }
+
+.user-avatar { border-top: 1px solid var(--border); }
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100svh;
+    z-index: 100;
+    width: 260px;                    /* na mobile vždy plná šírka */
+    transform: translateX(-100%);    /* zatvorená = schovaná za okrajom */
+    transition: transform 0.25s ease;
+  }
+  .sidebar.is-open {
+    transform: translateX(0);        /* otvorená = vysunutá */
+  }
+  .sidebar .label { display: inline; } /* texty na mobile vždy, panel je plný */
+}

@@ -1,9 +1,13 @@
 .login-wrapper {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 40px;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  box-sizing: border-box;
+  position: relative;        /* kotva pre jazykový prepínač */
 }
 
 .login-content {
@@ -40,8 +44,8 @@
 }
 
     .social-button:hover {
-        border-color: var(--accent);
-        background: var(--accent-bg);
+        border-color: var(--primary);
+        background: var(--primary-background);
         transform: translateY(-1px);
     }
 
@@ -49,7 +53,7 @@
     font-family: var(--mono);
     font-weight: bold;
     font-size: 18px;
-    color: var(--accent);
+    color: var(--primary);
 }
 
 .language-selector {
@@ -69,7 +73,7 @@
     }
 
         .language-selector button.active {
-            color: var(--accent);
+            color: var(--primary);
             font-weight: bold;
         }
 
