@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db.session import engine, Base
 from app.api import auth # Ak si vytvoríš router v api
+import app.models  # Import all models so they are registered in Base.metadata
 
 # Vytvorenie tabuliek pri štarte
 Base.metadata.create_all(bind=engine)
