@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
@@ -9,15 +9,20 @@ const LoginView = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (localStorage.getItem('user')) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
+
   // Načítanie URL z .env cez Vite
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   const login = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       console.log('Google Success:', tokenResponse);
-      
+
       try {
-        // Používame premennú API_URL namiesto statického textu
         const response = await axios.post(`${API_URL}/auth/google`, {
           token: tokenResponse.access_token,
         });
@@ -39,13 +44,13 @@ const LoginView = () => {
   return (
     <main className="login-wrapper">
       <div className="language-selector">
-        <button 
-          onClick={() => i18n.changeLanguage('sk')} 
+        <button
+          onClick={() => i18n.changeLanguage('sk')}
           className={i18n.language === 'sk' ? 'active' : ''}
         >SK</button>
         <span className="separator">|</span>
-        <button 
-          onClick={() => i18n.changeLanguage('en')} 
+        <button
+          onClick={() => i18n.changeLanguage('en')}
           className={i18n.language === 'en' ? 'active' : ''}
         >EN</button>
       </div>
@@ -56,16 +61,15 @@ const LoginView = () => {
 
         <div id="social" className="social-grid">
           <button className="social-button" onClick={() => login()}>
-            <span className="button-icon">G</span> 
+            <span className="button-icon">G</span>
             {t('login_google')}
           </button>
-          {/* Ostatné tlačidlá zostávajú... */}
           <button className="social-button">
-            <span className="button-icon">f</span> 
+            <span className="button-icon">f</span>
             {t('login_facebook')}
           </button>
           <button className="social-button">
-            <span className="button-icon">O</span> 
+            <span className="button-icon">O</span>
             {t('login_outlook')}
           </button>
         </div>

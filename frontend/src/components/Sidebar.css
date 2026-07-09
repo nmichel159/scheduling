@@ -59,7 +59,16 @@
 .label { display: none; }
 .sidebar.is-open .label { display: inline; }
 
-.user-avatar { border-top: 1px solid var(--border); }
+.user-avatar {
+  border-top: 1px solid var(--border);
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  width: 100%;
+}
 
 @media (max-width: 768px) {
   .sidebar {

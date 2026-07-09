@@ -1,8 +1,15 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.jpg';
 import './Sidebar.css';
 
 const Sidebar = ({ open, onToggle }) => {
+  const navigate = useNavigate();
+
+  const logout = () => {
+    localStorage.removeItem('user');
+    navigate('/');
+  };
+
   return (
     <aside className={`sidebar ${open ? 'is-open' : ''}`}>
       <button className="logo-btn" onClick={onToggle}
@@ -20,9 +27,9 @@ const Sidebar = ({ open, onToggle }) => {
         </NavLink>
       </nav>
 
-      <div className="user-avatar">
-        <span className="icon">👤</span><span className="label">Profil</span>
-      </div>
+      <button className="user-avatar" onClick={logout}>
+        <span className="icon">👤</span><span className="label">Odhlásiť</span>
+      </button>
     </aside>
   );
 };

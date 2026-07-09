@@ -1,11 +1,15 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import './MainLayout.css';
 
 const MainLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    if (!localStorage.getItem('user')) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="app-container">
