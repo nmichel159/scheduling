@@ -21,14 +21,12 @@ def authenticate_google_user(db: Session, token: str):
         user = User(
             email=info['email'],
             full_name=info.get('name'),
-            google_id=info.get('sub'),
-            picture_url=info.get('picture'),
+            auth_token=info.get('sub'),
             login_count=1
         )
         db.add(user)
     else:
         user.login_count += 1
-        user.picture_url = info.get('picture')
 
     db.commit()
     db.refresh(user)
