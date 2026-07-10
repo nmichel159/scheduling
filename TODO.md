@@ -1,62 +1,88 @@
-# Zadanie pre Antigravity: Implementácia DB modelov a Seeding dát
+# TODO for Codex
 
-Ahoj Agent. Potrebujem kompletne prebudovať a zinicializovať databázovú vrstvu pre náš nemocničný plánovací systém s použitím SQLAlchemy a FastAPI/Pydantic architektúry.
+## ✅ Task 1 — Implement User Availability Management API
 
-Nasleduje presná biznis logika vzťahov a štruktúra testovacích dát, ktoré sa musia automaticky nasadiť (seedovať) pri štarte kontajnera.
+### Objective
 
----
+Implement a complete CRUD API for managing user availability (work availability calendar).
 
-## 1. Pravidlá a Vzťahy medzi Modelmi
-skontroluj ci tie vztahy su
+### Requirements
 
-### Presná topológia vzťahov:
-1. **User <-> Role (M:N):** Používateľ môže mať 1 až N rolí, rola môže patriť viacerým používateľom. 
-2. **User <-> Ambulance (M:N):** Používateľ môže pracovať na viacerých ambulanciách, ambulancia má viacero používateľov.
-3. **Ambulance -> Competence (1:N):** Každá ambulancia má vlastnú množinu unikátnych kompetencií. Každá kompetencia patrí **striktne jednej**
-4. **User <-> Competence (M:N):** Používateľ môže ovládať viacero kompetencií, kompetencia môže byť ovládaná viacerými používateľmi.
-5. **Ambulance -> User (Vedúci - 1:N):** Tabuľka `ambulances` obsahuje stĺpec `managed_by_user_id` (ForeignKey na `users.id`, nullable=True), ktorý určuje vedúceho danej ambulancie.
-6. **User -> Unavailabilities (1:N):** Vyťaženosť/nedostupnosť sa viaže na konkrétneho používateľa (jeden používateľ má viacero záznamov dní v roku).
-7. **User / Ambulance / Competence -> Schedule (1:N):** Finálna rozvrhová jednotka prepája konkrétneho používateľa, konkrétny deň, konkrétnu ambulanciu a konkrétnu kompetenciu.
+Create REST endpoints that allow users to:
 
----
+* Create an availability record.
+* Update an availability record.
+* Delete an availability record.
+* Retrieve availability records.
+* Retrieve availability within a given date range.
 
-## 2. Inicializačné (Seed) Dáta
+The API should allow users to specify:
 
-Zabezpeč, aby po spustení migrácie alebo inicializácii databázy docker-compose down -v
-docker-compose up --build
+* Available days.
+* Unavailable days.
+* Reason (optional).
+* Date.
 
-boli v systéme natvrdo zapísané tieto dáta:
+### Business Rules
 
-### Používatelia (Users)
-1. `a14325999@gmail.com`
-2. `alexthesecond0000@gmail.com`
-3. `noro.michel159@gmail.com`
-4. `noro.michel@gmail.com`
-
-### Globálne Roly (Roles)
-- ID 1: `EMPLOYEE` (Zamestnanec)
-- ID 2: `LEADER` (Vedúci)
-- ID 3: `AMBULANCE_OVERSEER` (Dohľad nad ambulanciou)
-- ID 4: `HOSPITAL_ADMIN` (Celá nemocnica)
-
-### Ambulancie (Ambulances)
-1. **ambulancia1** -> Vedúci (`managed_by_user_id`): `noro.michel159@gmail.com`
-2. **ambulancia2** -> Vedúci (`managed_by_user_id`): `a14325999@gmail.com`
-
-### Kompetencie (Competences)
-*Priradené striktne pod konkrétne ambulancie podľa zadania:*
-- **Pod ambulancia1 patrí:** `role1`, `role2`, `role3` (pozn. v DB modeli to budú objekty Competence s názvami role1, role2, role3 priradené k ID ambulancie 1).
-- **Pod ambulancia2 patrí:** `rola1`, `rola2`
-
-### Priradenia a Väzby (Asociácie)
-- `alexthesecond0000@gmail.com` je bežný zamestnanec (Rola: `EMPLOYEE`) priradený k **ambulancia1**.
-- Vedúci pracovníci (`noro.michel159@gmail.com` a `a14325999@gmail.com`) musia mať v systéme priradené minimálne roly `EMPLOYEE` aj `LEADER`, keďže majú aj zamestnanecké povinnosti.
+* Users may only manage their own availability.
+* Prevent duplicate records for the same user and date.
+* Validate input dates.
+* Return appropriate HTTP status codes.
+* Follow the existing project architecture (routers, services, repositories, schemas, models).
 
 ---
 
-## 3. Tvoje úlohy (Krok za krokom)
+## ✅ Task 2 — Ambulance Manager Employee Management
 
-1. **Skontroluj a uprav SQLAlchemy modely** v priečinku `app/models/` tak, aby presne reflektovali štruktúru vyššie (najmä presun `ambulance_id` do `Competence` a pridanie `managed_by_user_id` do `Ambulance`).
-2. **Vytvor alebo uprav asociačné tabuľky** v `app/models/associations.py`.
-3. **Napíš inicializačný Python skript** (napr. `app/db/seed.py`), ktorý skontroluje, či dáta existujú, a ak nie, bezpečne ich vloží do databázy.
-4. **Uprav vstupný bod aplikácie** alebo docker súbory tak, aby sa tento `seed.py` spustil automaticky po úspešnom vykonaní databázových migrácií, keď zavolám `docker-compose up --build`.
+### Objective
+
+Implement endpoints that allow an ambulance manager (Role Level = 2) to manage employees assigned to ambulances.
+
+### Requirements
+
+Create endpoints to:
+
+* List employees assigned to an ambulance.
+* Add an employee to an ambulance.
+* Remove an employee from an ambulance.
+
+The implementation should use the `user_ambulances` junction table.
+
+### Business Rules
+
+* Only users with **Role Level = 2** may access these endpoints.
+* Managers may only manage ambulances that they own (`managed_by_user_id`).
+* Prevent duplicate assignments.
+* Return proper HTTP status codes.
+* Validate that both the user and ambulance exist.
+* Keep the implementation consistent with the current architecture.
+
+---
+
+## ✅ Task 3 — Ambulance Manager Competence Management
+
+### Objective
+
+Allow ambulance managers (Role Level = 2) to assign and remove competences for employees working in their ambulance.
+
+### Requirements
+
+Create endpoints to:
+
+* Assign a competence to an employee.
+* Remove a competence from an employee.
+* List competences assigned to an employee for a specific ambulance.
+
+The implementation should use the `user_competences` junction table.
+
+### Business Rules
+
+* Only users with **Role Level = 2** may perform these operations.
+* Managers may only manage employees assigned to their own ambulances.
+* A competence may only be assigned if it belongs to the manager's ambulance.
+* The employee must already be assigned to the ambulance.
+* Prevent duplicate competence assignments.
+* Validate all foreign key references.
+* Follow the existing project architecture and coding conventions.
+
