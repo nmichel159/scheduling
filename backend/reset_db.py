@@ -12,7 +12,7 @@ from app.models.competence import Competence
 from app.models.unavailability import Unavailability
 from app.models.schedule import Schedule
 from app.models.audit import AuditLog
-from app.models.associations import user_roles, user_ambulances, ambulance_competences, user_competences
+from app.models.associations import UserRole, UserAmbulance, UserCompetence
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:password@postgres:5432/appdb")
 engine = create_engine(DATABASE_URL)

@@ -2,7 +2,8 @@ from sqlalchemy import Column, Integer, String, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.session import Base
-from app.models.associations import user_roles, user_ambulances, user_competences
+from sqlalchemy.ext.associationproxy import association_proxy
+from app.models.associations import UserRole, UserAmbulance, UserCompetence
 
 class User(Base):
     __tablename__ = "users"
@@ -17,8 +18,16 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     is_active = Column(Boolean, default=True)
 
-    roles = relationship("Role", secondary=user_roles, back_populates="users")
-    ambulances = relationship("Ambulance", secondary=user_ambulances, back_populates="users")
-    competences = relationship("Competence", secondary=user_competences, back_populates="users")
+    # Core relationship mappings
+    user_roles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
+    user_ambulances = relationship("UserAmbulance", back_populates="user", cascade="all, delete-orphan")
+    user_competences = relationship("UserCompetence", back_populates="user", cascade="all, delete-orphan")
+    
     unavailabilities = relationship("Unavailability", back_populates="user")
     schedules = relationship("Schedule", back_populates="user")
+    managed_ambulances = relationship("Ambulance", back_populates="manager")
+
+    # Proxies for direct collection manipulation
+    roles = association_proxy("user_roles", "role", creator=lambda r: UserRole(role=r))
+    ambulances = association_proxy("user_ambulances", "ambulance", creator=lambda a: UserAmbulance(ambulance=a))
+    competences = association_proxy("user_competences", "competence", creator=lambda c: UserCompetence(competence=c))

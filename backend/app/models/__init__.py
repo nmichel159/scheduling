@@ -1,4 +1,4 @@
-from app.models.associations import user_roles, user_ambulances, ambulance_competences, user_competences
+from app.models.associations import UserRole, UserAmbulance, UserCompetence
 from app.models.user import User
 from app.models.role import Role
 from app.models.ambulance import Ambulance
@@ -15,8 +15,7 @@ __all__ = [
     "Unavailability",
     "Schedule",
     "AuditLog",
-    "user_roles",
-    "user_ambulances",
-    "ambulance_competences",
-    "user_competences"
+    "UserRole",
+    "UserAmbulance",
+    "UserCompetence"
 ]

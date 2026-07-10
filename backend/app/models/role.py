@@ -2,7 +2,8 @@ from sqlalchemy import Column, Integer, String, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.session import Base
-from app.models.associations import user_roles
+from sqlalchemy.ext.associationproxy import association_proxy
+from app.models.associations import UserRole
 
 class Role(Base):
     __tablename__ = "roles"
@@ -16,4 +17,8 @@ class Role(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     is_active = Column(Boolean, default=True)
 
-    users = relationship("User", secondary=user_roles, back_populates="roles")
+    # Core relationship mappings
+    user_roles = relationship("UserRole", back_populates="role", cascade="all, delete-orphan")
+    
+    # Proxies for direct collection manipulation
+    users = association_proxy("user_roles", "user", creator=lambda u: UserRole(user=u))
