@@ -38,3 +38,15 @@ class EmployeeListResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AmbulanceListResponse(BaseModel):
+    """Lightweight schema for listing ambulances related to a user."""
+
+    id: int
+    name: str
+    description: Optional[str] = None
+    managed_by_user_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True

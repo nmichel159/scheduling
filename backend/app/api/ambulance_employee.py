@@ -12,17 +12,46 @@ from app.core.dependencies import get_manager_ambulance
 from app.db.session import get_db
 from app.models.ambulance import Ambulance
 from app.schemas.ambulance_employee import (
+    AmbulanceListResponse,
     AmbulanceEmployeeAdd,
     AmbulanceEmployeeResponse,
     EmployeeListResponse,
 )
 from app.services.ambulance_employee_service import (
     add_employee,
+    list_employee_ambulances,
     list_employees,
+    list_manager_ambulances,
     remove_employee,
 )
 
 router = APIRouter()
+
+
+@router.get(
+    "/employees/{user_id}/ambulances",
+    response_model=list[AmbulanceListResponse],
+    summary="List ambulances where an employee works",
+)
+def list_employee_ambulances_endpoint(
+    user_id: int,
+    db: Session = Depends(get_db),
+) -> list[AmbulanceListResponse]:
+    """Retrieve all active ambulances assigned to an employee."""
+    return list_employee_ambulances(db, user_id)
+
+
+@router.get(
+    "/managers/{user_id}/ambulances",
+    response_model=list[AmbulanceListResponse],
+    summary="List ambulances managed by a user",
+)
+def list_manager_ambulances_endpoint(
+    user_id: int,
+    db: Session = Depends(get_db),
+) -> list[AmbulanceListResponse]:
+    """Retrieve all active ambulances where the user is the manager."""
+    return list_manager_ambulances(db, user_id)
 
 
 @router.get(

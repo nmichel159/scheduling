@@ -10,9 +10,10 @@ Business rules enforced:
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.models.ambulance import Ambulance
 from app.models.associations import UserAmbulance
 from app.models.user import User
-from app.schemas.ambulance_employee import EmployeeListResponse
+from app.schemas.ambulance_employee import AmbulanceListResponse, EmployeeListResponse
 
 
 def list_employees(db: Session, ambulance_id: int) -> list[EmployeeListResponse]:
@@ -41,6 +42,65 @@ def list_employees(db: Session, ambulance_id: int) -> list[EmployeeListResponse]
         )
         for assignment in assignments
         if assignment.user and assignment.user.is_active
+    ]
+
+
+def list_employee_ambulances(db: Session, user_id: int) -> list[AmbulanceListResponse]:
+    """List all active ambulances where the user works as an employee."""
+    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id {user_id} not found or inactive.",
+        )
+
+    assignments = (
+        db.query(UserAmbulance)
+        .join(Ambulance)
+        .filter(
+            UserAmbulance.user_id == user_id,
+            UserAmbulance.is_active == True,
+            Ambulance.is_active == True,
+        )
+        .all()
+    )
+    return [
+        AmbulanceListResponse(
+            id=assignment.ambulance.id,
+            name=assignment.ambulance.name,
+            description=assignment.ambulance.description,
+            managed_by_user_id=assignment.ambulance.managed_by_user_id,
+        )
+        for assignment in assignments
+        if assignment.ambulance
+    ]
+
+
+def list_manager_ambulances(db: Session, user_id: int) -> list[AmbulanceListResponse]:
+    """List all active ambulances managed by the user."""
+    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id {user_id} not found or inactive.",
+        )
+
+    ambulances = (
+        db.query(Ambulance)
+        .filter(
+            Ambulance.managed_by_user_id == user_id,
+            Ambulance.is_active == True,
+        )
+        .all()
+    )
+    return [
+        AmbulanceListResponse(
+            id=ambulance.id,
+            name=ambulance.name,
+            description=ambulance.description,
+            managed_by_user_id=ambulance.managed_by_user_id,
+        )
+        for ambulance in ambulances
     ]
 
 
