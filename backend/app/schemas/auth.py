@@ -5,6 +5,7 @@ class GoogleLoginRequest(BaseModel):
     token: str
 
 class UserResponse(BaseModel):
+    id: int
     email: str
     full_name: Optional[str]
     login_count: int

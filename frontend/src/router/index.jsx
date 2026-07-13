@@ -1,6 +1,8 @@
 import { createBrowserRouter } from 'react-router-dom';
 import LoginView from '../views/LoginView';
 import DashboardView from '../views/DashboardView';
+import WorkloadView from '../views/WorkloadView';
+import DepartmentsView from '../views/DepartmentsView';
 import MainLayout from '../layouts/MainLayout';
 
 export const router = createBrowserRouter([
@@ -14,6 +16,14 @@ export const router = createBrowserRouter([
       {
         path: "/dashboard",
         element: <DashboardView />,
+      },
+      {
+        path: "/workload",
+        element: <WorkloadView />,
+      },
+      {
+        path: "/departments",
+        element: <DepartmentsView />,
       },
       // Sem môžeš neskôr pridať /settings, /profile atď.
     ],

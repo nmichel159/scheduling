@@ -4,5 +4,57 @@
   "login_google": "Login with Google",
   "login_facebook": "Login with Facebook",
   "login_outlook": "Login with Outlook",
-  "need_help": "Need help? Contact"
+  "need_help": "Need help? Contact",
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "workload": "Workload",
+    "settings": "Settings",
+    "logout": "Log out",
+    "open_menu": "Open menu",
+    "close_menu": "Close menu",
+    "departments": "Departments"
+  },
+  "workload": {
+    "title": "Workload",
+    "subtitle": "Click to mark the days that don't suit you for duty. Click again to unmark.",
+    "month_nav": "Month selection",
+    "prev_month": "Previous month",
+    "next_month": "Next month",
+    "past_month": "Past month — records are read-only.",
+    "load_error": "Failed to load records.",
+    "retry": "Retry",
+    "marked": "unavailable",
+    "marked_count": "Marked days this month: {{count}}",
+    "save_error": "Saving failed, please try again.",
+    "days": {
+      "0": "Mo",
+      "1": "Tu",
+      "2": "We",
+      "3": "Th",
+      "4": "Fr",
+      "5": "Sa",
+      "6": "Su"
+    }
+  },
+  "departments": {
+    "title": "My departments",
+    "subtitle": "Manage employees of the ambulances you lead. You can add or remove an employee at any time.",
+    "loading": "Loading...",
+    "load_error": "Failed to load data.",
+    "action_error": "Action failed, please try again.",
+    "forbidden": "You don't have manager permissions.",
+    "no_ambulances": "You don't manage any department.",
+    "my_ambulances": "My ambulances",
+    "employee_count": "Employees: {{count}}",
+    "pick_user": "Pick an employee...",
+    "add": "Add",
+    "added": "Employee added",
+    "already_assigned": "This employee is already in the department.",
+    "remove": "Remove",
+    "removed": "Employee removed",
+    "confirm_remove": "Really remove?",
+    "yes": "Yes",
+    "no": "No",
+    "no_employees": "This department has no employees yet."
+  }
 }

@@ -16,11 +16,14 @@ from app.core.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.unavailability import (
+    ApplyPatternRequest,
+    ApplyPatternResponse,
     UnavailabilityCreate,
     UnavailabilityResponse,
     UnavailabilityUpdate,
 )
 from app.services.unavailability_service import (
+    apply_pattern,
     create_unavailability,
     delete_unavailability,
     get_unavailabilities,
@@ -29,6 +32,24 @@ from app.services.unavailability_service import (
 )
 
 router = APIRouter()
+
+
+@router.post(
+    "/apply-pattern",
+    response_model=ApplyPatternResponse,
+    summary="Apply a repeating week pattern to a whole month",
+)
+def apply_pattern_endpoint(
+    data: ApplyPatternRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ApplyPatternResponse:
+    """Bulk-create unavailability windows for a month from a weekday pattern.
+
+    Existing records are skipped unless ``overwrite`` is true. The whole
+    operation is transactional. Past months are rejected with 400.
+    """
+    return apply_pattern(db, current_user.id, data)
 
 
 @router.post(

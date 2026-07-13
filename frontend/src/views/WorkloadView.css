@@ -1,0 +1,159 @@
+.workload {
+  max-width: 960px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.workload-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workload-title {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--text-h);
+}
+
+.workload-subtitle {
+  margin: 4px 0 20px;
+  font-size: 0.85rem;
+}
+
+.workload-monthnav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+  background: var(--code-background);
+}
+
+.workload-monthlabel {
+  min-width: 150px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--text-h);
+  font-variant-numeric: tabular-nums;
+  text-transform: capitalize;
+}
+
+.workload-navbtn {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 1.2rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--text-h);
+}
+.workload-navbtn:hover { background: var(--primary-background); }
+
+.workload-banner {
+  border: 1px solid var(--border);
+  background: var(--primary-background);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+}
+.workload-banner-error { border-color: #c0463c; }
+.workload-linkbtn {
+  border: none;
+  background: none;
+  color: var(--primary);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  padding: 0;
+}
+
+/* --- calendar grid --- */
+.workload-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  transition: opacity 0.15s ease;
+}
+.workload-grid.is-loading { opacity: 0.5; pointer-events: none; }
+
+.workload-grid-head {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 0;
+}
+
+.workload-cell {
+  position: relative;
+  min-height: 68px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-background);
+  padding: 8px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+.workload-cell:hover:not(:disabled) { border-color: var(--primary); }
+.workload-cell:disabled { cursor: default; opacity: 0.65; }
+.workload-cell-empty {
+  border: none;
+  background: none;
+  cursor: default;
+  min-height: 0;
+}
+.workload-cell.is-marked {
+  background: var(--primary-background);
+  border-color: var(--primary);
+}
+.workload-cell.is-today { border-width: 2px; }
+
+.workload-cell-daynum { font-size: 0.8rem; font-weight: 700; }
+.workload-cell.is-today .workload-cell-daynum { color: var(--primary); }
+
+.workload-cell-mark {
+  position: absolute;
+  right: 10px;
+  bottom: 6px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1;
+}
+
+.workload-footer {
+  margin-top: 14px;
+  font-size: 0.8rem;
+}
+
+.workload-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text-h);
+  color: var(--background);
+  border-radius: 999px;
+  padding: 9px 18px;
+  font-size: 0.85rem;
+  z-index: 300;
+}
+
+@media (max-width: 768px) {
+  .workload-cell { min-height: 48px; padding: 5px; }
+  .workload-cell-mark { font-size: 0.9rem; right: 6px; bottom: 4px; }
+  .workload-monthlabel { min-width: 120px; }
+}

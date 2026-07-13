@@ -3,5 +3,57 @@
   "login_subtitle": "Vyberte si spôsob prihlásenia",
   "login_google": "Prihlásiť sa cez Google",
   "login_facebook": "Prihlásiť sa cez Facebook",
-  "login_outlook": "Prihlásiť sa cez Outlook"
+  "login_outlook": "Prihlásiť sa cez Outlook",
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "workload": "Vyťaženosť",
+    "settings": "Nastavenia",
+    "logout": "Odhlásiť",
+    "open_menu": "Otvoriť menu",
+    "close_menu": "Zatvoriť menu",
+    "departments": "Oddelenia"
+  },
+  "workload": {
+    "title": "Vyťaženosť",
+    "subtitle": "Kliknutím označ dni, kedy ti služba nevyhovuje. Opätovným kliknutím označenie zrušíš.",
+    "month_nav": "Výber mesiaca",
+    "prev_month": "Predchádzajúci mesiac",
+    "next_month": "Nasledujúci mesiac",
+    "past_month": "Uplynulý mesiac — záznamy sú len na čítanie.",
+    "load_error": "Nepodarilo sa načítať záznamy.",
+    "retry": "Skúsiť znova",
+    "marked": "nevyhovuje",
+    "marked_count": "Označené dni v mesiaci: {{count}}",
+    "save_error": "Uloženie zlyhalo, skús to znova.",
+    "days": {
+      "0": "Po",
+      "1": "Ut",
+      "2": "St",
+      "3": "Št",
+      "4": "Pi",
+      "5": "So",
+      "6": "Ne"
+    }
+  },
+  "departments": {
+    "title": "Moje oddelenia",
+    "subtitle": "Spravuj zamestnancov ambulancií, ktoré vedieš. Zamestnanca môžeš kedykoľvek pridať alebo odobrať.",
+    "loading": "Načítavam...",
+    "load_error": "Nepodarilo sa načítať dáta.",
+    "action_error": "Akcia zlyhala, skús to znova.",
+    "forbidden": "Nemáš oprávnenie vedúceho.",
+    "no_ambulances": "Nevedieš žiadne oddelenie.",
+    "my_ambulances": "Moje ambulancie",
+    "employee_count": "Zamestnanci: {{count}}",
+    "pick_user": "Vyber zamestnanca...",
+    "add": "Pridať",
+    "added": "Zamestnanec pridaný",
+    "already_assigned": "Tento zamestnanec už v oddelení je.",
+    "remove": "Odobrať",
+    "removed": "Zamestnanec odobratý",
+    "confirm_remove": "Naozaj odobrať?",
+    "yes": "Áno",
+    "no": "Nie",
+    "no_employees": "Toto oddelenie zatiaľ nemá žiadnych zamestnancov."
+  }
 }
