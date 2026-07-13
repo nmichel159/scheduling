@@ -134,12 +134,7 @@ const WorkloadView = () => {
       // Optimistically mark (placeholder until the server responds with the record).
       setEntries((prev) => ({ ...prev, [dateStr]: { id: null, date_absent: dateStr } }));
       try {
-        const record = await createUnavailability({
-          dateAbsent: dateStr,
-          startTime: null,
-          endTime: null,
-          reason: null,
-        });
+        const record = await createUnavailability(dateStr);
         setEntries((prev) => ({ ...prev, [dateStr]: record }));
       } catch {
         setEntries((prev) => {
