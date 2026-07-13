@@ -1,88 +1,58 @@
-# TODO for Codex
+# TODO for Backend
 
-## ✅ Task 1 — Implement User Availability Management API
+## Task 1 — Create Multiple Database Configuration Profiles
 
 ### Objective
 
-Implement a complete CRUD API for managing user availability (work availability calendar).
+Implement a configuration system that supports two separate database initialization profiles.
 
 ### Requirements
 
-Create REST endpoints that allow users to:
+Create two independent configuration files for database initialization:
 
-* Create an availability record.
-* Update an availability record.
-* Delete an availability record.
-* Retrieve availability records.
-* Retrieve availability within a given date range.
+* `config_1`
+* `config_2`
 
-The API should allow users to specify:
+Each configuration should initialize a separate database with its own seed data.
 
-* Available days.
-* Unavailable days.
-* Reason (optional).
-* Date.
+### Requirements
 
-### Business Rules
-
-* Users may only manage their own availability.
-* Prevent duplicate records for the same user and date.
-* Validate input dates.
-* Return appropriate HTTP status codes.
-* Follow the existing project architecture (routers, services, repositories, schemas, models).
+* Keep the existing database schema unchanged.
+* Reuse the current seed logic where possible.
+* The application should be able to initialize either configuration independently.
+* Organize the configuration so that adding additional profiles in the future is straightforward.
 
 ---
 
-## ✅ Task 2 — Ambulance Manager Employee Management
+## Task 2 — Extend Seed Data for Both Configurations
 
 ### Objective
 
-Implement endpoints that allow an ambulance manager (Role Level = 2) to manage employees assigned to ambulances.
+Populate both database configurations with realistic testing data.
 
 ### Requirements
 
-Create endpoints to:
+For **both configurations**:
 
-* List employees assigned to an ambulance.
-* Add an employee to an ambulance.
-* Remove an employee from an ambulance.
+* Keep all pre-built users that already exist.
+* Add **at least 15 additional users**.
+* The additional users should:
 
-The implementation should use the `user_ambulances` junction table.
+  * have unique email addresses,
+  * have realistic full names,
+  * not be assigned to any ambulance,
+  * not have any competences,
+  * not have any schedules.
 
-### Business Rules
+For **Configuration 2 only**:
 
-* Only users with **Role Level = 2** may access these endpoints.
-* Managers may only manage ambulances that they own (`managed_by_user_id`).
-* Prevent duplicate assignments.
-* Return proper HTTP status codes.
-* Validate that both the user and ambulance exist.
-* Keep the implementation consistent with the current architecture.
+* Keep the same four primary/pre-built accounts.
+* Change the role combinations assigned to these four accounts so they differ from Configuration 1.
+* Do not modify the additional 15 generated users unless necessary.
 
----
+### Notes
 
-## ✅ Task 3 — Ambulance Manager Competence Management
-
-### Objective
-
-Allow ambulance managers (Role Level = 2) to assign and remove competences for employees working in their ambulance.
-
-### Requirements
-
-Create endpoints to:
-
-* Assign a competence to an employee.
-* Remove a competence from an employee.
-* List competences assigned to an employee for a specific ambulance.
-
-The implementation should use the `user_competences` junction table.
-
-### Business Rules
-
-* Only users with **Role Level = 2** may perform these operations.
-* Managers may only manage employees assigned to their own ambulances.
-* A competence may only be assigned if it belongs to the manager's ambulance.
-* The employee must already be assigned to the ambulance.
-* Prevent duplicate competence assignments.
-* Validate all foreign key references.
-* Follow the existing project architecture and coding conventions.
-
+* The names and email addresses may be fictional.
+* Ensure all generated data satisfies foreign key constraints.
+* Avoid duplicate emails.
+* Keep the seed deterministic so repeated database initialization always produces the same data.

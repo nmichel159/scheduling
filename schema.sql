@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 4ZLckml3SrY1s67Lpx8R3UWDt8hRhmaBehr0RebTECBsQA3dLH5q7Srd3GQphTE
+\restrict XyeQfUxDwXE1wgkO5h50zYQ7VQnTnfcgR21836gXS7uQ0u6AjouarvXqj2xrNGp
 
 -- Dumped from database version 15.17
 -- Dumped by pg_dump version 15.17
@@ -208,6 +208,8 @@ CREATE TABLE public.unavailabilities (
     id integer NOT NULL,
     user_id integer NOT NULL,
     date_absent date NOT NULL,
+    start_time time without time zone,
+    end_time time without time zone,
     reason character varying,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
@@ -606,5 +608,5 @@ ALTER TABLE ONLY public.user_roles
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 4ZLckml3SrY1s67Lpx8R3UWDt8hRhmaBehr0RebTECBsQA3dLH5q7Srd3GQphTE
+\unrestrict XyeQfUxDwXE1wgkO5h50zYQ7VQnTnfcgR21836gXS7uQ0u6AjouarvXqj2xrNGp
 
