@@ -30,21 +30,25 @@ AMBULANCES = [
         "name": "ambulancia1",
         "description": "Prva ambulancia",
         "manager_email": "noro.michel159@gmail.com",
+        "isurgent": False,
     },
     {
         "name": "ambulancia2",
         "description": "Druha ambulancia",
         "manager_email": "a14325999@gmail.com",
+        "isurgent": False,
     },
     {
         "name": "ambulancia3",
         "description": "Tretia ambulancia pod rovnakou spravou ako ambulancia1",
         "manager_email": "noro.michel159@gmail.com",
+        "isurgent": False,
     },
     {
         "name": "ambulancia4",
         "description": "Stvrta ambulancia",
         "manager_email": "a14325999@gmail.com",
+        "isurgent": False,
     },
 ]
 

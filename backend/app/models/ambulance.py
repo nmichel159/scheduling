@@ -12,6 +12,7 @@ class Ambulance(Base):
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     managed_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    isurgent = Column(Boolean, default=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
@@ -25,4 +26,3 @@ class Ambulance(Base):
 
     # Proxies for direct collection manipulation
     users = association_proxy("user_ambulances", "user", creator=lambda u: UserAmbulance(user=u))
-

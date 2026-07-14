@@ -31,6 +31,7 @@ CREATE TABLE public.ambulances (
     name character varying NOT NULL,
     description character varying,
     managed_by_user_id integer,
+    isurgent boolean,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     is_active boolean

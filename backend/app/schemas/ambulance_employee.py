@@ -47,6 +47,7 @@ class AmbulanceListResponse(BaseModel):
     name: str
     description: Optional[str] = None
     managed_by_user_id: Optional[int] = None
+    isurgent: bool = False
 
     class Config:
         from_attributes = True

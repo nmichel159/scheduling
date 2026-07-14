@@ -100,6 +100,7 @@ def _seed_ambulances(
                 name=ambulance_info["name"],
                 description=ambulance_info["description"],
                 managed_by_user_id=manager_id,
+                isurgent=ambulance_info.get("isurgent", False),
             )
             db.add(ambulance)
             print(
@@ -109,6 +110,7 @@ def _seed_ambulances(
         else:
             ambulance.description = ambulance_info["description"]
             ambulance.managed_by_user_id = manager_id
+            ambulance.isurgent = ambulance_info.get("isurgent", False)
         ambulances_by_name[ambulance_info["name"]] = ambulance
 
     db.commit()
