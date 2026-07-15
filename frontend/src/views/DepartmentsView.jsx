@@ -13,6 +13,8 @@ import './DepartmentsView.css';
  * Department (ambulance) management view for managers.
  * Shows all ambulances the current user manages; selecting one lists
  * its employees with the ability to add or remove them at any time.
+ * When the manager leads only a single ambulance, the side list is
+ * hidden and the detail is shown directly (full width).
  */
 const DepartmentsView = () => {
   const { t } = useTranslation();
@@ -138,6 +140,7 @@ const DepartmentsView = () => {
   /* ---------- render ---------- */
 
   const selected = ambulances.find((a) => a.id === selectedId) || null;
+  const showList = ambulances.length > 1; // 1 klinika = bez bočného zoznamu
 
   if (loading) {
     return <div className="departments"><p>{t('departments.loading')}</p></div>;
@@ -161,21 +164,23 @@ const DepartmentsView = () => {
 
       {error && <div className="departments-banner">{error}</div>}
 
-      <div className="departments-layout">
-        {/* left: my ambulances */}
-        <nav className="departments-list" aria-label={t('departments.my_ambulances')}>
-          {ambulances.map((a) => (
-            <button
-              type="button"
-              key={a.id}
-              className={`departments-item ${a.id === selectedId ? 'is-selected' : ''}`}
-              onClick={() => setSelectedId(a.id)}
-            >
-              <span className="departments-item-name">{a.name}</span>
-              {a.description && <span className="departments-item-desc">{a.description}</span>}
-            </button>
-          ))}
-        </nav>
+      <div className={`departments-layout ${showList ? '' : 'is-single'}`}>
+        {/* left: my ambulances — zobrazí sa len pri viacerých klinikách */}
+        {showList && (
+          <nav className="departments-list" aria-label={t('departments.my_ambulances')}>
+            {ambulances.map((a) => (
+              <button
+                type="button"
+                key={a.id}
+                className={`departments-item ${a.id === selectedId ? 'is-selected' : ''}`}
+                onClick={() => setSelectedId(a.id)}
+              >
+                <span className="departments-item-name">{a.name}</span>
+                {a.description && <span className="departments-item-desc">{a.description}</span>}
+              </button>
+            ))}
+          </nav>
+        )}
 
         {/* right: employees of the selected ambulance */}
         <section className="departments-detail">
@@ -183,6 +188,9 @@ const DepartmentsView = () => {
             <>
               <header className="departments-detail-head">
                 <h2 className="departments-detail-title">{selected.name}</h2>
+                {!showList && selected.description && (
+                  <p className="departments-detail-desc">{selected.description}</p>
+                )}
                 <span className="departments-count">
                   {t('departments.employee_count', { count: employees.length })}
                 </span>

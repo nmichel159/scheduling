@@ -12,7 +12,8 @@
     "logout": "Log out",
     "open_menu": "Open menu",
     "close_menu": "Close menu",
-    "departments": "Departments"
+    "departments": "Departments",
+    "admin": "Administration"
   },
   "workload": {
     "title": "Workload",
@@ -56,5 +57,8 @@
     "yes": "Yes",
     "no": "No",
     "no_employees": "This department has no employees yet."
+  },
+  "admin": {
+    "coming_soon": "Ambulance codebook and manager administration — coming soon."
   }
 }

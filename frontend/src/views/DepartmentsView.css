@@ -31,6 +31,11 @@
   align-items: start;
 }
 
+/* Jedna klinika: bez bočného zoznamu, detail cez celú šírku. */
+.departments-layout.is-single {
+  grid-template-columns: 1fr;
+}
+
 /* --- left column: my ambulances --- */
 .departments-list {
   display: flex;
@@ -74,6 +79,7 @@
 
 .departments-detail-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
@@ -81,6 +87,15 @@
 }
 .departments-detail-title { margin: 0; font-size: 1.1rem; color: var(--text-h); }
 .departments-count { font-size: 0.8rem; }
+
+/* Popis kliniky v hlavičke detailu (zobrazuje sa pri jednej klinike). */
+.departments-detail-desc {
+  flex-basis: 100%;
+  order: 3;
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
 
 .departments-add {
   display: flex;

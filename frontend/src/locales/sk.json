@@ -5,13 +5,15 @@
   "login_facebook": "Prihlásiť sa cez Facebook",
   "login_outlook": "Prihlásiť sa cez Outlook",
   "sidebar": {
+    
     "dashboard": "Dashboard",
     "workload": "Vyťaženosť",
     "settings": "Nastavenia",
     "logout": "Odhlásiť",
     "open_menu": "Otvoriť menu",
     "close_menu": "Zatvoriť menu",
-    "departments": "Oddelenia"
+    "departments": "Oddelenia",
+    "admin": "Administrácia"
   },
   "workload": {
     "title": "Vyťaženosť",
@@ -55,5 +57,8 @@
     "yes": "Áno",
     "no": "Nie",
     "no_employees": "Toto oddelenie zatiaľ nemá žiadnych zamestnancov."
-  }
+  },
+  "admin": {
+  "coming_soon": "Správa číselníka ambulancií a manažérov — pripravuje sa."
+}
 }

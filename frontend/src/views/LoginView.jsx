@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { fetchMyRoles } from '../services/roleService';
 import './LoginView.css';
 
 const LoginView = () => {
@@ -11,7 +12,15 @@ const LoginView = () => {
 
   useEffect(() => {
     if (localStorage.getItem('user')) {
-      navigate('/dashboard');
+      // Doplnenie rolí pre staršie sessions, ktoré ich ešte nemajú uložené.
+      if (!localStorage.getItem('roles')) {
+        fetchMyRoles()
+          .then((roles) => localStorage.setItem('roles', JSON.stringify(roles)))
+          .catch(() => localStorage.setItem('roles', '[]'))
+          .finally(() => navigate('/dashboard'));
+      } else {
+        navigate('/dashboard');
+      }
     }
   }, [navigate]);
 
@@ -20,15 +29,20 @@ const LoginView = () => {
 
   const login = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
-      console.log('Google Success:', tokenResponse);
-
       try {
         const response = await axios.post(`${API_URL}/auth/google`, {
           token: tokenResponse.access_token,
         });
-
-        console.log('Backend Response:', response.data);
         localStorage.setItem('user', JSON.stringify(response.data));
+
+        // Role rozhodujú o tom, čo sa v UI zobrazí (pokyn: podľa GET /roles/me).
+        try {
+          const roles = await fetchMyRoles();
+          localStorage.setItem('roles', JSON.stringify(roles));
+        } catch {
+          localStorage.setItem('roles', '[]'); // fallback: správa sa ako Rola 1
+        }
+
         navigate('/dashboard');
       } catch (error) {
         console.error('Chyba pri prihlasovaní na backend:', error);

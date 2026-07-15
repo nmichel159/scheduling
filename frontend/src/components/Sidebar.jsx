@@ -1,14 +1,18 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useRoles } from '../hooks/useRoles';
 import logo from '../assets/logo.jpg';
 import './Sidebar.css';
 
 const Sidebar = ({ open, onToggle }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { isManager, isAdmin } = useRoles();
 
   const logout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('roles');
+    localStorage.removeItem('sidebarOpen');
     navigate('/');
   };
 
@@ -27,9 +31,16 @@ const Sidebar = ({ open, onToggle }) => {
         <NavLink to="/workload" className="nav-item">
           <span className="icon">📅</span><span className="label">{t('sidebar.workload')}</span>
         </NavLink>
-        <NavLink to="/departments" className="nav-item">
-          <span className="icon">🏥</span><span className="label">{t('sidebar.departments')}</span>
-        </NavLink>
+        {isManager && (
+          <NavLink to="/departments" className="nav-item">
+            <span className="icon">🏥</span><span className="label">{t('sidebar.departments')}</span>
+          </NavLink>
+        )}
+        {isAdmin && (
+          <NavLink to="/admin" className="nav-item">
+            <span className="icon">🛠️</span><span className="label">{t('sidebar.admin')}</span>
+          </NavLink>
+        )}
         <NavLink to="/settings" className="nav-item">
           <span className="icon">⚙️</span><span className="label">{t('sidebar.settings')}</span>
         </NavLink>
