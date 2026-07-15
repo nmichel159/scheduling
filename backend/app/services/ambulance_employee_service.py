@@ -70,6 +70,7 @@ def list_employee_ambulances(db: Session, user_id: int) -> list[AmbulanceListRes
             name=assignment.ambulance.name,
             description=assignment.ambulance.description,
             managed_by_user_id=assignment.ambulance.managed_by_user_id,
+            isurgent=assignment.ambulance.isurgent,
         )
         for assignment in assignments
         if assignment.ambulance
@@ -99,6 +100,7 @@ def list_manager_ambulances(db: Session, user_id: int) -> list[AmbulanceListResp
             name=ambulance.name,
             description=ambulance.description,
             managed_by_user_id=ambulance.managed_by_user_id,
+            isurgent=ambulance.isurgent,
         )
         for ambulance in ambulances
     ]

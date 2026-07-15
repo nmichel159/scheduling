@@ -35,3 +35,9 @@ export async function fetchUsers() {
   const { data } = await client.get('/users/');
   return data;
 }
+
+/** List role IDs assigned to the logged-in user. */
+export async function fetchUserRoles(userId) {
+  const { data } = await client.get(`/users/${userId}/roles`);
+  return data;
+}
