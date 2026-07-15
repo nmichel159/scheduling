@@ -50,6 +50,30 @@ AMBULANCES = [
         "manager_email": "a14325999@gmail.com",
         "isurgent": False,
     },
+    {
+        "name": "urgentna_ambulancia1",
+        "description": "Urgentna ambulancia pre Leader A",
+        "manager_email": "a14325999@gmail.com",
+        "isurgent": True,
+    },
+    {
+        "name": "urgentna_ambulancia2",
+        "description": "Urgentna ambulancia pre Alex the Second",
+        "manager_email": "alexthesecond0000@gmail.com",
+        "isurgent": True,
+    },
+    {
+        "name": "urgentna_ambulancia3",
+        "description": "Urgentna ambulancia pre Noro Michel 159",
+        "manager_email": "noro.michel159@gmail.com",
+        "isurgent": True,
+    },
+    {
+        "name": "urgentna_ambulancia4",
+        "description": "Urgentna ambulancia pre Noro Michel",
+        "manager_email": "noro.michel@gmail.com",
+        "isurgent": True,
+    },
 ]
 
 COMPETENCES = {

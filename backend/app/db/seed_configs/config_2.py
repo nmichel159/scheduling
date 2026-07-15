@@ -7,9 +7,9 @@ SEED_CONFIG = {
     "competences": COMPETENCES,
     "role_assignments": {
         "alexthesecond0000@gmail.com": ["EMPLOYEE", "LEADER"],
-        "noro.michel159@gmail.com": ["EMPLOYEE", "AMBULANCE_OVERSEER"],
-        "a14325999@gmail.com": ["EMPLOYEE", "HOSPITAL_ADMIN"],
-        "noro.michel@gmail.com": ["EMPLOYEE"],
+        "noro.michel159@gmail.com": ["EMPLOYEE", "LEADER", "AMBULANCE_OVERSEER"],
+        "a14325999@gmail.com": ["EMPLOYEE", "LEADER", "HOSPITAL_ADMIN"],
+        "noro.michel@gmail.com": ["EMPLOYEE", "LEADER"],
     },
     "ambulance_assignments": AMBULANCE_ASSIGNMENTS,
 }

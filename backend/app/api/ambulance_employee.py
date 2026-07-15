@@ -17,6 +17,10 @@ from app.schemas.ambulance_employee import (
     AmbulanceEmployeeResponse,
     EmployeeListResponse,
 )
+from app.schemas.ambulance_competences import (
+    AmbulanceEmployeeCompetenceRow,
+    AmbulanceEmployeeCompetenceTableUpdate,
+)
 from app.services.ambulance_employee_service import (
     add_employee,
     list_employee_ambulances,
@@ -24,8 +28,37 @@ from app.services.ambulance_employee_service import (
     list_manager_ambulances,
     remove_employee,
 )
+from app.services.ambulance_competence_service import (
+    get_employee_competence_table,
+    update_employee_competence_table,
+)
 
 router = APIRouter()
+
+
+@router.get(
+    "/{ambulance_id}/employees/competences",
+    response_model=list[AmbulanceEmployeeCompetenceRow],
+    summary="List employees and their competences for an ambulance",
+)
+def list_employee_competence_table(
+    ambulance: Ambulance = Depends(get_manager_ambulance),
+    db: Session = Depends(get_db),
+):
+    return get_employee_competence_table(db, ambulance.id)
+
+
+@router.put(
+    "/{ambulance_id}/employees/competences",
+    response_model=list[AmbulanceEmployeeCompetenceRow],
+    summary="Replace employee competences for an ambulance",
+)
+def update_employee_competence_table_endpoint(
+    data: AmbulanceEmployeeCompetenceTableUpdate,
+    ambulance: Ambulance = Depends(get_manager_ambulance),
+    db: Session = Depends(get_db),
+):
+    return update_employee_competence_table(db, ambulance.id, data)
 
 
 @router.get(

@@ -73,6 +73,25 @@ Odoberie aktuálneho manažéra z ambulancie. Vyžaduje rolu 3 alebo vyššiu.
 <details>
 <summary><strong>ambulance_employee.py – Zamestnanci a ambulancie</strong></summary>
 
+### `GET /ambulances/{ambulance_id}/employees/competences`
+
+Vráti tabuľku všetkých aktívnych zamestnancov ambulancie a pri každom zamestnancovi zoznam jeho kompetencií.
+
+### `PUT /ambulances/{ambulance_id}/employees/competences`
+
+Prijme celú tabuľku zamestnancov a kompetencií. Kompetencie každého odoslaného zamestnanca zosynchronizuje podľa zoznamu `competence_ids` a vráti aktualizovanú tabuľku.
+
+Príklad tela požiadavky:
+
+```json
+{
+  "employees": [
+    {"user_id": 12, "competence_ids": [1, 3]},
+    {"user_id": 15, "competence_ids": []}
+  ]
+}
+```
+
 ### `GET /ambulances/me/managed`
 
 Vráti ambulancie, ktoré spravuje prihlásený používateľ.
