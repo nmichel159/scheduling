@@ -13,6 +13,9 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.user import User
 from app.models.ambulance import Ambulance
+from app.core.auth_provider import UserIdAuthenticationProvider
+
+_authentication_provider = UserIdAuthenticationProvider()
 
 
 def get_current_user(
@@ -31,14 +34,11 @@ def get_current_user(
     Raises:
         HTTPException 404: If no active user with the given ID exists.
     """
-    user: User | None = (
-        db.query(User)
-        .filter(User.id == x_user_id, User.is_active == True)
-        .first()
-    )
-    if not user:
+    try:
+        user = _authentication_provider.resolve_user(db, str(x_user_id))
+    except (LookupError, ValueError):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"User with id {x_user_id} not found or inactive.",
         )
     return user
@@ -71,6 +71,13 @@ def require_manager_role(
     return current_user
 
 
+def require_admin_role(current_user: User = Depends(get_current_user)) -> User:
+    """Require role level 3 or higher."""
+    if not any(ur.role and ur.role.is_active and ur.role.level >= 3 for ur in current_user.user_roles):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrator role required.")
+    return current_user
+
+
 def get_manager_ambulance(
     ambulance_id: int,
     manager: User = Depends(require_manager_role),
@@ -100,7 +107,8 @@ def get_manager_ambulance(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Ambulance with id {ambulance_id} not found or inactive.",
         )
-    if ambulance.managed_by_user_id != manager.id:
+    is_admin = any(ur.role and ur.role.is_active and ur.role.level >= 3 for ur in manager.user_roles)
+    if not is_admin and ambulance.managed_by_user_id != manager.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not manage this ambulance.",

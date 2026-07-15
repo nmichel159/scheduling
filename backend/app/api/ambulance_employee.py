@@ -8,7 +8,7 @@ authenticated manager owns the target ambulance.
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_manager_ambulance
+from app.core.dependencies import get_current_user, get_manager_ambulance
 from app.db.session import get_db
 from app.models.ambulance import Ambulance
 from app.schemas.ambulance_employee import (
@@ -52,6 +52,14 @@ def list_manager_ambulances_endpoint(
 ) -> list[AmbulanceListResponse]:
     """Retrieve all active ambulances where the user is the manager."""
     return list_manager_ambulances(db, user_id)
+
+@router.get("/me/managed", response_model=list[AmbulanceListResponse])
+def my_managed_ambulances(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    return list_manager_ambulances(db, current_user.id)
+
+@router.get("/me/assigned", response_model=list[AmbulanceListResponse])
+def my_assigned_ambulances(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    return list_employee_ambulances(db, current_user.id)
 
 
 @router.get(

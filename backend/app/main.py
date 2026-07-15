@@ -7,6 +7,9 @@ from app.api import ambulance_employee
 from app.api import competence
 from app.api import user_competence
 from app.api import users
+from app.api import roles, ambulances
+from app.api import codebooks
+from app.api import employee_competences
 import app.models  # Import all models so they are registered in Base.metadata
 
 # Vytvorenie tabuliek pri štarte
@@ -29,6 +32,10 @@ app.include_router(ambulance_employee.router, prefix="/ambulances", tags=["Ambul
 app.include_router(competence.router, prefix="/ambulances", tags=["Competences"])
 app.include_router(user_competence.router, prefix="/ambulances", tags=["User Competences"])
 app.include_router(users.router, prefix="/users", tags=["Users"])
+app.include_router(roles.router, prefix="/roles", tags=["Roles"])
+app.include_router(ambulances.router, prefix="/ambulances", tags=["Ambulances"])
+app.include_router(codebooks.router, prefix="/competences", tags=["Competences"])
+app.include_router(employee_competences.router, prefix="/employees/competences", tags=["Employee Competences"])
 
 @app.get("/")
 def health_check():

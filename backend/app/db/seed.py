@@ -33,6 +33,21 @@ def _get_seed_config(config_name: str) -> dict:
         ) from exc
 
 
+def _validate_seed_config(seed_config: dict) -> None:
+    """Fail early when a profile violates the deterministic seed contract."""
+    users = seed_config["users"]
+    emails = [user["email"] for user in users]
+    if len(emails) != len(set(emails)):
+        raise ValueError("Seed profile contains duplicate email addresses")
+    configured_emails = set(emails)
+    for assignment_group in ("role_assignments", "ambulance_assignments"):
+        unknown = set(seed_config[assignment_group]) - configured_emails
+        if unknown:
+            raise ValueError(
+                f"Seed profile {assignment_group} contains unknown users: {sorted(unknown)}"
+            )
+
+
 def _seed_roles(db: Session) -> dict[str, Role]:
     roles_by_code = {}
     for role_info in ROLES_DATA:
@@ -202,6 +217,7 @@ def _sync_user_ambulances(
 def seed_db(config_name: str | None = None):
     selected_config_name = config_name or os.getenv("SEED_CONFIG", "config_1")
     seed_config = _get_seed_config(selected_config_name)
+    _validate_seed_config(seed_config)
     print(f"Starting database seeding with {selected_config_name}...")
 
     Base.metadata.create_all(bind=engine)
