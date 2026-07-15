@@ -18,7 +18,14 @@ Overí Google access token a vráti alebo vytvorí lokálneho používateľa.
 
 ### `GET /roles/me`
 
-Vráti zoznam kódov rolí prihláseného používateľa, napríklad `EMPLOYEE` alebo `LEADER`.
+Vráti zoznam rolí prihláseného používateľa. Každá rola obsahuje názov aj číselný index, napríklad:
+
+```json
+[
+  {"name": "EMPLOYEE", "index": 1},
+  {"name": "LEADER", "index": 2}
+]
+```
 
 ### `GET /roles`
 

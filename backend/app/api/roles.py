@@ -8,9 +8,13 @@ from app.models.user import User
 
 router = APIRouter()
 
-@router.get("/me", response_model=list[str])
-def get_user_roles(current_user: User = Depends(get_current_user)) -> list[str]:
-    return [ur.role.code for ur in current_user.user_roles if ur.role and ur.role.is_active]
+@router.get("/me", response_model=list[dict])
+def get_user_roles(current_user: User = Depends(get_current_user)) -> list[dict]:
+    return [
+        {"name": ur.role.code, "index": ur.role.id}
+        for ur in current_user.user_roles
+        if ur.role and ur.role.is_active
+    ]
 
 @router.get("", response_model=list[dict])
 def list_all_roles(db: Session = Depends(get_db)) -> list[dict]:
