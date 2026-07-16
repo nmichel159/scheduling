@@ -173,8 +173,6 @@ CREATE TABLE public.schedules (
     ambulance_id integer NOT NULL,
     competence_id integer NOT NULL,
     work_date date NOT NULL,
-    shift_start time without time zone,
-    shift_end time without time zone,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     is_active boolean

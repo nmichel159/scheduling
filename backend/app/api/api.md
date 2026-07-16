@@ -212,3 +212,34 @@ Upraví existujúcu nedostupnosť.
 Odstráni nedostupnosť.
 
 </details>
+
+<details>
+<summary><strong>schedules.py – Rozvrhy</strong></summary>
+
+### `GET /schedules/me`
+
+Vráti rozvrh prihláseného používateľa iba za aktuálny mesiac. Každá položka obsahuje deň práce, ambulanciu a kompetenciu.
+
+### `GET /ambulances/{ambulance_id}/schedule`
+
+Vráti kompletný rozvrh určenej ambulancie za aktuálny mesiac. Vyžaduje rolu 2 alebo vyššiu; rola 2 musí byť manažérom danej ambulancie.
+
+### `PUT /ambulances/{ambulance_id}/schedule`
+
+Aktualizuje rozvrh ambulancie za aktuálny mesiac podľa odoslaného zoznamu zmien. Existujúce záznamy v aktuálnom mesiaci sa zosynchronizujú s novým zoznamom.
+
+Príklad tela požiadavky:
+
+```json
+{
+  "entries": [
+    {
+      "user_id": 12,
+      "competence_id": 3,
+      "work_date": "2026-07-20"
+    }
+  ]
+}
+```
+
+</details>

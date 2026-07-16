@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, DateTime, Boolean, ForeignKey, Date, Time
+from sqlalchemy import Column, Integer, DateTime, Boolean, ForeignKey, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.session import Base
@@ -12,9 +12,6 @@ class Schedule(Base):
     competence_id = Column(Integer, ForeignKey("competences.id"), nullable=False)
     
     work_date = Column(Date, nullable=False)
-    shift_start = Column(Time, nullable=True)
-    shift_end = Column(Time, nullable=True)
-
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     is_active = Column(Boolean, default=True)
