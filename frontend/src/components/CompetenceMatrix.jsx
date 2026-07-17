@@ -1,0 +1,357 @@
+import { useState, useMemo, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
+import './CompetenceMatrix.css';
+
+/**
+ * Presentational employee x competence table for one ambulance.
+ *
+ * All draft state (rows, columns, dirty tracking, persistence) lives in
+ * the parent (DepartmentsView) — this component only renders it and
+ * reports interactions via callbacks. It does not call the backend
+ * itself, except by delegating to the two codebook callbacks below,
+ * which the parent resolves immediately (adding/removing a competence
+ * definition is a registry write, not part of the editable draft).
+ *
+ * Props:
+ * - columns: [{ id, name, description }] — competences of the ambulance
+ * - rows: [{ user_id, email, full_name, competenceIds: number[] }] — draft state
+ * - allUsers: [{ id, email, full_name }] — hospital-wide pool for the search box
+ * - loading: table is (re)loading
+ * - onToggleCell(userId, competenceId)
+ * - onAddRow(user)
+ * - onRemoveRow(userId)
+ * - onAddCompetence(name): Promise
+ * - onDeleteCompetence(competenceId): Promise
+ */
+const CompetenceMatrix = ({
+  columns,
+  rows,
+  allUsers,
+  loading,
+  onToggleCell,
+  onAddRow,
+  onRemoveRow,
+  onAddCompetence,
+  onDeleteCompetence,
+}) => {
+  const { t } = useTranslation();
+
+  const [search, setSearch] = useState('');
+  const [addingCompetence, setAddingCompetence] = useState(false);
+  const [newCompetenceName, setNewCompetenceName] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
+  const [removingRowId, setRemovingRowId] = useState(null);
+
+  /* ---------- employee search (add row) ---------- */
+
+  const searchResults = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    const present = new Set(rows.map((r) => r.user_id));
+    return allUsers
+      .filter((u) => !present.has(u.id))
+      .filter(
+        (u) =>
+          u.email.toLowerCase().includes(q) ||
+          (u.full_name || '').toLowerCase().includes(q)
+      )
+      .slice(0, 8);
+  }, [search, allUsers, rows]);
+
+  const handlePick = (user) => {
+    onAddRow(user);
+    setSearch('');
+  };
+
+  /* ---------- floating layers (dropdown + popover) ----------
+   * .cmatrix-scroll needs overflow-x:auto for wide tables, but the CSS
+   * overflow spec forces overflow-y to 'auto' too whenever overflow-x
+   * isn't 'visible' — so any position:absolute layer nested inside it
+   * gets silently clipped once it grows taller than the scroll box.
+   * Portaling to <body> and positioning from a measured rect sidesteps
+   * that entirely.
+   */
+  const searchAnchorRef = useRef(null);
+  const [suggestRect, setSuggestRect] = useState(null);
+
+  useLayoutEffect(() => {
+    if (searchResults.length === 0 || !searchAnchorRef.current) return;
+    const el = searchAnchorRef.current;
+    const update = () => setSuggestRect(el.getBoundingClientRect());
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [searchResults.length]);
+
+  const popoverAnchorRef = useRef(null);
+  const popoverElRef = useRef(null);
+  const [popoverRect, setPopoverRect] = useState(null);
+
+  useLayoutEffect(() => {
+    if (!removingRowId || !popoverAnchorRef.current) return;
+    const anchor = popoverAnchorRef.current;
+    const update = () => setPopoverRect(anchor.getBoundingClientRect());
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+
+    const handleMouseDown = (e) => {
+      if (
+        !anchor.contains(e.target) &&
+        !(popoverElRef.current && popoverElRef.current.contains(e.target))
+      ) {
+        setRemovingRowId(null);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setRemovingRowId(null);
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [removingRowId]);
+
+  /* ---------- codebook actions (immediate) ---------- */
+
+  const handleAddCompetence = async () => {
+    const name = newCompetenceName.trim();
+    if (!name) return;
+    await onAddCompetence(name);
+    setNewCompetenceName('');
+    setAddingCompetence(false);
+  };
+
+  const handleDeleteCompetence = async (competenceId) => {
+    await onDeleteCompetence(competenceId);
+    setDeletingId(null);
+  };
+
+  /* ---------- row removal (confirm) ---------- */
+
+  const handleRemoveRow = (userId) => {
+    onRemoveRow(userId);
+    setRemovingRowId(null);
+  };
+
+  /* ---------- render ---------- */
+
+  const competenceColSpan = Math.max(columns.length, 1);
+  const removingRow = rows.find((r) => r.user_id === removingRowId) || null;
+
+  return (
+    <section className="cmatrix">
+      <div className={`cmatrix-scroll ${loading ? 'is-loading' : ''}`}>
+        <table className="cmatrix-table">
+          <thead>
+            <tr className="cmatrix-group-row">
+              <th className="cmatrix-corner">{t('competences.employee')}</th>
+              <th className="cmatrix-group-header" colSpan={competenceColSpan}>
+                <div className="cmatrix-group-inner">
+                  <span className="cmatrix-group-title">{t('competences.title')}</span>
+                  {addingCompetence ? (
+                    <span className="cmatrix-add">
+                      <input
+                        type="text"
+                        autoFocus
+                        value={newCompetenceName}
+                        onChange={(e) => setNewCompetenceName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddCompetence()}
+                        placeholder={t('competences.new_placeholder')}
+                        aria-label={t('competences.new_placeholder')}
+                      />
+                      <button
+                        type="button"
+                        className="departments-btn departments-btn-primary"
+                        disabled={!newCompetenceName.trim()}
+                        onClick={handleAddCompetence}
+                      >
+                        {t('departments.add')}
+                      </button>
+                      <button
+                        type="button"
+                        className="departments-btn"
+                        onClick={() => {
+                          setAddingCompetence(false);
+                          setNewCompetenceName('');
+                        }}
+                      >
+                        {t('departments.no')}
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="cmatrix-addcol-btn"
+                      onClick={() => setAddingCompetence(true)}
+                      aria-label={t('competences.add_competence')}
+                      title={t('competences.add_competence')}
+                    >
+                      +
+                    </button>
+                  )}
+                </div>
+              </th>
+            </tr>
+            <tr>
+              <th className="cmatrix-corner cmatrix-search-th">
+                <div className="cmatrix-search" ref={searchAnchorRef}>
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder={t('competences.search_placeholder')}
+                    aria-label={t('competences.search_placeholder')}
+                  />
+                </div>
+              </th>
+              {columns.map((c) => (
+                <th key={c.id} className="cmatrix-col" title={c.description || c.name}>
+                  <span className="cmatrix-colname">{c.name}</span>
+                  {deletingId === c.id ? (
+                    <span className="cmatrix-confirm">
+                      <button
+                        type="button"
+                        className="cmatrix-iconbtn is-danger"
+                        onClick={() => handleDeleteCompetence(c.id)}
+                        aria-label={t('departments.yes')}
+                      >
+                        ✓
+                      </button>
+                      <button
+                        type="button"
+                        className="cmatrix-iconbtn"
+                        onClick={() => setDeletingId(null)}
+                        aria-label={t('departments.no')}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="cmatrix-iconbtn"
+                      onClick={() => setDeletingId(c.id)}
+                      title={t('competences.delete_hint')}
+                      aria-label={t('competences.delete_hint')}
+                    >
+                      🗑
+                    </button>
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td className="cmatrix-empty-row" colSpan={competenceColSpan + 1}>
+                  {columns.length === 0 ? t('competences.empty') : t('departments.no_employees')}
+                </td>
+              </tr>
+            ) : (
+              rows.map((r) => (
+                <tr key={r.user_id}>
+                  <th className="cmatrix-row">
+                    <div className="cmatrix-row-inner">
+                      <span className="cmatrix-row-name">{r.full_name || r.email}</span>
+                      <button
+                        type="button"
+                        className={`cmatrix-remove-btn ${removingRowId === r.user_id ? 'is-active' : ''}`}
+                        onClick={(e) => {
+                          popoverAnchorRef.current = e.currentTarget;
+                          setRemovingRowId(r.user_id);
+                        }}
+                        title={t('departments.remove')}
+                        aria-label={t('departments.remove')}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </th>
+                  {columns.map((c) => {
+                    const has = r.competenceIds.includes(c.id);
+                    return (
+                      <td key={c.id}>
+                        <button
+                          type="button"
+                          className={`cmatrix-cell ${has ? 'is-on' : ''}`}
+                          onClick={() => onToggleCell(r.user_id, c.id)}
+                          aria-pressed={has}
+                          aria-label={`${r.full_name || r.email} — ${c.name}`}
+                        >
+                          {has ? '✕' : ''}
+                        </button>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {searchResults.length > 0 &&
+        suggestRect &&
+        createPortal(
+          <ul
+            className="cmatrix-suggestions"
+            style={{ top: suggestRect.bottom, left: suggestRect.left, minWidth: suggestRect.width }}
+          >
+            {searchResults.map((u) => (
+              <li key={u.id}>
+                <button type="button" onClick={() => handlePick(u)}>
+                  {u.full_name || u.email} ({u.email})
+                </button>
+              </li>
+            ))}
+          </ul>,
+          document.body
+        )}
+
+      {removingRow &&
+        popoverRect &&
+        createPortal(
+          <div
+            ref={popoverElRef}
+            className="cmatrix-popover"
+            role="dialog"
+            aria-modal="true"
+            style={{ top: popoverRect.bottom + 6, left: popoverRect.left }}
+          >
+            <p className="cmatrix-popover-text">
+              {t('departments.confirm_remove_named', {
+                name: removingRow.full_name || removingRow.email,
+              })}
+            </p>
+            <div className="cmatrix-popover-actions">
+              <button type="button" className="departments-btn" onClick={() => setRemovingRowId(null)}>
+                {t('departments.cancel')}
+              </button>
+              <button
+                type="button"
+                className="departments-btn departments-btn-danger"
+                onClick={() => handleRemoveRow(removingRow.user_id)}
+              >
+                {t('departments.remove')}
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
+    </section>
+  );
+};
+
+export default CompetenceMatrix;

@@ -54,11 +54,32 @@
     "remove": "Odobrať",
     "removed": "Zamestnanec odobratý",
     "confirm_remove": "Naozaj odobrať?",
+    "confirm_remove_named": "Odobrať zamestnanca {{name}}?",
+    "cancel": "Zrušiť",
     "yes": "Áno",
     "no": "Nie",
-    "no_employees": "Toto oddelenie zatiaľ nemá žiadnych zamestnancov."
+    "no_employees": "Toto oddelenie zatiaľ nemá žiadnych zamestnancov.",
+    "save": "Uložiť",
+    "saved": "Uložené",
+    "save_error": "Uloženie zlyhalo",
+    "unsaved_warning": "Máš neuložené zmeny, naozaj chceš odísť?",
+    "leave_anyway": "Odísť bez uloženia",
+    "stay": "Zostať"
   },
   "admin": {
   "coming_soon": "Správa číselníka ambulancií a manažérov — pripravuje sa."
+},
+"competences": {
+  "title": "Kompetencie",
+  "new_placeholder": "Nová kompetencia...",
+  "empty": "Toto oddelenie zatiaľ nemá definované žiadne kompetencie.",
+  "employee": "Zamestnanec",
+  "added": "Kompetencia pridaná",
+  "deleted": "Kompetencia zmazaná",
+  "delete_hint": "Zmazať kompetenciu",
+  "load_error": "Nepodarilo sa načítať kompetencie.",
+  "action_error": "Akcia zlyhala, skús to znova.",
+  "add_competence": "Pridať kompetenciu",
+  "search_placeholder": "Vyhľadať zamestnanca..."
 }
 }

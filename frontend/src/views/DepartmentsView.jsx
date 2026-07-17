@@ -1,20 +1,41 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useBlocker } from 'react-router-dom';
 import {
-  fetchManagerAmbulances,
-  fetchEmployees,
-  addEmployee,
-  removeEmployee,
-  fetchUsers,
-} from '../services/ambulanceService';
+  fetchMyManagedAmbulances,
+  fetchEmployeeCompetenceTable,
+  saveEmployeeCompetenceTable,
+  fetchCompetences,
+  createCompetence,
+  deleteCompetence,
+  addEmployeeToAmbulance,
+  removeEmployeeFromAmbulance,
+  fetchAllUsers,
+} from '../services/competenceService';
+import CompetenceMatrix from '../components/CompetenceMatrix';
+import ConfirmDialog from '../components/ConfirmDialog';
 import './DepartmentsView.css';
+
+/** Deep-copies rows so edits to the draft never mutate the loaded snapshot. */
+const cloneRows = (list) => list.map((r) => ({ ...r, competenceIds: [...r.competenceIds] }));
+
+/** Order/format-independent fingerprint of a row set, used to detect unsaved changes. */
+const fingerprint = (list) =>
+  JSON.stringify(
+    [...list]
+      .map((r) => ({ user_id: r.user_id, competence_ids: [...r.competenceIds].sort((a, b) => a - b) }))
+      .sort((a, b) => a.user_id - b.user_id)
+  );
 
 /**
  * Department (ambulance) management view for managers.
- * Shows all ambulances the current user manages; selecting one lists
- * its employees with the ability to add or remove them at any time.
- * When the manager leads only a single ambulance, the side list is
- * hidden and the detail is shown directly (full width).
+ *
+ * Shows all ambulances the current user manages; selecting one loads the
+ * whole employee x competence table ONCE (bulk GET). Every edit — adding
+ * or removing an employee, toggling a competence cell — only touches
+ * local state. Nothing reaches the backend until "Save": added/removed
+ * employees are synced first (membership calls), then the whole
+ * competence table is written in a single bulk PUT.
  */
 const DepartmentsView = () => {
   const { t } = useTranslation();
@@ -29,24 +50,31 @@ const DepartmentsView = () => {
 
   const [ambulances, setAmbulances] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
-  const [employees, setEmployees] = useState([]);
-  const [allUsers, setAllUsers] = useState([]);
 
   const [loading, setLoading] = useState(true);
-  const [employeesLoading, setEmployeesLoading] = useState(false);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const [pickerValue, setPickerValue] = useState('');
-  const [confirmingId, setConfirmingId] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [originalRows, setOriginalRows] = useState([]);
+  const [columns, setColumns] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [tableLoading, setTableLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [confirmState, setConfirmState] = useState(null);
 
   const notify = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2400);
   };
 
-  /* ---------- initial load: my ambulances + user list ---------- */
+  const isDirty = useMemo(
+    () => fingerprint(rows) !== fingerprint(originalRows),
+    [rows, originalRows]
+  );
+
+  /* ---------- initial load: ambulances I manage ---------- */
 
   useEffect(() => {
     if (!currentUser?.id) return;
@@ -56,20 +84,14 @@ const DepartmentsView = () => {
       setLoading(true);
       setError(null);
       try {
-        const [myAmbulances, users] = await Promise.all([
-          fetchManagerAmbulances(currentUser.id),
-          fetchUsers().catch((err) => {
-            // 403 here just means the user is not a manager.
-            if (err?.response?.status === 403) setForbidden(true);
-            return [];
-          }),
-        ]);
+        const myAmbulances = await fetchMyManagedAmbulances();
         if (cancelled) return;
         setAmbulances(myAmbulances);
-        setAllUsers(users);
         if (myAmbulances.length > 0) setSelectedId(myAmbulances[0].id);
-      } catch {
-        if (!cancelled) setError(t('departments.load_error'));
+      } catch (err) {
+        if (cancelled) return;
+        if (err?.response?.status === 403) setForbidden(true);
+        else setError(t('departments.load_error'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -80,60 +102,190 @@ const DepartmentsView = () => {
     };
   }, [currentUser, t]);
 
-  /* ---------- employees of the selected ambulance ---------- */
+  /* ---------- table for the selected ambulance (bulk load, once) ---------- */
 
-  const loadEmployees = useCallback(async () => {
+  const loadTable = useCallback(async () => {
     if (selectedId == null) return;
-    setEmployeesLoading(true);
-    setConfirmingId(null);
+    setTableLoading(true);
     try {
-      const list = await fetchEmployees(selectedId);
-      setEmployees(list);
+      const [table, comps, users] = await Promise.all([
+        fetchEmployeeCompetenceTable(selectedId),
+        fetchCompetences(selectedId),
+        fetchAllUsers(),
+      ]);
+      const nextRows = table.map((row) => ({
+        user_id: row.user_id,
+        email: row.email,
+        full_name: row.full_name,
+        competenceIds: row.competences.map((c) => c.id),
+      }));
+      setRows(nextRows);
+      setOriginalRows(cloneRows(nextRows));
+      setColumns(comps);
+      setAllUsers(users);
     } catch {
-      setEmployees([]);
+      setRows([]);
+      setOriginalRows([]);
+      setColumns([]);
       notify(t('departments.load_error'));
     } finally {
-      setEmployeesLoading(false);
+      setTableLoading(false);
     }
   }, [selectedId, t]);
 
   useEffect(() => {
-    loadEmployees();
-  }, [loadEmployees]);
+    loadTable();
+  }, [loadTable]);
 
-  /* ---------- actions ---------- */
+  /* ---------- leave-page guards while there are unsaved changes ---------- */
 
-  const availableUsers = useMemo(() => {
-    const assigned = new Set(employees.map((e) => e.user_id));
-    return allUsers.filter((u) => !assigned.has(u.id));
-  }, [allUsers, employees]);
+  useEffect(() => {
+    const handler = (e) => {
+      if (!isDirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
 
-  const handleAdd = async () => {
-    const userId = Number(pickerValue);
-    if (!userId || selectedId == null) return;
+  const blocker = useBlocker(
+    useCallback(
+      ({ currentLocation, nextLocation }) =>
+        isDirty && currentLocation.pathname !== nextLocation.pathname,
+      [isDirty]
+    )
+  );
+
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+    setConfirmState({
+      message: t('departments.unsaved_warning'),
+      onConfirm: () => {
+        setConfirmState(null);
+        blocker.proceed();
+      },
+      onCancel: () => {
+        setConfirmState(null);
+        blocker.reset();
+      },
+    });
+  }, [blocker, t]);
+
+  const selectAmbulance = (id) => {
+    if (id === selectedId) return;
+    if (!isDirty) {
+      setSelectedId(id);
+      return;
+    }
+    setConfirmState({
+      message: t('departments.unsaved_warning'),
+      onConfirm: () => {
+        setConfirmState(null);
+        setSelectedId(id);
+      },
+      onCancel: () => setConfirmState(null),
+    });
+  };
+
+  /* ---------- draft edits (local only) ---------- */
+
+  const toggleCell = (userId, competenceId) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.user_id !== userId) return r;
+        const has = r.competenceIds.includes(competenceId);
+        return {
+          ...r,
+          competenceIds: has
+            ? r.competenceIds.filter((id) => id !== competenceId)
+            : [...r.competenceIds, competenceId],
+        };
+      })
+    );
+  };
+
+  const addRow = (user) => {
+    setRows((prev) => [
+      ...prev,
+      { user_id: user.id, email: user.email, full_name: user.full_name, competenceIds: [] },
+    ]);
+  };
+
+  const removeRow = (userId) => {
+    setRows((prev) => prev.filter((r) => r.user_id !== userId));
+  };
+
+  /* ---------- codebook actions (immediate — registry, not draft) ---------- */
+
+  const handleAddCompetence = async (name) => {
     try {
-      await addEmployee(selectedId, userId);
-      setPickerValue('');
-      notify(t('departments.added'));
-      loadEmployees();
-    } catch (err) {
-      notify(
-        err?.response?.status === 409
-          ? t('departments.already_assigned')
-          : t('departments.action_error')
-      );
+      const created = await createCompetence(selectedId, name);
+      setColumns((prev) => [...prev, created]);
+      notify(t('competences.added'));
+    } catch {
+      notify(t('competences.action_error'));
     }
   };
 
-  const handleRemove = async (userId) => {
-    if (selectedId == null) return;
+  const handleDeleteCompetence = async (competenceId) => {
     try {
-      await removeEmployee(selectedId, userId);
-      setConfirmingId(null);
-      notify(t('departments.removed'));
-      loadEmployees();
+      await deleteCompetence(selectedId, competenceId);
+      setColumns((prev) => prev.filter((c) => c.id !== competenceId));
+      const stripCompetence = (list) =>
+        list.map((r) => ({
+          ...r,
+          competenceIds: r.competenceIds.filter((id) => id !== competenceId),
+        }));
+      setRows(stripCompetence);
+      setOriginalRows(stripCompetence);
+      notify(t('competences.deleted'));
     } catch {
-      notify(t('departments.action_error'));
+      notify(t('competences.action_error'));
+    }
+  };
+
+  /* ---------- save: membership diff, then one bulk competence PUT ---------- */
+
+  const handleSave = async () => {
+    if (selectedId == null || saving) return;
+    setSaving(true);
+    try {
+      const originalIds = new Set(originalRows.map((r) => r.user_id));
+      const currentIds = new Set(rows.map((r) => r.user_id));
+      const added = rows.filter((r) => !originalIds.has(r.user_id));
+      const removed = originalRows.filter((r) => !currentIds.has(r.user_id));
+
+      const failedAdds = new Set();
+      for (const row of added) {
+        try {
+          await addEmployeeToAmbulance(selectedId, row.user_id);
+        } catch {
+          failedAdds.add(row.user_id);
+          notify(t('departments.action_error'));
+        }
+      }
+
+      for (const row of removed) {
+        try {
+          await removeEmployeeFromAmbulance(selectedId, row.user_id);
+        } catch {
+          notify(t('departments.action_error'));
+        }
+      }
+
+      const payload = rows
+        .filter((r) => !failedAdds.has(r.user_id))
+        .map((r) => ({ user_id: r.user_id, competence_ids: r.competenceIds }));
+
+      await saveEmployeeCompetenceTable(selectedId, payload);
+
+      await loadTable();
+      notify(t('departments.saved'));
+    } catch {
+      notify(t('departments.save_error'));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -173,7 +325,7 @@ const DepartmentsView = () => {
                 type="button"
                 key={a.id}
                 className={`departments-item ${a.id === selectedId ? 'is-selected' : ''}`}
-                onClick={() => setSelectedId(a.id)}
+                onClick={() => selectAmbulance(a.id)}
               >
                 <span className="departments-item-name">{a.name}</span>
                 {a.description && <span className="departments-item-desc">{a.description}</span>}
@@ -182,7 +334,7 @@ const DepartmentsView = () => {
           </nav>
         )}
 
-        {/* right: employees of the selected ambulance */}
+        {/* right: employee x competence table for the selected ambulance */}
         <section className="departments-detail">
           {selected && (
             <>
@@ -191,74 +343,27 @@ const DepartmentsView = () => {
                 {!showList && selected.description && (
                   <p className="departments-detail-desc">{selected.description}</p>
                 )}
-                <span className="departments-count">
-                  {t('departments.employee_count', { count: employees.length })}
-                </span>
-              </header>
-
-              <div className="departments-add">
-                <select
-                  value={pickerValue}
-                  onChange={(e) => setPickerValue(e.target.value)}
-                  aria-label={t('departments.pick_user')}
-                >
-                  <option value="">{t('departments.pick_user')}</option>
-                  {availableUsers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.full_name || u.email} ({u.email})
-                    </option>
-                  ))}
-                </select>
                 <button
                   type="button"
-                  className="departments-btn departments-btn-primary"
-                  disabled={!pickerValue}
-                  onClick={handleAdd}
+                  className={`departments-btn departments-btn-primary ${isDirty ? 'is-dirty' : ''}`}
+                  disabled={!isDirty || saving}
+                  onClick={handleSave}
                 >
-                  {t('departments.add')}
+                  {t('departments.save')}
                 </button>
-              </div>
+              </header>
 
-              <ul className={`departments-employees ${employeesLoading ? 'is-loading' : ''}`}>
-                {employees.length === 0 && !employeesLoading && (
-                  <li className="departments-empty">{t('departments.no_employees')}</li>
-                )}
-                {employees.map((e) => (
-                  <li key={e.user_id} className="departments-employee">
-                    <div className="departments-employee-info">
-                      <span className="departments-employee-name">{e.full_name || e.email}</span>
-                      <span className="departments-employee-email">{e.email}</span>
-                    </div>
-                    {confirmingId === e.user_id ? (
-                      <div className="departments-confirm">
-                        <span>{t('departments.confirm_remove')}</span>
-                        <button
-                          type="button"
-                          className="departments-btn departments-btn-danger"
-                          onClick={() => handleRemove(e.user_id)}
-                        >
-                          {t('departments.yes')}
-                        </button>
-                        <button
-                          type="button"
-                          className="departments-btn"
-                          onClick={() => setConfirmingId(null)}
-                        >
-                          {t('departments.no')}
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className="departments-btn departments-btn-outline-danger"
-                        onClick={() => setConfirmingId(e.user_id)}
-                      >
-                        {t('departments.remove')}
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
+              <CompetenceMatrix
+                columns={columns}
+                rows={rows}
+                allUsers={allUsers}
+                loading={tableLoading}
+                onToggleCell={toggleCell}
+                onAddRow={addRow}
+                onRemoveRow={removeRow}
+                onAddCompetence={handleAddCompetence}
+                onDeleteCompetence={handleDeleteCompetence}
+              />
             </>
           )}
         </section>
@@ -269,6 +374,15 @@ const DepartmentsView = () => {
           {toast}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmState}
+        message={confirmState?.message}
+        confirmLabel={t('departments.leave_anyway')}
+        cancelLabel={t('departments.stay')}
+        onConfirm={confirmState?.onConfirm}
+        onCancel={confirmState?.onCancel}
+      />
     </div>
   );
 };

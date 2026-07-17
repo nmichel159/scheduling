@@ -1,0 +1,263 @@
+/* --- Competence matrix (inside the department detail) --- */
+
+.cmatrix {
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.cmatrix-group-row .cmatrix-corner,
+.cmatrix-group-header {
+  background: var(--primary-background);
+}
+
+.cmatrix-group-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cmatrix-group-header {
+  gap: 8px;
+  color: var(--text-h);
+  font-weight: 700;
+  text-align: left;
+}
+
+.cmatrix-add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.cmatrix-add input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  background: var(--background);
+  color: var(--text-h);
+  min-width: 0;
+}
+
+.cmatrix-addcol-btn {
+  border: 1px dashed var(--border);
+  background: none;
+  color: var(--text-h);
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.cmatrix-addcol-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+/* --- employee search (add row) --- */
+.cmatrix-search-th {
+  position: relative;
+  overflow: visible;
+  text-align: left;
+}
+.cmatrix-search {
+  position: relative;
+  min-width: 160px;
+}
+.cmatrix-search input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.85rem;
+  background: var(--background);
+  color: var(--text-h);
+}
+
+/*
+ * Portaled to <body> and positioned from a measured DOMRect (see
+ * CompetenceMatrix.jsx) instead of being nested inside .cmatrix-scroll.
+ * That ancestor needs overflow-x:auto for wide tables, and per the CSS
+ * overflow spec that silently forces overflow-y to 'auto' as well, so a
+ * position:absolute dropdown nested inside it gets clipped the moment it
+ * grows taller than the scroll box. position:fixed + portal sidesteps
+ * that entirely; top/left/minWidth come from the anchor's bounding rect
+ * via inline style.
+ */
+.cmatrix-suggestions {
+  position: fixed;
+  z-index: 500;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-background);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  width: max-content;
+  max-width: 320px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.cmatrix-suggestions li + li { margin-top: 2px; }
+.cmatrix-suggestions li {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cmatrix-suggestions button {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 7px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cmatrix-suggestions button:hover { background: var(--primary-background); }
+
+/* Horizontal scroll for many competences. */
+.cmatrix-scroll {
+  overflow-x: auto;
+  transition: opacity 0.15s ease;
+}
+.cmatrix-scroll.is-loading { opacity: 0.5; pointer-events: none; }
+
+.cmatrix-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.cmatrix-table th,
+.cmatrix-table td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.cmatrix-corner,
+.cmatrix-row {
+  min-width: 220px;
+}
+
+.cmatrix-corner { background: var(--background); }
+
+.cmatrix-col {
+  background: var(--background);
+  color: var(--text-h);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cmatrix-colname { margin-right: 6px; }
+
+.cmatrix-row {
+  position: relative;
+  background: var(--background);
+  color: var(--text-h);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.cmatrix-row-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cmatrix-row-name { min-width: 0; }
+
+.cmatrix-remove-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  color: #c0463c;
+  opacity: 0;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+tr:hover .cmatrix-remove-btn,
+.cmatrix-remove-btn.is-active {
+  opacity: 1;
+}
+.cmatrix-remove-btn:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+@media (hover: none) {
+  .cmatrix-remove-btn {
+    opacity: 1;
+  }
+}
+
+/* Remove-employee confirm popover — portaled, see .cmatrix-suggestions comment above. */
+.cmatrix-popover {
+  position: fixed;
+  z-index: 500;
+  width: max-content;
+  max-width: 260px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-background);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  padding: 10px;
+}
+.cmatrix-popover-text {
+  margin: 0 0 10px;
+  color: var(--text-h);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  white-space: normal;
+}
+.cmatrix-popover-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cmatrix-empty-row {
+  text-align: left;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.cmatrix-iconbtn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  opacity: 0.6;
+  padding: 0 2px;
+}
+.cmatrix-iconbtn:hover { opacity: 1; }
+.cmatrix-iconbtn.is-danger { color: #c0463c; opacity: 1; }
+
+.cmatrix-confirm { white-space: nowrap; }
+
+/* Clickable matrix cell. */
+.cmatrix-cell {
+  width: 34px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  color: var(--primary);
+}
+.cmatrix-cell:hover { border-color: var(--primary); }
+.cmatrix-cell.is-on { background: var(--primary-background); }

@@ -54,11 +54,34 @@
     "remove": "Remove",
     "removed": "Employee removed",
     "confirm_remove": "Really remove?",
+    "confirm_remove_named": "Remove employee {{name}}?",
+    "cancel": "Cancel",
     "yes": "Yes",
     "no": "No",
-    "no_employees": "This department has no employees yet."
+    "no_employees": "This department has no employees yet.",
+    "save": "Save",
+    "saved": "Saved",
+    "save_error": "Saving failed",
+    "unsaved_warning": "You have unsaved changes, do you really want to leave?",
+    "leave_anyway": "Leave without saving",
+    "stay": "Stay"
   },
   "admin": {
     "coming_soon": "Ambulance codebook and manager administration — coming soon."
-  }
+  },
+  "competences": {
+  "title": "Competences",
+  "new_placeholder": "New competence...",
+  "empty": "This department has no defined competences yet.",
+  "employee": "Employee",
+  "added": "Competence added",
+  "deleted": "Competence deleted",
+  "delete_hint": "Delete competence",
+  "load_error": "Failed to load competences.",
+  "action_error": "Action failed, please try again.",
+  "add_competence": "Add competence",
+  "search_placeholder": "Search employee..."
+}
+
+
 }

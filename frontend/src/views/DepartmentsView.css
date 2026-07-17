@@ -134,6 +134,9 @@
 }
 .departments-btn-primary:hover { opacity: 0.9; }
 .departments-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.departments-btn-primary.is-dirty {
+  box-shadow: 0 0 0 3px var(--primary-background);
+}
 .departments-btn-danger {
   background: #c0463c;
   border-color: #c0463c;
