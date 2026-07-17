@@ -7,7 +7,7 @@ import './Sidebar.css';
 const Sidebar = ({ open, onToggle }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { isManager, isAdmin } = useRoles();
+  const { hasEmployee, hasManager, hasAdmin } = useRoles();
 
   const logout = () => {
     localStorage.removeItem('user');
@@ -28,15 +28,17 @@ const Sidebar = ({ open, onToggle }) => {
         <NavLink to="/dashboard" className="nav-item">
           <span className="icon">🏠</span><span className="label">{t('sidebar.dashboard')}</span>
         </NavLink>
-        <NavLink to="/workload" className="nav-item">
-          <span className="icon">📅</span><span className="label">{t('sidebar.workload')}</span>
-        </NavLink>
-        {isManager && (
+        {hasEmployee && (
+          <NavLink to="/workload" className="nav-item">
+            <span className="icon">📅</span><span className="label">{t('sidebar.workload')}</span>
+          </NavLink>
+        )}
+        {hasManager && (
           <NavLink to="/departments" className="nav-item">
             <span className="icon">🏥</span><span className="label">{t('sidebar.departments')}</span>
           </NavLink>
         )}
-        {isAdmin && (
+        {hasAdmin && (
           <NavLink to="/admin" className="nav-item">
             <span className="icon">🛠️</span><span className="label">{t('sidebar.admin')}</span>
           </NavLink>

@@ -7,10 +7,10 @@ import AdminView from '../views/AdminView';
 import MainLayout from '../layouts/MainLayout';
 import { useRoles } from '../hooks/useRoles';
 
-/** Pustí ďalej len usera s dostatočným role levelom (UX vrstva, backend má vlastné 403). */
-const RequireRole = ({ minLevel, children }) => {
-  const { maxLevel } = useRoles();
-  return maxLevel >= minLevel ? children : <Navigate to="/dashboard" replace />;
+/** Pustí ďalej len usera s daným flagom roly (UX vrstva, backend má vlastné 403). */
+const RequireRole = ({ flag, children }) => {
+  const roles = useRoles();
+  return roles[flag] ? children : <Navigate to="/dashboard" replace />;
 };
 
 export const router = createBrowserRouter([
@@ -27,12 +27,16 @@ export const router = createBrowserRouter([
       },
       {
         path: "/workload",
-        element: <WorkloadView />,
+        element: (
+          <RequireRole flag="hasEmployee">
+            <WorkloadView />
+          </RequireRole>
+        ),
       },
       {
         path: "/departments",
         element: (
-          <RequireRole minLevel={2}>
+          <RequireRole flag="hasManager">
             <DepartmentsView />
           </RequireRole>
         ),
@@ -40,7 +44,7 @@ export const router = createBrowserRouter([
       {
         path: "/admin",
         element: (
-          <RequireRole minLevel={3}>
+          <RequireRole flag="hasAdmin">
             <AdminView />
           </RequireRole>
         ),
