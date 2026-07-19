@@ -36,8 +36,34 @@
   grid-template-columns: 1fr;
 }
 
-/* --- left column: my ambulances --- */
+/* --- left column: my ambulances ---
+ * .departments-list holds one or two groups (bežné / urgentné); the
+ * items themselves live in .departments-group-items so the group title
+ * stays out of their flex flow. */
 .departments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.departments-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.departments-group-title {
+  margin: 0;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+  padding-left: 2px;
+}
+
+.departments-group-items {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -211,6 +237,7 @@
 
 @media (max-width: 768px) {
   .departments-layout { grid-template-columns: 1fr; }
-  .departments-list { flex-direction: row; flex-wrap: wrap; }
+  .departments-list { flex-direction: column; }
+  .departments-group-items { flex-direction: row; flex-wrap: wrap; }
   .departments-item { flex: 1 1 45%; }
 }

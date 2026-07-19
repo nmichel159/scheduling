@@ -294,6 +294,25 @@ const DepartmentsView = () => {
   const selected = ambulances.find((a) => a.id === selectedId) || null;
   const showList = ambulances.length > 1; // 1 klinika = bez bočného zoznamu
 
+  /* Urgentné ambulancie sa v zozname oddelia do vlastnej skupiny.
+   * Skupina sa vykreslí len ak nie je prázdna, takže bez urgentu
+   * zostáva zoznam presne taký, aký bol doteraz. */
+  const regularAmbulances = ambulances.filter((a) => !a.isurgent);
+  const urgentAmbulances = ambulances.filter((a) => a.isurgent);
+  const showGroupTitles = regularAmbulances.length > 0 && urgentAmbulances.length > 0;
+
+  const renderAmbulanceItem = (a) => (
+    <button
+      type="button"
+      key={a.id}
+      className={`departments-item ${a.id === selectedId ? 'is-selected' : ''}`}
+      onClick={() => selectAmbulance(a.id)}
+    >
+      <span className="departments-item-name">{a.name}</span>
+      {a.description && <span className="departments-item-desc">{a.description}</span>}
+    </button>
+  );
+
   if (loading) {
     return <div className="departments"><p>{t('departments.loading')}</p></div>;
   }
@@ -319,19 +338,27 @@ const DepartmentsView = () => {
       <div className={`departments-layout ${showList ? '' : 'is-single'}`}>
         {/* left: my ambulances — zobrazí sa len pri viacerých klinikách */}
         {showList && (
-          <nav className="departments-list" aria-label={t('departments.my_ambulances')}>
-            {ambulances.map((a) => (
-              <button
-                type="button"
-                key={a.id}
-                className={`departments-item ${a.id === selectedId ? 'is-selected' : ''}`}
-                onClick={() => selectAmbulance(a.id)}
-              >
-                <span className="departments-item-name">{a.name}</span>
-                {a.description && <span className="departments-item-desc">{a.description}</span>}
-              </button>
-            ))}
-          </nav>
+          <div className="departments-list">
+            {regularAmbulances.length > 0 && (
+              <nav className="departments-group" aria-label={t('departments.my_ambulances')}>
+                {showGroupTitles && (
+                  <h2 className="departments-group-title">{t('departments.group_regular')}</h2>
+                )}
+                <div className="departments-group-items">
+                  {regularAmbulances.map(renderAmbulanceItem)}
+                </div>
+              </nav>
+            )}
+
+            {urgentAmbulances.length > 0 && (
+              <nav className="departments-group" aria-label={t('departments.group_urgent')}>
+                <h2 className="departments-group-title">{t('departments.group_urgent')}</h2>
+                <div className="departments-group-items">
+                  {urgentAmbulances.map(renderAmbulanceItem)}
+                </div>
+              </nav>
+            )}
+          </div>
         )}
 
         {/* right: employee x competence table for the selected ambulance */}

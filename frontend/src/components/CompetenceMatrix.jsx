@@ -38,25 +38,27 @@ const CompetenceMatrix = ({
   const { t } = useTranslation();
 
   const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const [addingCompetence, setAddingCompetence] = useState(false);
   const [newCompetenceName, setNewCompetenceName] = useState('');
   const [deletingId, setDeletingId] = useState(null);
   const [removingRowId, setRemovingRowId] = useState(null);
 
-  /* ---------- employee search (add row) ---------- */
+  /* ---------- employee search (add row) ----------
+   * The dropdown opens on focus with the full list of assignable users
+   * (everyone not already in the table) and narrows as the user types.
+   */
 
   const searchResults = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return [];
     const present = new Set(rows.map((r) => r.user_id));
-    return allUsers
-      .filter((u) => !present.has(u.id))
-      .filter(
-        (u) =>
-          u.email.toLowerCase().includes(q) ||
-          (u.full_name || '').toLowerCase().includes(q)
-      )
-      .slice(0, 8);
+    const available = allUsers.filter((u) => !present.has(u.id));
+    if (!q) return available;
+    return available.filter(
+      (u) =>
+        u.email.toLowerCase().includes(q) ||
+        (u.full_name || '').toLowerCase().includes(q)
+    );
   }, [search, allUsers, rows]);
 
   const handlePick = (user) => {
@@ -73,20 +75,38 @@ const CompetenceMatrix = ({
    * that entirely.
    */
   const searchAnchorRef = useRef(null);
+  const suggestElRef = useRef(null);
   const [suggestRect, setSuggestRect] = useState(null);
 
   useLayoutEffect(() => {
-    if (searchResults.length === 0 || !searchAnchorRef.current) return;
+    if (!searchOpen || !searchAnchorRef.current) return;
     const el = searchAnchorRef.current;
     const update = () => setSuggestRect(el.getBoundingClientRect());
     update();
     window.addEventListener('scroll', update, true);
     window.addEventListener('resize', update);
+
+    const handleMouseDown = (e) => {
+      if (
+        !el.contains(e.target) &&
+        !(suggestElRef.current && suggestElRef.current.contains(e.target))
+      ) {
+        setSearchOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setSearchOpen(false);
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown);
+
     return () => {
       window.removeEventListener('scroll', update, true);
       window.removeEventListener('resize', update);
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [searchResults.length]);
+  }, [searchOpen]);
 
   const popoverAnchorRef = useRef(null);
   const popoverElRef = useRef(null);
@@ -121,6 +141,41 @@ const CompetenceMatrix = ({
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [removingRowId]);
+
+  /* Competence-deletion confirm popover — same portal pattern. */
+  const deleteAnchorRef = useRef(null);
+  const deleteElRef = useRef(null);
+  const [deleteRect, setDeleteRect] = useState(null);
+
+  useLayoutEffect(() => {
+    if (!deletingId || !deleteAnchorRef.current) return;
+    const anchor = deleteAnchorRef.current;
+    const update = () => setDeleteRect(anchor.getBoundingClientRect());
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+
+    const handleMouseDown = (e) => {
+      if (
+        !anchor.contains(e.target) &&
+        !(deleteElRef.current && deleteElRef.current.contains(e.target))
+      ) {
+        setDeletingId(null);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setDeletingId(null);
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [deletingId]);
 
   /* ---------- codebook actions (immediate) ---------- */
 
@@ -210,6 +265,7 @@ const CompetenceMatrix = ({
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
+                    onFocus={() => setSearchOpen(true)}
                     placeholder={t('competences.search_placeholder')}
                     aria-label={t('competences.search_placeholder')}
                   />
@@ -217,37 +273,21 @@ const CompetenceMatrix = ({
               </th>
               {columns.map((c) => (
                 <th key={c.id} className="cmatrix-col" title={c.description || c.name}>
-                  <span className="cmatrix-colname">{c.name}</span>
-                  {deletingId === c.id ? (
-                    <span className="cmatrix-confirm">
-                      <button
-                        type="button"
-                        className="cmatrix-iconbtn is-danger"
-                        onClick={() => handleDeleteCompetence(c.id)}
-                        aria-label={t('departments.yes')}
-                      >
-                        ✓
-                      </button>
-                      <button
-                        type="button"
-                        className="cmatrix-iconbtn"
-                        onClick={() => setDeletingId(null)}
-                        aria-label={t('departments.no')}
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  ) : (
+                  <div className="cmatrix-col-inner">
+                    <span className="cmatrix-colname">{c.name}</span>
                     <button
                       type="button"
-                      className="cmatrix-iconbtn"
-                      onClick={() => setDeletingId(c.id)}
+                      className={`cmatrix-remove-btn ${deletingId === c.id ? 'is-active' : ''}`}
+                      onClick={(e) => {
+                        deleteAnchorRef.current = e.currentTarget;
+                        setDeletingId(c.id);
+                      }}
                       title={t('competences.delete_hint')}
                       aria-label={t('competences.delete_hint')}
                     >
-                      🗑
+                      ✕
                     </button>
-                  )}
+                  </div>
                 </th>
               ))}
             </tr>
@@ -282,7 +322,7 @@ const CompetenceMatrix = ({
                   {columns.map((c) => {
                     const has = r.competenceIds.includes(c.id);
                     return (
-                      <td key={c.id}>
+                      <td key={c.id} className="cmatrix-cell-td">
                         <button
                           type="button"
                           className={`cmatrix-cell ${has ? 'is-on' : ''}`}
@@ -302,10 +342,12 @@ const CompetenceMatrix = ({
         </table>
       </div>
 
-      {searchResults.length > 0 &&
+      {searchOpen &&
+        searchResults.length > 0 &&
         suggestRect &&
         createPortal(
           <ul
+            ref={suggestElRef}
             className="cmatrix-suggestions"
             style={{ top: suggestRect.bottom, left: suggestRect.left, minWidth: suggestRect.width }}
           >
@@ -319,6 +361,46 @@ const CompetenceMatrix = ({
           </ul>,
           document.body
         )}
+
+      {deletingId &&
+        deleteRect &&
+        (() => {
+          const col = columns.find((c) => c.id === deletingId);
+          if (!col) return null;
+          return createPortal(
+            <div
+              ref={deleteElRef}
+              className="cmatrix-popover"
+              role="dialog"
+              aria-modal="true"
+              style={{
+                top: deleteRect.bottom + 6,
+                left: Math.max(8, Math.min(deleteRect.left, window.innerWidth - 296)),
+              }}
+            >
+              <p className="cmatrix-popover-text">
+                {t('competences.confirm_delete_named', { name: col.name })}
+              </p>
+              <div className="cmatrix-popover-actions">
+                <button
+                  type="button"
+                  className="departments-btn"
+                  onClick={() => setDeletingId(null)}
+                >
+                  {t('departments.cancel')}
+                </button>
+                <button
+                  type="button"
+                  className="departments-btn departments-btn-danger"
+                  onClick={() => handleDeleteCompetence(deletingId)}
+                >
+                  {t('competences.delete')}
+                </button>
+              </div>
+            </div>,
+            document.body
+          );
+        })()}
 
       {removingRow &&
         popoverRect &&

@@ -11,18 +11,25 @@
   background: var(--primary-background);
 }
 
+/* 1fr | auto | 1fr grid: the title sits in the middle track so it's
+ * optically centered over the whole competence column group, while the
+ * add button (or the inline add form) stays pinned to the right track. */
 .cmatrix-group-inner {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
+}
+.cmatrix-group-title { grid-column: 2; }
+.cmatrix-group-inner > .cmatrix-add,
+.cmatrix-group-inner > .cmatrix-addcol-btn {
+  grid-column: 3;
+  justify-self: end;
 }
 
 .cmatrix-group-header {
-  gap: 8px;
   color: var(--text-h);
   font-weight: 700;
-  text-align: left;
 }
 
 .cmatrix-add {
@@ -157,7 +164,13 @@
   font-weight: 600;
   white-space: nowrap;
 }
-.cmatrix-colname { margin-right: 6px; }
+.cmatrix-col-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cmatrix-colname { min-width: 0; }
 
 .cmatrix-row {
   position: relative;
@@ -187,7 +200,11 @@
   padding: 2px 4px;
   border-radius: 4px;
 }
-tr:hover .cmatrix-remove-btn,
+/* Body rows reveal their ✕ on row hover; competence headers reveal theirs
+ * on hover of that single header cell (not the whole header row, which
+ * would light up every column at once). */
+.cmatrix-table tbody tr:hover .cmatrix-remove-btn,
+.cmatrix-col:hover .cmatrix-remove-btn,
 .cmatrix-remove-btn.is-active {
   opacity: 1;
 }
@@ -241,23 +258,30 @@ tr:hover .cmatrix-remove-btn,
   font-size: 0.8rem;
   opacity: 0.6;
   padding: 0 2px;
+  border-radius: 4px;
 }
 .cmatrix-iconbtn:hover { opacity: 1; }
-.cmatrix-iconbtn.is-danger { color: #c0463c; opacity: 1; }
 
-.cmatrix-confirm { white-space: nowrap; }
-
-/* Clickable matrix cell. */
+/* Clickable matrix cell — the button fills the entire td (the td drops
+ * its padding), so the whole cell is the click target, not a small chip
+ * in its middle. The 4px transparent border + background-clip keeps the
+ * hit area edge-to-edge while the painted fill is inset and rounded. */
+.cmatrix-cell-td { padding: 0; }
 .cmatrix-cell {
-  width: 34px;
-  height: 28px;
-  border: 1px solid transparent;
-  border-radius: 6px;
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 56px;
+  min-height: 40px;
+  border: 4px solid transparent;
+  border-radius: 10px;
   background: none;
+  background-clip: padding-box;
   cursor: pointer;
   font: inherit;
   font-weight: 700;
   color: var(--primary);
 }
-.cmatrix-cell:hover { border-color: var(--primary); }
+.cmatrix-cell:hover { box-shadow: inset 0 0 0 1px var(--primary); }
 .cmatrix-cell.is-on { background: var(--primary-background); }
