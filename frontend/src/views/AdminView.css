@@ -1,0 +1,273 @@
+.admin {
+  max-width: 1100px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.admin-title {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--text-h);
+}
+
+.admin-subtitle {
+  margin: 4px 0 20px;
+  font-size: 0.85rem;
+}
+
+.admin-banner {
+  border: 1px solid var(--border);
+  background: var(--primary-background);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+}
+
+.admin-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+/* --- create form --- */
+.admin-create-form {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--code-background);
+  padding: 16px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-create-title {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-h);
+}
+
+.admin-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.admin-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+
+.admin-form-field-grow {
+  flex: 1;
+  min-width: 200px;
+}
+
+.admin-form-field input[type='text'] {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  background: var(--background);
+  color: var(--text-h);
+  min-width: 0;
+}
+
+.admin-form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  padding-bottom: 8px;
+}
+
+.admin-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* --- table --- */
+.admin-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--code-background);
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table thead th {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.65;
+  user-select: none;
+}
+
+.admin-table th.is-sortable {
+  cursor: pointer;
+}
+.admin-table th.is-sortable:hover {
+  color: var(--primary);
+  opacity: 1;
+}
+
+.admin-table tbody tr:hover {
+  background: var(--primary-background);
+}
+
+.admin-table tr.is-editing {
+  background: var(--primary-background);
+}
+
+.admin-desc-cell {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-table input[type='text'] {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.85rem;
+  background: var(--background);
+  color: var(--text-h);
+  width: 100%;
+  min-width: 120px;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* --- buttons --- */
+.admin-btn {
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--text-h);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.admin-btn:hover { border-color: var(--secondary); }
+.admin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.admin-btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.admin-btn-primary:hover { opacity: 0.9; }
+
+.admin-btn-danger {
+  background: #c0463c;
+  border-color: #c0463c;
+  color: #fff;
+}
+
+.admin-btn-outline-danger {
+  background: none;
+  border-color: #c0463c;
+  color: #c0463c;
+}
+.admin-btn-outline-danger:hover { background: rgba(192, 70, 60, 0.12); }
+
+/* --- assign-manager modal --- */
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.admin-modal {
+  width: 100%;
+  max-width: 380px;
+  border-radius: 10px;
+  background: var(--code-background);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.admin-modal-title {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-h);
+}
+
+.admin-modal-select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  background: var(--background);
+  color: var(--text-h);
+  width: 100%;
+}
+
+.admin-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text-h);
+  color: var(--background);
+  border-radius: 999px;
+  padding: 9px 18px;
+  font-size: 0.85rem;
+  z-index: 300;
+}
+
+@media (max-width: 768px) {
+  .admin-form-row { flex-direction: column; align-items: stretch; }
+  .admin-form-field-grow { min-width: 0; }
+  .admin-actions { flex-wrap: wrap; }
+}

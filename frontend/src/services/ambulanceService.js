@@ -47,3 +47,39 @@ export async function fetchUserRoles(userId) {
   const { data } = await client.get(`/users/${userId}/roles`);
   return data;
 }
+
+/* ---------- admin (Role Level >= 3): full ambulance CRUD + manager assignment ---------- */
+
+/** List all active ambulances. */
+export async function fetchAllAmbulances() {
+  const { data } = await client.get('/ambulances');
+  return data;
+}
+
+/** Create a new ambulance. */
+export async function createAmbulance({ name, description = null, isurgent = false }) {
+  const { data } = await client.post('/ambulances', { name, description, isurgent });
+  return data;
+}
+
+/** Update an existing ambulance. */
+export async function updateAmbulance(ambulanceId, { name, description, isurgent }) {
+  const { data } = await client.put(`/ambulances/${ambulanceId}`, { name, description, isurgent });
+  return data;
+}
+
+/** Soft-delete an ambulance. */
+export async function deleteAmbulance(ambulanceId) {
+  await client.delete(`/ambulances/${ambulanceId}`);
+}
+
+/** Assign a manager to an ambulance. */
+export async function assignManagerToAmbulance(ambulanceId, userId) {
+  const { data } = await client.put(`/ambulances/${ambulanceId}/manager/${userId}`);
+  return data;
+}
+
+/** Remove the assigned manager from an ambulance. */
+export async function removeManagerFromAmbulance(ambulanceId) {
+  await client.delete(`/ambulances/${ambulanceId}/manager`);
+}
