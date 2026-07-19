@@ -29,8 +29,18 @@ const Sidebar = ({ open, onToggle }) => {
           <span className="icon">🏠</span><span className="label">{t('sidebar.dashboard')}</span>
         </NavLink>
         {hasEmployee && (
+          <NavLink to="/schedule" className="nav-item">
+            <span className="icon">🗓️</span><span className="label">{t('sidebar.schedule')}</span>
+          </NavLink>
+        )}
+        {hasManager && (
+          <NavLink to="/ambulances/schedule" className="nav-item">
+            <span className="icon">📅</span><span className="label">{t('sidebar.ambulance_schedule')}</span>
+          </NavLink>
+        )}
+        {hasEmployee && (
           <NavLink to="/workload" className="nav-item">
-            <span className="icon">📅</span><span className="label">{t('sidebar.workload')}</span>
+            <span className="icon">📋</span><span className="label">{t('sidebar.workload')}</span>
           </NavLink>
         )}
         {hasManager && (

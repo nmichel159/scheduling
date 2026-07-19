@@ -11,6 +11,12 @@ export async function fetchManagerAmbulances(userId) {
   return data;
 }
 
+/** List ambulances the logged-in user is assigned to as an employee. */
+export async function fetchMyAssignedAmbulances() {
+  const { data } = await client.get('/ambulances/me/assigned');
+  return data;
+}
+
 /** List employees assigned to an ambulance (manager-owned only). */
 export async function fetchEmployees(ambulanceId) {
   const { data } = await client.get(`/ambulances/${ambulanceId}/employees`);

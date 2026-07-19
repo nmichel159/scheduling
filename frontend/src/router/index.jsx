@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import LoginView from '../views/LoginView';
 import DashboardView from '../views/DashboardView';
 import WorkloadView from '../views/WorkloadView';
+import ScheduleView from '../views/ScheduleView';
+import AmbulanceScheduleEditView from '../views/AmbulanceScheduleEditView';
 import DepartmentsView from '../views/DepartmentsView';
 import AdminView from '../views/AdminView';
 import MainLayout from '../layouts/MainLayout';
@@ -30,6 +32,22 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole flag="hasEmployee">
             <WorkloadView />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "/schedule",
+        element: (
+          <RequireRole flag="hasEmployee">
+            <ScheduleView />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "/ambulances/schedule",
+        element: (
+          <RequireRole flag="hasManager">
+            <AmbulanceScheduleEditView />
           </RequireRole>
         ),
       },

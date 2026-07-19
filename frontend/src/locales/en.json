@@ -8,12 +8,14 @@
   "sidebar": {
     "dashboard": "Dashboard",
     "workload": "Workload",
+    "schedule": "My schedule",
     "settings": "Settings",
     "logout": "Log out",
     "open_menu": "Open menu",
     "close_menu": "Close menu",
     "departments": "Departments",
-    "admin": "Administration"
+    "admin": "Administration",
+    "ambulance_schedule": "Ambulance Schedule"
   },
   "workload": {
     "title": "Workload",
@@ -72,20 +74,45 @@
     "coming_soon": "Ambulance codebook and manager administration — coming soon."
   },
   "competences": {
-  "title": "Competences",
-  "new_placeholder": "New competence...",
-  "empty": "This department has no defined competences yet.",
-  "employee": "Employee",
-  "added": "Competence added",
-  "deleted": "Competence deleted",
-  "delete_hint": "Delete competence",
-  "delete": "Delete",
-  "confirm_delete_named": "Delete competence {{name}}? It will be removed from all employees.", 
-  "load_error": "Failed to load competences.",
-  "action_error": "Action failed, please try again.",
-  "add_competence": "Add competence",
-  "search_placeholder": "Search employee..."
-}
-
-
+    "title": "Competences",
+    "new_placeholder": "New competence...",
+    "empty": "This department has no defined competences yet.",
+    "employee": "Employee",
+    "added": "Competence added",
+    "deleted": "Competence deleted",
+    "delete_hint": "Delete competence",
+    "delete": "Delete",
+    "confirm_delete_named": "Delete competence {{name}}? It will be removed from all employees.",
+    "load_error": "Failed to load competences.",
+    "action_error": "Action failed, please try again.",
+    "add_competence": "Add competence",
+    "search_placeholder": "Search employee..."
+  },
+  "schedule": {
+    "title": "My schedule",
+    "subtitle": "Overview of your shifts in the current month.",
+    "load_error": "Failed to load the schedule.",
+    "retry": "Try again",
+    "empty": "You have no shifts scheduled this month.",
+    "shift_count": "Shifts this month: {{count}}",
+    "ambulance_fallback": "Ambulance #{{id}}"
+  },
+  "schedule_edit": {
+    "title": "Edit ambulance schedule",
+    "loading": "Loading...",
+    "no_ambulances": "No ambulances available.",
+    "load_ambulances_error": "Failed to load ambulances.",
+    "load_schedule_error": "Failed to load schedule.",
+    "save_error": "Failed to save.",
+    "unsaved_warning": "You have unsaved changes. Leave without saving?",
+    "remove_shift": "Remove shift",
+    "cancel": "Cancel changes",
+    "save": "Save schedule",
+    "saving": "Saving...",
+    "unsaved": "Unsaved changes",
+    "saved": "Saved",
+    "view_competences": "View competences",
+    "close": "Close",
+    "no_competences": "This employee has no assigned competences."
+  }
 }

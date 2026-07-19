@@ -1,0 +1,134 @@
+/* Read-only monthly schedule. Deliberately mirrors WorkloadView.css so the
+ * two calendars feel like one component to the user — the cells are taller
+ * here because they carry shift chips instead of a single mark. */
+
+.schedule {
+  max-width: 960px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.schedule-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.schedule-title {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--text-h);
+}
+
+.schedule-subtitle {
+  margin: 4px 0 20px;
+  font-size: 0.85rem;
+}
+
+.schedule-monthlabel {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 16px;
+  background: var(--code-background);
+  font-weight: 600;
+  color: var(--text-h);
+  font-variant-numeric: tabular-nums;
+  text-transform: capitalize;
+}
+
+.schedule-banner {
+  border: 1px solid var(--border);
+  background: var(--primary-background);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+}
+.schedule-banner-error { border-color: #c0463c; }
+.schedule-linkbtn {
+  border: none;
+  background: none;
+  color: var(--primary);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  padding: 0;
+}
+
+/* --- calendar grid --- */
+.schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  transition: opacity 0.15s ease;
+}
+.schedule-grid.is-loading { opacity: 0.5; }
+
+.schedule-grid-head {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 0;
+}
+
+.schedule-cell {
+  min-height: 84px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-background);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.schedule-cell-empty {
+  border: none;
+  background: none;
+  min-height: 0;
+}
+.schedule-cell.has-shift { border-color: var(--primary); }
+.schedule-cell.is-today { border-width: 2px; }
+
+.schedule-cell-daynum { font-size: 0.8rem; font-weight: 700; }
+.schedule-cell.is-today .schedule-cell-daynum { color: var(--primary); }
+
+/* One chip per shift; a day can hold several. */
+.schedule-shift {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--primary-background);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 0.7rem;
+  line-height: 1.25;
+  min-width: 0;
+}
+.schedule-shift-ambulance {
+  font-weight: 600;
+  color: var(--text-h);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.schedule-shift-competence {
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-footer {
+  margin-top: 14px;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 768px) {
+  .schedule-cell { min-height: 64px; padding: 5px; }
+  .schedule-shift { font-size: 0.62rem; padding: 3px 4px; }
+}
