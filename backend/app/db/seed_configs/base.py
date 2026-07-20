@@ -1,8 +1,11 @@
+from datetime import date
+
 PRIMARY_USERS = [
     {"email": "a14325999@gmail.com", "full_name": "Leader A"},
     {"email": "alexthesecond0000@gmail.com", "full_name": "Alex the Second"},
     {"email": "noro.michel159@gmail.com", "full_name": "Noro Michel 159"},
     {"email": "noro.michel@gmail.com", "full_name": "Noro Michel"},
+    {"email": "gsemanisin@gmail.com", "full_name": "Gabriel Semanisin"},
 ]
 
 ADDITIONAL_USERS = [
@@ -87,4 +90,64 @@ AMBULANCE_ASSIGNMENTS = {
     "alexthesecond0000@gmail.com": ["ambulancia1"],
     "noro.michel159@gmail.com": ["ambulancia1", "ambulancia3"],
     "a14325999@gmail.com": ["ambulancia2"],
+    "gsemanisin@gmail.com": ["ambulancia1", "ambulancia2", "ambulancia3", "ambulancia4"],
 }
+
+SCHEDULES = [
+    {"user_email": "martin.hudak@example.com", "ambulance_name": "ambulancia1", "competence_name": "role1", "work_date": date(2026, 7, 1)},
+    {"user_email": "jana.kovacova@example.com", "ambulance_name": "ambulancia1", "competence_name": "role2", "work_date": date(2026, 7, 1)},
+    {"user_email": "tomas.balog@example.com", "ambulance_name": "ambulancia2", "competence_name": "rola1", "work_date": date(2026, 7, 1)},
+    {"user_email": "andrej.svec@example.com", "ambulance_name": "ambulancia3", "competence_name": "triage", "work_date": date(2026, 7, 1)},
+    {"user_email": "roman.varga@example.com", "ambulance_name": "ambulancia4", "competence_name": "recepcia", "work_date": date(2026, 7, 1)},
+
+    {"user_email": "peter.novak@example.com", "ambulance_name": "ambulancia1", "competence_name": "role1", "work_date": date(2026, 7, 2)},
+    {"user_email": "lucia.horvathova@example.com", "ambulance_name": "ambulancia1", "competence_name": "role2", "work_date": date(2026, 7, 2)},
+    {"user_email": "eva.mistrikova@example.com", "ambulance_name": "ambulancia2", "competence_name": "rola1", "work_date": date(2026, 7, 2)},
+    {"user_email": "veronika.krizova@example.com", "ambulance_name": "ambulancia3", "competence_name": "triage", "work_date": date(2026, 7, 2)},
+    {"user_email": "simona.liptakova@example.com", "ambulance_name": "ambulancia4", "competence_name": "kontrola", "work_date": date(2026, 7, 2)},
+
+    {"user_email": "martin.hudak@example.com", "ambulance_name": "ambulancia1", "competence_name": "role3", "work_date": date(2026, 7, 3)},
+    {"user_email": "michal.simon@example.com", "ambulance_name": "ambulancia2", "competence_name": "rola2", "work_date": date(2026, 7, 3)},
+    {"user_email": "filip.benko@example.com", "ambulance_name": "ambulancia3", "competence_name": "odbery", "work_date": date(2026, 7, 3)},
+    {"user_email": "adam.urban@example.com", "ambulance_name": "ambulancia4", "competence_name": "recepcia", "work_date": date(2026, 7, 3)},
+
+    {"user_email": "jana.kovacova@example.com", "ambulance_name": "ambulancia1", "competence_name": "role2", "work_date": date(2026, 7, 6)},
+    {"user_email": "katarina.danko@example.com", "ambulance_name": "ambulancia2", "competence_name": "rola2", "work_date": date(2026, 7, 6)},
+    {"user_email": "nina.molnarova@example.com", "ambulance_name": "ambulancia3", "competence_name": "triage", "work_date": date(2026, 7, 6)},
+
+    {"user_email": "alexthesecond0000@gmail.com", "ambulance_name": "ambulancia1", "competence_name": "role1", "work_date": date(2026, 7, 7)},
+    {"user_email": "noro.michel159@gmail.com", "ambulance_name": "ambulancia1", "competence_name": "role3", "work_date": date(2026, 7, 7)},
+    {"user_email": "gsemanisin@gmail.com", "ambulance_name": "ambulancia2", "competence_name": "rola1", "work_date": date(2026, 7, 7)},
+
+    {"user_email": "gsemanisin@gmail.com", "ambulance_name": "ambulancia1", "competence_name": "role1", "work_date": date(2026, 7, 8)},
+    {"user_email": "martin.hudak@example.com", "ambulance_name": "ambulancia1", "competence_name": "role2", "work_date": date(2026, 7, 8)},
+    {"user_email": "tomas.balog@example.com", "ambulance_name": "ambulancia2", "competence_name": "rola2", "work_date": date(2026, 7, 8)},
+
+    {"user_email": "alexthesecond0000@gmail.com", "ambulance_name": "ambulancia1", "competence_name": "role2", "work_date": date(2026, 7, 9)},
+    {"user_email": "noro.michel159@gmail.com", "ambulance_name": "ambulancia3", "competence_name": "odbery", "work_date": date(2026, 7, 9)},
+    {"user_email": "gsemanisin@gmail.com", "ambulance_name": "ambulancia4", "competence_name": "recepcia", "work_date": date(2026, 7, 9)},
+
+    {"user_email": "gsemanisin@gmail.com", "ambulance_name": "ambulancia3", "competence_name": "triage", "work_date": date(2026, 7, 10)},
+    {"user_email": "andrej.svec@example.com", "ambulance_name": "ambulancia3", "competence_name": "odbery", "work_date": date(2026, 7, 10)},
+
+    {"user_email": "martin.hudak@example.com", "ambulance_name": "ambulancia1", "competence_name": "role1", "work_date": date(2026, 7, 13)},
+    {"user_email": "jana.kovacova@example.com", "ambulance_name": "ambulancia1", "competence_name": "role3", "work_date": date(2026, 7, 13)},
+    {"user_email": "tomas.balog@example.com", "ambulance_name": "ambulancia2", "competence_name": "rola1", "work_date": date(2026, 7, 13)},
+    {"user_email": "roman.varga@example.com", "ambulance_name": "ambulancia4", "competence_name": "kontrola", "work_date": date(2026, 7, 13)},
+
+    {"user_email": "peter.novak@example.com", "ambulance_name": "ambulancia1", "competence_name": "role2", "work_date": date(2026, 7, 14)},
+    {"user_email": "eva.mistrikova@example.com", "ambulance_name": "ambulancia2", "competence_name": "rola2", "work_date": date(2026, 7, 14)},
+    {"user_email": "veronika.krizova@example.com", "ambulance_name": "ambulancia3", "competence_name": "odbery", "work_date": date(2026, 7, 14)},
+
+    {"user_email": "lucia.horvathova@example.com", "ambulance_name": "ambulancia1", "competence_name": "role3", "work_date": date(2026, 7, 15)},
+    {"user_email": "michal.simon@example.com", "ambulance_name": "ambulancia2", "competence_name": "rola1", "work_date": date(2026, 7, 15)},
+    {"user_email": "filip.benko@example.com", "ambulance_name": "ambulancia3", "competence_name": "triage", "work_date": date(2026, 7, 15)},
+
+    {"user_email": "noro.michel159@gmail.com", "ambulance_name": "ambulancia1", "competence_name": "role2", "work_date": date(2026, 7, 16)},
+    {"user_email": "gsemanisin@gmail.com", "ambulance_name": "ambulancia1", "competence_name": "role3", "work_date": date(2026, 7, 16)},
+    {"user_email": "katarina.danko@example.com", "ambulance_name": "ambulancia2", "competence_name": "rola2", "work_date": date(2026, 7, 16)},
+
+    {"user_email": "alexthesecond0000@gmail.com", "ambulance_name": "ambulancia1", "competence_name": "role1", "work_date": date(2026, 7, 17)},
+    {"user_email": "gsemanisin@gmail.com", "ambulance_name": "ambulancia2", "competence_name": "rola2", "work_date": date(2026, 7, 17)},
+    {"user_email": "nina.molnarova@example.com", "ambulance_name": "ambulancia3", "competence_name": "odbery", "work_date": date(2026, 7, 17)},
+]

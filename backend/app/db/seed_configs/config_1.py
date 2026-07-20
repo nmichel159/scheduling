@@ -1,4 +1,4 @@
-from app.db.seed_configs.base import AMBULANCE_ASSIGNMENTS, AMBULANCES, COMPETENCES, USERS
+from app.db.seed_configs.base import AMBULANCE_ASSIGNMENTS, AMBULANCES, COMPETENCES, USERS, SCHEDULES
 
 
 SEED_CONFIG = {
@@ -7,9 +7,11 @@ SEED_CONFIG = {
     "competences": COMPETENCES,
     "role_assignments": {
         "alexthesecond0000@gmail.com": ["EMPLOYEE", "LEADER"],
-        "noro.michel159@gmail.com": ["EMPLOYEE", "LEADER"],
+        "noro.michel159@gmail.com": ["EMPLOYEE", "LEADER", "AMBULANCE_OVERSEER"],
         "a14325999@gmail.com": ["EMPLOYEE", "LEADER"],
-        "noro.michel@gmail.com": ["HOSPITAL_ADMIN", "LEADER"],
+        "noro.michel@gmail.com": ["HOSPITAL_ADMIN", "LEADER", "AMBULANCE_OVERSEER"],
+        "gsemanisin@gmail.com": ["EMPLOYEE", "LEADER", "AMBULANCE_OVERSEER", "HOSPITAL_ADMIN"],
     },
     "ambulance_assignments": AMBULANCE_ASSIGNMENTS,
+    "schedules": SCHEDULES,
 }

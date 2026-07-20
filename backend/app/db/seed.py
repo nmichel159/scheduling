@@ -2,6 +2,10 @@ import os
 import sys
 from copy import deepcopy
 
+import os
+import sys
+from copy import deepcopy
+
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -14,6 +18,7 @@ from app.models.associations import UserAmbulance, UserRole
 from app.models.competence import Competence
 from app.models.role import Role
 from app.models.user import User
+from app.models.schedule import Schedule
 from app.db.seed_configs import SEED_CONFIGS
 
 ROLES_DATA = [
@@ -185,6 +190,54 @@ def _sync_user_roles(
     db.commit()
 
 
+def _seed_schedules(
+    db: Session,
+    schedules_data: list[dict],
+    users_by_email: dict[str, User],
+    ambulances_by_name: dict[str, Ambulance],
+) -> None:
+    for entry in schedules_data:
+        user = users_by_email.get(entry["user_email"])
+        ambulance = ambulances_by_name.get(entry["ambulance_name"])
+        if not user or not ambulance:
+            continue
+
+        competence = (
+            db.query(Competence)
+            .filter(
+                Competence.name == entry["competence_name"],
+                Competence.ambulance_id == ambulance.id,
+            )
+            .first()
+        )
+        if not competence:
+            continue
+
+        work_date = entry["work_date"]
+        existing = (
+            db.query(Schedule)
+            .filter(
+                Schedule.user_id == user.id,
+                Schedule.ambulance_id == ambulance.id,
+                Schedule.competence_id == competence.id,
+                Schedule.work_date == work_date,
+            )
+            .first()
+        )
+        if not existing:
+            db.add(
+                Schedule(
+                    user_id=user.id,
+                    ambulance_id=ambulance.id,
+                    competence_id=competence.id,
+                    work_date=work_date,
+                    is_active=True,
+                )
+            )
+    db.commit()
+    print("Schedules seeding completed.")
+
+
 def _sync_user_ambulances(
     db: Session,
     ambulance_assignments: dict[str, list[str]],
@@ -239,6 +292,8 @@ def seed_db(config_name: str | None = None):
             users_by_email,
             ambulances_by_name,
         )
+        if "schedules" in seed_config:
+            _seed_schedules(db, seed_config["schedules"], users_by_email, ambulances_by_name)
         print("Database seeding completed successfully.")
     except Exception as e:
         db.rollback()
