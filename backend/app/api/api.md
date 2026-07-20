@@ -27,6 +27,32 @@ Zruší aktuálnu reláciu v databáze a odstráni session cookie.
 
 </details>
 
+## Doplnenia API (2026-07-20)
+
+### Kompetencie ambulancie
+
+`GET /ambulances/{ambulance_id}/competences` vyžaduje rolu 2 pre vlastnú ambulanciu alebo rolu 3. Path parameter je `ambulance_id`; odpoveď `200` je zoznam kompetencií s `id`, `name`, `description`, `required_count` a kompatibilným `count`. Chyby: `401`, `403`, `404`.
+
+`GET /ambulances/my-ambulance-competences` vyžaduje rolu 2. Bez parametrov vracia `200` so zoznamom `{ambulance_id, ambulance_name, ambulance_description, competences}` pre všetky ambulancie aktuálneho manažéra. Chyby: `401`, `403`.
+
+`POST /ambulances/{ambulance_id}/competences`, `PUT /ambulances/{ambulance_id}/competences/{competence_id}` a `DELETE /ambulances/{ambulance_id}/competences/{competence_id}` majú rovnaké oprávnenia. POST body: `{"name":"...","description":"...","required_count":1}`; PUT prijíma ľubovoľnú podmnožinu týchto polí. POST vracia `201`, PUT `200`, DELETE `204` (soft delete). Chyby: `400/422`, `401`, `403`, `404`.
+
+### Rozvrhy
+
+`GET /schedules/me?month=&year=` vyžaduje prihlásenie. Bez filtrov vracia všetky aktívne položky používateľa; s oboma parametrami iba zvolený mesiac. Samotný `month` alebo `year` je `422`.
+
+`GET /schedules/user/{user_id}?month=&year=`, `POST /schedules?user_id=`, `PUT /schedules/entries/{schedule_id}` a `DELETE /schedules/entries/{schedule_id}` vyžadujú rolu 2 pre používateľa v spravovanej ambulancii alebo rolu 3. POST body: `{"ambulance_id":1,"competence_id":2,"work_date":"2026-07-20"}`. PUT môže meniť `competence_id`, `work_date`, `is_active`; DELETE položku deaktivuje. Odpovede sú `200/201/204`; chyby `400`, `401`, `403`, `404`, `409`, `422`.
+
+`PUT /schedules/monthly` je hromadné uloženie mesiaca. Vyžaduje rovnaké oprávnenia. Body: `{"user_id":1,"month":7,"year":2026,"entries":[{"ambulance_id":1,"competence_id":2,"work_date":"2026-07-20"}]}`. Neodoslané existujúce položky používateľa v mesiaci sa deaktivujú; odpoveď `200` obsahuje aktívne položky. Chyby: `400`, `401`, `403`, `404`, `422`.
+
+`GET /ambulances/{ambulance_id}/schedule?month=&year=` vracia rozvrh po používateľoch (`user_id`, `user_full_name`, `month`, `year`, `entries`); bez filtrov použije aktuálny mesiac. Rola 2 smie len vlastnú ambulanciu, rola 3 ktorúkoľvek. Starší `PUT` na rovnakej URL je zachovaný a prijíma `{"entries":[{"user_id":1,"competence_id":2,"work_date":"2026-07-20"}]}`.
+
+### Administrácia
+
+`POST /ambulances` a `PUT /ambulances/{ambulance_id}` prijímajú voliteľné `manager_id`; rola 3 môže manažéra nastaviť, zmeniť alebo v PUT odstrániť hodnotou `null`. Používateľ musí byť aktívny a mať aktívnu rolu aspoň 2. Model podporuje práve jedného manažéra (`managed_by_user_id`).
+
+`GET /users/by-role?role_id={role_id}` vyžaduje rolu 3. Vráti používateľov s danou aktívnou rolou vrátane `id`, `email`, `full_name`, `is_active`, `roles` a `ambulances`. Chyby: `401`, `403`, `404`.
+
 <details>
 <summary><strong>roles.py – Roly</strong></summary>
 

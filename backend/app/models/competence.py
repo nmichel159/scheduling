@@ -11,6 +11,7 @@ class Competence(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
+    required_count = Column(Integer, nullable=False, default=1)
     ambulance_id = Column(Integer, ForeignKey("ambulances.id"), nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -25,3 +26,7 @@ class Competence(Base):
     # Proxies for direct collection manipulation
     users = association_proxy("user_competences", "user", creator=lambda u: UserCompetence(user=u))
 
+    @property
+    def count(self) -> int:
+        """Backward-friendly API name for the requested worker count."""
+        return self.required_count

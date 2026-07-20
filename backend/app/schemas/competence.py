@@ -19,6 +19,7 @@ class CompetenceBase(BaseModel):
 
     name: str = Field(..., description="Name of the competence.")
     description: Optional[str] = Field(None, description="Optional description of the competence.")
+    required_count: int = Field(1, ge=1, description="Required number of workers for this competence.")
 
 
 class CompetenceCreate(CompetenceBase):
@@ -35,6 +36,7 @@ class CompetenceUpdate(BaseModel):
 
     name: Optional[str] = Field(None, description="Updated competence name.")
     description: Optional[str] = Field(None, description="Updated competence description.")
+    required_count: Optional[int] = Field(None, ge=1, description="Updated required worker count.")
 
 
 class CompetenceResponse(CompetenceBase):
@@ -45,6 +47,14 @@ class CompetenceResponse(CompetenceBase):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     is_active: Optional[bool] = None
+    count: int
 
     class Config:
         from_attributes = True
+
+
+class AmbulanceCompetenceGroup(BaseModel):
+    ambulance_id: int
+    ambulance_name: str
+    ambulance_description: Optional[str] = None
+    competences: list[CompetenceResponse]

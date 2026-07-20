@@ -2,7 +2,7 @@
 FastAPI router for User Availability (Unavailability) endpoints.
 
 Provides full CRUD operations over unavailability records.
-All endpoints require the ``X-User-Id`` header and enforce ownership —
+All endpoints require an authenticated HttpOnly cookie session and enforce ownership —
 a user may only manage their own records.
 """
 

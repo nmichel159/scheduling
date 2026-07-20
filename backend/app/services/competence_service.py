@@ -78,9 +78,17 @@ def create_competence(db: Session, ambulance_id: int, data: CompetenceCreate) ->
     Returns:
         The newly created :class:`Competence` instance.
     """
+    duplicate = db.query(Competence).filter(
+        Competence.ambulance_id == ambulance_id,
+        Competence.name == data.name,
+        Competence.is_active.is_(True),
+    ).first()
+    if duplicate:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An active competence with this name already exists in this ambulance.")
     competence = Competence(
         name=data.name,
         description=data.description,
+        required_count=data.required_count,
         ambulance_id=ambulance_id,
         is_active=True,
     )
@@ -107,6 +115,15 @@ def update_competence(
     competence = get_competence(db, competence_id, ambulance_id)
 
     update_data = data.model_dump(exclude_unset=True)
+    if "name" in update_data:
+        duplicate = db.query(Competence).filter(
+            Competence.ambulance_id == ambulance_id,
+            Competence.name == update_data["name"],
+            Competence.id != competence_id,
+            Competence.is_active.is_(True),
+        ).first()
+        if duplicate:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An active competence with this name already exists in this ambulance.")
     for field, value in update_data.items():
         setattr(competence, field, value)
 
@@ -127,5 +144,5 @@ def delete_competence(db: Session, competence_id: int, ambulance_id: int) -> Non
         HTTPException 404: If the competence does not exist in the ambulance.
     """
     competence = get_competence(db, competence_id, ambulance_id)
-    db.delete(competence)
+    competence.is_active = False
     db.commit()

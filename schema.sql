@@ -101,6 +101,7 @@ CREATE TABLE public.competences (
     id integer NOT NULL,
     name character varying NOT NULL,
     description character varying,
+    required_count integer DEFAULT 1 NOT NULL,
     ambulance_id integer NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),

@@ -18,3 +18,19 @@ class UserListResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UserRoleInfo(BaseModel):
+    id: int
+    code: str
+
+
+class UserAmbulanceInfo(BaseModel):
+    id: int
+    name: str
+
+
+class UserByRoleResponse(UserListResponse):
+    is_active: bool
+    roles: list[UserRoleInfo]
+    ambulances: list[UserAmbulanceInfo]

@@ -8,13 +8,22 @@ when managing ambulance assignments.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user, require_manager_role
+from app.core.dependencies import get_current_user, require_admin_role, require_manager_role
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.user import UserListResponse
-from app.services.user_service import list_user_role_ids, list_users
+from app.schemas.user import UserByRoleResponse, UserListResponse
+from app.services.user_service import list_user_role_ids, list_users, list_users_by_role
 
 router = APIRouter()
+
+
+@router.get("/by-role", response_model=list[UserByRoleResponse], summary="List users by role")
+def users_by_role_endpoint(
+    role_id: int,
+    _admin: User = Depends(require_admin_role),
+    db: Session = Depends(get_db),
+) -> list[UserByRoleResponse]:
+    return list_users_by_role(db, role_id)
 
 
 @router.get(
