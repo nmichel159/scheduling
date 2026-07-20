@@ -1,60 +1,67 @@
 # Scheduling API
 
-Dokumentácia backendu. Všetky texty sú uložené v UTF-8.
+Dokumentácia backendu v UTF-8. Rozbaľ sekciu podľa oblasti.
 
-## Autentifikácia
+> Chránené endpointy určujú používateľa len cez `HttpOnly` cookie `scheduling_session`. Klient neposiela `user_id` ani token v hlavičke. Bežné chyby chránených endpointov sú `401` (chýbajúca/neplatná relácia) a `403` (nedostatočné oprávnenie). Neexistujúci alebo neaktívny zdroj vracia `404`.
 
-Chránené endpointy používajú relačnú cookie `scheduling_session`. Frontend neposiela `user_id` ani token v hlavičke. Databáza uchováva iba SHA-256 odtlačok relačného tokenu a jeho expiráciu. Backend pri každej požiadavke overí aktívneho používateľa a aktuálne aktívne roly.
+<details>
+<summary><strong>Stav služby a autentifikácia</strong></summary>
+
+### `GET /`
+
+- Oprávnenie: verejné
+- Body/parametre: žiadne
+- Úspech: `200` — `{"status":"ok"}`
 
 ### `POST /auth/google`
 
 - Oprávnenie: verejné
 - Body: `{"token":"Google access token"}`
-- Úspech: `200`, používateľ `{id, email, full_name, login_count}` a HttpOnly session cookie
+- Úspech: `200` — `{id, email, full_name, login_count}` a relačná cookie
 - Chyby: `401` neplatný token, neoverený e-mail alebo neaktívny účet
 
 ### `POST /auth/logout`
 
 - Oprávnenie: prihlásený používateľ
 - Body: žiadne
-- Úspech: `204`, relácia v DB aj cookie sa zrušia
-- Chyby: `401` neplatná alebo expirovaná relácia
+- Úspech: `204` — zruší cookie aj serverovú reláciu
+</details>
 
-## Roly a používatelia
-
-### `GET /roles/me`
-
-- Oprávnenie: prihlásený používateľ
-- Úspech: `200`, napr. `[{"name":"LEADER","index":2}]`
-- Chyby: `401`
+<details>
+<summary><strong>Roly a používatelia</strong></summary>
 
 ### `GET /roles`
 
 - Oprávnenie: verejné
-- Úspech: `200`, zoznam aktívnych rolí
+- Úspech: `200` — aktívne roly `[{"name":"LEADER","index":2}]`
 
-### `GET /users`
+### `GET /roles/me`
+
+- Oprávnenie: prihlásený používateľ
+- Úspech: `200` — aktívne roly prihláseného používateľa
+
+### `GET /users/`
 
 - Oprávnenie: rola 2 alebo vyššia
-- Úspech: `200`, aktívni používatelia
-- Chyby: `401`, `403`
+- Úspech: `200` — aktívni používatelia `{id,email,full_name}`
 
 ### `GET /users/{user_id}/roles`
 
-- Oprávnenie: prihlásený používateľ; môže čítať iba svoje role
-- Úspech: `200`, pole ID rolí
-- Chyby: `401`, `403`
+- Oprávnenie: prihlásený používateľ; iba vlastné role
+- Parametre: `user_id` v ceste
+- Úspech: `200` — pole ID rolí
 
 ### `GET /users/by-role?role_id={role_id}`
 
 - Oprávnenie: rola 3 alebo vyššia
-- Parametre: `role_id` povinný
-- Úspech: `200`, používatelia s `id`, `email`, `full_name`, `is_active`, `roles`, `ambulances`
-- Chyby: `401`, `403`, `404`
+- Parametre: povinný `role_id`
+- Úspech: `200` — používatelia s `id`, `email`, `full_name`, `is_active`, `roles`, `ambulances`
+</details>
 
-## Ambulancie
+<details>
+<summary><strong>Ambulancie a manažéri</strong></summary>
 
-Model ambulancie podporuje práve jedného manažéra cez `managed_by_user_id`.
+Model ambulancie má jedného manažéra cez `managed_by_user_id`.
 
 ### Čítanie ambulancií
 
@@ -62,83 +69,104 @@ Model ambulancie podporuje práve jedného manažéra cez `managed_by_user_id`.
 - `GET /ambulances/standard` — neurgentné ambulancie
 - `GET /ambulances/urgent` — urgentné ambulancie
 
-Odpoveď `200`: ambulancia obsahuje `id`, `name`, `description`, `isurgent`, `managed_by_user_id`, `is_active`.
+Odpoveď `200`: `{id,name,description,isurgent,managed_by_user_id,is_active}`.
 
 ### `POST /ambulances`
 
 - Oprávnenie: rola 3 alebo vyššia
 - Body: `{"name":"...","description":"...","isurgent":false,"manager_id":3}`; `manager_id` je voliteľné
-- Úspech: `201`, vytvorená ambulancia
-- Chyby: `400`, `401`, `403`, `404`
+- Úspech: `201` — vytvorená ambulancia
 
 ### `PUT /ambulances/{ambulance_id}`
 
 - Oprávnenie: rola 3 alebo vyššia
-- Body: ľubovoľná časť `name`, `description`, `isurgent`, `manager_id`; `manager_id: null` manažéra odstráni
-- Úspech: `200`
-- Chyby: `400`, `401`, `403`, `404`
+- Body: ľubovoľná časť `name`, `description`, `isurgent`, `manager_id`; `manager_id:null` manažéra odoberie
+- Úspech: `200` — upravená ambulancia
+
+### `DELETE /ambulances/{ambulance_id}`
+
+- Oprávnenie: rola 3 alebo vyššia
+- Úspech: `204` — soft-delete ambulancie
 
 ### Manažér ambulancie
 
-- `PUT /ambulances/{ambulance_id}/manager/{manager_id}` — nastaví manažéra
-- `DELETE /ambulances/{ambulance_id}/manager` — odstráni manažéra
+- `PUT /ambulances/{ambulance_id}/manager/{manager_id}` — rola 3, úspech `200`
+- `DELETE /ambulances/{ambulance_id}/manager` — rola 3, úspech `204`
 
-Oba endpointy vyžadujú rolu 3. Nový manažér musí byť aktívny používateľ s aktívnou rolou aspoň 2. Odpovede sú `200` a `204`; možné chyby sú `401`, `403`, `404`.
+Používateľ nastavovaný ako manažér musí byť aktívny a mať aktívnu rolu aspoň 2. Neplatný vstup je `400` alebo `404`.
 
 ### Zamestnanci ambulancie
 
 - `GET /ambulances/{ambulance_id}/employees`
-- `POST /ambulances/{ambulance_id}/employees` s body `{"user_id": 12}`
+- `POST /ambulances/{ambulance_id}/employees` s body `{"user_id":12}`
 - `DELETE /ambulances/{ambulance_id}/employees/{user_id}`
 - `GET /ambulances/me/managed`
 - `GET /ambulances/me/assigned`
+- `GET /ambulances/managers/{user_id}/ambulances`
+- `GET /ambulances/employees/{user_id}/ambulances`
 
-Zápis a čítanie konkrétnej ambulancie vyžaduje rolu 2 pre vlastnú ambulanciu alebo rolu 3. Duplikát pri priradení je `409`; ostatné bežné chyby sú `400`, `401`, `403`, `404`.
+Práca s konkrétnou ambulanciou vyžaduje rolu 2 pre vlastnú ambulanciu alebo rolu 3. Odpovede sú `200`, `201`, `204`; duplicitné priradenie je `409`.
+</details>
 
-## Kompetencie ambulancie
+<details>
+<summary><strong>Kompetencie ambulancie</strong></summary>
 
-Kompetencia patrí priamo ambulancii. Obsahuje `id`, `name`, `description`, `ambulance_id`, `required_count` a kompatibilné pole `count`.
+Kompetencia obsahuje `id`, `name`, `description`, `ambulance_id`, `required_count` a kompatibilné `count`.
 
-### `GET /ambulances/{ambulance_id}/competences`
+### Kompetencie ambulancie
 
-- Oprávnenie: rola 2 pre vlastnú ambulanciu alebo rola 3
-- Úspech: `200`, zoznam aktívnych kompetencií
-- Chyby: `401`, `403`, `404`
-
-### `GET /ambulances/my-ambulance-competences`
-
-- Oprávnenie: rola 2 alebo vyššia
-- Úspech: `200`, zoznam `{ambulance_id, ambulance_name, ambulance_description, competences}` pre ambulancie aktuálneho manažéra
-- Chyby: `401`, `403`
-
-### Zápis kompetencií
-
+- `GET /ambulances/{ambulance_id}/competences`
 - `POST /ambulances/{ambulance_id}/competences`
 - `PUT /ambulances/{ambulance_id}/competences/{competence_id}`
 - `DELETE /ambulances/{ambulance_id}/competences/{competence_id}`
 
-POST body: `{"name":"Sestra","description":"...","required_count":2}`. PUT prijíma časť týchto polí. DELETE je soft-delete. Vyžadujú sa rovnaké práva ako pri čítaní; odpovede sú `201`, `200`, `204`. Chyby: `400`, `401`, `403`, `404`, `409`, `422`.
+Oprávnenie: rola 2 pre vlastnú ambulanciu alebo rola 3. POST body: `{"name":"Sestra","description":"...","required_count":2}`. PUT prijíma časť týchto polí. Odpovede sú `200`, `201`, `204`; chyby navyše `409` pri duplicitnom názve a `422` pri neplatnom počte.
 
-### Kompetencie zamestnancov
+### `GET /ambulances/my-ambulance-competences`
+
+- Oprávnenie: rola 2 alebo vyššia
+- Úspech: `200` — `{ambulance_id,ambulance_name,ambulance_description,competences}` pre ambulancie aktuálneho manažéra
+
+### Krátke aliasy číselníka
+
+- `GET /competences?ambulance_id={id}`
+- `POST /competences?ambulance_id={id}`
+- `PUT /competences/{competence_id}?ambulance_id={id}`
+- `DELETE /competences/{competence_id}?ambulance_id={id}`
+
+Majú rovnaké práva, body a odpovede ako CRUD kompetencií ambulancie.
+
+### Kompetencie zamestnancov — tabuľka
 
 - `GET /ambulances/{ambulance_id}/employees/competences`
 - `PUT /ambulances/{ambulance_id}/employees/competences`
 
-PUT body:
+PUT body: `{"employees":[{"user_id":12,"competence_ids":[1,3]},{"user_id":15,"competence_ids":[]}]}`. Oprávnenie: rola 2 pre vlastnú ambulanciu alebo rola 3. Úspech `200` — zamestnanci s kompetenciami.
 
-```json
-{"employees":[{"user_id":12,"competence_ids":[1,3]},{"user_id":15,"competence_ids":[]}]}
-```
+### Kompetencie jedného zamestnanca
 
-Vyžaduje rolu 2 pre vlastnú ambulanciu alebo rolu 3. Odpoveď `200` je tabuľka zamestnancov a ich kompetencií.
+- `GET /employees/competences?ambulance_id={id}&user_id={id}`
+- `POST /employees/competences?ambulance_id={id}&user_id={id}` s body `{"competence_id":1}`
+- `DELETE /employees/competences?ambulance_id={id}&user_id={id}&competence_id={id}`
+- `GET /ambulances/{ambulance_id}/employees/{user_id}/competences`
+- `POST /ambulances/{ambulance_id}/employees/{user_id}/competences` s body `{"competence_id":1}`
+- `DELETE /ambulances/{ambulance_id}/employees/{user_id}/competences/{competence_id}`
 
-## Rozvrhy
+Oprávnenie: rola 2 pre vlastnú ambulanciu alebo rola 3. Úspech `200`, `201`, `204`; chyby `400`, `404`, `409`, `422`.
+</details>
 
-Manažér s rolou 2 môže spravovať iba používateľov a ambulancie, ktoré sám spravuje. Rola 3 má globálny prístup. Neplatné alebo neaktívne väzby používateľ–ambulancia–kompetencia sú odmietnuté.
+<details>
+<summary><strong>Rozvrhy</strong></summary>
+
+Manažér s rolou 2 spravuje iba vlastnú ambulanciu; rola 3 má globálny prístup. Neplatná alebo neaktívna väzba používateľ–ambulancia–kompetencia vracia `400` alebo `404`.
 
 ### Vlastný rozvrh
 
-`GET /schedules/me?month={month}&year={year}` vyžaduje prihlásenie. Bez filtrov vracia všetky aktívne položky; s oboma parametrami len vybraný mesiac. Samotný `month` alebo `year` vracia `422`.
+### `GET /schedules/me?month={month}&year={year}`
+
+- Oprávnenie: prihlásený používateľ
+- Úspech: `200` — všetky aktívne položky alebo len zvolený mesiac
+- Chyby: `422`, ak chýba jeden z parametrov `month`, `year`
 
 ### Rozvrh používateľa
 
@@ -147,35 +175,31 @@ Manažér s rolou 2 môže spravovať iba používateľov a ambulancie, ktoré s
 - `PUT /schedules/entries/{schedule_id}`
 - `DELETE /schedules/entries/{schedule_id}`
 
-POST body: `{"ambulance_id":1,"competence_id":2,"work_date":"2026-07-20"}`. PUT môže meniť `competence_id`, `work_date`, `is_active`; DELETE záznam deaktivuje. Odpovede sú `200`, `201`, `204`; chyby `400`, `401`, `403`, `404`, `409`, `422`.
+POST body: `{"ambulance_id":1,"competence_id":2,"work_date":"2026-07-20"}`. PUT môže meniť `competence_id`, `work_date`, `is_active`. Odpovede: `200`, `201`, `204`; chyby `400`, `401`, `403`, `404`, `409`, `422`.
 
 ### `PUT /schedules/monthly`
 
 - Oprávnenie: rola 2 v spravovanej ambulancii alebo rola 3
-- Body:
-
-```json
-{"user_id":1,"month":7,"year":2026,"entries":[{"ambulance_id":1,"competence_id":2,"work_date":"2026-07-20"}]}
-```
-
-- Úspech: `200`, aktívne položky používateľa vo vybranom mesiaci
-- Správanie: neodoslané existujúce položky sa deaktivujú, nevykonáva sa fyzické odstránenie
-- Chyby: `400`, `401`, `403`, `404`, `422`
+- Body: `{"user_id":1,"month":7,"year":2026,"entries":[{"ambulance_id":1,"competence_id":2,"work_date":"2026-07-20"}]}`
+- Úspech: `200` — aktívne položky vo vybranom mesiaci
+- Správanie: neodoslané existujúce položky sa deaktivujú, fyzicky sa nemažú
 
 ### Rozvrh ambulancie
 
 - `GET /ambulances/{ambulance_id}/schedule?month=&year=`
 - `PUT /ambulances/{ambulance_id}/schedule?month=&year=`
 
-GET vracia rozvrh rozdelený podľa používateľov: `user_id`, `user_full_name`, `month`, `year`, `entries`. Bez parametrov použije aktuálny mesiac. PUT je zachovaný kompatibilný endpoint s body `{"entries":[{"user_id":1,"competence_id":2,"work_date":"2026-07-20"}]}`. Vyžaduje rolu 2 pre danú ambulanciu alebo rolu 3.
+GET vracia položky rozdelené podľa používateľa: `user_id`, `user_full_name`, `month`, `year`, `entries`. PUT je kompatibilný endpoint s body `{"entries":[{"user_id":1,"competence_id":2,"work_date":"2026-07-20"}]}`. Oprávnenie: rola 2 pre danú ambulanciu alebo rola 3.
+</details>
 
-## Nedostupnosti
+<details>
+<summary><strong>Nedostupnosti</strong></summary>
 
-- `POST /unavailabilities`
-- `POST /unavailabilities/pattern`
-- `GET /unavailabilities`
+- `POST /unavailabilities/`
+- `GET /unavailabilities/`
 - `GET /unavailabilities/{unavailability_id}`
 - `PUT /unavailabilities/{unavailability_id}`
 - `DELETE /unavailabilities/{unavailability_id}`
 
-Všetky endpointy vyžadujú prihlásenie a povoľujú operácie iba nad vlastnými záznamami.
+Všetky endpointy vyžadujú prihlásenie a povoľujú prácu len nad vlastnými záznamami. POST/PUT prijímajú schému nedostupnosti s dátumom, časom a dôvodom. Úspech: `200`, `201` alebo `204`; chyby `400`, `401`, `403`, `404`, `422`.
+</details>
