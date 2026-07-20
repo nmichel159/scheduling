@@ -11,6 +11,7 @@ from app.api import roles, ambulances
 from app.api import codebooks
 from app.api import employee_competences
 from app.api import schedules
+from app.core.config import settings
 import app.models  # Import all models so they are registered in Base.metadata
 
 # Vytvorenie tabuliek pri štarte
@@ -20,7 +21,7 @@ app = FastAPI(title="Scheduling API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[origin.strip() for origin in settings.FRONTEND_ORIGINS.split(",") if origin.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

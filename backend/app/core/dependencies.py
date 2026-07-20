@@ -7,25 +7,26 @@ Provides reusable dependency functions for:
 - Verifying ambulance ownership for manager operations
 """
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.user import User
 from app.models.ambulance import Ambulance
-from app.core.auth_provider import UserIdAuthenticationProvider
+from app.core.auth_provider import SessionAuthenticationProvider
+from app.core.config import settings
 
-_authentication_provider = UserIdAuthenticationProvider()
+_authentication_provider = SessionAuthenticationProvider()
 
 
 def get_current_user(
-    x_user_id: int = Header(..., description="ID of the authenticated user"),
+    session_token: str | None = Cookie(None, alias=settings.SESSION_COOKIE_NAME),
     db: Session = Depends(get_db),
 ) -> User:
-    """Resolve the current user from the X-User-Id request header.
+    """Resolve the current user from the signed-in browser's HttpOnly cookie.
 
     Args:
-        x_user_id: User ID passed via the ``X-User-Id`` header.
+        session_token: Opaque browser session token.
         db: Database session injected by FastAPI.
 
     Returns:
@@ -34,13 +35,15 @@ def get_current_user(
     Raises:
         HTTPException 404: If no active user with the given ID exists.
     """
-    try:
-        user = _authentication_provider.resolve_user(db, str(x_user_id))
-    except (LookupError, ValueError):
+    if not session_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"User with id {x_user_id} not found or inactive.",
+            detail="Authentication required.",
         )
+    try:
+        user = _authentication_provider.resolve_user(db, session_token)
+    except LookupError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired session.")
     return user
 
 

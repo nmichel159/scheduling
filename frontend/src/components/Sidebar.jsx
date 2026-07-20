@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useRoles } from '../hooks/useRoles';
+import client from '../api/client';
 import logo from '../assets/logo.jpg';
 import './Sidebar.css';
 
@@ -9,7 +10,12 @@ const Sidebar = ({ open, onToggle }) => {
   const { t } = useTranslation();
   const { hasEmployee, hasManager, hasAdmin } = useRoles();
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await client.post('/auth/logout');
+    } catch {
+      // The local browser state must be cleared even if the session expired.
+    }
     localStorage.removeItem('user');
     localStorage.removeItem('roles');
     localStorage.removeItem('sidebarOpen');

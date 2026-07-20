@@ -2,14 +2,28 @@
 
 Prehľad dostupných endpointov backendu. Každá kapitola zodpovedá jednému súboru v priečinku `app/api`.
 
-> Pri chránených endpointoch sa aktuálne používa hlavička `X-User-Id`. Autentifikačná vrstva je oddelená cez provider, takže spôsob prihlasovania sa môže neskôr vymeniť bez úprav doménových endpointov.
+> Chránené endpointy identifikujú používateľa výhradne cez serverom vydanú reláciu v `HttpOnly` cookie `scheduling_session`. Klient neposiela `user_id` ani token v hlavičke. Databáza obsahuje iba SHA-256 odtlačok náhodného relačného tokenu a jeho expirácie; Google access token sa nikdy neukladá. Pri každej požiadavke sa podľa odtlačku načíta aktívny používateľ a aktuálne aktívne roly z databázy.
 
 <details>
 <summary><strong>auth.py – Autentifikácia</strong></summary>
 
 ### `POST /auth/google`
 
-Overí Google access token a vráti alebo vytvorí lokálneho používateľa.
+Overí Google access token (vrátane overeného e-mailu), vráti alebo vytvorí lokálneho používateľa a nastaví `HttpOnly`, `SameSite=Lax` session cookie. Token cookie má štandardne platnosť 12 hodín; v DB je uložený iba jeho odtlačok.
+
+- Oprávnenie: verejný endpoint
+- Request body: `{"token": "Google access token"}`
+- Response `200`: `{"id": 1, "email": "user@example.com", "full_name": "...", "login_count": 1}`
+- Chyby: `401` pri neplatnom tokene, neoverenom e-maile alebo neaktívnom používateľovi.
+
+### `POST /auth/logout`
+
+Zruší aktuálnu reláciu v databáze a odstráni session cookie.
+
+- Oprávnenie: prihlásený používateľ
+- Request body: žiadne
+- Response: `204 No Content`
+- Chyby: `401` pri chýbajúcej, neplatnej alebo expirovanej relácii.
 
 </details>
 

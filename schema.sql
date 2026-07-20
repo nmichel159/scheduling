@@ -279,6 +279,7 @@ CREATE TABLE public.users (
     email character varying NOT NULL,
     full_name character varying,
     auth_token character varying,
+    auth_token_expires_at timestamp with time zone,
     login_count integer,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),

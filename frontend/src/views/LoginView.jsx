@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import client from '../api/client';
 import { fetchMyRoles } from '../services/roleService';
 import './LoginView.css';
 
@@ -24,13 +24,10 @@ const LoginView = () => {
     }
   }, [navigate]);
 
-  // Načítanie URL z .env cez Vite
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
   const login = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       try {
-        const response = await axios.post(`${API_URL}/auth/google`, {
+        const response = await client.post('/auth/google', {
           token: tokenResponse.access_token,
         });
         localStorage.setItem('user', JSON.stringify(response.data));
