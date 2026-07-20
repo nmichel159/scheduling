@@ -22,6 +22,7 @@ app = FastAPI(title="Scheduling API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in settings.FRONTEND_ORIGINS.split(",") if origin.strip()],
+    allow_origin_regex=settings.FRONTEND_ORIGIN_REGEX or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

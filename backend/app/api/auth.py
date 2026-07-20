@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.auth import GoogleLoginRequest, UserResponse
@@ -17,6 +17,7 @@ def get_authentication_provider() -> GoogleAuthenticationProvider:
 @router.post("/google", response_model=UserResponse)
 async def google_auth(
     data: GoogleLoginRequest,
+    request: Request,
     response: Response,
     db: Session = Depends(get_db),
     provider: GoogleAuthenticationProvider = Depends(get_authentication_provider),
@@ -24,12 +25,16 @@ async def google_auth(
     try:
         user = authenticate_user(db, data.token, provider)
         token = issue_session(db, user)
+        # Vercel -> Render is cross-site. A Secure/SameSite=None cookie is
+        # required there, while localhost remains usable over plain HTTP.
+        origin = request.headers.get("origin", "")
+        cross_site_https = origin.startswith("https://")
         response.set_cookie(
             key=settings.SESSION_COOKIE_NAME,
             value=token,
             httponly=True,
-            secure=settings.COOKIE_SECURE,
-            samesite="lax",
+            secure=settings.COOKIE_SECURE or cross_site_https,
+            samesite="none" if cross_site_https else "lax",
             max_age=settings.SESSION_TTL_HOURS * 3600,
             path="/",
         )
