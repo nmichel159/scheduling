@@ -131,6 +131,118 @@
 }
 .cmatrix-suggestions button:hover { background: var(--primary-background); }
 
+/* --- required head-count row ---
+ * One cell per competence under the column names. Green when the draft
+ * count equals the requirement, red otherwise.
+ * Normal state: hover reveals a pencil icon at the left edge of the cell.
+ * Edit state (after pencil click): inline ▼ N ▲ stepper appears.
+ * Changes are draft-only until the shared "Uložiť" button is clicked.
+ */
+.cmatrix-required-label {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-h);
+}
+
+.cmatrix-required-cell {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cmatrix-required-cell.is-ok {
+  background: rgba(46, 160, 67, 0.18);
+  color: #2ea043;
+}
+.cmatrix-required-cell.is-off {
+  background: rgba(192, 70, 60, 0.18);
+  color: #c0463c;
+}
+
+/* ---- Normal (non-editing) cell content ---- */
+.cmatrix-required-view {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+}
+
+/* Pencil — left edge, hidden until cell hover */
+.cmatrix-required-pencil {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  color: inherit;
+  padding: 1px 3px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  line-height: 1;
+}
+.cmatrix-required-cell:hover .cmatrix-required-pencil,
+.cmatrix-required-pencil:focus-visible { opacity: 0.85; }
+.cmatrix-required-pencil:hover { opacity: 1 !important; }
+.cmatrix-required-pencil:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+@media (hover: none) {
+  .cmatrix-required-pencil { opacity: 0.85; }
+}
+
+/* ---- Edit (stepper) cell content ---- */
+.cmatrix-required-stepper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.cmatrix-required-arrow {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.6rem;
+  line-height: 1;
+  padding: 2px 5px;
+  color: inherit;
+  border-radius: 4px;
+  opacity: 0.85;
+  transition: background 0.1s, opacity 0.1s;
+  min-width: 20px;
+  min-height: 20px;
+}
+.cmatrix-required-arrow:hover:not(:disabled) { opacity: 1; background: rgba(128,128,128,0.2); }
+.cmatrix-required-arrow:disabled { opacity: 0.25; cursor: not-allowed; }
+.cmatrix-required-arrow:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.cmatrix-required-close {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.65rem;
+  line-height: 1;
+  padding: 2px 4px;
+  color: inherit;
+  border-radius: 4px;
+  opacity: 0.5;
+  margin-left: 2px;
+}
+.cmatrix-required-close:hover { opacity: 0.9; background: rgba(128,128,128,0.2); }
+
+/* Number — shared between both states */
+.cmatrix-required-number {
+  min-width: 1.6ch;
+  text-align: center;
+}
+
 /* Horizontal scroll for many competences. */
 .cmatrix-scroll {
   overflow-x: auto;

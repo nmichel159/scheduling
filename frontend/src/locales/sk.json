@@ -117,7 +117,11 @@
     "load_error": "Nepodarilo sa načítať kompetencie.",
     "action_error": "Akcia zlyhala, skús to znova.",
     "add_competence": "Pridať kompetenciu",
-    "search_placeholder": "Vyhľadať zamestnanca..."
+    "search_placeholder": "Vyhľadať zamestnanca...",
+    "required_row_label": "Potrebný počet zamestnancov",
+    "required_edit": "Upraviť potrebný počet",
+    "required_updated": "Potrebný počet upravený",
+    "required_hint": "Označení: {{assigned}} / potrební: {{required}}"
   },
   "schedule": {
     "title": "Môj rozvrh",

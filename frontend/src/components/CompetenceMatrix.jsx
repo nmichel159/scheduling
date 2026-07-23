@@ -22,6 +22,7 @@ import './CompetenceMatrix.css';
  * - onAddRow(user)
  * - onRemoveRow(userId)
  * - onAddCompetence(name): Promise
+ * - onUpdateRequiredCount(competenceId, requiredCount): Promise
  * - onDeleteCompetence(competenceId): Promise
  */
 const CompetenceMatrix = ({
@@ -33,6 +34,7 @@ const CompetenceMatrix = ({
   onAddRow,
   onRemoveRow,
   onAddCompetence,
+  onUpdateRequiredCount,
   onDeleteCompetence,
 }) => {
   const { t } = useTranslation();
@@ -43,6 +45,25 @@ const CompetenceMatrix = ({
   const [newCompetenceName, setNewCompetenceName] = useState('');
   const [deletingId, setDeletingId] = useState(null);
   const [removingRowId, setRemovingRowId] = useState(null);
+
+  /* ---------- required head-count row (per competence) ----------
+   * Shows how many employees each competence needs in this ambulance.
+   * The cell is green when the draft count matches the requirement exactly,
+   * red otherwise. Hovering a cell reveals a pencil icon (left edge);
+   * clicking it opens an inline stepper with ▲/▼ arrows. Changes are
+   * local draft only — they are saved together with all other edits when
+   * the user clicks the shared "Uložiť" button.
+   */
+  const requiredOf = (col) => col.required_count ?? col.count ?? 1;
+
+  const [editingRequiredId, setEditingRequiredId] = useState(null);
+
+  const stepRequired = (col, delta) => {
+    const next = Math.max(1, requiredOf(col) + delta);
+    onUpdateRequiredCount(col.id, next);
+  };
+
+  const closeRequiredEdit = () => setEditingRequiredId(null);
 
   /* ---------- employee search (add row) ----------
    * The dropdown opens on focus with the full list of assignable users
@@ -291,6 +312,72 @@ const CompetenceMatrix = ({
                 </th>
               ))}
             </tr>
+            {columns.length > 0 && (
+              <tr className="cmatrix-required-row">
+                <th className="cmatrix-corner cmatrix-required-label">
+                  Potrebný počet zamestnancov
+                </th>
+                {columns.map((c) => {
+                  const required = requiredOf(c);
+                  const assigned = rows.filter((r) => r.competenceIds.includes(c.id)).length;
+                  const ok = assigned === required;
+                  const isEditing = editingRequiredId === c.id;
+                  return (
+                    <th
+                      key={c.id}
+                      className={`cmatrix-required-cell ${ok ? 'is-ok' : 'is-off'} ${isEditing ? 'is-editing' : ''}`}
+                      title={isEditing ? undefined : `Označení: ${assigned} / potrební: ${required}`}
+                    >
+                      {isEditing ? (
+                        /* Stepper shown after pencil click */
+                        <span className="cmatrix-required-stepper">
+                          <button
+                            type="button"
+                            className="cmatrix-required-arrow"
+                            onClick={(e) => { e.stopPropagation(); stepRequired(c, -1); }}
+                            disabled={required <= 1}
+                            aria-label="Znížiť počet"
+                          >
+                            ▼
+                          </button>
+                          <span className="cmatrix-required-number">{required}</span>
+                          <button
+                            type="button"
+                            className="cmatrix-required-arrow"
+                            onClick={(e) => { e.stopPropagation(); stepRequired(c, 1); }}
+                            aria-label="Zvýšiť počet"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            className="cmatrix-required-close"
+                            onClick={(e) => { e.stopPropagation(); closeRequiredEdit(); }}
+                            aria-label="Zatvoriť"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ) : (
+                        /* Normal view: pencil appears on cell hover (left edge) */
+                        <span className="cmatrix-required-view">
+                          <button
+                            type="button"
+                            className="cmatrix-required-pencil"
+                            onClick={(e) => { e.stopPropagation(); setEditingRequiredId(c.id); }}
+                            aria-label="Upraviť potrebný počet"
+                            title="Upraviť potrebný počet"
+                          >
+                            ✎
+                          </button>
+                          <span className="cmatrix-required-number">{required}</span>
+                        </span>
+                      )}
+                    </th>
+                  );
+                })}
+              </tr>
+            )}
           </thead>
           <tbody>
             {rows.length === 0 ? (

@@ -31,6 +31,18 @@ export async function createCompetence(ambulanceId, name, description = null) {
   return data;
 }
 
+/**
+ * Partially update a competence (e.g. { required_count: 3 }).
+ * Returns the updated competence from the backend.
+ */
+export async function updateCompetence(ambulanceId, competenceId, payload) {
+  const { data } = await client.put(
+    `/ambulances/${ambulanceId}/competences/${competenceId}`,
+    payload
+  );
+  return data;
+}
+
 /** Delete a competence (removes its employee assignments as well). */
 export async function deleteCompetence(ambulanceId, competenceId) {
   await client.delete(`/ambulances/${ambulanceId}/competences/${competenceId}`);

@@ -7,6 +7,7 @@ import {
   saveEmployeeCompetenceTable,
   fetchCompetences,
   createCompetence,
+  updateCompetence,
   deleteCompetence,
   addEmployeeToAmbulance,
   removeEmployeeFromAmbulance,
@@ -19,12 +20,23 @@ import './DepartmentsView.css';
 /** Deep-copies rows so edits to the draft never mutate the loaded snapshot. */
 const cloneRows = (list) => list.map((r) => ({ ...r, competenceIds: [...r.competenceIds] }));
 
-/** Order/format-independent fingerprint of a row set, used to detect unsaved changes. */
-const fingerprint = (list) =>
+/** Deep-copies columns (including required_count). */
+const cloneColumns = (list) => list.map((c) => ({ ...c }));
+
+/** Fingerprint of rows — detects employee / competence-assignment changes. */
+const fingerprintRows = (list) =>
   JSON.stringify(
     [...list]
       .map((r) => ({ user_id: r.user_id, competence_ids: [...r.competenceIds].sort((a, b) => a - b) }))
       .sort((a, b) => a.user_id - b.user_id)
+  );
+
+/** Fingerprint of columns — detects required_count changes. */
+const fingerprintColumns = (list) =>
+  JSON.stringify(
+    [...list]
+      .map((c) => ({ id: c.id, required_count: c.required_count ?? c.count ?? 1 }))
+      .sort((a, b) => a.id - b.id)
   );
 
 /**
@@ -32,10 +44,11 @@ const fingerprint = (list) =>
  *
  * Shows all ambulances the current user manages; selecting one loads the
  * whole employee x competence table ONCE (bulk GET). Every edit — adding
- * or removing an employee, toggling a competence cell — only touches
- * local state. Nothing reaches the backend until "Save": added/removed
- * employees are synced first (membership calls), then the whole
- * competence table is written in a single bulk PUT.
+ * or removing an employee, toggling a competence cell, changing a required
+ * count — only touches local state. Nothing reaches the backend until
+ * "Save": added/removed employees are synced first (membership calls),
+ * then the whole competence table is written in a single bulk PUT, and
+ * any changed required_counts are patched per-competence.
  */
 const DepartmentsView = () => {
   const { t } = useTranslation();
@@ -59,6 +72,7 @@ const DepartmentsView = () => {
   const [rows, setRows] = useState([]);
   const [originalRows, setOriginalRows] = useState([]);
   const [columns, setColumns] = useState([]);
+  const [originalColumns, setOriginalColumns] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [tableLoading, setTableLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -70,8 +84,10 @@ const DepartmentsView = () => {
   };
 
   const isDirty = useMemo(
-    () => fingerprint(rows) !== fingerprint(originalRows),
-    [rows, originalRows]
+    () =>
+      fingerprintRows(rows) !== fingerprintRows(originalRows) ||
+      fingerprintColumns(columns) !== fingerprintColumns(originalColumns),
+    [rows, originalRows, columns, originalColumns]
   );
 
   /* ---------- initial load: ambulances I manage ---------- */
@@ -122,11 +138,13 @@ const DepartmentsView = () => {
       setRows(nextRows);
       setOriginalRows(cloneRows(nextRows));
       setColumns(comps);
+      setOriginalColumns(cloneColumns(comps));
       setAllUsers(users);
     } catch {
       setRows([]);
       setOriginalRows([]);
       setColumns([]);
+      setOriginalColumns([]);
       notify(t('departments.load_error'));
     } finally {
       setTableLoading(false);
@@ -216,12 +234,22 @@ const DepartmentsView = () => {
     setRows((prev) => prev.filter((r) => r.user_id !== userId));
   };
 
+  /** Draft-only update of required_count for a competence column. */
+  const updateRequiredCount = (competenceId, requiredCount) => {
+    setColumns((prev) =>
+      prev.map((c) =>
+        c.id === competenceId ? { ...c, required_count: requiredCount } : c
+      )
+    );
+  };
+
   /* ---------- codebook actions (immediate — registry, not draft) ---------- */
 
   const handleAddCompetence = async (name) => {
     try {
       const created = await createCompetence(selectedId, name);
       setColumns((prev) => [...prev, created]);
+      setOriginalColumns((prev) => [...prev, { ...created }]);
       notify(t('competences.added'));
     } catch {
       notify(t('competences.action_error'));
@@ -232,6 +260,7 @@ const DepartmentsView = () => {
     try {
       await deleteCompetence(selectedId, competenceId);
       setColumns((prev) => prev.filter((c) => c.id !== competenceId));
+      setOriginalColumns((prev) => prev.filter((c) => c.id !== competenceId));
       const stripCompetence = (list) =>
         list.map((r) => ({
           ...r,
@@ -245,7 +274,7 @@ const DepartmentsView = () => {
     }
   };
 
-  /* ---------- save: membership diff, then one bulk competence PUT ---------- */
+  /* ---------- save: membership diff + bulk competence PUT + required_count patches ---------- */
 
   const handleSave = async () => {
     if (selectedId == null || saving) return;
@@ -280,6 +309,19 @@ const DepartmentsView = () => {
 
       await saveEmployeeCompetenceTable(selectedId, payload);
 
+      // Patch required_count for columns whose value changed
+      const origMap = new Map(originalColumns.map((c) => [c.id, c.required_count ?? c.count ?? 1]));
+      for (const col of columns) {
+        const newVal = col.required_count ?? col.count ?? 1;
+        if (origMap.get(col.id) !== newVal) {
+          try {
+            await updateCompetence(selectedId, col.id, { required_count: newVal });
+          } catch {
+            notify(t('competences.action_error'));
+          }
+        }
+      }
+
       await loadTable();
       notify(t('departments.saved'));
     } catch {
@@ -292,11 +334,8 @@ const DepartmentsView = () => {
   /* ---------- render ---------- */
 
   const selected = ambulances.find((a) => a.id === selectedId) || null;
-  const showList = ambulances.length > 1; // 1 klinika = bez bočného zoznamu
+  const showList = ambulances.length > 1;
 
-  /* Urgentné ambulancie sa v zozname oddelia do vlastnej skupiny.
-   * Skupina sa vykreslí len ak nie je prázdna, takže bez urgentu
-   * zostáva zoznam presne taký, aký bol doteraz. */
   const regularAmbulances = ambulances.filter((a) => !a.isurgent);
   const urgentAmbulances = ambulances.filter((a) => a.isurgent);
   const showGroupTitles = regularAmbulances.length > 0 && urgentAmbulances.length > 0;
@@ -335,7 +374,6 @@ const DepartmentsView = () => {
       {error && <div className="departments-banner">{error}</div>}
 
       <div className={`departments-layout ${showList ? '' : 'is-single'}`}>
-        {/* left: my ambulances — zobrazí sa len pri viacerých klinikách */}
         {showList && (
           <div className="departments-list">
             {regularAmbulances.length > 0 && (
@@ -360,7 +398,6 @@ const DepartmentsView = () => {
           </div>
         )}
 
-        {/* right: employee x competence table for the selected ambulance */}
         <section className="departments-detail">
           {selected && (
             <>
@@ -388,6 +425,7 @@ const DepartmentsView = () => {
                 onAddRow={addRow}
                 onRemoveRow={removeRow}
                 onAddCompetence={handleAddCompetence}
+                onUpdateRequiredCount={updateRequiredCount}
                 onDeleteCompetence={handleDeleteCompetence}
               />
             </>

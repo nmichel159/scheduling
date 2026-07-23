@@ -118,7 +118,11 @@
     "load_error": "Failed to load competences.",
     "action_error": "Action failed, please try again.",
     "add_competence": "Add competence",
-    "search_placeholder": "Search employee..."
+    "search_placeholder": "Search employee...",
+    "required_row_label": "Required number of employees",
+    "required_edit": "Edit required count",
+    "required_updated": "Required count updated",
+    "required_hint": "Assigned: {{assigned}} / required: {{required}}"
   },
   "schedule": {
     "title": "My schedule",
