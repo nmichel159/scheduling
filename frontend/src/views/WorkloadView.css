@@ -10,17 +10,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-bottom: 20px;
 }
 
 .workload-title {
   margin: 0;
   font-size: 1.5rem;
   color: var(--text-h);
-}
-
-.workload-subtitle {
-  margin: 4px 0 20px;
-  font-size: 0.85rem;
 }
 
 .workload-monthnav {

@@ -5,14 +5,9 @@
 }
 
 .departments-title {
-  margin: 0;
+  margin: 0 0 20px;
   font-size: 1.5rem;
   color: var(--text-h);
-}
-
-.departments-subtitle {
-  margin: 4px 0 20px;
-  font-size: 0.85rem;
 }
 
 .departments-banner {

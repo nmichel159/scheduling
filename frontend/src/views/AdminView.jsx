@@ -5,14 +5,17 @@ import {
   createAmbulance,
   updateAmbulance,
   deleteAmbulance,
-  fetchUsers,
+  fetchUsersByRole,
   assignManagerToAmbulance,
   removeManagerFromAmbulance,
 } from '../services/ambulanceService';
 import ConfirmDialog from '../components/ConfirmDialog';
 import './AdminView.css';
 
-const emptyDraft = { name: '', description: '', isurgent: false };
+// Role IDs eligible to be assigned as an ambulance manager: 2 = LEADER, 3 = AMBULANCE_OVERSEER.
+const MANAGER_ELIGIBLE_ROLE_IDS = [2, 3];
+
+const emptyDraft = { name: '', description: '', isurgent: false, managerId: '' };
 
 /**
  * Ambulance administration view for Role 3+ (AMBULANCE_OVERSEER).
@@ -44,10 +47,6 @@ const AdminView = () => {
 
   const [confirmState, setConfirmState] = useState(null);
 
-  const [assignModal, setAssignModal] = useState(null);
-  const [selectedManagerId, setSelectedManagerId] = useState('');
-  const [assigning, setAssigning] = useState(false);
-
   const notify = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2400);
@@ -57,9 +56,19 @@ const AdminView = () => {
     setLoading(true);
     setError(null);
     try {
-      const [amb, users] = await Promise.all([fetchAllAmbulances(), fetchUsers()]);
+      const [amb, ...roleResults] = await Promise.all([
+        fetchAllAmbulances(),
+        ...MANAGER_ELIGIBLE_ROLE_IDS.map(fetchUsersByRole),
+      ]);
       setAmbulances(amb);
-      setManagers(users);
+
+      // Merge + dedupe users appearing in more than one eligible role.
+      const merged = new Map();
+      roleResults.flat().forEach((u) => merged.set(u.id, u));
+      const sortedManagers = Array.from(merged.values()).sort((a, b) =>
+        (a.full_name || a.email).localeCompare(b.full_name || b.email)
+      );
+      setManagers(sortedManagers);
     } catch (err) {
       if (err?.response?.status === 403) setForbidden(true);
       else setError(t('admin.load_error'));
@@ -148,6 +157,7 @@ const AdminView = () => {
       name: ambulance.name || '',
       description: ambulance.description || '',
       isurgent: !!ambulance.isurgent,
+      managerId: ambulance.managed_by_user_id != null ? String(ambulance.managed_by_user_id) : '',
     });
   };
 
@@ -160,11 +170,24 @@ const AdminView = () => {
     if (!editDraft.name.trim()) return;
     setSavingId(id);
     try {
+      const original = ambulances.find((a) => a.id === id);
+      const originalManagerId = original?.managed_by_user_id ?? null;
+      const newManagerId = editDraft.managerId === '' ? null : Number(editDraft.managerId);
+
       await updateAmbulance(id, {
         name: editDraft.name.trim(),
         description: editDraft.description.trim() || null,
         isurgent: editDraft.isurgent,
       });
+
+      if (newManagerId !== originalManagerId) {
+        if (newManagerId == null) {
+          await removeManagerFromAmbulance(id);
+        } else {
+          await assignManagerToAmbulance(id, newManagerId);
+        }
+      }
+
       notify(t('admin.saved'));
       cancelEdit();
       await load();
@@ -192,48 +215,6 @@ const AdminView = () => {
       },
       onCancel: () => setConfirmState(null),
     });
-  };
-
-  /* ---------- assign manager ---------- */
-
-  const openAssignModal = (ambulance) => {
-    setAssignModal(ambulance);
-    setSelectedManagerId(ambulance.managed_by_user_id ?? '');
-  };
-
-  const closeAssignModal = () => {
-    setAssignModal(null);
-    setSelectedManagerId('');
-  };
-
-  const handleAssign = async () => {
-    if (!assignModal || selectedManagerId === '') return;
-    setAssigning(true);
-    try {
-      await assignManagerToAmbulance(assignModal.id, Number(selectedManagerId));
-      notify(t('admin.manager_assigned'));
-      closeAssignModal();
-      await load();
-    } catch {
-      notify(t('admin.action_error'));
-    } finally {
-      setAssigning(false);
-    }
-  };
-
-  const handleRemoveManager = async () => {
-    if (!assignModal) return;
-    setAssigning(true);
-    try {
-      await removeManagerFromAmbulance(assignModal.id);
-      notify(t('admin.manager_removed'));
-      closeAssignModal();
-      await load();
-    } catch {
-      notify(t('admin.action_error'));
-    } finally {
-      setAssigning(false);
-    }
   };
 
   /* ---------- render ---------- */
@@ -335,10 +316,6 @@ const AdminView = () => {
           <table className="admin-table">
             <thead>
               <tr>
-                <th className="is-sortable" onClick={() => toggleSort('id')}>
-                  {t('admin.col_id')}
-                  {sortIndicator('id')}
-                </th>
                 <th className="is-sortable" onClick={() => toggleSort('name')}>
                   {t('admin.col_name')}
                   {sortIndicator('name')}
@@ -363,7 +340,6 @@ const AdminView = () => {
                 const isEditing = editingId === a.id;
                 return (
                   <tr key={a.id} className={isEditing ? 'is-editing' : ''}>
-                    <td>{a.id}</td>
                     {isEditing ? (
                       <>
                         <td>
@@ -393,7 +369,22 @@ const AdminView = () => {
                             }
                           />
                         </td>
-                        <td>{managerName(a.managed_by_user_id)}</td>
+                        <td>
+                          <select
+                            className="admin-table-select"
+                            value={editDraft.managerId}
+                            onChange={(e) =>
+                              setEditDraft((prev) => ({ ...prev, managerId: e.target.value }))
+                            }
+                          >
+                            <option value="">{t('admin.no_manager')}</option>
+                            {managers.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.full_name || m.email}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
                         <td className="admin-actions">
                           <button
                             type="button"
@@ -405,6 +396,13 @@ const AdminView = () => {
                           </button>
                           <button type="button" className="admin-btn" onClick={cancelEdit}>
                             {t('admin.cancel')}
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-outline-danger"
+                            onClick={() => askDelete(a)}
+                          >
+                            {t('admin.delete')}
                           </button>
                         </td>
                       </>
@@ -421,20 +419,6 @@ const AdminView = () => {
                             onClick={() => startEdit(a)}
                           >
                             {t('admin.edit')}
-                          </button>
-                          <button
-                            type="button"
-                            className="admin-btn admin-btn-outline-danger"
-                            onClick={() => askDelete(a)}
-                          >
-                            {t('admin.delete')}
-                          </button>
-                          <button
-                            type="button"
-                            className="admin-btn"
-                            onClick={() => openAssignModal(a)}
-                          >
-                            {t('admin.assign_manager')}
                           </button>
                         </td>
                       </>
@@ -461,56 +445,6 @@ const AdminView = () => {
         onConfirm={confirmState?.onConfirm}
         onCancel={confirmState?.onCancel}
       />
-
-      {assignModal && (
-        <div
-          className="admin-modal-overlay"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) closeAssignModal();
-          }}
-        >
-          <div className="admin-modal" role="dialog" aria-modal="true">
-            <h2 className="admin-modal-title">
-              {t('admin.assign_manager_title', { name: assignModal.name })}
-            </h2>
-            <select
-              className="admin-modal-select"
-              value={selectedManagerId}
-              onChange={(e) => setSelectedManagerId(e.target.value)}
-            >
-              <option value="">{t('admin.pick_manager')}</option>
-              {managers.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.full_name || m.email}
-                </option>
-              ))}
-            </select>
-            <div className="admin-modal-actions">
-              {assignModal.managed_by_user_id != null && (
-                <button
-                  type="button"
-                  className="admin-btn admin-btn-outline-danger"
-                  disabled={assigning}
-                  onClick={handleRemoveManager}
-                >
-                  {t('admin.remove_manager')}
-                </button>
-              )}
-              <button type="button" className="admin-btn" onClick={closeAssignModal}>
-                {t('admin.close')}
-              </button>
-              <button
-                type="button"
-                className="admin-btn admin-btn-primary"
-                disabled={assigning || selectedManagerId === ''}
-                onClick={handleAssign}
-              >
-                {t('admin.assign_manager')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

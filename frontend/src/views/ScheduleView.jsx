@@ -115,8 +115,6 @@ const ScheduleView = () => {
         <span className="schedule-monthlabel">{monthLabel}</span>
       </header>
 
-      <p className="schedule-subtitle">{t('schedule.subtitle')}</p>
-
       {error && (
         <div className="schedule-banner schedule-banner-error">
           {error}{' '}

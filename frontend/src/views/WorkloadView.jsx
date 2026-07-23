@@ -164,8 +164,6 @@ const WorkloadView = () => {
         </div>
       </header>
 
-      <p className="workload-subtitle">{t('workload.subtitle')}</p>
-
       {isPastMonth && <div className="workload-banner">{t('workload.past_month')}</div>}
       {error && (
         <div className="workload-banner workload-banner-error">

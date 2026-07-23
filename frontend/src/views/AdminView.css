@@ -151,7 +151,8 @@
   white-space: nowrap;
 }
 
-.admin-table input[type='text'] {
+.admin-table input[type='text'],
+.admin-table-select {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 6px 8px;
@@ -204,54 +205,6 @@
   color: #c0463c;
 }
 .admin-btn-outline-danger:hover { background: rgba(192, 70, 60, 0.12); }
-
-/* --- assign-manager modal --- */
-.admin-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-}
-
-.admin-modal {
-  width: 100%;
-  max-width: 380px;
-  border-radius: 10px;
-  background: var(--code-background);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.admin-modal-title {
-  margin: 0;
-  font-size: 1rem;
-  color: var(--text-h);
-}
-
-.admin-modal-select {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
-  font: inherit;
-  font-size: 0.85rem;
-  background: var(--background);
-  color: var(--text-h);
-  width: 100%;
-}
-
-.admin-modal-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
 
 .admin-toast {
   position: fixed;

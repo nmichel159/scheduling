@@ -42,6 +42,12 @@ export async function fetchUsers() {
   return data;
 }
 
+/** List active users holding a specific role (e.g. 2 = LEADER, 3 = AMBULANCE_OVERSEER). */
+export async function fetchUsersByRole(roleId) {
+  const { data } = await client.get('/users/by-role', { params: { role_id: roleId } });
+  return data;
+}
+
 /** List role IDs assigned to the logged-in user. */
 export async function fetchUserRoles(userId) {
   const { data } = await client.get(`/users/${userId}/roles`);

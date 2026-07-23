@@ -331,7 +331,6 @@ const DepartmentsView = () => {
   return (
     <div className="departments">
       <h1 className="departments-title">{t('departments.title')}</h1>
-      <p className="departments-subtitle">{t('departments.subtitle')}</p>
 
       {error && <div className="departments-banner">{error}</div>}
 

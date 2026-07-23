@@ -77,7 +77,6 @@
     "forbidden": "Nemáš oprávnenie administrátora.",
     "action_error": "Akcia zlyhala, skús to znova.",
     "no_ambulances": "Zatiaľ nie sú vytvorené žiadne ambulancie.",
-    "col_id": "ID",
     "col_name": "Názov",
     "col_description": "Popis",
     "col_urgent": "Urgentná",
@@ -103,14 +102,7 @@
     "deleted": "Ambulancia zmazaná",
     "confirm_delete_named": "Naozaj zmazať ambulanciu {{name}}?",
     "leave_anyway": "Zmazať",
-    "stay": "Zrušiť",
-    "assign_manager": "Priradiť manažéra",
-    "assign_manager_title": "Priradiť manažéra — {{name}}",
-    "remove_manager": "Odobrať manažéra",
-    "manager_assigned": "Manažér priradený",
-    "manager_removed": "Manažér odobratý",
-    "pick_manager": "Vyber manažéra...",
-    "close": "Zavrieť"
+    "stay": "Zrušiť"
   },
   "competences": {
     "title": "Kompetencie",

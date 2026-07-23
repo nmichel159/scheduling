@@ -78,7 +78,6 @@
     "forbidden": "You don't have administrator permissions.",
     "action_error": "Action failed, please try again.",
     "no_ambulances": "No ambulances have been created yet.",
-    "col_id": "ID",
     "col_name": "Name",
     "col_description": "Description",
     "col_urgent": "Urgent",
@@ -104,14 +103,7 @@
     "deleted": "Ambulance deleted",
     "confirm_delete_named": "Really delete ambulance {{name}}?",
     "leave_anyway": "Delete",
-    "stay": "Cancel",
-    "assign_manager": "Assign manager",
-    "assign_manager_title": "Assign manager — {{name}}",
-    "remove_manager": "Remove manager",
-    "manager_assigned": "Manager assigned",
-    "manager_removed": "Manager removed",
-    "pick_manager": "Pick a manager...",
-    "close": "Close"
+    "stay": "Cancel"
   },
   "competences": {
     "title": "Competences",
