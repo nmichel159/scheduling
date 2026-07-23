@@ -1,13 +1,31 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fetchMyManagedAmbulances } from '../services/competenceService';
+import { fetchMyManagedAmbulances, fetchCompetences } from '../services/competenceService';
 import { fetchAmbulanceSchedule, updateAmbulanceSchedule } from '../services/scheduleService';
 import './AmbulanceScheduleEditView.css';
 
 const pad = (n) => String(n).padStart(2, '0');
 const isoDate = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const isoWeekday = (dateObj) => (dateObj.getDay() + 6) % 7;
+
+/**
+ * Fixed palette assigned to competences by their order (sorted by id).
+ * Type 1 = blue, type 2 = red, ... per CALL 05. Cycles if there are more
+ * competences than colors.
+ */
+const COMPETENCE_COLORS = [
+  '#4f8ef7', // blue
+  '#ef5350', // red
+  '#66bb6a', // green
+  '#ffb74d', // orange
+  '#ab47bc', // purple
+  '#26c6da', // cyan
+  '#ec407a', // pink
+  '#d4e157', // lime
+  '#8d6e63', // brown
+  '#78909c', // grey-blue
+];
+const FALLBACK_COLOR = '#9e9e9e';
 
 function buildMonthCells(year, month) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -20,17 +38,21 @@ function buildMonthCells(year, month) {
 }
 
 /**
- * Editable ambulance schedule (kanban-style).
- * Managers drag shifts between days and save bulk.
- * Each day is a drop zone; shifts are draggable cards.
+ * Editable ambulance schedule.
+ * - Top action bar (ambulance name + month, save/cancel) instead of a page header.
+ * - Competence map under the ambulance list: color legend ordered by competence id.
+ * - Each day cell lists employees as colored chips (color = competence),
+ *   ordered by the competence map; chips are draggable between days.
+ * - Saving syncs via PUT /ambulances/{id}/schedule, which also updates each
+ *   employee's personal calendar (same schedule entries).
  */
 const AmbulanceScheduleEditView = () => {
   const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
   const today = useMemo(() => new Date(), []);
 
   const [ambulances, setAmbulances] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  const [competences, setCompetences] = useState([]);
   const [shifts, setShifts] = useState([]); // Mutable during editing
   const [originalShifts, setOriginalShifts] = useState([]); // Baseline for dirty check
   const [loading, setLoading] = useState(true);
@@ -63,14 +85,19 @@ const AmbulanceScheduleEditView = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchAmbulanceSchedule(selectedId);
-      setShifts(data);
-      setOriginalShifts(data);
+      const [scheduleData, competenceData] = await Promise.all([
+        fetchAmbulanceSchedule(selectedId, { month: view.m + 1, year: view.y }),
+        fetchCompetences(selectedId),
+      ]);
+      setShifts(scheduleData);
+      setOriginalShifts(scheduleData);
+      setCompetences(competenceData);
     } catch {
       setError(t('schedule_edit.load_schedule_error'));
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, t]);
 
   useEffect(() => {
@@ -80,6 +107,32 @@ const AmbulanceScheduleEditView = () => {
   useEffect(() => {
     loadSchedule();
   }, [loadSchedule]);
+
+  /* --- Competence map: order + colors by competence id --- */
+
+  const competenceMap = useMemo(() => {
+    const sorted = [...competences].sort((a, b) => a.id - b.id);
+    const map = {};
+    sorted.forEach((c, idx) => {
+      map[c.id] = {
+        ...c,
+        order: idx,
+        color: COMPETENCE_COLORS[idx % COMPETENCE_COLORS.length],
+      };
+    });
+    return map;
+  }, [competences]);
+
+  const legend = useMemo(
+    () => Object.values(competenceMap).sort((a, b) => a.order - b.order),
+    [competenceMap]
+  );
+
+  const competenceColor = (competenceId) =>
+    competenceMap[competenceId]?.color || FALLBACK_COLOR;
+
+  const competenceOrder = (competenceId) =>
+    competenceMap[competenceId]?.order ?? Number.MAX_SAFE_INTEGER;
 
   const isDirty = useMemo(
     () => JSON.stringify(shifts) !== JSON.stringify(originalShifts),
@@ -91,8 +144,17 @@ const AmbulanceScheduleEditView = () => {
     shifts.forEach((s) => {
       (map[s.work_date] = map[s.work_date] || []).push(s);
     });
+    // Order employees inside each day by the competence map order, then name.
+    Object.values(map).forEach((list) =>
+      list.sort(
+        (a, b) =>
+          competenceOrder(a.competence_id) - competenceOrder(b.competence_id) ||
+          (a.user_full_name || '').localeCompare(b.user_full_name || '')
+      )
+    );
     return map;
-  }, [shifts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shifts, competenceMap]);
 
   const cells = useMemo(() => buildMonthCells(view.y, view.m), [view.y, view.m]);
 
@@ -114,12 +176,21 @@ const AmbulanceScheduleEditView = () => {
 
   const previewCompetences = useMemo(() => {
     if (!selectedShiftForPreview) return [];
-    const names = shifts
+    const seen = new Map();
+    shifts
       .filter((s) => s.user_id === selectedShiftForPreview.user_id)
-      .map((s) => s.competence_name)
-      .filter(Boolean);
-    return [...new Set(names)];
-  }, [shifts, selectedShiftForPreview]);
+      .forEach((s) => {
+        if (s.competence_name && !seen.has(s.competence_id)) {
+          seen.set(s.competence_id, {
+            id: s.competence_id,
+            name: s.competence_name,
+            color: competenceColor(s.competence_id),
+          });
+        }
+      });
+    return [...seen.values()];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shifts, selectedShiftForPreview, competenceMap]);
 
   useEffect(() => {
     if (!selectedShiftForPreview) return undefined;
@@ -164,11 +235,10 @@ const AmbulanceScheduleEditView = () => {
       return; // No change
     }
 
-    // Move shift to new date
+    // Move the shift to the new date (persisted on save; the employee's
+    // personal calendar reflects the change automatically after save).
     setShifts((prev) =>
-      prev.map((s) =>
-        s.id === shift.id ? { ...s, work_date: targetDate } : s
-      )
+      prev.map((s) => (s.id === shift.id ? { ...s, work_date: targetDate } : s))
     );
     setDraggedShift(null);
   };
@@ -187,10 +257,22 @@ const AmbulanceScheduleEditView = () => {
         competence_id: s.competence_id,
         work_date: s.work_date,
       }));
-      const updated = await updateAmbulanceSchedule(selectedId, entries);
-      setShifts(updated);
-      setOriginalShifts(updated);
-    } catch {
+      await updateAmbulanceSchedule(selectedId, entries, {
+        month: view.m + 1,
+        year: view.y,
+      });
+      // After save, reload from GET so the state matches the backend exactly.
+      // PUT returns ScheduleResponse (flat), but GET returns UserMonthlySchedule
+      // (grouped by employee) which we already know how to flatten correctly.
+      const fresh = await fetchAmbulanceSchedule(selectedId, {
+        month: view.m + 1,
+        year: view.y,
+      });
+      setShifts(fresh);
+      setOriginalShifts(fresh);
+    } catch (err) {
+       
+      console.error('[schedule save]', err?.response?.status, err?.response?.data ?? err);
       setError(t('schedule_edit.save_error'));
     } finally {
       setSaving(false);
@@ -204,7 +286,7 @@ const AmbulanceScheduleEditView = () => {
     setShifts(originalShifts);
   };
 
-  if (loading) {
+  if (loading && !selected) {
     return (
       <div className="schedule-edit">
         <p>{t('schedule_edit.loading')}</p>
@@ -222,44 +304,89 @@ const AmbulanceScheduleEditView = () => {
 
   return (
     <div className="schedule-edit">
-      <header className="schedule-edit-head">
-        <button type="button" className="schedule-edit-back" onClick={() => navigate(-1)}>
-          ‹
-        </button>
-        <div>
-          <h1 className="schedule-edit-title">{t('schedule_edit.title')}</h1>
-          <p className="schedule-edit-subtitle">
-            {selected.name} — {monthLabel}
-          </p>
-        </div>
-      </header>
-
       {error && (
-        <div className="schedule-edit-banner schedule-edit-banner-error">
-          {error}
-        </div>
+        <div className="schedule-edit-banner schedule-edit-banner-error">{error}</div>
       )}
 
       <div className={`schedule-edit-layout ${showList ? '' : 'is-single'}`}>
-        {showList && (
-          <nav className="schedule-edit-list">
-            {ambulances.map((a) => (
-              <button
-                type="button"
-                key={a.id}
-                className={`schedule-edit-item ${a.id === selectedId ? 'is-selected' : ''}`}
-                onClick={() => setSelectedId(a.id)}
-              >
-                <span className="schedule-edit-item-name">{a.name}</span>
-                {a.description && (
-                  <span className="schedule-edit-item-desc">{a.description}</span>
-                )}
-              </button>
-            ))}
-          </nav>
-        )}
+        <nav className="schedule-edit-side">
+          {showList && (
+            <div className="schedule-edit-list">
+              {ambulances.map((a) => (
+                <button
+                  type="button"
+                  key={a.id}
+                  className={`schedule-edit-item ${a.id === selectedId ? 'is-selected' : ''}`}
+                  onClick={() => setSelectedId(a.id)}
+                >
+                  <span className="schedule-edit-item-name">{a.name}</span>
+                  {a.description && (
+                    <span className="schedule-edit-item-desc">{a.description}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="schedule-edit-legend">
+            <span className="schedule-edit-legend-title">
+              {t('schedule_edit.legend_title')}
+            </span>
+            {legend.length > 0 ? (
+              <ul className="schedule-edit-legend-list">
+                {legend.map((c) => (
+                  <li key={c.id} className="schedule-edit-legend-item">
+                    <span
+                      className="schedule-edit-legend-swatch"
+                      style={{ backgroundColor: c.color }}
+                    />
+                    <span className="schedule-edit-legend-name">{c.name}</span>
+                    {c.required_count != null && (
+                      <span className="schedule-edit-legend-count">
+                        {c.required_count}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="schedule-edit-legend-empty">
+                {t('schedule_edit.legend_empty')}
+              </p>
+            )}
+          </div>
+        </nav>
 
         <div className="schedule-edit-detail">
+          <div className="schedule-edit-topbar">
+            <div className="schedule-edit-topbar-info">
+              <span className="schedule-edit-topbar-name">{selected.name}</span>
+              <span className="schedule-edit-topbar-month">{monthLabel}</span>
+            </div>
+            <div className="schedule-edit-topbar-actions">
+              <span className="schedule-edit-status">
+                {isDirty && <span className="schedule-edit-unsaved">●</span>}
+                {isDirty ? t('schedule_edit.unsaved') : t('schedule_edit.saved')}
+              </span>
+              <button
+                type="button"
+                className="schedule-edit-btn schedule-edit-btn-cancel"
+                onClick={handleCancel}
+                disabled={!isDirty}
+              >
+                {t('schedule_edit.cancel')}
+              </button>
+              <button
+                type="button"
+                className="schedule-edit-btn schedule-edit-btn-primary"
+                onClick={handleSave}
+                disabled={!isDirty || saving}
+              >
+                {saving ? t('schedule_edit.saving') : t('schedule_edit.save')}
+              </button>
+            </div>
+          </div>
+
           <div className={`schedule-edit-grid ${loading ? 'is-loading' : ''}`}>
             {dayLabels.map((label) => (
               <div key={label} className="schedule-edit-grid-head">
@@ -269,7 +396,6 @@ const AmbulanceScheduleEditView = () => {
 
             {cells.map((day, idx) => {
               if (day == null) {
-                // eslint-disable-next-line react/no-array-index-key
                 return (
                   <div key={`e${idx}`} className="schedule-edit-cell schedule-edit-cell-empty" />
                 );
@@ -293,66 +419,42 @@ const AmbulanceScheduleEditView = () => {
                 >
                   <span className="schedule-edit-cell-daynum">{day}</span>
                   <div className="schedule-edit-shifts">
-                    {dayShifts.map((shift) => (
-                      <div
-                        key={shift.id}
-                        className="schedule-edit-shift"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, shift, dateStr)}
-                      >
-                        <span className="schedule-edit-shift-name">
-                          {shift.user_full_name || shift.user_email}
-                        </span>
-                        {shift.competence_name && (
-                          <span className="schedule-edit-shift-competence">
-                            {shift.competence_name}
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          className="schedule-edit-shift-preview"
+                    {dayShifts.map((shift) => {
+                      const color = competenceColor(shift.competence_id);
+                      return (
+                        <div
+                          key={shift.id}
+                          className="schedule-edit-shift"
+                          style={{
+                            borderLeftColor: color,
+                            backgroundColor: `${color}26`,
+                          }}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, shift, dateStr)}
                           onClick={() => setSelectedShiftForPreview(shift)}
-                          title={t('schedule_edit.view_competences')}
+                          title={shift.competence_name || ''}
                         >
-                          ⋮
-                        </button>
-                        <button
-                          type="button"
-                          className="schedule-edit-shift-remove"
-                          onClick={() => handleRemoveShift(shift.id)}
-                          title={t('schedule_edit.remove_shift')}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+                          <span className="schedule-edit-shift-name">
+                            {shift.user_full_name || shift.user_email}
+                          </span>
+                          <button
+                            type="button"
+                            className="schedule-edit-shift-remove"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveShift(shift.id);
+                            }}
+                            title={t('schedule_edit.remove_shift')}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
             })}
-          </div>
-
-          <div className="schedule-edit-actions">
-            <button
-              type="button"
-              className="schedule-edit-btn schedule-edit-btn-cancel"
-              onClick={handleCancel}
-              disabled={!isDirty}
-            >
-              {t('schedule_edit.cancel')}
-            </button>
-            <span className="schedule-edit-status">
-              {isDirty && <span className="schedule-edit-unsaved">●</span>}
-              {isDirty ? t('schedule_edit.unsaved') : t('schedule_edit.saved')}
-            </span>
-            <button
-              type="button"
-              className="schedule-edit-btn schedule-edit-btn-primary"
-              onClick={handleSave}
-              disabled={!isDirty || saving}
-            >
-              {saving ? t('schedule_edit.saving') : t('schedule_edit.save')}
-            </button>
           </div>
         </div>
       </div>
@@ -380,9 +482,13 @@ const AmbulanceScheduleEditView = () => {
             </div>
             <ul className="schedule-edit-competence-popup-list">
               {previewCompetences.length > 0 ? (
-                previewCompetences.map((name) => (
-                  <li key={name} className="schedule-edit-competence-item">
-                    {name}
+                previewCompetences.map((c) => (
+                  <li key={c.id} className="schedule-edit-competence-item">
+                    <span
+                      className="schedule-edit-legend-swatch"
+                      style={{ backgroundColor: c.color }}
+                    />
+                    {c.name}
                   </li>
                 ))
               ) : (

@@ -117,11 +117,7 @@
     "load_error": "Nepodarilo sa načítať kompetencie.",
     "action_error": "Akcia zlyhala, skús to znova.",
     "add_competence": "Pridať kompetenciu",
-    "search_placeholder": "Vyhľadať zamestnanca...",
-    "required_row_label": "Potrebný počet zamestnancov",
-    "required_edit": "Upraviť potrebný počet",
-    "required_updated": "Potrebný počet upravený",
-    "required_hint": "Označení: {{assigned}} / potrební: {{required}}"
+    "search_placeholder": "Vyhľadať zamestnanca..."
   },
   "schedule": {
     "title": "Môj rozvrh",
@@ -148,6 +144,8 @@
     "saved": "Uložené",
     "view_competences": "Zobraziť kompetencie",
     "close": "Zavrieť",
-    "no_competences": "Zamestnanec nemá priradené žiadne kompetencie."
+    "no_competences": "Zamestnanec nemá priradené žiadne kompetencie.",
+    "legend_title": "Mapa kompetencií",
+    "legend_empty": "Ambulancia nemá definované kompetencie."
   }
 }

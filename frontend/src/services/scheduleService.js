@@ -17,14 +17,22 @@ export async function fetchMySchedule(params = {}) {
   return data;
 }
 
-/** Fetch all shifts for an ambulance (manager only, current month). */
-export async function fetchAmbulanceSchedule(ambulanceId) {
-  const { data } = await client.get(`/ambulances/${ambulanceId}/schedule`);
-  return data;
+/**
+ * Fetch all shifts for an ambulance (manager only).
+ * The backend groups entries per employee ({user_id, user_full_name, entries});
+ * flatten them into a single list of shifts for the calendar.
+ */
+export async function fetchAmbulanceSchedule(ambulanceId, params = {}) {
+  const { data } = await client.get(`/ambulances/${ambulanceId}/schedule`, { params });
+  return data.flatMap((employee) => employee.entries || []);
 }
 
-/** Update the schedule for an ambulance (manager only, bulk sync). */
-export async function updateAmbulanceSchedule(ambulanceId, entries) {
-  const { data } = await client.put(`/ambulances/${ambulanceId}/schedule`, { entries });
+/**
+ * Update the schedule for an ambulance (manager only, bulk sync).
+ * Persisting here also updates each employee's personal schedule —
+ * both views read the same schedule entries.
+ */
+export async function updateAmbulanceSchedule(ambulanceId, entries, params = {}) {
+  const { data } = await client.put(`/ambulances/${ambulanceId}/schedule`, { entries }, { params });
   return data;
 }

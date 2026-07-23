@@ -1,306 +1,100 @@
-/* Kanban-style editable schedule. Drag shifts between day columns. */
+/* Editable ambulance schedule.
+   No page header — a compact top action bar sits directly above the calendar.
+   Left column: ambulance list + competence color map (legend).
+   Day cells hold colored, draggable employee chips (color = competence). */
 
 .schedule-edit {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-}
-
-.schedule-edit-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   padding: 16px;
-  border-bottom: 1px solid var(--border);
-  background: var(--primary-background);
-}
-
-.schedule-edit-back {
-  border: none;
-  background: none;
-  font: inherit;
-  font-size: 1.5rem;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  cursor: pointer;
-  color: var(--text-h);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.schedule-edit-back:hover { background: rgba(0, 0, 0, 0.1); }
-
-.schedule-edit-title {
-  margin: 0;
-  font-size: 1.2rem;
-  color: var(--text-h);
-}
-
-.schedule-edit-subtitle {
-  margin: 2px 0 0;
-  font-size: 0.85rem;
-  opacity: 0.8;
+  gap: 12px;
 }
 
 .schedule-edit-banner {
-  border: 1px solid var(--border);
-  background: var(--primary-background);
-  border-radius: 8px;
   padding: 10px 14px;
-  margin: 12px;
-  font-size: 0.85rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
 }
-.schedule-edit-banner-error { border-color: #c0463c; }
+.schedule-edit-banner-error {
+  background: rgba(239, 83, 80, 0.15);
+  border: 1px solid rgba(239, 83, 80, 0.5);
+  color: var(--text-h);
+}
 
-/* --- Layout ---
- * Two-column: sidebar with ambulances (if > 1) and detail area with kanban.
- * Single ambulance: no sidebar, kanban takes full width.
- */
+/* --- Layout: side column + calendar --- */
 
 .schedule-edit-layout {
   display: grid;
   grid-template-columns: 240px 1fr;
   gap: 16px;
-  padding: 16px;
-  flex: 1;
-  overflow: hidden;
+  align-items: start;
 }
-
 .schedule-edit-layout.is-single {
-  grid-template-columns: 1fr;
+  grid-template-columns: 240px 1fr;
 }
 
-/* --- Sidebar: ambulance list (mirrors DepartmentsView) --- */
+.schedule-edit-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
 .schedule-edit-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-height: 0;
-  overflow-y: auto;
+  gap: 8px;
 }
 
 .schedule-edit-item {
-  border: 1px solid var(--border);
-  background: var(--code-background);
-  border-radius: 8px;
-  padding: 10px 12px;
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 2px;
-  transition: border-color 0.12s ease;
-}
-.schedule-edit-item:hover { border-color: var(--primary); }
-.schedule-edit-item.is-selected {
-  border-color: var(--primary);
-  background: var(--primary-background);
-}
-
-.schedule-edit-item-name { font-weight: 600; color: var(--text-h); }
-.schedule-edit-item-desc {
-  font-size: 0.75rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* --- Detail: kanban grid --- */
-
-.schedule-edit-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.schedule-edit-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
-  flex: 1;
-  overflow: auto;
-  transition: opacity 0.15s ease;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--code-background);
-}
-.schedule-edit-grid.is-loading { opacity: 0.5; }
-
-.schedule-edit-grid-head {
-  text-align: center;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 4px 0;
-  position: sticky;
-  top: 0;
-  background: var(--code-background);
-  z-index: 10;
-}
-
-.schedule-edit-cell {
-  min-height: 120px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  cursor: default;
-  transition: background-color 0.12s ease, border-color 0.12s ease;
-}
-.schedule-edit-cell.is-today { border-width: 2px; border-color: var(--primary); }
-.schedule-edit-cell.is-drag-over {
-  background: var(--primary-background);
-  border-color: var(--primary);
-}
-.schedule-edit-cell-empty {
-  border: none;
-  background: none;
-  min-height: 0;
-}
-
-.schedule-edit-cell-daynum {
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-.schedule-edit-cell.is-today .schedule-edit-cell-daynum { color: var(--primary); }
-
-/* --- Shift cards (draggable chips) --- */
-
-.schedule-edit-shifts {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-  min-width: 0;
-}
-
-.schedule-edit-shift {
-  background: var(--primary-background);
-  border: 1px solid var(--primary);
-  border-radius: 6px;
-  padding: 6px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  cursor: grab;
-  transition: opacity 0.12s ease, box-shadow 0.12s ease;
-  position: relative;
-  user-select: none;
-}
-.schedule-edit-shift:hover { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); }
-.schedule-edit-shift:active { cursor: grabbing; opacity: 0.7; }
-
-.schedule-edit-shift-name {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-h);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.schedule-edit-shift-competence {
-  display: none;
-}
-
-.schedule-edit-shift-remove {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 18px;
-  height: 18px;
-  border: none;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 50%;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.65rem;
-  color: #c0463c;
-  opacity: 0.6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-.schedule-edit-shift-remove:hover { opacity: 1; background: rgba(0, 0, 0, 0.3); }
-
-.schedule-edit-shift-preview {
-  position: absolute;
-  top: 2px;
-  right: 22px;
-  width: 18px;
-  height: 18px;
-  border: none;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 50%;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.7rem;
-  color: var(--text-h);
-  opacity: 0.6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-.schedule-edit-shift-preview:hover { opacity: 1; background: rgba(0, 0, 0, 0.3); }
-
-/* --- Competence preview popup --- */
-
-.schedule-edit-competence-popup-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 400;
-}
-
-.schedule-edit-competence-popup {
-  background: var(--code-background);
+  padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
-  padding: 14px 16px;
-  min-width: 220px;
-  max-width: 320px;
-}
-
-.schedule-edit-competence-popup-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-  font-weight: 600;
+  background: var(--secondary-background, transparent);
   color: var(--text-h);
-}
-
-.schedule-edit-competence-popup-close {
-  border: none;
-  background: none;
-  font: inherit;
-  font-size: 0.9rem;
   cursor: pointer;
-  color: var(--text-h);
-  opacity: 0.6;
-  line-height: 1;
-  padding: 2px;
+  text-align: left;
+  font: inherit;
 }
-.schedule-edit-competence-popup-close:hover { opacity: 1; }
+.schedule-edit-item:hover {
+  border-color: var(--accent, #a78bfa);
+}
+.schedule-edit-item.is-selected {
+  border-color: var(--accent, #a78bfa);
+  background: rgba(167, 139, 250, 0.08);
+}
+.schedule-edit-item-name {
+  font-weight: 600;
+}
+.schedule-edit-item-desc {
+  font-size: 0.8rem;
+  color: var(--text-p);
+}
 
-.schedule-edit-competence-popup-list {
+/* --- Competence map (legend) --- */
+
+.schedule-edit-legend {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schedule-edit-legend-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-p);
+}
+
+.schedule-edit-legend-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -309,95 +103,303 @@
   gap: 6px;
 }
 
-.schedule-edit-competence-item {
-  font-size: 0.85rem;
-  color: var(--text-h);
-  padding-left: 14px;
-  position: relative;
-}
-.schedule-edit-competence-item::before {
-  content: '•';
-  position: absolute;
-  left: 0;
-  opacity: 0.6;
-}
-
-/* --- Action buttons --- */
-
-.schedule-edit-actions {
+.schedule-edit-legend-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text-h);
+}
+
+.schedule-edit-legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.schedule-edit-legend-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-edit-legend-count {
+  font-size: 0.75rem;
+  color: var(--text-p);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 7px;
+  line-height: 1.4;
+}
+
+.schedule-edit-legend-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-p);
+}
+
+/* --- Top action bar (replaces the old page header + bottom bar) --- */
+
+.schedule-edit-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.schedule-edit-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  padding: 12px;
-  background: var(--primary-background);
-  border-radius: 8px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.schedule-edit-topbar-info {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.schedule-edit-topbar-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text-h);
+}
+
+.schedule-edit-topbar-month {
+  font-size: 0.9rem;
+  color: var(--text-p);
+  text-transform: capitalize;
+}
+
+.schedule-edit-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .schedule-edit-status {
-  font-size: 0.85rem;
-  color: var(--text-h);
   display: flex;
   align-items: center;
   gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-p);
 }
-
 .schedule-edit-unsaved {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--primary);
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  color: #ffb74d;
 }
 
 .schedule-edit-btn {
-  border: 1px solid var(--border);
-  background: var(--code-background);
-  color: var(--text-h);
-  border-radius: 6px;
-  padding: 8px 14px;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
+  padding: 8px 16px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: border-color 0.12s ease;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-h);
 }
-.schedule-edit-btn:hover:not(:disabled) { border-color: var(--primary); }
 .schedule-edit-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
 }
-
 .schedule-edit-btn-primary {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
+  background: var(--accent, #7c5cf0);
+  border-color: var(--accent, #7c5cf0);
+  color: #fff;
 }
-.schedule-edit-btn-primary:hover:not(:disabled) { opacity: 0.85; }
+.schedule-edit-btn-primary:not(:disabled):hover {
+  filter: brightness(1.1);
+}
+.schedule-edit-btn-cancel:not(:disabled):hover {
+  border-color: var(--text-p);
+}
 
-.schedule-edit-btn-cancel {
-  /* default style above */
+/* --- Calendar grid --- */
+
+.schedule-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.schedule-edit-grid.is-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.schedule-edit-grid-head {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-p);
+  padding: 6px 0;
+}
+
+.schedule-edit-cell {
+  min-height: 110px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.schedule-edit-cell-empty {
+  border-color: transparent;
+}
+.schedule-edit-cell.is-today {
+  border-color: var(--accent, #a78bfa);
+}
+.schedule-edit-cell.is-drag-over {
+  border-color: var(--accent, #a78bfa);
+  background: rgba(167, 139, 250, 0.08);
+}
+
+.schedule-edit-cell-daynum {
+  align-self: flex-end;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+/* --- Employee chips --- */
+
+.schedule-edit-shifts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.schedule-edit-shift {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border-left: 3px solid transparent;
+  cursor: grab;
+  user-select: none;
+}
+.schedule-edit-shift:active {
+  cursor: grabbing;
+}
+
+.schedule-edit-shift-name {
+  flex: 1;
+  font-size: 0.8rem;
+  color: var(--text-h);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-edit-shift-remove {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.7rem;
+  line-height: 1;
+  color: var(--text-p);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  opacity: 0;
+}
+.schedule-edit-shift:hover .schedule-edit-shift-remove {
+  opacity: 1;
+}
+.schedule-edit-shift-remove:hover {
+  color: #ef5350;
+}
+
+/* --- Competence preview popup --- */
+
+.schedule-edit-competence-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.schedule-edit-competence-popup {
+  background: var(--primary-background, #1e1b2e);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  min-width: 280px;
+  max-width: 90vw;
+  overflow: hidden;
+}
+
+.schedule-edit-competence-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.schedule-edit-competence-popup-close {
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--text-p);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+.schedule-edit-competence-popup-close:hover {
+  color: var(--text-h);
+}
+
+.schedule-edit-competence-popup-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+}
+
+.schedule-edit-competence-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  color: var(--text-h);
 }
 
 /* --- Responsive --- */
 
-@media (max-width: 768px) {
-  .schedule-edit-layout {
+@media (max-width: 900px) {
+  .schedule-edit-layout,
+  .schedule-edit-layout.is-single {
     grid-template-columns: 1fr;
-    gap: 12px;
   }
-
-  .schedule-edit-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
+  .schedule-edit-side {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
   }
-
-  .schedule-edit-cell { min-height: 100px; padding: 6px; }
-  .schedule-edit-shift { padding: 4px 6px; }
-  .schedule-edit-shift-name { font-size: 0.7rem; }
+  .schedule-edit-list {
+    flex: 1;
+    min-width: 200px;
+  }
+  .schedule-edit-legend {
+    flex: 1;
+    min-width: 200px;
+  }
 }

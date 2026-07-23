@@ -118,11 +118,7 @@
     "load_error": "Failed to load competences.",
     "action_error": "Action failed, please try again.",
     "add_competence": "Add competence",
-    "search_placeholder": "Search employee...",
-    "required_row_label": "Required number of employees",
-    "required_edit": "Edit required count",
-    "required_updated": "Required count updated",
-    "required_hint": "Assigned: {{assigned}} / required: {{required}}"
+    "search_placeholder": "Search employee..."
   },
   "schedule": {
     "title": "My schedule",
@@ -149,6 +145,8 @@
     "saved": "Saved",
     "view_competences": "View competences",
     "close": "Close",
-    "no_competences": "This employee has no assigned competences."
+    "no_competences": "This employee has no assigned competences.",
+    "legend_title": "Competence map",
+    "legend_empty": "This ambulance has no competences defined."
   }
 }
