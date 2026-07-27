@@ -1,10 +1,3 @@
-# Standalone Database Build Script (Supabase Compatible)
-
-This file contains the complete SQL query to drop all existing tables, recreate the schema, and populate the database with all necessary initial data (including Gabriel Semanisin, role assignments, clinics, competences, and daily schedules for July 2026).
-
-Copy and run the SQL code block below in your Supabase SQL Editor.
-
-```sql
 -- 1. DROP ALL EXISTING TABLES AND SEQUENCES (CASCADE ensures constraints are resolved)
 DROP TABLE IF EXISTS public.audit_logs CASCADE;
 DROP TABLE IF EXISTS public.schedules CASCADE;
@@ -171,6 +164,14 @@ CREATE INDEX ix_roles_id ON public.roles USING btree (id);
 CREATE INDEX ix_ambulances_id ON public.ambulances USING btree (id);
 CREATE INDEX ix_competences_id ON public.competences USING btree (id);
 CREATE INDEX ix_schedules_id ON public.schedules USING btree (id);
+-- Monthly ambulance schedule reads and writes are scoped by ambulance and date.
+CREATE INDEX ix_schedules_ambulance_work_date
+    ON public.schedules USING btree (ambulance_id, work_date);
+CREATE INDEX ix_schedules_user_work_date
+    ON public.schedules USING btree (user_id, work_date);
+-- A worker can have one occurrence of the same competence in an ambulance on a day.
+CREATE UNIQUE INDEX uq_schedules_user_ambulance_competence_work_date
+    ON public.schedules USING btree (user_id, ambulance_id, competence_id, work_date);
 CREATE INDEX ix_unavailabilities_id ON public.unavailabilities USING btree (id);
 CREATE INDEX ix_audit_logs_id ON public.audit_logs USING btree (id);
 
@@ -374,4 +375,3 @@ SELECT setval(pg_get_serial_sequence('public.competences', 'id'), coalesce(max(i
 SELECT setval(pg_get_serial_sequence('public.schedules', 'id'), coalesce(max(id), 1)) FROM public.schedules;
 SELECT setval(pg_get_serial_sequence('public.unavailabilities', 'id'), coalesce(max(id), 1)) FROM public.unavailabilities;
 SELECT setval(pg_get_serial_sequence('public.audit_logs', 'id'), coalesce(max(id), 1)) FROM public.audit_logs;
-```
