@@ -66,7 +66,7 @@ def create_schedule(db: Session, user_id: int, data: ScheduleCreate) -> Schedule
 
 def update_schedule(db: Session, item: Schedule, data: ScheduleEdit) -> ScheduleResponse:
     payload = data.model_dump(exclude_unset=True)
-    candidate = ScheduleCreate(user_id=item.user_id, ambulance_id=item.ambulance_id, competence_id=payload.get("competence_id", item.competence_id), work_date=payload.get("work_date", item.work_date))
+    candidate = ScheduleCreate(ambulance_id=item.ambulance_id, competence_id=payload.get("competence_id", item.competence_id), work_date=payload.get("work_date", item.work_date))
     _validate_entry(db, item.user_id, candidate)
     for field, value in payload.items(): setattr(item, field, value)
     db.commit(); db.refresh(item)

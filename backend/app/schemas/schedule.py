@@ -1,10 +1,18 @@
 from datetime import date, datetime
 from pydantic import BaseModel, Field, model_validator
 
+class ScheduleCreate(BaseModel):
+    ambulance_id: int
+    competence_id: int
+    work_date: date
+
+
 class ScheduleEntry(BaseModel):
+    """A schedule item with its employee, used by ambulance-wide updates."""
     user_id: int
     competence_id: int
     work_date: date
+
 
 class ScheduleResponse(ScheduleEntry):
     id: int
@@ -19,10 +27,6 @@ class ScheduleResponse(ScheduleEntry):
 
 class ScheduleUpdate(BaseModel):
     entries: list[ScheduleEntry]
-
-
-class ScheduleCreate(ScheduleEntry):
-    ambulance_id: int
 
 
 class ScheduleEdit(BaseModel):
