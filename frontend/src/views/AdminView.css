@@ -40,6 +40,8 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* Dropdown našepkávača musí presahovať mimo formulára. */
+  overflow: visible;
 }
 
 .admin-create-title {
@@ -67,6 +69,21 @@
   min-width: 200px;
 }
 
+.admin-form-field-manager {
+  width: 340px;
+  max-width: 100%;
+}
+
+.admin-form-hint {
+  font-size: 0.7rem;
+  opacity: 0.6;
+}
+
+.admin-form-hint.is-warn {
+  color: #d99a2b;
+  opacity: 1;
+}
+
 .admin-form-field input[type='text'] {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -91,6 +108,112 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* --- autocomplete (výber manažéra) --- */
+.admin-autocomplete {
+  position: relative;
+  width: 100%;
+}
+
+.admin-autocomplete-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  padding-right: 4px;
+}
+
+.admin-autocomplete-control:focus-within {
+  border-color: var(--primary);
+}
+
+.admin-autocomplete-control.is-selected {
+  border-color: var(--secondary);
+}
+
+.admin-autocomplete-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 8px 10px;
+  min-width: 0;
+}
+
+.admin-autocomplete-clear {
+  border: none;
+  background: none;
+  color: var(--text-h);
+  opacity: 0.55;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.admin-autocomplete-clear:hover {
+  opacity: 1;
+  background: var(--primary-background);
+}
+
+.admin-autocomplete-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 200;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-background);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.admin-autocomplete-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  border: none;
+  background: none;
+  color: var(--text-h);
+  text-align: left;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.admin-autocomplete-option.is-active {
+  background: var(--primary-background);
+}
+
+.admin-autocomplete-option.is-picked .admin-autocomplete-name {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.admin-autocomplete-mail {
+  font-size: 0.7rem;
+  opacity: 0.6;
+}
+
+.admin-autocomplete-empty {
+  padding: 10px;
+  font-size: 0.8rem;
+  opacity: 0.65;
 }
 
 /* --- table --- */
@@ -222,5 +345,6 @@
 @media (max-width: 768px) {
   .admin-form-row { flex-direction: column; align-items: stretch; }
   .admin-form-field-grow { min-width: 0; }
+  .admin-form-field-manager { width: 100%; }
   .admin-actions { flex-wrap: wrap; }
 }

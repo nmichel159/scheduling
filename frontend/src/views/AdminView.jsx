@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   fetchAllAmbulances,
@@ -14,21 +14,192 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import './AdminView.css';
 
 // Rola je "manažérska" (dá sa priradiť ako správca ambulancie), ak má level >= 2 —
-// presne rovnaká podmienka, akú backend overuje v _validate_manager().
-// Predtým tu boli natvrdo zadrôtované id [2, 3] (predpoklad LEADER=2,
-// AMBULANCE_OVERSEER=3). Len čo databáza obsahuje rolu s iným id
-// (iné poradie seedovania, ručne pridaná rola...), GET /users/by-role pre
-// dané id vráti 404, Promise.all v load() sa celý zamietne a AdminView
-// nezobrazí nič — presne to hlásenie "Nepodarilo sa načítať ambulancie".
-const isManagerEligible = (role) => Number(role.level) >= 2;
+// presne to overuje backend v _validate_manager().
+//
+// LENŽE: GET /roles vracia iba { name, index } — pole `level` v odpovedi vôbec
+// nie je. Number(undefined) === NaN a NaN >= 2 je false, takže filter na
+// `role.level` neprepustil ani jednu rolu, nespravilo sa ani jedno volanie
+// /users/by-role a zoznam manažérov ostal prázdny.
+//
+// Preto tu máme dve cesty:
+//   1) ak backend `level` niekedy doplní, použije sa (žiadna zmena tu netreba),
+//   2) inak sa role rozpoznajú podľa kódu (`name`) — tie tri kódy sú presne tie,
+//      ktoré majú v číselníku level >= 2.
+const MANAGER_ROLE_CODES = new Set(['LEADER', 'AMBULANCE_OVERSEER', 'HOSPITAL_ADMIN']);
+
+const hasLevels = (roles) => roles.some((r) => Number.isFinite(Number(r.level)));
+
+const pickManagerRoleIds = (roles) => {
+  const eligible = hasLevels(roles)
+    ? roles.filter((r) => Number(r.level) >= 2)
+    : roles.filter((r) => MANAGER_ROLE_CODES.has(String(r.name || r.code || '').toUpperCase()));
+  // Keby sa kódy rolí v databáze volali inak, radšej skúsime všetky role a
+  // používateľov odfiltrujeme až podľa toho, akú rolu naozaj majú.
+  return (eligible.length ? eligible : roles).map((r) => r.index);
+};
 
 const emptyDraft = { name: '', description: '', isurgent: false, managerId: '' };
 
+/** Zobrazovaný názov používateľa (meno, inak email). */
+const displayName = (user) => user.full_name || user.email;
+
+/**
+ * Našepkávač (autocomplete) na výber manažéra.
+ *
+ * Prečo nie obyčajný <select>: manažérov môže byť v nemocnici desiatky až stovky
+ * a admin ich potrebuje nájsť podľa mena/emailu, nie skrolovať zoznam.
+ *
+ * value      – id vybraného manažéra ako string ('' = nepriradený)
+ * onChange   – dostane nové id ako string ('' pri zrušení výberu)
+ */
+const ManagerAutocomplete = ({ managers, value, onChange, placeholder, emptyLabel, clearLabel }) => {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(0);
+  const wrapRef = useRef(null);
+
+  const selected = useMemo(
+    () => managers.find((m) => String(m.id) === String(value)) || null,
+    [managers, value]
+  );
+
+  // Zatvorenie po kliknutí mimo komponentu.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDocMouseDown = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return managers;
+    return managers.filter(
+      (m) =>
+        (m.full_name || '').toLowerCase().includes(q) ||
+        (m.email || '').toLowerCase().includes(q)
+    );
+  }, [managers, query]);
+
+  useEffect(() => {
+    setHighlight(0);
+  }, [query, open]);
+
+  const pick = (manager) => {
+    onChange(String(manager.id));
+    setQuery('');
+    setOpen(false);
+  };
+
+  const clear = () => {
+    onChange('');
+    setQuery('');
+    setOpen(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setOpen(true);
+      setHighlight((h) => Math.min(h + 1, filtered.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlight((h) => Math.max(h - 1, 0));
+    } else if (e.key === 'Enter') {
+      // Dôležité: formulár nesmie odoslať pri potvrdzovaní návrhu.
+      if (open && filtered[highlight]) {
+        e.preventDefault();
+        pick(filtered[highlight]);
+      }
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div className="admin-autocomplete" ref={wrapRef}>
+      <div className={`admin-autocomplete-control${selected ? ' is-selected' : ''}`}>
+        {/*
+          Chrome ignoruje autoComplete="off" na poliach, ktoré vyzerajú ako meno
+          alebo email, a napcháva sem uložené adresy ("Manage addresses...").
+          Jediná hodnota, ktorú spoľahlivo rešpektuje, je "new-password";
+          data-lpignore / data-form-type vypínajú LastPass a 1Password.
+          role="combobox" zároveň prehliadaču povie, že si zoznam riadime sami.
+        */}
+        <input
+          type="text"
+          className="admin-autocomplete-input"
+          value={open ? query : selected ? displayName(selected) : query}
+          placeholder={placeholder}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => {
+            setQuery('');
+            setOpen(true);
+          }}
+          onKeyDown={handleKeyDown}
+          name="ambulance-manager-search"
+          autoComplete="new-password"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          data-lpignore="true"
+          data-form-type="other"
+          role="combobox"
+          aria-expanded={open}
+          aria-autocomplete="list"
+        />
+        {selected && !open && (
+          <button
+            type="button"
+            className="admin-autocomplete-clear"
+            title={clearLabel}
+            aria-label={clearLabel}
+            onClick={clear}
+          >
+            ×
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <ul className="admin-autocomplete-list" role="listbox">
+          {filtered.length === 0 ? (
+            <li className="admin-autocomplete-empty">{emptyLabel}</li>
+          ) : (
+            filtered.map((m, i) => (
+              <li key={m.id}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={String(m.id) === String(value)}
+                  className={`admin-autocomplete-option${i === highlight ? ' is-active' : ''}${
+                    String(m.id) === String(value) ? ' is-picked' : ''
+                  }`}
+                  onMouseEnter={() => setHighlight(i)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => pick(m)}
+                >
+                  <span className="admin-autocomplete-name">{displayName(m)}</span>
+                  {m.full_name && m.email && (
+                    <span className="admin-autocomplete-mail">{m.email}</span>
+                  )}
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
+  );
+};
+
 /**
  * Ambulance administration view for Role 3+ (AMBULANCE_OVERSEER).
- *
- * Lists every ambulance in the hospital with full CRUD and lets the admin
- * (re)assign which manager (Role Level >= 2) runs each one.
  */
 const AdminView = () => {
   const { t } = useTranslation();
@@ -63,22 +234,36 @@ const AdminView = () => {
     setLoading(true);
     setError(null);
     try {
-      // Ambulancie a zoznam VŠETKÝCH rolí sa dajú načítať paralelne — obe sú
-      // verejné endpointy. Až keď vieme, ktoré role sú manažérske (level >= 2),
-      // vieme vypýtať používateľov s týmito konkrétnymi (skutočne existujúcimi)
-      // rolami.
       const [amb, allRoles] = await Promise.all([fetchAllAmbulances(), fetchAllRoles()]);
       setAmbulances(amb);
 
-      const eligibleRoleIds = allRoles.filter(isManagerEligible).map((r) => r.index);
-      const roleResults = await Promise.all(eligibleRoleIds.map(fetchUsersByRole));
+      const managerRoleIds = pickManagerRoleIds(allRoles);
+      const managerRoleIdSet = new Set(managerRoleIds.map(Number));
 
-      // Merge + dedupe users appearing in more than one eligible role.
+      // .catch(() => []) je dôležité: keby jedna rola medzitým zmizla, vrátil by
+      // /users/by-role 404 a Promise.all by zamietol celý load() — presne to
+      // hlásenie "Nepodarilo sa načítať ambulancie" a prázdna obrazovka.
+      const roleResults = await Promise.all(
+        managerRoleIds.map((id) => fetchUsersByRole(id).catch(() => []))
+      );
+
+      // Merge + dedupe. Filter na roles[] je poistka pre prípad, že sme museli
+      // stiahnuť používateľov všetkých rolí — bežných zamestnancov tu nechceme.
       const merged = new Map();
       roleResults.flat().forEach((u) => merged.set(u.id, u));
-      const sortedManagers = Array.from(merged.values()).sort((a, b) =>
-        (a.full_name || a.email).localeCompare(b.full_name || b.email)
-      );
+
+      const isManagerUser = (u) => {
+        if (!Array.isArray(u.roles) || u.roles.length === 0) return true;
+        return u.roles.some(
+          (r) =>
+            managerRoleIdSet.has(Number(r.id)) ||
+            MANAGER_ROLE_CODES.has(String(r.code || '').toUpperCase())
+        );
+      };
+
+      const sortedManagers = Array.from(merged.values())
+        .filter(isManagerUser)
+        .sort((a, b) => displayName(a).localeCompare(displayName(b)));
       setManagers(sortedManagers);
     } catch (err) {
       if (err?.response?.status === 403) setForbidden(true);
@@ -96,7 +281,7 @@ const AdminView = () => {
     (managerId) => {
       if (managerId == null) return t('admin.no_manager');
       const manager = managers.find((m) => m.id === managerId);
-      return manager ? manager.full_name || manager.email : t('admin.no_manager');
+      return manager ? displayName(manager) : t('admin.no_manager');
     },
     [managers, t]
   );
@@ -144,10 +329,14 @@ const AdminView = () => {
     if (!createDraft.name.trim() || creating) return;
     setCreating(true);
     try {
+      // Backend (POST /ambulances) prijíma manager_id priamo v tele požiadavky
+      // a overí ho cez _validate_manager(), takže ambulancia aj jej manažér
+      // vzniknú v jednej atomickej operácii — netreba druhý PUT.
       await createAmbulance({
         name: createDraft.name.trim(),
         description: createDraft.description.trim() || null,
         isurgent: createDraft.isurgent,
+        managerId: createDraft.managerId === '' ? null : Number(createDraft.managerId),
       });
       notify(t('admin.created'));
       setCreateDraft(emptyDraft);
@@ -298,6 +487,25 @@ const AdminView = () => {
               <span>{t('admin.isurgent')}</span>
             </label>
           </div>
+
+          {/* Výber manažéra už pri zakladaní ambulancie. */}
+          <div className="admin-form-row">
+            <div className="admin-form-field admin-form-field-manager">
+              <span>{t('admin.manager')}</span>
+              <ManagerAutocomplete
+                managers={managers}
+                value={createDraft.managerId}
+                onChange={(id) => setCreateDraft((prev) => ({ ...prev, managerId: id }))}
+                placeholder={t('admin.manager_placeholder')}
+                emptyLabel={t('admin.manager_no_results')}
+                clearLabel={t('admin.manager_clear')}
+              />
+              {managers.length === 0 && (
+                <small className="admin-form-hint is-warn">{t('admin.manager_empty')}</small>
+              )}
+            </div>
+          </div>
+
           <div className="admin-form-actions">
             <button
               type="button"
@@ -391,7 +599,7 @@ const AdminView = () => {
                             <option value="">{t('admin.no_manager')}</option>
                             {managers.map((m) => (
                               <option key={m.id} value={m.id}>
-                                {m.full_name || m.email}
+                                {displayName(m)}
                               </option>
                             ))}
                           </select>

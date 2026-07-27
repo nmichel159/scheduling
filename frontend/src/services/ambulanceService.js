@@ -62,9 +62,25 @@ export async function fetchAllAmbulances() {
   return data;
 }
 
-/** Create a new ambulance. */
-export async function createAmbulance({ name, description = null, isurgent = false }) {
-  const { data } = await client.post('/ambulances', { name, description, isurgent });
+/**
+ * Create a new ambulance.
+ *
+ * `managerId` je nepovinné — backend (POST /ambulances) prijíma `manager_id`
+ * priamo v tele požiadavky a overí ho cez _validate_manager(), takže ambulancia
+ * aj priradenie manažéra vzniknú v jednej atomickej operácii.
+ */
+export async function createAmbulance({
+  name,
+  description = null,
+  isurgent = false,
+  managerId = null,
+}) {
+  const { data } = await client.post('/ambulances', {
+    name,
+    description,
+    isurgent,
+    manager_id: managerId,
+  });
   return data;
 }
 
