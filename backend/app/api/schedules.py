@@ -10,7 +10,7 @@ from app.models.associations import UserAmbulance
 from app.models.schedule import Schedule
 from app.models.user import User
 from app.schemas.schedule import MonthlyScheduleSave, ScheduleCreate, ScheduleEdit, ScheduleResponse, ScheduleUpdate, UserMonthlySchedule
-from app.services.schedule_service import create_schedule, deactivate_schedule, get_ambulance_schedule, get_user_schedule, save_monthly_schedule, update_schedule
+from app.services.schedule_service import create_schedule, deactivate_schedule, get_ambulance_schedule, get_user_schedule, save_ambulance_monthly_schedule, save_monthly_schedule, update_schedule
 
 router = APIRouter()
 ambulance_router = APIRouter()
@@ -81,19 +81,17 @@ def save_monthly_schedule_endpoint(data: MonthlyScheduleSave, current_user: User
 def get_ambulance_schedule_endpoint(ambulance: Ambulance = Depends(get_manager_ambulance), month: int | None = None, year: int | None = None, db: Session = Depends(get_db)):
     displayed_month, displayed_year = (month, year) if month is not None and year is not None else (date.today().month, date.today().year)
     employees = db.query(UserAmbulance).filter(UserAmbulance.ambulance_id == ambulance.id, UserAmbulance.is_active.is_(True)).all()
-    return [UserMonthlySchedule(user_id=item.user_id, user_full_name=item.user.full_name if item.user else None, month=displayed_month, year=displayed_year, entries=get_user_schedule(db, item.user_id, displayed_month, displayed_year)) for item in employees if item.user and item.user.is_active]
+    entries_by_user: dict[int, list[ScheduleResponse]] = {}
+    for entry in get_ambulance_schedule(db, ambulance.id, displayed_month, displayed_year):
+        entries_by_user.setdefault(entry.user_id, []).append(entry)
+    return [UserMonthlySchedule(user_id=item.user_id, user_full_name=item.user.full_name if item.user else None, month=displayed_month, year=displayed_year, entries=entries_by_user.get(item.user_id, [])) for item in employees if item.user and item.user.is_active]
 
 
 @ambulance_router.put("/{ambulance_id}/schedule", response_model=list[ScheduleResponse])
 def update_ambulance_schedule_endpoint(data: ScheduleUpdate, ambulance: Ambulance = Depends(get_manager_ambulance), month: int | None = None, year: int | None = None, db: Session = Depends(get_db)):
-    """Legacy bulk endpoint scoped to an ambulance; retained for frontend compatibility."""
+    """Synchronize the selected ambulance's schedule for the selected month."""
+    selected_month, selected_year = (month, year) if month is not None and year is not None else (date.today().month, date.today().year)
     for entry in data.entries:
-        if entry.work_date.month != (month or date.today().month) or entry.work_date.year != (year or date.today().year):
+        if entry.work_date.month != selected_month or entry.work_date.year != selected_year:
             raise HTTPException(status_code=400, detail="Entries must belong to the selected month and year.")
-    grouped: dict[int, list[ScheduleCreate]] = {}
-    for entry in data.entries:
-        grouped.setdefault(entry.user_id, []).append(ScheduleCreate(ambulance_id=ambulance.id, competence_id=entry.competence_id, work_date=entry.work_date))
-    result = []
-    for user_id, entries in grouped.items():
-        result.extend(save_monthly_schedule(db, user_id, month or date.today().month, year or date.today().year, entries))
-    return result
+    return save_ambulance_monthly_schedule(db, ambulance.id, selected_month, selected_year, data.entries)

@@ -8,7 +8,7 @@ from app.models.associations import UserAmbulance
 from app.models.competence import Competence
 from app.models.schedule import Schedule
 from app.models.user import User
-from app.schemas.schedule import ScheduleCreate, ScheduleEdit, ScheduleResponse
+from app.schemas.schedule import ScheduleCreate, ScheduleEdit, ScheduleEntry, ScheduleResponse
 
 
 def month_range(month: int | None, year: int | None) -> tuple[date, date] | None:
@@ -94,3 +94,62 @@ def save_monthly_schedule(db: Session, user_id: int, month: int, year: int, entr
             db.add(Schedule(user_id=user_id, is_active=True, **entry.model_dump()))
     db.commit()
     return get_user_schedule(db, user_id, month, year)
+
+
+def save_ambulance_monthly_schedule(
+    db: Session,
+    ambulance_id: int,
+    month: int,
+    year: int,
+    entries: list[ScheduleEntry],
+) -> list[ScheduleResponse]:
+    """Synchronize one ambulance's schedule for one calendar month only.
+
+    Entries omitted from the request are deactivated only when they belong to
+    the selected ambulance and month.  Schedules from another ambulance, even
+    for the same employee, are deliberately left untouched.
+    """
+    start, end = month_range(month, year)
+    requested = {(entry.user_id, entry.competence_id, entry.work_date): entry for entry in entries}
+
+    for entry in requested.values():
+        _validate_entry(
+            db,
+            entry.user_id,
+            ScheduleCreate(
+                ambulance_id=ambulance_id,
+                competence_id=entry.competence_id,
+                work_date=entry.work_date,
+            ),
+        )
+
+    existing = (
+        db.query(Schedule)
+        .filter(
+            Schedule.ambulance_id == ambulance_id,
+            Schedule.work_date.between(start, end),
+        )
+        .all()
+    )
+    existing_by_key = {
+        (item.user_id, item.competence_id, item.work_date): item for item in existing
+    }
+
+    for key, item in existing_by_key.items():
+        item.is_active = key in requested
+    for key, entry in requested.items():
+        if key in existing_by_key:
+            existing_by_key[key].is_active = True
+        else:
+            db.add(
+                Schedule(
+                    user_id=entry.user_id,
+                    ambulance_id=ambulance_id,
+                    competence_id=entry.competence_id,
+                    work_date=entry.work_date,
+                    is_active=True,
+                )
+            )
+
+    db.commit()
+    return get_ambulance_schedule(db, ambulance_id, month, year)
