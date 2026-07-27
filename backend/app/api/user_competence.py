@@ -15,13 +15,29 @@ from app.schemas.user_competence import (
     UserCompetenceAssign,
     UserCompetenceResponse,
 )
+from app.schemas.user import UserListResponse
 from app.services.user_competence_service import (
     assign_competence,
+    list_employees_by_competence,
     list_user_competences,
     remove_competence,
 )
 
 router = APIRouter()
+
+
+@router.get(
+    "/{ambulance_id}/competences/{competence_id}/employees",
+    response_model=list[UserListResponse],
+    summary="List employees assigned to a competence",
+)
+def list_employees_by_competence_endpoint(
+    competence_id: int,
+    ambulance: Ambulance = Depends(get_manager_ambulance),
+    db: Session = Depends(get_db),
+) -> list[UserListResponse]:
+    """Return active employees who can perform a competence in an ambulance."""
+    return list_employees_by_competence(db, ambulance.id, competence_id)
 
 
 @router.get(

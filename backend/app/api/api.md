@@ -153,6 +153,12 @@ PUT body: `{"employees":[{"user_id":12,"competence_ids":[1,3]},{"user_id":15,"co
 - `DELETE /ambulances/{ambulance_id}/employees/{user_id}/competences/{competence_id}`
 
 Oprávnenie: rola 2 pre vlastnú ambulanciu alebo rola 3. Úspech `200`, `201`, `204`; chyby `400`, `404`, `409`, `422`.
+### Zamestnanci podla kompetencie
+
+- `GET /ambulances/{ambulance_id}/competences/{competence_id}/employees`
+
+Opravnenie: rola 2 pre vlastnu ambulanciu alebo rola 3. Vracia aktivnych zamestnancov ambulancie, ktori maju priradenu zadanu kompetenciu: `[{"id":12,"full_name":"Meno Priezvisko","email":"meno@nemocnica.sk"}]`. Neexistujuca alebo neaktivna kompetencia, pripadne kompetencia z inej ambulancie, vracia `404`.
+
 </details>
 
 <details>

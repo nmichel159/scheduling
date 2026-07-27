@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.models.associations import UserAmbulance, UserCompetence
 from app.models.competence import Competence
 from app.models.user import User
+from app.schemas.user import UserListResponse
 from app.schemas.user_competence import UserCompetenceResponse
 
 
@@ -126,6 +127,37 @@ def list_user_competences(
             )
         )
     return result
+
+
+def list_employees_by_competence(
+    db: Session, ambulance_id: int, competence_id: int
+) -> list[UserListResponse]:
+    """List active ambulance employees assigned to a competence.
+
+    The competence is validated against the requested ambulance first, so an
+    invalid or cross-ambulance competence ID returns ``404`` instead of an
+    indistinguishable empty list.
+    """
+    _validate_competence_in_ambulance(db, ambulance_id, competence_id)
+
+    users = (
+        db.query(User)
+        .join(UserCompetence, UserCompetence.user_id == User.id)
+        .join(
+            UserAmbulance,
+            (UserAmbulance.user_id == User.id)
+            & (UserAmbulance.ambulance_id == ambulance_id),
+        )
+        .filter(
+            UserCompetence.competence_id == competence_id,
+            UserCompetence.is_active.is_(True),
+            UserAmbulance.is_active.is_(True),
+            User.is_active.is_(True),
+        )
+        .order_by(User.full_name, User.email)
+        .all()
+    )
+    return [UserListResponse.model_validate(user) for user in users]
 
 
 def assign_competence(
