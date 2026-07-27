@@ -9,11 +9,18 @@ import {
   assignManagerToAmbulance,
   removeManagerFromAmbulance,
 } from '../services/ambulanceService';
+import { fetchAllRoles } from '../services/roleService';
 import ConfirmDialog from '../components/ConfirmDialog';
 import './AdminView.css';
 
-// Role IDs eligible to be assigned as an ambulance manager: 2 = LEADER, 3 = AMBULANCE_OVERSEER.
-const MANAGER_ELIGIBLE_ROLE_IDS = [2, 3];
+// Rola je "manažérska" (dá sa priradiť ako správca ambulancie), ak má level >= 2 —
+// presne rovnaká podmienka, akú backend overuje v _validate_manager().
+// Predtým tu boli natvrdo zadrôtované id [2, 3] (predpoklad LEADER=2,
+// AMBULANCE_OVERSEER=3). Len čo databáza obsahuje rolu s iným id
+// (iné poradie seedovania, ručne pridaná rola...), GET /users/by-role pre
+// dané id vráti 404, Promise.all v load() sa celý zamietne a AdminView
+// nezobrazí nič — presne to hlásenie "Nepodarilo sa načítať ambulancie".
+const isManagerEligible = (role) => Number(role.level) >= 2;
 
 const emptyDraft = { name: '', description: '', isurgent: false, managerId: '' };
 
@@ -56,11 +63,15 @@ const AdminView = () => {
     setLoading(true);
     setError(null);
     try {
-      const [amb, ...roleResults] = await Promise.all([
-        fetchAllAmbulances(),
-        ...MANAGER_ELIGIBLE_ROLE_IDS.map(fetchUsersByRole),
-      ]);
+      // Ambulancie a zoznam VŠETKÝCH rolí sa dajú načítať paralelne — obe sú
+      // verejné endpointy. Až keď vieme, ktoré role sú manažérske (level >= 2),
+      // vieme vypýtať používateľov s týmito konkrétnymi (skutočne existujúcimi)
+      // rolami.
+      const [amb, allRoles] = await Promise.all([fetchAllAmbulances(), fetchAllRoles()]);
       setAmbulances(amb);
+
+      const eligibleRoleIds = allRoles.filter(isManagerEligible).map((r) => r.index);
+      const roleResults = await Promise.all(eligibleRoleIds.map(fetchUsersByRole));
 
       // Merge + dedupe users appearing in more than one eligible role.
       const merged = new Map();

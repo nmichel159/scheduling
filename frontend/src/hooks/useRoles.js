@@ -7,22 +7,15 @@ export function getStoredRoles() {
   }
 }
 
-/**
- * Roly a odvodené oprávnenia aktuálneho usera.
- * Role nie sú hierarchické — user môže mať viacero rolí naraz
- * (napr. EMPLOYEE aj LEADER) a každá odomyká svoju časť aplikácie nezávisle.
- */
+
 export function useRoles() {
   const roles = getStoredRoles();
   const codes = new Set(roles.map((r) => r.name));
-  const indexes = new Set(roles.map((r) => r.index));
-
-  const hasRole = (code, index) => codes.has(code) || indexes.has(index);
 
   return {
     roles,
-    hasEmployee: hasRole('EMPLOYEE', 1),
-    hasManager: hasRole('LEADER', 2),
-    hasAdmin: hasRole('AMBULANCE_OVERSEER', 3),
+    hasEmployee: codes.has('EMPLOYEE'),
+    hasManager: codes.has('LEADER'),
+    hasAdmin: codes.has('AMBULANCE_OVERSEER') || codes.has('HOSPITAL_ADMIN'),
   };
 }

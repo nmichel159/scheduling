@@ -10,6 +10,15 @@
   text-align: left;
   transition: width 0.25s ease;
   overflow: hidden;
+
+  /* Sidebar sa "prilepí" na vrch okna a je vysoký presne ako viewport,
+     takže pri dlhých views (ScheduleView, AdminView...) neodíde dole
+     spolu s obsahom — logout je stále na spodku obrazovky. */
+  position: sticky;
+  top: 0;
+  align-self: flex-start;            /* bez toho by ho flex roztiahol a sticky by nefungoval */
+  height: 100vh;                     /* fallback pre staršie prehliadače */
+  height: 100svh;
 }
 
 .sidebar.is-open {
@@ -28,6 +37,7 @@
   border-radius: 8px;
   cursor: pointer;
   margin-bottom: 16px;
+  flex-shrink: 0;                    /* logo sa nikdy nestláča */
 }
 .logo-btn:hover { background: var(--primary-background); }
 .logo-img { width: 28px; height: 28px; object-fit: contain; }
@@ -40,6 +50,25 @@
   flex-direction: column;
   gap: 4px;
   flex: 1;
+  min-height: 0;                     /* nutné, aby sa mohol scrollovať vnútri flexu */
+  overflow-y: auto;                  /* keď pribudne veľa položiek, scrolluje sa len zoznam */
+  overflow-x: hidden;
+  overscroll-behavior: contain;      /* scroll v menu nepretečie na stránku */
+  scrollbar-width: thin;
+}
+
+/* v zatvorenom stave (56px) by scrollbar zaberal priveľa miesta */
+.sidebar:not(.is-open) .sidebar-nav {
+  scrollbar-width: none;
+}
+.sidebar:not(.is-open) .sidebar-nav::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.sidebar-nav::-webkit-scrollbar { width: 6px; }
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
 }
 
 .nav-item, .user-avatar {
@@ -68,13 +97,17 @@
   cursor: pointer;
   font: inherit;
   width: 100%;
+  margin-top: auto;                  /* vždy zatlačený na spodok sidebaru */
+  flex-shrink: 0;                    /* nikdy sa nestlačí ani neschová */
 }
+.user-avatar:hover { background: var(--primary-background); }
 
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
     top: 0;
     left: 0;
+    align-self: auto;
     height: 100svh;
     z-index: 100;
     width: 260px;                    /* na mobile vždy plná šírka */
@@ -85,4 +118,5 @@
     transform: translateX(0);        /* otvorená = vysunutá */
   }
   .sidebar .label { display: inline; } /* texty na mobile vždy, panel je plný */
+  .sidebar .sidebar-nav { scrollbar-width: thin; }
 }
