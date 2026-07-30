@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchMyManagedAmbulances, fetchCompetences } from '../services/competenceService';
 import { fetchAmbulanceSchedule, updateAmbulanceSchedule } from '../services/scheduleService';
+import ScheduleListView from '../components/ScheduleListView';
 import './AmbulanceScheduleEditView.css';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -61,6 +62,7 @@ const AmbulanceScheduleEditView = () => {
   const [draggedShift, setDraggedShift] = useState(null);
   const [dragOverDate, setDragOverDate] = useState(null);
   const [selectedShiftForPreview, setSelectedShiftForPreview] = useState(null);
+  const [scheduleView, setScheduleView] = useState('calendar');
 
   const view = { y: today.getFullYear(), m: today.getMonth() };
 
@@ -170,6 +172,10 @@ const AmbulanceScheduleEditView = () => {
     () => [0, 1, 2, 3, 4, 5, 6].map((i) => t(`workload.days.${i}`)),
     [t]
   );
+  const viewLabels =
+    i18n.language === 'en'
+      ? { calendar: 'Calendar', list: 'Daily rows', switcher: 'Schedule view' }
+      : { calendar: 'Kalendár', list: 'Denné riadky', switcher: 'Zobrazenie rozvrhu' };
 
   const selected = ambulances.find((a) => a.id === selectedId) || null;
   const showList = ambulances.length > 1;
@@ -364,6 +370,32 @@ const AmbulanceScheduleEditView = () => {
               <span className="schedule-edit-topbar-month">{monthLabel}</span>
             </div>
             <div className="schedule-edit-topbar-actions">
+              <div
+                className="schedule-view-switch"
+                role="group"
+                aria-label={viewLabels.switcher}
+              >
+                <button
+                  type="button"
+                  className={`schedule-view-switch-button ${
+                    scheduleView === 'calendar' ? 'is-active' : ''
+                  }`}
+                  onClick={() => setScheduleView('calendar')}
+                  aria-pressed={scheduleView === 'calendar'}
+                >
+                  {viewLabels.calendar}
+                </button>
+                <button
+                  type="button"
+                  className={`schedule-view-switch-button ${
+                    scheduleView === 'list' ? 'is-active' : ''
+                  }`}
+                  onClick={() => setScheduleView('list')}
+                  aria-pressed={scheduleView === 'list'}
+                >
+                  {viewLabels.list}
+                </button>
+              </div>
               <span className="schedule-edit-status">
                 {isDirty && <span className="schedule-edit-unsaved">●</span>}
                 {isDirty ? t('schedule_edit.unsaved') : t('schedule_edit.saved')}
@@ -387,7 +419,8 @@ const AmbulanceScheduleEditView = () => {
             </div>
           </div>
 
-          <div className={`schedule-edit-grid ${loading ? 'is-loading' : ''}`}>
+          {scheduleView === 'calendar' ? (
+            <div className={`schedule-edit-grid ${loading ? 'is-loading' : ''}`}>
             {dayLabels.map((label) => (
               <div key={label} className="schedule-edit-grid-head">
                 {label}
@@ -455,7 +488,27 @@ const AmbulanceScheduleEditView = () => {
                 </div>
               );
             })}
-          </div>
+            </div>
+          ) : (
+            <ScheduleListView
+              year={view.y}
+              month={view.m}
+              locale={i18n.language === 'en' ? 'en-GB' : 'sk-SK'}
+              today={today}
+              shiftsByDate={shiftsByDate}
+              competenceColor={competenceColor}
+              loading={loading}
+              dragOverDate={dragOverDate}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onShiftClick={setSelectedShiftForPreview}
+              onShiftRemove={handleRemoveShift}
+              removeShiftLabel={t('schedule_edit.remove_shift')}
+            />
+          )}
         </div>
       </div>
 
