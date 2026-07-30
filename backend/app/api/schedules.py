@@ -9,8 +9,8 @@ from app.models.ambulance import Ambulance
 from app.models.associations import UserAmbulance
 from app.models.schedule import Schedule
 from app.models.user import User
-from app.schemas.schedule import MonthlyScheduleSave, ScheduleCreate, ScheduleEdit, ScheduleResponse, ScheduleUpdate, UserMonthlySchedule
-from app.services.schedule_service import create_schedule, deactivate_schedule, get_ambulance_schedule, get_user_schedule, save_ambulance_monthly_schedule, save_monthly_schedule, update_schedule
+from app.schemas.schedule import MonthlyScheduleSave, MonthlyScheduleStatistics, NextScheduleResponse, ScheduleCreate, ScheduleEdit, ScheduleResponse, ScheduleUpdate, UserMonthlySchedule, WorkedScheduleStatistics
+from app.services.schedule_service import create_schedule, deactivate_schedule, get_ambulance_schedule, get_next_user_schedule, get_user_monthly_statistics, get_user_schedule, get_user_worked_statistics, save_ambulance_monthly_schedule, save_monthly_schedule, update_schedule
 
 router = APIRouter()
 ambulance_router = APIRouter()
@@ -33,6 +33,22 @@ def _can_manage_user(current_user: User, db: Session, user_id: int, ambulance_id
 @router.get("/me", response_model=list[ScheduleResponse])
 def get_my_schedule(month: int | None = None, year: int | None = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return get_user_schedule(db, current_user.id, month, year)
+
+
+@router.get("/me/next", response_model=NextScheduleResponse)
+def get_my_next_schedule(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Return the next active duty, or a null value when none is scheduled."""
+    return {"next_shift": get_next_user_schedule(db, current_user.id)}
+
+
+@router.get("/me/monthly-statistics", response_model=MonthlyScheduleStatistics)
+def get_my_monthly_schedule_statistics(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return get_user_monthly_statistics(db, current_user.id)
+
+
+@router.get("/me/worked-statistics", response_model=WorkedScheduleStatistics)
+def get_my_worked_schedule_statistics(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return get_user_worked_statistics(db, current_user.id)
 
 
 @router.get("/user/{user_id}", response_model=list[ScheduleResponse])

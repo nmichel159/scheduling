@@ -5,6 +5,22 @@
   "login_facebook": "Login with Facebook",
   "login_outlook": "Login with Outlook",
   "need_help": "Need help? Contact",
+  "dashboard": {
+    "overview": "Personal overview",
+    "greeting": "Hello, {{name}}",
+    "subtitle": "Your duties and current overview in one place.",
+    "next_shift": "Next duty",
+    "no_next_shift": "You have no upcoming duty scheduled.",
+    "planned_shifts": "Planned duties",
+    "worked_days": "Worked days",
+    "this_month": "this month",
+    "until_today": "up to today",
+    "schedule_title": "My schedule",
+    "schedule_subtitle": "Overview of duties in the current month.",
+    "load_error": "Unable to load the dashboard.",
+    "retry": "Try again",
+    "login_needed": "Please sign in."
+  },
   "sidebar": {
     "dashboard": "Dashboard",
     "workload": "Workload",

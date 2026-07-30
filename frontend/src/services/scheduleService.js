@@ -17,6 +17,24 @@ export async function fetchMySchedule(params = {}) {
   return data;
 }
 
+/** Fetch the user's nearest duty. `next_shift` is null when none is planned. */
+export async function fetchMyNextShift() {
+  const { data } = await client.get('/schedules/me/next');
+  return data;
+}
+
+/** Fetch the number of duties planned in the running calendar month. */
+export async function fetchMyMonthlyScheduleStatistics() {
+  const { data } = await client.get('/schedules/me/monthly-statistics');
+  return data;
+}
+
+/** Fetch the number of current-month duties dated today or earlier. */
+export async function fetchMyWorkedScheduleStatistics() {
+  const { data } = await client.get('/schedules/me/worked-statistics');
+  return data;
+}
+
 /**
  * Fetch all shifts for an ambulance (manager only).
  * The backend groups entries per employee ({user_id, user_full_name, entries});

@@ -174,6 +174,12 @@ Manažér s rolou 2 spravuje iba vlastnú ambulanciu; rola 3 má globálny prís
 - Úspech: `200` — všetky aktívne položky alebo len zvolený mesiac
 - Chyby: `422`, ak chýba jeden z parametrov `month`, `year`
 
+### Osobný prehľad (dashboard)
+
+- `GET /schedules/me/next` — najbližšia aktívna služba od dneška. Vždy vracia `200`; pri prázdnom rozvrhu je `next_shift: null`.
+- `GET /schedules/me/monthly-statistics` — počet aktuálne naplánovaných služieb v mesiaci: `scheduled_shift_count`, `month`, `year`.
+- `GET /schedules/me/worked-statistics` — počet unikátnych odpracovaných dní aktuálneho mesiaca do dneška vrátane: `worked_day_count`, `through_date`, `month`, `year`.
+
 ### Rozvrh používateľa
 
 - `GET /schedules/user/{user_id}?month=&year=`

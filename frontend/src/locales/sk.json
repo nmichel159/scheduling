@@ -4,6 +4,22 @@
   "login_google": "Prihlásiť sa cez Google",
   "login_facebook": "Prihlásiť sa cez Facebook",
   "login_outlook": "Prihlásiť sa cez Outlook",
+  "dashboard": {
+    "overview": "Osobný prehľad",
+    "greeting": "Ahoj, {{name}}",
+    "subtitle": "Tvoje služby a aktuálny prehľad na jednom mieste.",
+    "next_shift": "Najbližšia služba",
+    "no_next_shift": "Nemáš naplánovanú ďalšiu službu.",
+    "planned_shifts": "Naplánované služby",
+    "worked_days": "Odpracované dni",
+    "this_month": "v tomto mesiaci",
+    "until_today": "do dnešného dňa",
+    "schedule_title": "Môj rozvrh",
+    "schedule_subtitle": "Prehľad služieb v aktuálnom mesiaci.",
+    "load_error": "Nepodarilo sa načítať dashboard.",
+    "retry": "Skúsiť znova",
+    "login_needed": "Prosím, prihláste sa."
+  },
   "sidebar": {
     "dashboard": "Dashboard",
     "workload": "Vyťaženosť",

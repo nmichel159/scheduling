@@ -39,6 +39,68 @@ def get_ambulance_schedule(db: Session, ambulance_id: int, month: int | None = N
     return [_response(row) for row in query.order_by(Schedule.work_date, Schedule.competence_id, Schedule.user_id).all()]
 
 
+def get_next_user_schedule(db: Session, user_id: int, today: date | None = None) -> ScheduleResponse | None:
+    """Return the first active duty today or in the future for one user."""
+    reference_date = today or date.today()
+    item = (
+        db.query(Schedule)
+        .filter(
+            Schedule.user_id == user_id,
+            Schedule.is_active.is_(True),
+            Schedule.work_date >= reference_date,
+        )
+        .order_by(Schedule.work_date, Schedule.competence_id, Schedule.id)
+        .first()
+    )
+    return _response(item) if item else None
+
+
+def get_user_monthly_statistics(
+    db: Session, user_id: int, today: date | None = None
+) -> dict[str, int]:
+    """Count the authenticated user's planned duties in the current month."""
+    reference_date = today or date.today()
+    start, end = month_range(reference_date.month, reference_date.year)
+    scheduled_shift_count = (
+        db.query(Schedule)
+        .filter(
+            Schedule.user_id == user_id,
+            Schedule.is_active.is_(True),
+            Schedule.work_date.between(start, end),
+        )
+        .count()
+    )
+    return {
+        "month": reference_date.month,
+        "year": reference_date.year,
+        "scheduled_shift_count": scheduled_shift_count,
+    }
+
+
+def get_user_worked_statistics(
+    db: Session, user_id: int, today: date | None = None
+) -> dict[str, int | date]:
+    """Count distinct current-month work days up to and including today."""
+    reference_date = today or date.today()
+    start = date(reference_date.year, reference_date.month, 1)
+    worked_day_count = (
+        db.query(Schedule.work_date)
+        .filter(
+            Schedule.user_id == user_id,
+            Schedule.is_active.is_(True),
+            Schedule.work_date.between(start, reference_date),
+        )
+        .distinct()
+        .count()
+    )
+    return {
+        "month": reference_date.month,
+        "year": reference_date.year,
+        "through_date": reference_date,
+        "worked_day_count": worked_day_count,
+    }
+
+
 def _validate_entry(db: Session, user_id: int, data: ScheduleCreate) -> None:
     user = db.query(User).filter(User.id == user_id, User.is_active.is_(True)).first()
     if not user:

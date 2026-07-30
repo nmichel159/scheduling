@@ -1,0 +1,39 @@
+.dashboard { max-width: 1180px; margin: 0 auto; padding: 24px; color: var(--text-h); }
+.dashboard-header, .dashboard-summary, .dashboard-calendar-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.dashboard-header { margin-bottom: 24px; }
+.dashboard-eyebrow, .dashboard-card-label { margin: 0 0 5px; color: var(--text-p); font-size: 0.76rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.dashboard-header h1, .dashboard-calendar-heading h2, .dashboard-next-shift h2 { margin: 0; }
+.dashboard-header h1 { font-size: clamp(1.65rem, 3vw, 2.25rem); }
+.dashboard-subtitle { margin: 7px 0 0; color: var(--text-p); }
+.dashboard-month { border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px; background: var(--code-background); font-weight: 600; text-transform: capitalize; white-space: nowrap; }
+.dashboard-summary { align-items: stretch; display: grid; grid-template-columns: minmax(0, 1.65fr) repeat(2, minmax(140px, 1fr)); margin-bottom: 20px; }
+.dashboard-card, .dashboard-calendar-card, .dashboard-error { border: 1px solid var(--border); border-radius: 14px; background: var(--code-background); }
+.dashboard-card { padding: 18px; }
+.dashboard-calendar-card.is-loading, .dashboard-summary.is-loading { opacity: 0.62; }
+.dashboard-next-shift { display: flex; align-items: flex-start; gap: 13px; }
+.dashboard-card-icon { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 10px; background: rgba(124, 92, 240, 0.16); color: var(--primary); font-size: 1.35rem; }
+.dashboard-next-shift h2 { font-size: 1.05rem; text-transform: capitalize; }
+.dashboard-next-shift p:not(.dashboard-card-label) { margin: 5px 0 0; color: var(--text-p); font-size: 0.88rem; }
+.dashboard-stat-card { display: flex; flex-direction: column; justify-content: center; }
+.dashboard-stat-card strong { font-size: 2rem; line-height: 1; }
+.dashboard-stat-card span { margin-top: 7px; color: var(--text-p); font-size: 0.82rem; }
+.dashboard-error { margin-bottom: 18px; padding: 11px 14px; border-color: #c0463c; }
+.dashboard-error button { border: 0; padding: 0; background: none; color: var(--primary); cursor: pointer; font: inherit; text-decoration: underline; }
+.dashboard-login-needed { padding: 32px; }
+.dashboard-calendar-card { padding: 20px; }
+.dashboard-calendar-heading { margin-bottom: 18px; }
+.dashboard-calendar-heading h2 { font-size: 1.15rem; }
+.dashboard-calendar-heading p { margin: 5px 0 0; color: var(--text-p); font-size: 0.88rem; }
+.dashboard-calendar-heading > span { color: var(--text-p); font-size: 0.88rem; text-transform: capitalize; }
+.dashboard-calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.dashboard-calendar-day-label { padding: 3px 0 5px; color: var(--text-p); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-align: center; text-transform: uppercase; }
+.dashboard-calendar-cell { display: flex; flex-direction: column; min-height: 92px; gap: 5px; min-width: 0; padding: 7px; border: 1px solid var(--border); border-radius: 9px; background: var(--primary-background); }
+.dashboard-calendar-cell.is-today { border: 2px solid var(--primary); padding: 6px; }
+.dashboard-calendar-empty { min-height: 1px; }
+.dashboard-calendar-day-number { align-self: flex-end; font-size: 0.76rem; font-weight: 700; }
+.dashboard-calendar-cell.is-today .dashboard-calendar-day-number { color: var(--primary); }
+.dashboard-calendar-shift { display: flex; flex-direction: column; min-width: 0; padding: 4px 5px; border-radius: 5px; background: var(--code-background); font-size: 0.68rem; line-height: 1.25; }
+.dashboard-calendar-shift b, .dashboard-calendar-shift small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-calendar-shift small { color: var(--text-p); font-size: 0.92em; }
+@media (max-width: 860px) { .dashboard-summary { grid-template-columns: 1fr 1fr; } .dashboard-next-shift { grid-column: 1 / -1; } }
+@media (max-width: 620px) { .dashboard { padding: 16px; } .dashboard-header, .dashboard-calendar-heading { align-items: flex-start; flex-direction: column; } .dashboard-summary { grid-template-columns: 1fr; } .dashboard-next-shift { grid-column: auto; } .dashboard-calendar-cell { min-height: 62px; padding: 4px; } .dashboard-calendar-cell.is-today { padding: 3px; } .dashboard-calendar-shift { padding: 3px; font-size: 0.58rem; } .dashboard-calendar-day-label { font-size: 0.62rem; } }

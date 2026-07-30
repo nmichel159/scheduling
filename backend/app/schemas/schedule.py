@@ -25,6 +25,26 @@ class ScheduleResponse(ScheduleEntry):
     class Config:
         from_attributes = True
 
+
+class NextScheduleResponse(BaseModel):
+    """The authenticated user's nearest scheduled duty, if one exists."""
+    next_shift: ScheduleResponse | None = None
+
+
+class MonthlyScheduleStatistics(BaseModel):
+    """Number of duties planned for the current calendar month."""
+    month: int
+    year: int
+    scheduled_shift_count: int
+
+
+class WorkedScheduleStatistics(BaseModel):
+    """Number of distinct current-month work days whose date has already arrived."""
+    month: int
+    year: int
+    through_date: date
+    worked_day_count: int
+
 class ScheduleUpdate(BaseModel):
     entries: list[ScheduleEntry]
 
