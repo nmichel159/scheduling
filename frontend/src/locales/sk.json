@@ -167,6 +167,17 @@
     "close": "Zavrieť",
     "no_competences": "Zamestnanec nemá priradené žiadne kompetencie.",
     "legend_title": "Mapa kompetencií",
-    "legend_empty": "Ambulancia nemá definované kompetencie."
+    "legend_empty": "Ambulancia nemá definované kompetencie.",
+    "add_shift_title": "Nová služba",
+    "edit_shift_title": "Upraviť službu",
+    "competence_label": "Rola",
+    "user_label": "Osoba",
+    "pick_competence": "Vyber rolu…",
+    "pick_competence_first": "Najprv vyber rolu…",
+    "pick_user": "Vyber osobu…",
+    "no_eligible_users": "Túto rolu v tejto ambulancii nemá zatiaľ nikto. Prirad ju najprv v Oddeleniach.",
+    "delete_shift": "Zmazať službu",
+    "editor_cancel": "Zrušiť",
+    "editor_apply": "Uložiť"
   }
 }

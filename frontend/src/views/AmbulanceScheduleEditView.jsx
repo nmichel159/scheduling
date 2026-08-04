@@ -1,6 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fetchMyManagedAmbulances, fetchCompetences } from '../services/competenceService';
+import {
+  fetchMyManagedAmbulances,
+  fetchCompetences,
+  fetchEmployeeCompetenceTable,
+} from '../services/competenceService';
 import { fetchAmbulanceSchedule, updateAmbulanceSchedule } from '../services/scheduleService';
 import ScheduleListView from '../components/ScheduleListView';
 import './AmbulanceScheduleEditView.css';
@@ -28,6 +32,15 @@ const COMPETENCE_COLORS = [
 ];
 const FALLBACK_COLOR = '#9e9e9e';
 
+/**
+ * Local-only id for shifts that don't exist in the DB yet.
+ * The bulk PUT /ambulances/{id}/schedule uses (user_id, competence_id, work_date)
+ * as the entry key — the numeric `id` on our list is only a React key. After a
+ * successful save we reload from GET, which replaces temp ids with real ones.
+ */
+const makeTempShiftId = () => `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const isTempShiftId = (id) => typeof id === 'string' && id.startsWith('new-');
+
 function buildMonthCells(year, month) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const offset = isoWeekday(new Date(year, month, 1));
@@ -44,8 +57,13 @@ function buildMonthCells(year, month) {
  * - Competence map under the ambulance list: color legend ordered by competence id.
  * - Each day cell lists employees as colored chips (color = competence),
  *   ordered by the competence map; chips are draggable between days.
- * - Saving syncs via PUT /ambulances/{id}/schedule, which also updates each
- *   employee's personal calendar (same schedule entries).
+ * - Clicking a chip opens the shift editor: pick a competence, pick a person.
+ *   Changing the competence to one the current person can't do clears the
+ *   person and only shows eligible candidates.
+ * - Each day cell also exposes a "+" affordance that opens the same editor
+ *   with an empty draft for that day.
+ * - All edits stay in local state and are committed as a single bulk save
+ *   through PUT /ambulances/{id}/schedule.
  */
 const AmbulanceScheduleEditView = () => {
   const { t, i18n } = useTranslation();
@@ -54,6 +72,7 @@ const AmbulanceScheduleEditView = () => {
   const [ambulances, setAmbulances] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [competences, setCompetences] = useState([]);
+  const [employees, setEmployees] = useState([]); // [{user_id, email, full_name, competences:[{id,name}]}]
   const [shifts, setShifts] = useState([]); // Mutable during editing
   const [originalShifts, setOriginalShifts] = useState([]); // Baseline for dirty check
   const [loading, setLoading] = useState(true);
@@ -61,8 +80,14 @@ const AmbulanceScheduleEditView = () => {
   const [error, setError] = useState(null);
   const [draggedShift, setDraggedShift] = useState(null);
   const [dragOverDate, setDragOverDate] = useState(null);
-  const [selectedShiftForPreview, setSelectedShiftForPreview] = useState(null);
   const [scheduleView, setScheduleView] = useState('calendar');
+
+  // Shift editor state.
+  //   editingShift: the shift being edited (or a fresh one when isNew=true).
+  //   draftCompetenceId / draftUserId: the current selection inside the popup.
+  const [editingShift, setEditingShift] = useState(null);
+  const [draftCompetenceId, setDraftCompetenceId] = useState(null);
+  const [draftUserId, setDraftUserId] = useState(null);
 
   const view = { y: today.getFullYear(), m: today.getMonth() };
 
@@ -87,13 +112,15 @@ const AmbulanceScheduleEditView = () => {
     setLoading(true);
     setError(null);
     try {
-      const [scheduleData, competenceData] = await Promise.all([
+      const [scheduleData, competenceData, employeeData] = await Promise.all([
         fetchAmbulanceSchedule(selectedId, { month: view.m + 1, year: view.y }),
         fetchCompetences(selectedId),
+        fetchEmployeeCompetenceTable(selectedId),
       ]);
       setShifts(scheduleData);
       setOriginalShifts(scheduleData);
       setCompetences(competenceData);
+      setEmployees(employeeData);
     } catch {
       setError(t('schedule_edit.load_schedule_error'));
     } finally {
@@ -135,6 +162,12 @@ const AmbulanceScheduleEditView = () => {
 
   const competenceOrder = (competenceId) =>
     competenceMap[competenceId]?.order ?? Number.MAX_SAFE_INTEGER;
+
+  const employeeById = useMemo(() => {
+    const map = new Map();
+    employees.forEach((e) => map.set(e.user_id, e));
+    return map;
+  }, [employees]);
 
   const isDirty = useMemo(
     () => JSON.stringify(shifts) !== JSON.stringify(originalShifts),
@@ -180,32 +213,36 @@ const AmbulanceScheduleEditView = () => {
   const selected = ambulances.find((a) => a.id === selectedId) || null;
   const showList = ambulances.length > 1;
 
-  const previewCompetences = useMemo(() => {
-    if (!selectedShiftForPreview) return [];
-    const seen = new Map();
-    shifts
-      .filter((s) => s.user_id === selectedShiftForPreview.user_id)
-      .forEach((s) => {
-        if (s.competence_name && !seen.has(s.competence_id)) {
-          seen.set(s.competence_id, {
-            id: s.competence_id,
-            name: s.competence_name,
-            color: competenceColor(s.competence_id),
-          });
-        }
-      });
-    return [...seen.values()];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shifts, selectedShiftForPreview, competenceMap]);
+  /* --- Shift editor: derived selection state --- */
 
+  // Employees who can perform the currently drafted competence in this ambulance.
+  const eligibleEmployees = useMemo(() => {
+    if (draftCompetenceId == null) return [];
+    return employees.filter((e) =>
+      (e.competences || []).some((c) => c.id === draftCompetenceId)
+    );
+  }, [employees, draftCompetenceId]);
+
+  // Reset the draft whenever the editor opens on a new shift.
   useEffect(() => {
-    if (!selectedShiftForPreview) return undefined;
+    if (editingShift) {
+      setDraftCompetenceId(editingShift.competence_id ?? null);
+      setDraftUserId(editingShift.user_id ?? null);
+    } else {
+      setDraftCompetenceId(null);
+      setDraftUserId(null);
+    }
+  }, [editingShift]);
+
+  // Close the popup on Escape.
+  useEffect(() => {
+    if (!editingShift) return undefined;
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setSelectedShiftForPreview(null);
+      if (e.key === 'Escape') setEditingShift(null);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedShiftForPreview]);
+  }, [editingShift]);
 
   /* --- Drag and drop --- */
 
@@ -253,16 +290,89 @@ const AmbulanceScheduleEditView = () => {
     setShifts((prev) => prev.filter((s) => s.id !== shiftId));
   };
 
+  /* --- Shift editor: actions --- */
+
+  // Change of competence inside the editor.
+  //   If the currently drafted person can't perform the new competence,
+  //   clear the person: the caller (per CALL 05) wants the name to disappear
+  //   and the picker to only offer eligible candidates.
+  const handleDraftCompetenceChange = (nextCompetenceId) => {
+    setDraftCompetenceId(nextCompetenceId);
+    if (nextCompetenceId == null) {
+      setDraftUserId(null);
+      return;
+    }
+    if (draftUserId != null) {
+      const emp = employeeById.get(draftUserId);
+      const canDo = emp?.competences?.some((c) => c.id === nextCompetenceId);
+      if (!canDo) setDraftUserId(null);
+    }
+  };
+
+  // Commit the popup draft back into local `shifts` state. No API call —
+  // persistence happens through the global "Save schedule" button.
+  const handleEditorSave = () => {
+    if (!editingShift || draftCompetenceId == null || draftUserId == null) return;
+    const emp = employeeById.get(draftUserId);
+    const comp = competenceMap[draftCompetenceId];
+    const patched = {
+      ...editingShift,
+      user_id: draftUserId,
+      competence_id: draftCompetenceId,
+      user_full_name: emp?.full_name || emp?.email || '',
+      user_email: emp?.email || '',
+      competence_name: comp?.name || '',
+    };
+    setShifts((prev) => {
+      if (editingShift.isNew) {
+        return [...prev, patched];
+      }
+      return prev.map((s) => (s.id === editingShift.id ? patched : s));
+    });
+    setEditingShift(null);
+  };
+
+  const handleEditorDelete = () => {
+    if (!editingShift) return;
+    handleRemoveShift(editingShift.id);
+    setEditingShift(null);
+  };
+
+  const openEditorForShift = (shift) => {
+    setEditingShift({ ...shift, isNew: false });
+  };
+
+  const openEditorForNewShift = (dateStr) => {
+    setEditingShift({
+      id: makeTempShiftId(),
+      ambulance_id: selectedId,
+      work_date: dateStr,
+      user_id: null,
+      competence_id: null,
+      user_full_name: '',
+      user_email: '',
+      competence_name: '',
+      isNew: true,
+    });
+  };
+
+  /* --- Save / cancel --- */
+
   const handleSave = async () => {
     if (!selectedId || !isDirty) return;
     setSaving(true);
     setError(null);
     try {
-      const entries = shifts.map((s) => ({
-        user_id: s.user_id,
-        competence_id: s.competence_id,
-        work_date: s.work_date,
-      }));
+      // Filter out any entries that never got a person or competence assigned
+      // (defensive — the editor blocks Save until both are set, but a stray
+      // half-filled temp shift shouldn't be persisted).
+      const entries = shifts
+        .filter((s) => s.user_id != null && s.competence_id != null)
+        .map((s) => ({
+          user_id: s.user_id,
+          competence_id: s.competence_id,
+          work_date: s.work_date,
+        }));
       await updateAmbulanceSchedule(selectedId, entries, {
         month: view.m + 1,
         year: view.y,
@@ -307,6 +417,14 @@ const AmbulanceScheduleEditView = () => {
       </div>
     );
   }
+
+  const editorIsNew = editingShift?.isNew === true;
+  const editorTitle = editorIsNew
+    ? t('schedule_edit.add_shift_title')
+    : t('schedule_edit.edit_shift_title');
+  const canSaveEditor = draftCompetenceId != null && draftUserId != null;
+  const showNoEligibleUsers =
+    draftCompetenceId != null && eligibleEmployees.length === 0;
 
   return (
     <div className="schedule-edit">
@@ -450,21 +568,33 @@ const AmbulanceScheduleEditView = () => {
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, dateStr)}
                 >
-                  <span className="schedule-edit-cell-daynum">{day}</span>
+                  <div className="schedule-edit-cell-header">
+                    <button
+                      type="button"
+                      className="schedule-edit-cell-add"
+                      onClick={() => openEditorForNewShift(dateStr)}
+                      title={t('schedule_edit.add_shift_title')}
+                      aria-label={t('schedule_edit.add_shift_title')}
+                    >
+                      +
+                    </button>
+                    <span className="schedule-edit-cell-daynum">{day}</span>
+                  </div>
                   <div className="schedule-edit-shifts">
                     {dayShifts.map((shift) => {
                       const color = competenceColor(shift.competence_id);
+                      const isTemp = isTempShiftId(shift.id);
                       return (
                         <div
                           key={shift.id}
-                          className="schedule-edit-shift"
+                          className={`schedule-edit-shift ${isTemp ? 'is-new' : ''}`}
                           style={{
                             borderLeftColor: color,
                             backgroundColor: `${color}26`,
                           }}
                           draggable
                           onDragStart={(e) => handleDragStart(e, shift, dateStr)}
-                          onClick={() => setSelectedShiftForPreview(shift)}
+                          onClick={() => openEditorForShift(shift)}
                           title={shift.competence_name || ''}
                         >
                           <span className="schedule-edit-shift-name">
@@ -504,52 +634,132 @@ const AmbulanceScheduleEditView = () => {
               onDragEnter={handleDragEnter}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              onShiftClick={setSelectedShiftForPreview}
+              onShiftClick={openEditorForShift}
               onShiftRemove={handleRemoveShift}
+              onAddShift={openEditorForNewShift}
               removeShiftLabel={t('schedule_edit.remove_shift')}
+              addShiftLabel={t('schedule_edit.add_shift_title')}
             />
           )}
         </div>
       </div>
 
-      {selectedShiftForPreview && (
+      {editingShift && (
         <div
           className="schedule-edit-competence-popup-overlay"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedShiftForPreview(null);
+            if (e.target === e.currentTarget) setEditingShift(null);
           }}
         >
-          <div className="schedule-edit-competence-popup" role="dialog" aria-modal="true">
+          <div
+            className="schedule-edit-competence-popup schedule-edit-editor-popup"
+            role="dialog"
+            aria-modal="true"
+          >
             <div className="schedule-edit-competence-popup-header">
-              <span>
-                {selectedShiftForPreview.user_full_name || selectedShiftForPreview.user_email}
-              </span>
+              <div className="schedule-edit-popup-title-row">
+                <span>{editorTitle}</span>
+                <span className="schedule-edit-editor-date">{editingShift.work_date}</span>
+              </div>
               <button
                 type="button"
                 className="schedule-edit-competence-popup-close"
-                onClick={() => setSelectedShiftForPreview(null)}
+                onClick={() => setEditingShift(null)}
                 title={t('schedule_edit.close')}
               >
                 ✕
               </button>
             </div>
-            <ul className="schedule-edit-competence-popup-list">
-              {previewCompetences.length > 0 ? (
-                previewCompetences.map((c) => (
-                  <li key={c.id} className="schedule-edit-competence-item">
+
+            <div className="schedule-edit-editor-body">
+              <label className="schedule-edit-editor-field">
+                <span className="schedule-edit-editor-label">
+                  {t('schedule_edit.competence_label')}
+                </span>
+                <div className="schedule-edit-editor-select-wrap">
+                  {draftCompetenceId != null && (
                     <span
-                      className="schedule-edit-legend-swatch"
-                      style={{ backgroundColor: c.color }}
+                      className="schedule-edit-editor-swatch"
+                      style={{ backgroundColor: competenceColor(draftCompetenceId) }}
                     />
-                    {c.name}
-                  </li>
-                ))
-              ) : (
-                <li className="schedule-edit-competence-item">
-                  {t('schedule_edit.no_competences')}
-                </li>
+                  )}
+                  <select
+                    className="schedule-edit-editor-select"
+                    value={draftCompetenceId ?? ''}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      handleDraftCompetenceChange(raw === '' ? null : Number(raw));
+                    }}
+                  >
+                    <option value="">{t('schedule_edit.pick_competence')}</option>
+                    {legend.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </label>
+
+              <label className="schedule-edit-editor-field">
+                <span className="schedule-edit-editor-label">
+                  {t('schedule_edit.user_label')}
+                </span>
+                <select
+                  className="schedule-edit-editor-select"
+                  value={draftUserId ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setDraftUserId(raw === '' ? null : Number(raw));
+                  }}
+                  disabled={draftCompetenceId == null || eligibleEmployees.length === 0}
+                >
+                  <option value="">
+                    {draftCompetenceId == null
+                      ? t('schedule_edit.pick_competence_first')
+                      : t('schedule_edit.pick_user')}
+                  </option>
+                  {eligibleEmployees.map((e) => (
+                    <option key={e.user_id} value={e.user_id}>
+                      {e.full_name || e.email}
+                    </option>
+                  ))}
+                </select>
+                {showNoEligibleUsers && (
+                  <small className="schedule-edit-editor-hint is-warn">
+                    {t('schedule_edit.no_eligible_users')}
+                  </small>
+                )}
+              </label>
+            </div>
+
+            <div className="schedule-edit-editor-footer">
+              {!editorIsNew && (
+                <button
+                  type="button"
+                  className="schedule-edit-btn schedule-edit-btn-danger"
+                  onClick={handleEditorDelete}
+                >
+                  {t('schedule_edit.delete_shift')}
+                </button>
               )}
-            </ul>
+              <div className="schedule-edit-editor-footer-spacer" />
+              <button
+                type="button"
+                className="schedule-edit-btn"
+                onClick={() => setEditingShift(null)}
+              >
+                {t('schedule_edit.editor_cancel')}
+              </button>
+              <button
+                type="button"
+                className="schedule-edit-btn schedule-edit-btn-primary"
+                onClick={handleEditorSave}
+                disabled={!canSaveEditor}
+              >
+                {t('schedule_edit.editor_apply')}
+              </button>
+            </div>
           </div>
         </div>
       )}

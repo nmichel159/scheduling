@@ -168,6 +168,17 @@
     "close": "Close",
     "no_competences": "This employee has no assigned competences.",
     "legend_title": "Competence map",
-    "legend_empty": "This ambulance has no competences defined."
+    "legend_empty": "This ambulance has no competences defined.",
+    "add_shift_title": "New shift",
+    "edit_shift_title": "Edit shift",
+    "competence_label": "Role",
+    "user_label": "Person",
+    "pick_competence": "Pick a role…",
+    "pick_competence_first": "Pick a role first…",
+    "pick_user": "Pick a person…",
+    "no_eligible_users": "Nobody in this ambulance has this role yet. Assign it first in Departments.",
+    "delete_shift": "Delete shift",
+    "editor_cancel": "Cancel",
+    "editor_apply": "Save"
   }
 }

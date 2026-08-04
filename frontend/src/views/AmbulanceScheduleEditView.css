@@ -1,7 +1,15 @@
 /* Editable ambulance schedule.
    No page header — a compact top action bar sits directly above the calendar.
    Left column: ambulance list + competence color map (legend).
-   Day cells hold colored, draggable employee chips (color = competence). */
+   Day cells hold colored, draggable employee chips (color = competence).
+
+   Uses this app's real design tokens (see src/index.css):
+     --background         page / input background
+     --code-background     solid card / popup / dropdown background
+     --border               hairline border
+     --text / --text-h     body text / high-emphasis text (mute with opacity, not a separate var)
+     --primary              accent (borders, primary buttons, focus)
+*/
 
 .schedule-edit {
   display: flex;
@@ -54,25 +62,26 @@
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--secondary-background, transparent);
+  background: var(--background);
   color: var(--text-h);
   cursor: pointer;
   text-align: left;
   font: inherit;
 }
 .schedule-edit-item:hover {
-  border-color: var(--accent, #a78bfa);
+  border-color: var(--primary);
 }
 .schedule-edit-item.is-selected {
-  border-color: var(--accent, #a78bfa);
-  background: rgba(167, 139, 250, 0.08);
+  border-color: var(--primary);
+  background: var(--primary-background);
 }
 .schedule-edit-item-name {
   font-weight: 600;
 }
 .schedule-edit-item-desc {
   font-size: 0.8rem;
-  color: var(--text-p);
+  color: var(--text-h);
+  opacity: 0.6;
 }
 
 /* --- Competence map (legend) --- */
@@ -91,7 +100,8 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text-p);
+  color: var(--text-h);
+  opacity: 0.6;
 }
 
 .schedule-edit-legend-list {
@@ -127,7 +137,8 @@
 
 .schedule-edit-legend-count {
   font-size: 0.75rem;
-  color: var(--text-p);
+  color: var(--text-h);
+  opacity: 0.65;
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 0 7px;
@@ -137,7 +148,8 @@
 .schedule-edit-legend-empty {
   margin: 0;
   font-size: 0.85rem;
-  color: var(--text-p);
+  color: var(--text-h);
+  opacity: 0.6;
 }
 
 /* --- Top action bar (replaces the old page header + bottom bar) --- */
@@ -175,7 +187,8 @@
 
 .schedule-edit-topbar-month {
   font-size: 0.9rem;
-  color: var(--text-p);
+  color: var(--text-h);
+  opacity: 0.6;
   text-transform: capitalize;
 }
 
@@ -190,10 +203,12 @@
   align-items: center;
   gap: 6px;
   font-size: 0.85rem;
-  color: var(--text-p);
+  color: var(--text-h);
+  opacity: 0.6;
 }
 .schedule-edit-unsaved {
   color: #ffb74d;
+  opacity: 1;
 }
 
 .schedule-edit-btn {
@@ -203,23 +218,32 @@
   border-radius: 8px;
   cursor: pointer;
   border: 1px solid var(--border);
-  background: transparent;
+  background: var(--background);
   color: var(--text-h);
+}
+.schedule-edit-btn:hover:not(:disabled) {
+  border-color: var(--secondary);
 }
 .schedule-edit-btn:disabled {
   opacity: 0.45;
   cursor: default;
 }
 .schedule-edit-btn-primary {
-  background: var(--accent, #7c5cf0);
-  border-color: var(--accent, #7c5cf0);
+  background: var(--primary);
+  border-color: var(--primary);
   color: #fff;
 }
 .schedule-edit-btn-primary:not(:disabled):hover {
   filter: brightness(1.1);
+  border-color: var(--primary);
 }
-.schedule-edit-btn-cancel:not(:disabled):hover {
-  border-color: var(--text-p);
+.schedule-edit-btn-danger {
+  color: #ef5350;
+  border-color: rgba(239, 83, 80, 0.6);
+  background: var(--background);
+}
+.schedule-edit-btn-danger:not(:disabled):hover {
+  background: rgba(239, 83, 80, 0.1);
 }
 
 /* --- Calendar grid --- */
@@ -240,7 +264,8 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-p);
+  color: var(--text-h);
+  opacity: 0.6;
   padding: 6px 0;
 }
 
@@ -257,18 +282,53 @@
   border-color: transparent;
 }
 .schedule-edit-cell.is-today {
-  border-color: var(--accent, #a78bfa);
+  border-color: var(--primary);
 }
 .schedule-edit-cell.is-drag-over {
-  border-color: var(--accent, #a78bfa);
-  background: rgba(167, 139, 250, 0.08);
+  border-color: var(--primary);
+  background: var(--primary-background);
+}
+
+/* Header of a day cell: [+] on the left (hidden until hover), day number on the right. */
+.schedule-edit-cell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 20px;
 }
 
 .schedule-edit-cell-daynum {
-  align-self: flex-end;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-h);
+}
+
+.schedule-edit-cell-add {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-h);
+  opacity: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0;
+  transition: opacity 0.12s, border-color 0.12s, color 0.12s;
+}
+.schedule-edit-cell:hover .schedule-edit-cell-add,
+.schedule-edit-cell-add:focus-visible {
+  opacity: 0.7;
+}
+.schedule-edit-cell-add:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  opacity: 1;
 }
 
 /* --- Employee chips --- */
@@ -293,6 +353,12 @@
 .schedule-edit-shift:active {
   cursor: grabbing;
 }
+/* Subtle marker on chips created in the current editing session
+   (they carry a temp id until the next successful save). */
+.schedule-edit-shift.is-new {
+  outline: 1px dashed var(--primary);
+  outline-offset: -2px;
+}
 
 .schedule-edit-shift-name {
   flex: 1;
@@ -309,37 +375,40 @@
   font: inherit;
   font-size: 0.7rem;
   line-height: 1;
-  color: var(--text-p);
+  color: var(--text-h);
+  opacity: 0;
   cursor: pointer;
   padding: 2px;
   border-radius: 4px;
-  opacity: 0;
 }
 .schedule-edit-shift:hover .schedule-edit-shift-remove {
-  opacity: 1;
+  opacity: 0.6;
 }
 .schedule-edit-shift-remove:hover {
+  opacity: 1;
   color: #ef5350;
 }
 
-/* --- Competence preview popup --- */
+/* --- Popup shell (shared by the shift editor) --- */
 
 .schedule-edit-competence-popup-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  padding: 16px;
+  z-index: 1000;
 }
 
 .schedule-edit-competence-popup {
-  background: var(--primary-background, #1e1b2e);
+  width: 100%;
+  max-width: 380px;
+  background: var(--code-background);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  min-width: 280px;
-  max-width: 90vw;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   overflow: hidden;
 }
 
@@ -348,9 +417,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--border);
   font-weight: 600;
+  font-size: 0.95rem;
   color: var(--text-h);
 }
 
@@ -358,13 +428,15 @@
   border: none;
   background: none;
   font: inherit;
-  color: var(--text-p);
+  color: var(--text-h);
+  opacity: 0.6;
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
+  line-height: 1;
 }
 .schedule-edit-competence-popup-close:hover {
-  color: var(--text-h);
+  opacity: 1;
 }
 
 .schedule-edit-competence-popup-list {
@@ -380,6 +452,100 @@
   padding: 8px 16px;
   font-size: 0.9rem;
   color: var(--text-h);
+}
+
+/* --- Shift editor popup (compose person + competence for a given day) --- */
+/* Everything sits close together: date sits right under the header divider,
+   then the two fields follow with a tight, consistent rhythm. */
+
+.schedule-edit-popup-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.schedule-edit-editor-date {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-h);
+  opacity: 0.5;
+  letter-spacing: 0.04em;
+}
+
+.schedule-edit-editor-body {
+  padding: 12px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.schedule-edit-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.schedule-edit-editor-label {
+  font-size: 0.75rem;
+  color: var(--text-h);
+  opacity: 0.65;
+  font-weight: 600;
+}
+
+.schedule-edit-editor-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.schedule-edit-editor-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.schedule-edit-editor-select {
+  flex: 1;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--text-h);
+  min-width: 0;
+}
+.schedule-edit-editor-select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.schedule-edit-editor-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.schedule-edit-editor-hint {
+  font-size: 0.72rem;
+  color: var(--text-h);
+  opacity: 0.6;
+}
+.schedule-edit-editor-hint.is-warn {
+  color: #d99a2b;
+  opacity: 1;
+}
+
+.schedule-edit-editor-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.schedule-edit-editor-footer-spacer {
+  flex: 1;
 }
 
 /* --- Responsive --- */
@@ -401,5 +567,8 @@
   .schedule-edit-legend {
     flex: 1;
     min-width: 200px;
+  }
+  .schedule-edit-cell-add {
+    opacity: 0.7;
   }
 }

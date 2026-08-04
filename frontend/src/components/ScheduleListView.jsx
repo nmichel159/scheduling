@@ -8,6 +8,9 @@ const isoDate = (year, month, day) =>
  * Alternative monthly schedule view.
  * Each calendar day occupies one row and uses the same shift data and editing
  * callbacks as the classic calendar grid.
+ *
+ * onAddShift(dateStr) — invoked when the user clicks the "+" affordance on a
+ * day row; the parent opens its shift editor with a fresh draft for that day.
  */
 const ScheduleListView = ({
   year,
@@ -25,7 +28,9 @@ const ScheduleListView = ({
   onDrop,
   onShiftClick,
   onShiftRemove,
+  onAddShift,
   removeShiftLabel,
+  addShiftLabel,
 }) => {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const dateFormatter = new Intl.DateTimeFormat(locale, {
@@ -101,6 +106,17 @@ const ScheduleListView = ({
                   </div>
                 );
               })}
+              {onAddShift && (
+                <button
+                  type="button"
+                  className="schedule-list-add"
+                  onClick={() => onAddShift(dateStr)}
+                  title={addShiftLabel}
+                  aria-label={addShiftLabel}
+                >
+                  +
+                </button>
+              )}
             </div>
           </div>
         );
