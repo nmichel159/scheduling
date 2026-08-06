@@ -111,10 +111,31 @@
   cursor: default;
   min-height: 0;
 }
-.workload-cell.is-marked {
-  background: var(--primary-background);
-  border-color: var(--primary);
+/* --- Three-state day cells -------------------------------------------------
+   is-none      neutral, grey (default look)
+   is-blocked   red   — the day does not suit the user
+   is-preferred green — the user would like to work that day
+   Colors are literals rather than tokens: the theme has no semantic
+   red/green pair, and these two must read the same in light and dark. */
+
+.workload-cell.is-blocked {
+  background: rgba(239, 83, 80, 0.18);
+  border-color: rgba(239, 83, 80, 0.75);
 }
+.workload-cell.is-blocked:hover:not(:disabled) {
+  border-color: #ef5350;
+  background: rgba(239, 83, 80, 0.26);
+}
+
+.workload-cell.is-preferred {
+  background: rgba(102, 187, 106, 0.18);
+  border-color: rgba(102, 187, 106, 0.75);
+}
+.workload-cell.is-preferred:hover:not(:disabled) {
+  border-color: #66bb6a;
+  background: rgba(102, 187, 106, 0.26);
+}
+
 .workload-cell.is-today { border-width: 2px; }
 
 .workload-cell-daynum { font-size: 0.8rem; font-weight: 700; }
@@ -126,8 +147,45 @@
   bottom: 6px;
   font-size: 1.1rem;
   font-weight: 700;
-  color: var(--primary);
   line-height: 1;
+}
+.workload-cell.is-blocked .workload-cell-mark { color: #ef5350; }
+.workload-cell.is-preferred .workload-cell-mark { color: #66bb6a; }
+
+/* --- Legend --- */
+
+.workload-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 4px 0 12px;
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+.workload-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.workload-legend-swatch {
+  width: 13px;
+  height: 13px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.workload-legend-swatch.is-blocked {
+  background: rgba(239, 83, 80, 0.18);
+  border-color: rgba(239, 83, 80, 0.75);
+}
+.workload-legend-swatch.is-preferred {
+  background: rgba(102, 187, 106, 0.18);
+  border-color: rgba(102, 187, 106, 0.75);
+}
+.workload-legend-swatch.is-none {
+  background: var(--code-background);
 }
 
 .workload-footer {

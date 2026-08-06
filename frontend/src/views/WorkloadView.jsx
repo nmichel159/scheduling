@@ -3,7 +3,12 @@ import { useTranslation } from 'react-i18next';
 import {
   fetchUnavailabilities,
   createUnavailability,
+  updateUnavailability,
   deleteUnavailability,
+  stateOfRecord,
+  DAY_STATE,
+  REASON_BLOCKED,
+  REASON_PREFERRED,
 } from '../services/unavailabilityService';
 import './WorkloadView.css';
 
@@ -29,8 +34,13 @@ function buildMonthCells(year, month) {
 
 /**
  * Monthly availability view.
- * Clicking a day marks it as "does not suit me" for emergency-duty
- * scheduling; clicking it again removes the mark. Past months are read-only.
+ *
+ * Each day cycles through three states on click:
+ *   1st click  -> BLOCKED    (red)   — the day does not suit me
+ *   2nd click  -> PREFERRED  (green) — I would like to work this day
+ *   3rd click  -> NONE       (grey)  — back to neutral
+ *
+ * Past months are read-only.
  */
 const WorkloadView = () => {
   const { t, i18n } = useTranslation();
@@ -64,7 +74,16 @@ const WorkloadView = () => {
     [t]
   );
 
-  const markedCount = Object.keys(entries).length;
+  // Counters per state, shown in the footer.
+  const counts = useMemo(() => {
+    let blocked = 0;
+    let preferred = 0;
+    Object.values(entries).forEach((rec) => {
+      if (stateOfRecord(rec) === DAY_STATE.PREFERRED) preferred += 1;
+      else blocked += 1;
+    });
+    return { blocked, preferred };
+  }, [entries]);
 
   const notify = (msg) => {
     setToast(msg);
@@ -103,49 +122,69 @@ const WorkloadView = () => {
     });
   };
 
+  /** Write a record into local state. */
+  const putEntry = (dateStr, record) =>
+    setEntries((prev) => ({ ...prev, [dateStr]: record }));
+
+  /** Drop a record from local state. */
+  const dropEntry = (dateStr) =>
+    setEntries((prev) => {
+      const next = { ...prev };
+      delete next[dateStr];
+      return next;
+    });
+
   /**
-   * Toggle a day's unavailability mark with optimistic UI.
-   * Reverts the change and shows a toast if the request fails.
+   * Advance a day to the next state in the cycle, with optimistic UI.
+   * On failure the previous value is restored and a toast is shown.
+   *
+   *   NONE -> BLOCKED     POST   (reason = UNAVAILABLE)
+   *   BLOCKED -> PREFERRED PUT   (reason = PREFERRED)
+   *   PREFERRED -> NONE   DELETE
    */
-  const toggleDay = async (day) => {
+  const cycleDay = async (day) => {
     if (isPastMonth || day == null) return;
     const dateStr = isoDate(view.y, view.m, day);
     if (pendingRef.current.has(dateStr)) return;
 
-    const existing = entries[dateStr];
+    const existing = entries[dateStr] || null;
+    const current = stateOfRecord(existing);
     pendingRef.current.add(dateStr);
 
-    if (existing) {
-      // Optimistically unmark.
-      setEntries((prev) => {
-        const next = { ...prev };
-        delete next[dateStr];
-        return next;
-      });
-      try {
-        await deleteUnavailability(existing.id);
-      } catch {
-        setEntries((prev) => ({ ...prev, [dateStr]: existing }));
-        notify(t('workload.save_error'));
-      } finally {
-        pendingRef.current.delete(dateStr);
+    try {
+      if (current === DAY_STATE.NONE) {
+        // Placeholder until the server hands back the real record (with its id).
+        putEntry(dateStr, { id: null, date_absent: dateStr, reason: REASON_BLOCKED });
+        try {
+          const record = await createUnavailability(dateStr, REASON_BLOCKED);
+          putEntry(dateStr, record);
+        } catch {
+          dropEntry(dateStr);
+          notify(t('workload.save_error'));
+        }
+      } else if (current === DAY_STATE.BLOCKED) {
+        // The optimistic placeholder above has no id yet — nothing to update.
+        if (existing.id == null) return;
+        putEntry(dateStr, { ...existing, reason: REASON_PREFERRED });
+        try {
+          const record = await updateUnavailability(existing.id, REASON_PREFERRED);
+          putEntry(dateStr, record);
+        } catch {
+          putEntry(dateStr, existing);
+          notify(t('workload.save_error'));
+        }
+      } else {
+        if (existing.id == null) return;
+        dropEntry(dateStr);
+        try {
+          await deleteUnavailability(existing.id);
+        } catch {
+          putEntry(dateStr, existing);
+          notify(t('workload.save_error'));
+        }
       }
-    } else {
-      // Optimistically mark (placeholder until the server responds with the record).
-      setEntries((prev) => ({ ...prev, [dateStr]: { id: null, date_absent: dateStr } }));
-      try {
-        const record = await createUnavailability(dateStr);
-        setEntries((prev) => ({ ...prev, [dateStr]: record }));
-      } catch {
-        setEntries((prev) => {
-          const next = { ...prev };
-          delete next[dateStr];
-          return next;
-        });
-        notify(t('workload.save_error'));
-      } finally {
-        pendingRef.current.delete(dateStr);
-      }
+    } finally {
+      pendingRef.current.delete(dateStr);
     }
   };
 
@@ -163,6 +202,21 @@ const WorkloadView = () => {
           </button>
         </div>
       </header>
+
+      <div className="workload-legend">
+        <span className="workload-legend-item">
+          <span className="workload-legend-swatch is-blocked" />
+          {t('workload.legend_blocked')}
+        </span>
+        <span className="workload-legend-item">
+          <span className="workload-legend-swatch is-preferred" />
+          {t('workload.legend_preferred')}
+        </span>
+        <span className="workload-legend-item">
+          <span className="workload-legend-swatch is-none" />
+          {t('workload.legend_none')}
+        </span>
+      </div>
 
       {isPastMonth && <div className="workload-banner">{t('workload.past_month')}</div>}
       {error && (
@@ -186,28 +240,37 @@ const WorkloadView = () => {
             return <div key={`e${idx}`} className="workload-cell workload-cell-empty" />;
           }
           const dateStr = isoDate(view.y, view.m, day);
-          const marked = Boolean(entries[dateStr]);
+          const state = stateOfRecord(entries[dateStr]);
           const isToday =
             day === today.getDate() && view.m === today.getMonth() && view.y === today.getFullYear();
+          const stateLabel =
+            state === DAY_STATE.BLOCKED
+              ? t('workload.marked')
+              : state === DAY_STATE.PREFERRED
+                ? t('workload.preferred')
+                : '';
           return (
             <button
               type="button"
               key={dateStr}
-              className={`workload-cell ${marked ? 'is-marked' : ''} ${isToday ? 'is-today' : ''}`}
-              onClick={() => toggleDay(day)}
+              className={`workload-cell is-${state} ${isToday ? 'is-today' : ''}`}
+              onClick={() => cycleDay(day)}
               disabled={isPastMonth}
-              aria-pressed={marked}
-              aria-label={`${day}. ${monthLabel}${marked ? `, ${t('workload.marked')}` : ''}`}
+              aria-label={`${day}. ${monthLabel}${stateLabel ? `, ${stateLabel}` : ''}`}
+              title={stateLabel || undefined}
             >
               <span className="workload-cell-daynum">{day}</span>
-              {marked && <span className="workload-cell-mark">✕</span>}
+              {state === DAY_STATE.BLOCKED && <span className="workload-cell-mark">✕</span>}
+              {state === DAY_STATE.PREFERRED && <span className="workload-cell-mark">✓</span>}
             </button>
           );
         })}
       </div>
 
       <p className="workload-footer">
-        {t('workload.marked_count', { count: markedCount })}
+        {t('workload.marked_count', { count: counts.blocked })}
+        {' · '}
+        {t('workload.preferred_count', { count: counts.preferred })}
       </p>
 
       {toast && (

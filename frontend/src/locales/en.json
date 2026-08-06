@@ -35,7 +35,7 @@
   },
   "workload": {
     "title": "Restrictions",
-    "subtitle": "Click to mark the days that don't suit you for duty. Click again to unmark.",
+    "subtitle": "Click a day: 1× = does not suit me (red), 2× = preferred (green), 3× = back to neutral.",
     "month_nav": "Month selection",
     "prev_month": "Previous month",
     "next_month": "Next month",
@@ -43,7 +43,12 @@
     "load_error": "Failed to load records.",
     "retry": "Retry",
     "marked": "unavailable",
-    "marked_count": "Marked days this month: {{count}}",
+    "preferred": "preferred",
+    "marked_count": "Unsuitable days: {{count}}",
+    "preferred_count": "Preferred days: {{count}}",
+    "legend_blocked": "Does not suit me",
+    "legend_preferred": "Preferred",
+    "legend_none": "Unmarked",
     "save_error": "Saving failed, please try again.",
     "days": {
       "0": "Mo",

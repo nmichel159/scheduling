@@ -34,7 +34,7 @@
   },
   "workload": {
     "title": "Obmedzenia",
-    "subtitle": "Kliknutím označ dni, kedy ti služba nevyhovuje. Opätovným kliknutím označenie zrušíš.",
+    "subtitle": "Klikni na deň: 1× = nevyhovuje (červená), 2× = preferujem (zelená), 3× = späť na neutrálny stav.",
     "month_nav": "Výber mesiaca",
     "prev_month": "Predchádzajúci mesiac",
     "next_month": "Nasledujúci mesiac",
@@ -42,7 +42,12 @@
     "load_error": "Nepodarilo sa načítať záznamy.",
     "retry": "Skúsiť znova",
     "marked": "nevyhovuje",
-    "marked_count": "Označené dni v mesiaci: {{count}}",
+    "preferred": "preferujem",
+    "marked_count": "Nevyhovujúce dni: {{count}}",
+    "preferred_count": "Preferované dni: {{count}}",
+    "legend_blocked": "Nevyhovuje",
+    "legend_preferred": "Preferujem",
+    "legend_none": "Bez označenia",
     "save_error": "Uloženie zlyhalo, skús to znova.",
     "days": {
       "0": "Po",
