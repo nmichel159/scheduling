@@ -157,6 +157,8 @@
     "load_schedule_error": "Nepodarilo sa načítať rozpis.",
     "save_error": "Uloženie zlyhalo.",
     "unsaved_warning": "Máš neuložené zmeny. Opustiť bez uloženia?",
+    "leave_anyway": "Odísť bez uloženia",
+    "stay": "Zostať",
     "remove_shift": "Odstrániť službu",
     "cancel": "Zrušiť zmeny",
     "save": "Uložiť rozpis",

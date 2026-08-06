@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useBlocker } from 'react-router-dom';
 import {
   fetchMyManagedAmbulances,
   fetchCompetences,
@@ -7,6 +8,7 @@ import {
 } from '../services/competenceService';
 import { fetchAmbulanceSchedule, updateAmbulanceSchedule } from '../services/scheduleService';
 import ScheduleListView from '../components/ScheduleListView';
+import ConfirmDialog from '../components/ConfirmDialog';
 import './AmbulanceScheduleEditView.css';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -78,6 +80,8 @@ const AmbulanceScheduleEditView = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  // Pending confirmation dialog: { message, onConfirm, onCancel }.
+  const [confirmState, setConfirmState] = useState(null);
   const [draggedShift, setDraggedShift] = useState(null);
   const [dragOverDate, setDragOverDate] = useState(null);
   const [scheduleView, setScheduleView] = useState('calendar');
@@ -173,6 +177,60 @@ const AmbulanceScheduleEditView = () => {
     () => JSON.stringify(shifts) !== JSON.stringify(originalShifts),
     [shifts, originalShifts]
   );
+
+  /* ---------- leave-page guards while there are unsaved changes ---------- */
+
+  // Browser-level guard: closing the tab / hard reload / typing another URL.
+  useEffect(() => {
+    const handler = (e) => {
+      if (!isDirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  // Router-level guard: clicking another item in the sidebar.
+  const blocker = useBlocker(
+    useCallback(
+      ({ currentLocation, nextLocation }) =>
+        isDirty && currentLocation.pathname !== nextLocation.pathname,
+      [isDirty]
+    )
+  );
+
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+    setConfirmState({
+      message: t('schedule_edit.unsaved_warning'),
+      onConfirm: () => {
+        setConfirmState(null);
+        blocker.proceed();
+      },
+      onCancel: () => {
+        setConfirmState(null);
+        blocker.reset();
+      },
+    });
+  }, [blocker, t]);
+
+  // In-view guard: switching to another workplace in the left list.
+  const selectAmbulance = (id) => {
+    if (id === selectedId) return;
+    if (!isDirty) {
+      setSelectedId(id);
+      return;
+    }
+    setConfirmState({
+      message: t('schedule_edit.unsaved_warning'),
+      onConfirm: () => {
+        setConfirmState(null);
+        setSelectedId(id);
+      },
+      onCancel: () => setConfirmState(null),
+    });
+  };
 
   const shiftsByDate = useMemo(() => {
     const map = {};
@@ -396,10 +454,18 @@ const AmbulanceScheduleEditView = () => {
   };
 
   const handleCancel = () => {
-    if (isDirty && !window.confirm(t('schedule_edit.unsaved_warning'))) {
+    if (!isDirty) {
+      setShifts(originalShifts);
       return;
     }
-    setShifts(originalShifts);
+    setConfirmState({
+      message: t('schedule_edit.unsaved_warning'),
+      onConfirm: () => {
+        setConfirmState(null);
+        setShifts(originalShifts);
+      },
+      onCancel: () => setConfirmState(null),
+    });
   };
 
   if (loading && !selected) {
@@ -441,7 +507,7 @@ const AmbulanceScheduleEditView = () => {
                   type="button"
                   key={a.id}
                   className={`schedule-edit-item ${a.id === selectedId ? 'is-selected' : ''}`}
-                  onClick={() => setSelectedId(a.id)}
+                  onClick={() => selectAmbulance(a.id)}
                 >
                   <span className="schedule-edit-item-name">{a.name}</span>
                   {a.description && (
@@ -782,6 +848,14 @@ const AmbulanceScheduleEditView = () => {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={!!confirmState}
+        message={confirmState?.message}
+        confirmLabel={t('schedule_edit.leave_anyway')}
+        cancelLabel={t('schedule_edit.stay')}
+        onConfirm={confirmState?.onConfirm}
+        onCancel={confirmState?.onCancel}
+      />
     </div>
   );
 };

@@ -158,6 +158,8 @@
     "load_schedule_error": "Failed to load schedule.",
     "save_error": "Failed to save.",
     "unsaved_warning": "You have unsaved changes. Leave without saving?",
+    "leave_anyway": "Leave without saving",
+    "stay": "Stay",
     "remove_shift": "Remove shift",
     "cancel": "Cancel changes",
     "save": "Save schedule",
