@@ -14,11 +14,11 @@
 .schedule-edit {
   display: flex;
   flex-direction: column;
-  /* Fit the whole editor into one screen: the page itself never scrolls.
-     48px = the 24px top + bottom padding of .content in MainLayout.css. */
-  height: calc(100svh - 48px);
+  /* The page may grow downwards — every shift in a day must stay visible,
+     so a vertical scrollbar is acceptable. Horizontal scrolling is not:
+     that is handled by minmax(0, 1fr) on the grid columns below. */
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
   padding: 0;
   gap: 12px;
 }
@@ -40,27 +40,28 @@
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
   gap: 16px;
-  align-items: stretch;
-  flex: 1;
+  align-items: start;
   min-height: 0;
 }
 .schedule-edit-layout.is-single {
   grid-template-columns: 240px minmax(0, 1fr);
 }
 
-/* The side column scrolls on its own if the ambulance list gets long,
-   so it can never push the calendar off screen. */
+/* The side column stays pinned while the calendar scrolls past it. */
 .schedule-edit-side {
-  min-height: 0;
+  position: sticky;
+  top: 0;
+  align-self: start;
+  max-height: calc(100svh - 48px);
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-width: thin;
 }
 
-/* The calendar column is a flex column: fixed top bar + grid that eats the rest. */
+/* The calendar column is a flex column: top bar + grid below it. */
 .schedule-edit-detail {
   display: flex;
   flex-direction: column;
-  min-height: 0;
   min-width: 0;
   gap: 12px;
 }
@@ -280,12 +281,10 @@
      cells set a min-content width and push the grid wider than the screen,
      which is what produced the horizontal scrollbar. */
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  /* First row = weekday headers (auto), every week row shares the rest evenly. */
-  grid-template-rows: auto;
-  grid-auto-rows: minmax(0, 1fr);
+  /* Rows grow with their content: a day with six shifts is simply taller,
+     so every name stays visible without a scrollbar inside the cell. */
+  grid-auto-rows: minmax(110px, auto);
   gap: 6px;
-  flex: 1;
-  min-height: 0;
   min-width: 0;
 }
 .schedule-edit-grid.is-loading {
@@ -305,11 +304,9 @@
 }
 
 .schedule-edit-cell {
-  /* No fixed height any more — the row height comes from the grid, so six
-     week rows always add up to exactly the visible area. */
-  min-height: 0;
+  /* Grows with its chips — the row height follows the fullest day. */
+  min-height: 110px;
   min-width: 0;
-  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 6px;
@@ -376,12 +373,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  /* If a single day holds more chips than fit, that one cell scrolls —
-     the page as a whole still stays put. */
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: thin;
+  /* No inner scrolling: every chip is rendered, stacked top to bottom. */
 }
 
 .schedule-edit-shift {
@@ -676,32 +668,16 @@
   flex: 1;
 }
 
-/* --- Daily rows view: scrolls inside the detail column --- */
-
-.schedule-edit-detail > .schedule-list-view {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: thin;
-}
-
 /* --- Responsive --- */
 
 @media (max-width: 900px) {
-  /* On narrow screens a single fixed screen is not realistic — give the page
-     its normal scrolling back instead of squashing the cells. */
-  .schedule-edit {
-    height: auto;
-    overflow: visible;
-  }
   .schedule-edit-layout,
   .schedule-edit-layout.is-single {
     grid-template-columns: 1fr;
   }
-  .schedule-edit-grid {
-    grid-auto-rows: minmax(110px, auto);
-  }
   .schedule-edit-side {
+    position: static;
+    max-height: none;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: flex-start;
