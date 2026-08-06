@@ -672,34 +672,53 @@ const AmbulanceScheduleEditView = () => {
             </div>
 
             <div className="schedule-edit-editor-body">
-              <label className="schedule-edit-editor-field">
+              <div className="schedule-edit-editor-field is-centered">
                 <span className="schedule-edit-editor-label">
                   {t('schedule_edit.competence_label')}
                 </span>
-                <div className="schedule-edit-editor-select-wrap">
-                  {draftCompetenceId != null && (
-                    <span
-                      className="schedule-edit-editor-swatch"
-                      style={{ backgroundColor: competenceColor(draftCompetenceId) }}
-                    />
+                {/* Single-choice role picker. Rendered as square boxes laid out
+                    side by side; `type="radio"` guarantees only one role can be
+                    active at a time. Clicking the active one clears it again. */}
+                <div
+                  className="schedule-edit-role-options"
+                  role="radiogroup"
+                  aria-label={t('schedule_edit.competence_label')}
+                >
+                  {legend.length === 0 && (
+                    <small className="schedule-edit-editor-hint">
+                      {t('schedule_edit.legend_empty')}
+                    </small>
                   )}
-                  <select
-                    className="schedule-edit-editor-select"
-                    value={draftCompetenceId ?? ''}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      handleDraftCompetenceChange(raw === '' ? null : Number(raw));
-                    }}
-                  >
-                    <option value="">{t('schedule_edit.pick_competence')}</option>
-                    {legend.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                  {legend.map((c) => {
+                    const checked = draftCompetenceId === c.id;
+                    return (
+                      <label
+                        key={c.id}
+                        className={`schedule-edit-role-option ${checked ? 'is-checked' : ''}`}
+                      >
+                        <input
+                          type="radio"
+                          name="schedule-edit-role"
+                          className="schedule-edit-role-input"
+                          value={c.id}
+                          checked={checked}
+                          onChange={() => handleDraftCompetenceChange(c.id)}
+                          onClick={() => {
+                            // Allow unchecking the currently selected role.
+                            if (checked) handleDraftCompetenceChange(null);
+                          }}
+                        />
+                        <span className="schedule-edit-role-box" aria-hidden="true" />
+                        <span
+                          className="schedule-edit-editor-swatch"
+                          style={{ backgroundColor: competenceColor(c.id) }}
+                        />
+                        <span className="schedule-edit-role-name">{c.name}</span>
+                      </label>
+                    );
+                  })}
                 </div>
-              </label>
+              </div>
 
               <label className="schedule-edit-editor-field">
                 <span className="schedule-edit-editor-label">

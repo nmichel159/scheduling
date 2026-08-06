@@ -14,8 +14,12 @@
 .schedule-edit {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  padding: 16px;
+  /* Fit the whole editor into one screen: the page itself never scrolls.
+     48px = the 24px top + bottom padding of .content in MainLayout.css. */
+  height: calc(100svh - 48px);
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
   gap: 12px;
 }
 
@@ -34,18 +38,38 @@
 
 .schedule-edit-layout {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 240px minmax(0, 1fr);
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
 }
 .schedule-edit-layout.is-single {
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 240px minmax(0, 1fr);
+}
+
+/* The side column scrolls on its own if the ambulance list gets long,
+   so it can never push the calendar off screen. */
+.schedule-edit-side {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* The calendar column is a flex column: fixed top bar + grid that eats the rest. */
+.schedule-edit-detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  gap: 12px;
 }
 
 .schedule-edit-side {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  flex-shrink: 0;
 }
 
 .schedule-edit-list {
@@ -159,9 +183,11 @@
   flex-direction: column;
   gap: 10px;
   min-width: 0;
+  min-height: 0;
 }
 
 .schedule-edit-topbar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -250,8 +276,17 @@
 
 .schedule-edit-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  /* minmax(0, 1fr) — without the 0 minimum the long employee names inside the
+     cells set a min-content width and push the grid wider than the screen,
+     which is what produced the horizontal scrollbar. */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  /* First row = weekday headers (auto), every week row shares the rest evenly. */
+  grid-template-rows: auto;
+  grid-auto-rows: minmax(0, 1fr);
   gap: 6px;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
 }
 .schedule-edit-grid.is-loading {
   opacity: 0.6;
@@ -270,7 +305,11 @@
 }
 
 .schedule-edit-cell {
-  min-height: 110px;
+  /* No fixed height any more — the row height comes from the grid, so six
+     week rows always add up to exactly the visible area. */
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 6px;
@@ -337,6 +376,12 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* If a single day holds more chips than fit, that one cell scrolls —
+     the page as a whole still stays put. */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .schedule-edit-shift {
@@ -486,6 +531,12 @@
   gap: 5px;
 }
 
+/* The role picker block is centered as a whole: label above, boxes below. */
+.schedule-edit-editor-field.is-centered {
+  align-items: center;
+  text-align: center;
+}
+
 .schedule-edit-editor-label {
   font-size: 0.75rem;
   color: var(--text-h);
@@ -526,6 +577,83 @@
   cursor: not-allowed;
 }
 
+/* --- Role picker: square single-choice boxes laid out side by side --- */
+
+.schedule-edit-role-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.schedule-edit-role-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.schedule-edit-role-option:hover {
+  border-color: var(--primary);
+}
+.schedule-edit-role-option.is-checked {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+/* The native input stays focusable for the keyboard but is visually hidden. */
+.schedule-edit-role-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+}
+
+.schedule-edit-role-box {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  background: var(--background);
+  transition: border-color 0.15s, background 0.15s;
+}
+.schedule-edit-role-option.is-checked .schedule-edit-role-box {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+/* Check mark, drawn only when the box is selected. */
+.schedule-edit-role-option.is-checked .schedule-edit-role-box::after {
+  content: '';
+  position: absolute;
+  left: 4.5px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.schedule-edit-role-input:focus-visible + .schedule-edit-role-box {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.schedule-edit-role-name {
+  font-size: 0.88rem;
+  color: var(--text-h);
+  white-space: nowrap;
+}
+
 .schedule-edit-editor-hint {
   font-size: 0.72rem;
   color: var(--text-h);
@@ -548,17 +676,36 @@
   flex: 1;
 }
 
+/* --- Daily rows view: scrolls inside the detail column --- */
+
+.schedule-edit-detail > .schedule-list-view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
 /* --- Responsive --- */
 
 @media (max-width: 900px) {
+  /* On narrow screens a single fixed screen is not realistic — give the page
+     its normal scrolling back instead of squashing the cells. */
+  .schedule-edit {
+    height: auto;
+    overflow: visible;
+  }
   .schedule-edit-layout,
   .schedule-edit-layout.is-single {
     grid-template-columns: 1fr;
+  }
+  .schedule-edit-grid {
+    grid-auto-rows: minmax(110px, auto);
   }
   .schedule-edit-side {
     flex-direction: row;
     flex-wrap: wrap;
     align-items: flex-start;
+    overflow: visible;
   }
   .schedule-edit-list {
     flex: 1;
