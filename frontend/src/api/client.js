@@ -1,10 +1,15 @@
 import axios from 'axios';
 
+const configuredBase = import.meta.env.VITE_API_URL;
+const baseURL =
+  typeof configuredBase === 'string' && configuredBase.startsWith('/')
+    ? configuredBase
+    : '/api';
+
 const client = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  baseURL,
   withCredentials: true,
 });
-
 
 client.interceptors.response.use(
   (response) => response,
