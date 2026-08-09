@@ -6,7 +6,11 @@ import {
   fetchCompetences,
   fetchEmployeeCompetenceTable,
 } from '../services/competenceService';
-import { fetchAmbulanceSchedule, updateAmbulanceSchedule } from '../services/scheduleService';
+import {
+  fetchAmbulanceSchedule,
+  generateAmbulanceSchedule,
+  updateAmbulanceSchedule,
+} from '../services/scheduleService';
 import ScheduleListView from '../components/ScheduleListView';
 import ConfirmDialog from '../components/ConfirmDialog';
 import './AmbulanceScheduleEditView.css';
@@ -79,7 +83,9 @@ const AmbulanceScheduleEditView = () => {
   const [originalShifts, setOriginalShifts] = useState([]); // Baseline for dirty check
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
+  const [generationMessage, setGenerationMessage] = useState(null);
   // Pending confirmation dialog: { message, onConfirm, onCancel }.
   const [confirmState, setConfirmState] = useState(null);
   const [draggedShift, setDraggedShift] = useState(null);
@@ -98,6 +104,7 @@ const AmbulanceScheduleEditView = () => {
   const loadAmbulances = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setGenerationMessage(null);
     try {
       const list = await fetchMyManagedAmbulances();
       setAmbulances(list);
@@ -115,6 +122,7 @@ const AmbulanceScheduleEditView = () => {
     if (!selectedId) return;
     setLoading(true);
     setError(null);
+    setGenerationMessage(null);
     try {
       const [scheduleData, competenceData, employeeData] = await Promise.all([
         fetchAmbulanceSchedule(selectedId, { month: view.m + 1, year: view.y }),
@@ -348,6 +356,96 @@ const AmbulanceScheduleEditView = () => {
     setShifts((prev) => prev.filter((s) => s.id !== shiftId));
   };
 
+  const formatGenerationIssue = (issue) => {
+    if (issue.code === 'insufficient_qualified_staff') {
+      return t('schedule_edit.generate_shortage', {
+        date: issue.work_date,
+        competence: issue.competence_name,
+        available: issue.available_count,
+        required: issue.required_count,
+      });
+    }
+    if (issue.code === 'insufficient_daily_capacity') {
+      return t('schedule_edit.generate_daily_capacity', {
+        date: issue.work_date,
+        available: issue.available_count,
+        required: issue.required_count,
+      });
+    }
+    if (issue.code === 'insufficient_consecutive_day_rotation') {
+      return t('schedule_edit.generate_rotation_shortage', {
+        firstDate: issue.work_date,
+        secondDate: issue.next_work_date,
+        competence: issue.competence_name,
+        available: issue.available_count,
+        required: issue.required_count,
+      });
+    }
+    if (issue.code === 'no_active_competences') {
+      return t('schedule_edit.generate_no_competences');
+    }
+    if (issue.code === 'no_active_employees') {
+      return t('schedule_edit.generate_no_employees');
+    }
+    return t('schedule_edit.generate_constraint_conflict');
+  };
+
+  const generateSchedule = async () => {
+    setGenerating(true);
+    setError(null);
+    setGenerationMessage(null);
+    try {
+      const result = await generateAmbulanceSchedule(selectedId, {
+        month: view.m + 1,
+        year: view.y,
+      });
+      setShifts(
+        result.entries.map((entry, index) => ({
+          ...entry,
+          id: `new-generated-${selectedId}-${index}`,
+        }))
+      );
+      setEditingShift(null);
+      setGenerationMessage(
+        t('schedule_edit.generate_success', { count: result.assignment_count })
+      );
+    } catch (err) {
+      const detail = err?.response?.data?.detail;
+      const issues = Array.isArray(detail?.issues) ? detail.issues : [];
+      if (issues.length > 0) {
+        const visibleIssues = issues.slice(0, 3).map(formatGenerationIssue);
+        const remainingCount = issues.length - visibleIssues.length;
+        if (remainingCount > 0) {
+          visibleIssues.push(
+            t('schedule_edit.generate_more_issues', { count: remainingCount })
+          );
+        }
+        setError(visibleIssues.join(' '));
+      } else {
+        setError(t('schedule_edit.generate_error'));
+      }
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleGenerate = () => {
+    if (!selectedId || generating) return;
+    if (!isDirty) {
+      generateSchedule();
+      return;
+    }
+    setConfirmState({
+      message: t('schedule_edit.generate_replace_warning'),
+      confirmLabel: t('schedule_edit.generate'),
+      onConfirm: () => {
+        setConfirmState(null);
+        generateSchedule();
+      },
+      onCancel: () => setConfirmState(null),
+    });
+  };
+
   /* --- Shift editor: actions --- */
 
   // Change of competence inside the editor.
@@ -444,6 +542,7 @@ const AmbulanceScheduleEditView = () => {
       });
       setShifts(fresh);
       setOriginalShifts(fresh);
+      setGenerationMessage(null);
     } catch (err) {
        
       console.error('[schedule save]', err?.response?.status, err?.response?.data ?? err);
@@ -463,6 +562,7 @@ const AmbulanceScheduleEditView = () => {
       onConfirm: () => {
         setConfirmState(null);
         setShifts(originalShifts);
+        setGenerationMessage(null);
       },
       onCancel: () => setConfirmState(null),
     });
@@ -497,6 +597,11 @@ const AmbulanceScheduleEditView = () => {
       {error && (
         <div className="schedule-edit-banner schedule-edit-banner-error">{error}</div>
       )}
+      {generationMessage && (
+        <div className="schedule-edit-banner schedule-edit-banner-success">
+          {generationMessage}
+        </div>
+      )}
 
       <div className={`schedule-edit-layout ${showList ? '' : 'is-single'}`}>
         <nav className="schedule-edit-side">
@@ -517,6 +622,22 @@ const AmbulanceScheduleEditView = () => {
               ))}
             </div>
           )}
+
+          <div className="schedule-edit-generate-panel">
+            <button
+              type="button"
+              className="schedule-edit-btn schedule-edit-btn-generate"
+              onClick={handleGenerate}
+              disabled={loading || saving || generating}
+            >
+              {generating
+                ? t('schedule_edit.generating')
+                : t('schedule_edit.generate')}
+            </button>
+            <span className="schedule-edit-generate-hint">
+              {t('schedule_edit.generate_hint')}
+            </span>
+          </div>
 
           <div className="schedule-edit-legend">
             <span className="schedule-edit-legend-title">
@@ -851,7 +972,7 @@ const AmbulanceScheduleEditView = () => {
       <ConfirmDialog
         open={!!confirmState}
         message={confirmState?.message}
-        confirmLabel={t('schedule_edit.leave_anyway')}
+        confirmLabel={confirmState?.confirmLabel || t('schedule_edit.leave_anyway')}
         cancelLabel={t('schedule_edit.stay')}
         onConfirm={confirmState?.onConfirm}
         onCancel={confirmState?.onCancel}

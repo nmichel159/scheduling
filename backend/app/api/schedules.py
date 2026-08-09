@@ -9,7 +9,8 @@ from app.models.ambulance import Ambulance
 from app.models.associations import UserAmbulance
 from app.models.schedule import Schedule
 from app.models.user import User
-from app.schemas.schedule import MonthlyScheduleSave, MonthlyScheduleStatistics, NextScheduleResponse, ScheduleCreate, ScheduleEdit, ScheduleResponse, ScheduleUpdate, UserMonthlySchedule, WorkedScheduleStatistics
+from app.schemas.schedule import MonthlyScheduleSave, MonthlyScheduleStatistics, NextScheduleResponse, ScheduleCreate, ScheduleEdit, ScheduleGenerationResponse, ScheduleResponse, ScheduleUpdate, UserMonthlySchedule, WorkedScheduleStatistics
+from app.services.schedule_generation_service import ScheduleGenerationError, generate_ambulance_monthly_schedule
 from app.services.schedule_service import create_schedule, deactivate_schedule, get_ambulance_schedule, get_next_user_schedule, get_user_monthly_statistics, get_user_schedule, get_user_worked_statistics, save_ambulance_monthly_schedule, save_monthly_schedule, update_schedule
 
 router = APIRouter()
@@ -111,3 +112,29 @@ def update_ambulance_schedule_endpoint(data: ScheduleUpdate, ambulance: Ambulanc
         if entry.work_date.month != selected_month or entry.work_date.year != selected_year:
             raise HTTPException(status_code=400, detail="Entries must belong to the selected month and year.")
     return save_ambulance_monthly_schedule(db, ambulance.id, selected_month, selected_year, data.entries)
+
+
+@ambulance_router.post(
+    "/{ambulance_id}/schedule/generate",
+    response_model=ScheduleGenerationResponse,
+    summary="Generate an optimized monthly ambulance schedule draft",
+)
+def generate_ambulance_schedule_endpoint(
+    month: int,
+    year: int,
+    ambulance: Ambulance = Depends(get_manager_ambulance),
+    db: Session = Depends(get_db),
+) -> ScheduleGenerationResponse:
+    """Generate, but do not persist, a manager-reviewable MILP schedule draft."""
+    if not 1 <= month <= 12 or not 2000 <= year <= 2100:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="month and year must be valid.",
+        )
+    try:
+        return generate_ambulance_monthly_schedule(db, ambulance.id, month, year)
+    except ScheduleGenerationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=exc.as_detail(),
+        ) from exc

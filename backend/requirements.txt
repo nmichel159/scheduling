@@ -7,3 +7,4 @@ pydantic
 pydantic-settings
 alembic
 python-dotenv
+PuLP==3.3.0

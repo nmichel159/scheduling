@@ -200,8 +200,21 @@ POST body: `{"ambulance_id":1,"competence_id":2,"work_date":"2026-07-20"}`. PUT 
 
 - `GET /ambulances/{ambulance_id}/schedule?month=&year=`
 - `PUT /ambulances/{ambulance_id}/schedule?month=&year=`
+- `POST /ambulances/{ambulance_id}/schedule/generate?month=&year=`
 
 GET vracia položky rozdelené podľa používateľa: `user_id`, `user_full_name`, `month`, `year`, `entries`. PUT je kompatibilný endpoint s body `{"entries":[{"user_id":1,"competence_id":2,"work_date":"2026-07-20"}]}`. Oprávnenie: rola 2 pre danú ambulanciu alebo rola 3.
+
+### `POST /ambulances/{ambulance_id}/schedule/generate?month={month}&year={year}`
+
+- Oprávnenie: rola 2 pre spravovanú ambulanciu alebo rola 3 pre ľubovoľnú aktívnu ambulanciu
+- Parametre: povinné `month` (`1–12`) a `year` (`2000–2100`)
+- Request body: žiadny
+- Úspech: `200` — neuložený mesačný návrh s poľami `month`, `year`, `assignment_count` a `entries`
+- Každá položka `entries` obsahuje `user_id`, `ambulance_id`, `competence_id`, `work_date`, `user_email`, `user_full_name` a `competence_name`
+- Správanie: MILP model obsadí každú aktívnu kompetenciu počtom `required_count`, povolí najviac jednu rolu človeka denne, zakáže jeho nedostupné dni, existujúce súbežné služby v inej ambulancii a rovnakú kompetenciu dva dni po sebe. Optimalizačná funkcia vyrovnáva celkový počet služieb medzi kvalifikovanými zamestnancami.
+- Endpoint nič nezapisuje. Návrh sa uloží až existujúcim `PUT /ambulances/{ambulance_id}/schedule`.
+- Chyby: `401` bez prihlásenia, `403` pri cudzej ambulancii, `404` pri neexistujúcej alebo neaktívnej ambulancii, `409` pri neriešiteľnom modeli a `422` pri neplatnom mesiaci alebo roku
+- `409` vracia `detail.message` a `detail.issues`; konflikt podľa možnosti obsahuje dátum, kompetenciu, požadovaný a dostupný počet pracovníkov.
 </details>
 
 <details>

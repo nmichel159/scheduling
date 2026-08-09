@@ -4,9 +4,10 @@ from datetime import date
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.models.associations import UserAmbulance
+from app.models.associations import UserAmbulance, UserCompetence
 from app.models.competence import Competence
 from app.models.schedule import Schedule
+from app.models.unavailability import Unavailability
 from app.models.user import User
 from app.schemas.schedule import ScheduleCreate, ScheduleEdit, ScheduleEntry, ScheduleResponse
 
@@ -102,13 +103,21 @@ def get_user_worked_statistics(
 
 
 def _validate_entry(db: Session, user_id: int, data: ScheduleCreate) -> None:
+    """Validate ambulance membership, qualification, and date availability."""
     user = db.query(User).filter(User.id == user_id, User.is_active.is_(True)).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found or inactive.")
     assigned = db.query(UserAmbulance).filter(UserAmbulance.user_id == user_id, UserAmbulance.ambulance_id == data.ambulance_id, UserAmbulance.is_active.is_(True)).first()
     competence = db.query(Competence).filter(Competence.id == data.competence_id, Competence.ambulance_id == data.ambulance_id, Competence.is_active.is_(True)).first()
-    if not assigned or not competence:
-        raise HTTPException(status_code=400, detail="User and competence must be active members of the selected ambulance.")
+    qualified = db.query(UserCompetence).filter(UserCompetence.user_id == user_id, UserCompetence.competence_id == data.competence_id, UserCompetence.is_active.is_(True)).first()
+    if not assigned or not competence or not qualified:
+        raise HTTPException(status_code=400, detail="User must be an active, qualified member of the selected ambulance.")
+    unavailable = db.query(Unavailability).filter(Unavailability.user_id == user_id, Unavailability.date_absent == data.work_date, Unavailability.is_active.is_(True)).first()
+    if unavailable:
+        raise HTTPException(status_code=400, detail="User is unavailable on the selected date.")
+    external_schedule = db.query(Schedule).filter(Schedule.user_id == user_id, Schedule.ambulance_id != data.ambulance_id, Schedule.work_date == data.work_date, Schedule.is_active.is_(True)).first()
+    if external_schedule:
+        raise HTTPException(status_code=409, detail="User already has a duty in another ambulance on the selected date.")
 
 
 def create_schedule(db: Session, user_id: int, data: ScheduleCreate) -> ScheduleResponse:

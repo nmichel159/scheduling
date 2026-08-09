@@ -177,6 +177,40 @@
   opacity: 0.6;
 }
 
+.schedule-edit-generate-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.schedule-edit-btn-generate {
+  width: 100%;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.schedule-edit-btn-generate:not(:disabled):hover {
+  filter: brightness(1.1);
+}
+
+.schedule-edit-generate-hint {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--text-h);
+  opacity: 0.65;
+}
+
+.schedule-edit-banner-success {
+  background: rgba(76, 175, 80, 0.12);
+  border: 1px solid rgba(76, 175, 80, 0.5);
+  color: var(--text-h);
+}
+
 /* --- Top action bar (replaces the old page header + bottom bar) --- */
 
 .schedule-edit-detail {

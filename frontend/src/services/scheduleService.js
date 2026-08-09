@@ -54,3 +54,13 @@ export async function updateAmbulanceSchedule(ambulanceId, entries, params = {})
   const { data } = await client.put(`/ambulances/${ambulanceId}/schedule`, { entries }, { params });
   return data;
 }
+
+/** Generate an optimized, unsaved monthly schedule draft for one ambulance. */
+export async function generateAmbulanceSchedule(ambulanceId, params) {
+  const { data } = await client.post(
+    `/ambulances/${ambulanceId}/schedule/generate`,
+    null,
+    { params }
+  );
+  return data;
+}

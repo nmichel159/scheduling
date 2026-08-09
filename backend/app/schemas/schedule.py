@@ -26,6 +26,24 @@ class ScheduleResponse(ScheduleEntry):
         from_attributes = True
 
 
+class GeneratedScheduleEntry(ScheduleEntry):
+    """An unsaved optimized assignment returned for manager review."""
+
+    ambulance_id: int
+    user_email: str
+    user_full_name: str | None = None
+    competence_name: str
+
+
+class ScheduleGenerationResponse(BaseModel):
+    """Complete unsaved monthly schedule draft produced by the MILP solver."""
+
+    month: int
+    year: int
+    assignment_count: int
+    entries: list[GeneratedScheduleEntry]
+
+
 class NextScheduleResponse(BaseModel):
     """The authenticated user's nearest scheduled duty, if one exists."""
     next_shift: ScheduleResponse | None = None
