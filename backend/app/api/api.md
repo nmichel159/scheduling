@@ -211,7 +211,7 @@ GET vracia položky rozdelené podľa používateľa: `user_id`, `user_full_name
 - Request body: žiadny
 - Úspech: `200` — neuložený mesačný návrh s poľami `month`, `year`, `assignment_count` a `entries`
 - Každá položka `entries` obsahuje `user_id`, `ambulance_id`, `competence_id`, `work_date`, `user_email`, `user_full_name` a `competence_name`
-- Správanie: MILP model obsadí každú aktívnu kompetenciu počtom `required_count`, povolí najviac jednu rolu človeka denne, zakáže jeho nedostupné dni, existujúce súbežné služby v inej ambulancii a rovnakú kompetenciu dva dni po sebe. Optimalizačná funkcia vyrovnáva celkový počet služieb medzi kvalifikovanými zamestnancami.
+- Správanie: MILP model obsadí každý deň každú aktívnu kompetenciu danej ambulancie presne počtom `required_count`, povolí najviac jednu rolu človeka denne a zakáže akúkoľvek službu dva dni po sebe aj pri zmene kompetencie. Skutočne nedostupné dni sú zakázané; záznam `PREFERRED` zostáva neutrálny, kým nebude implementovaná optimalizácia preferencií. Existujúce služby v iných ambulanciách blokujú rovnaký aj susedné dni a pravidlo odpočinku platí aj cez hranice mesiaca. Konvexná cieľová funkcia vyrovnáva počet služieb medzi dostupnými kvalifikovanými zamestnancami.
 - Endpoint nič nezapisuje. Návrh sa uloží až existujúcim `PUT /ambulances/{ambulance_id}/schedule`.
 - Chyby: `401` bez prihlásenia, `403` pri cudzej ambulancii, `404` pri neexistujúcej alebo neaktívnej ambulancii, `409` pri neriešiteľnom modeli a `422` pri neplatnom mesiaci alebo roku
 - `409` vracia `detail.message` a `detail.issues`; konflikt podľa možnosti obsahuje dátum, kompetenciu, požadovaný a dostupný počet pracovníkov.

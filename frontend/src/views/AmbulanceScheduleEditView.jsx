@@ -381,6 +381,14 @@ const AmbulanceScheduleEditView = () => {
         required: issue.required_count,
       });
     }
+    if (issue.code === 'insufficient_consecutive_day_capacity') {
+      return t('schedule_edit.generate_rest_shortage', {
+        firstDate: issue.work_date,
+        secondDate: issue.next_work_date,
+        available: issue.available_count,
+        required: issue.required_count,
+      });
+    }
     if (issue.code === 'no_active_competences') {
       return t('schedule_edit.generate_no_competences');
     }

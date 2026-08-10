@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from pulp import (
+    LpAffineExpression,
     LpMinimize,
     LpProblem,
     LpStatus,
@@ -26,6 +27,9 @@ from app.schemas.schedule import (
     GeneratedScheduleEntry,
     ScheduleGenerationResponse,
 )
+
+
+PREFERRED_UNAVAILABILITY_REASON = "PREFERRED"
 
 
 @dataclass(frozen=True)
@@ -90,6 +94,40 @@ def _candidate_ids(
     }
 
 
+def _is_hard_unavailability(reason: str | None) -> bool:
+    """Return whether an availability record must block schedule generation.
+
+    The current UI stores preferred days in the unavailability table as a
+    transitional representation. Preferences are not optimized yet, so they
+    must remain neutral rather than being treated as absences.
+    """
+    return reason != PREFERRED_UNAVAILABILITY_REASON
+
+
+def _rest_blocked_dates(scheduled_dates: frozenset[date]) -> frozenset[date]:
+    """Expand fixed duties to the duty date and both mandatory rest days."""
+    return frozenset(
+        blocked_date
+        for scheduled_date in scheduled_dates
+        for blocked_date in (
+            scheduled_date - timedelta(days=1),
+            scheduled_date,
+            scheduled_date + timedelta(days=1),
+        )
+    )
+
+
+def _maximum_nonconsecutive_days(candidate_dates: set[date]) -> int:
+    """Return the maximum duties possible when adjacent dates are forbidden."""
+    selected_count = 0
+    last_selected: date | None = None
+    for candidate_date in sorted(candidate_dates):
+        if last_selected is None or candidate_date > last_selected + timedelta(days=1):
+            selected_count += 1
+            last_selected = candidate_date
+    return selected_count
+
+
 def _detect_capacity_issues(
     variables: dict[tuple[int, int, date], LpVariable],
     competences: list[SchedulingCompetence],
@@ -151,6 +189,23 @@ def _detect_capacity_issues(
                     }
                 )
 
+        combined_candidates = {
+            user_id
+            for user_id, _competence_id, candidate_date in variables
+            if candidate_date in (current_day, next_day)
+        }
+        required_across_days = daily_required * 2
+        if len(combined_candidates) < required_across_days:
+            issues.append(
+                {
+                    "code": "insufficient_consecutive_day_capacity",
+                    "work_date": current_day.isoformat(),
+                    "next_work_date": next_day.isoformat(),
+                    "required_count": required_across_days,
+                    "available_count": len(combined_candidates),
+                }
+            )
+
     return issues
 
 
@@ -164,9 +219,9 @@ def solve_monthly_schedule(
     """Solve one monthly ambulance schedule as a binary MILP.
 
     The model guarantees full daily coverage, employee availability, at most
-    one role per employee per day, and rotation away from the same role on
-    consecutive days. The objective minimizes absolute deviation from the
-    average employee workload.
+    one role per employee per day, and a complete day of rest between duties.
+    The objective uses an increasing marginal cost for every additional duty,
+    which balances workload as evenly as the hard constraints permit.
 
     Args:
         employees: Active ambulance employees with qualifications and absences.
@@ -200,14 +255,14 @@ def solve_monthly_schedule(
     last_day = days[-1]
     previous_day = first_day - timedelta(days=1)
     following_day = last_day + timedelta(days=1)
-    previous_assignments = {
-        (user_id, competence_id)
-        for user_id, competence_id, work_date in adjacent_assignments
+    previously_scheduled_employee_ids = {
+        user_id
+        for user_id, _competence_id, work_date in adjacent_assignments
         if work_date == previous_day
     }
-    following_assignments = {
-        (user_id, competence_id)
-        for user_id, competence_id, work_date in adjacent_assignments
+    subsequently_scheduled_employee_ids = {
+        user_id
+        for user_id, _competence_id, work_date in adjacent_assignments
         if work_date == following_day
     }
 
@@ -215,16 +270,18 @@ def solve_monthly_schedule(
     variables: dict[tuple[int, int, date], LpVariable] = {}
 
     for employee in sorted(employees, key=lambda item: item.id):
-        blocked_dates = employee.unavailable_dates | employee.externally_scheduled_dates
+        blocked_dates = employee.unavailable_dates | _rest_blocked_dates(
+            employee.externally_scheduled_dates
+        )
         for competence in sorted(competences, key=lambda item: item.id):
             if competence.id not in employee.competence_ids:
                 continue
             for work_date in days:
                 if work_date in blocked_dates:
                     continue
-                if work_date == first_day and (employee.id, competence.id) in previous_assignments:
+                if work_date == first_day and employee.id in previously_scheduled_employee_ids:
                     continue
-                if work_date == last_day and (employee.id, competence.id) in following_assignments:
+                if work_date == last_day and employee.id in subsequently_scheduled_employee_ids:
                     continue
                 variables[(employee.id, competence.id, work_date)] = LpVariable(
                     f"assign_{employee.id}_{competence.id}_{work_date.isoformat()}",
@@ -262,37 +319,50 @@ def solve_monthly_schedule(
             )
 
     for employee in employees:
-        for competence in competences:
-            for current_day, next_day in zip(days, days[1:]):
-                current_variable = variables.get((employee.id, competence.id, current_day))
-                next_variable = variables.get((employee.id, competence.id, next_day))
-                if current_variable is not None and next_variable is not None:
-                    problem += (
-                        current_variable + next_variable <= 1,
-                        f"rotate_{employee.id}_{competence.id}_{current_day.isoformat()}",
-                    )
+        for current_day, next_day in zip(days, days[1:]):
+            consecutive_variables = [
+                variable
+                for (user_id, _competence_id, candidate_date), variable in variables.items()
+                if user_id == employee.id and candidate_date in (current_day, next_day)
+            ]
+            problem += (
+                lpSum(consecutive_variables) <= 1,
+                f"rest_{employee.id}_{current_day.isoformat()}",
+            )
 
-    eligible_employees = [
-        employee
-        for employee in employees
-        if any(competence.id in employee.competence_ids for competence in competences)
-    ]
-    total_assignments = len(days) * sum(item.required_count for item in competences)
-    average_workload = total_assignments / len(eligible_employees)
-    deviations: list[LpVariable] = []
-
-    for employee in eligible_employees:
-        workload = lpSum(
+    marginal_workload_costs: list[LpAffineExpression] = []
+    for employee in employees:
+        employee_variables = [
             variable
             for (user_id, _competence_id, _work_date), variable in variables.items()
             if user_id == employee.id
-        )
-        positive_deviation = LpVariable(f"workload_over_{employee.id}", lowBound=0)
-        negative_deviation = LpVariable(f"workload_under_{employee.id}", lowBound=0)
-        problem += workload - average_workload == positive_deviation - negative_deviation
-        deviations.extend([positive_deviation, negative_deviation])
+        ]
+        candidate_dates = {
+            work_date
+            for (user_id, _competence_id, work_date) in variables
+            if user_id == employee.id
+        }
+        maximum_workload = _maximum_nonconsecutive_days(candidate_dates)
+        if maximum_workload == 0:
+            continue
 
-    problem += lpSum(deviations)
+        workload_levels = [
+            LpVariable(f"workload_level_{employee.id}_{level}", cat="Binary")
+            for level in range(1, maximum_workload + 1)
+        ]
+        problem += lpSum(employee_variables) == lpSum(workload_levels)
+        for current_level, next_level in zip(workload_levels, workload_levels[1:]):
+            problem += current_level >= next_level
+
+        # Costs 1, 3, 5, ... linearize workload squared. The convex cost makes
+        # every additional duty progressively less attractive for an already
+        # busy employee and can later be generalized to hour-based segments.
+        marginal_workload_costs.extend(
+            (2 * level - 1) * workload_level
+            for level, workload_level in enumerate(workload_levels, start=1)
+        )
+
+    problem += lpSum(marginal_workload_costs)
     problem.solve(PULP_CBC_CMD(msg=False))
 
     if LpStatus[problem.status] != "Optimal":
@@ -362,7 +432,11 @@ def generate_ambulance_monthly_schedule(
     unavailable_dates: dict[int, set[date]] = {user_id: set() for user_id in user_ids}
     if user_ids:
         unavailability_rows = (
-            db.query(Unavailability.user_id, Unavailability.date_absent)
+            db.query(
+                Unavailability.user_id,
+                Unavailability.date_absent,
+                Unavailability.reason,
+            )
             .filter(
                 Unavailability.user_id.in_(user_ids),
                 Unavailability.date_absent.between(start, end),
@@ -370,8 +444,9 @@ def generate_ambulance_monthly_schedule(
             )
             .all()
         )
-        for user_id, unavailable_date in unavailability_rows:
-            unavailable_dates[user_id].add(unavailable_date)
+        for user_id, unavailable_date, reason in unavailability_rows:
+            if _is_hard_unavailability(reason):
+                unavailable_dates[user_id].add(unavailable_date)
 
     externally_scheduled_dates: dict[int, set[date]] = {
         user_id: set() for user_id in user_ids
@@ -383,7 +458,10 @@ def generate_ambulance_monthly_schedule(
             .filter(
                 Schedule.user_id.in_(user_ids),
                 Schedule.ambulance_id != ambulance_id,
-                Schedule.work_date.between(start, end),
+                Schedule.work_date.between(
+                    start - timedelta(days=1),
+                    end + timedelta(days=1),
+                ),
                 Schedule.is_active.is_(True),
             )
             .all()

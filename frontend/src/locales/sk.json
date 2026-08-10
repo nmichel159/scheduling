@@ -170,6 +170,7 @@
     "generate_shortage": "{{date}} – {{competence}}: dostupných {{available}}, potrebných {{required}}.",
     "generate_daily_capacity": "{{date}} – celková kapacita: dostupných {{available}}, potrebných {{required}}.",
     "generate_rotation_shortage": "{{firstDate}} až {{secondDate}} – {{competence}}: na rotáciu sú dostupní {{available}}, potrebných je {{required}}.",
+    "generate_rest_shortage": "{{firstDate}} až {{secondDate}} – celková kapacita pri povinnom dni odpočinku: dostupných {{available}}, potrebných {{required}}.",
     "generate_no_competences": "Ambulancia nemá aktívne kompetencie, ktoré by bolo možné naplánovať.",
     "generate_no_employees": "Ambulancia nemá aktívnych zamestnancov, ktorých by bolo možné naplánovať.",
     "generate_constraint_conflict": "Dostupnosť, obsadenie a rotáciu nemožno splniť súčasne.",

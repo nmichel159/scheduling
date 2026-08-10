@@ -171,6 +171,7 @@
     "generate_shortage": "{{date}} – {{competence}}: {{available}} available, {{required}} required.",
     "generate_daily_capacity": "{{date}} – total capacity: {{available}} available, {{required}} required.",
     "generate_rotation_shortage": "{{firstDate}} to {{secondDate}} – {{competence}}: {{available}} available for rotation, {{required}} required.",
+    "generate_rest_shortage": "{{firstDate}} to {{secondDate}} – total rest capacity: {{available}} available, {{required}} required.",
     "generate_no_competences": "The ambulance has no active competences to schedule.",
     "generate_no_employees": "The ambulance has no active employees to schedule.",
     "generate_constraint_conflict": "Availability, coverage, and rotation cannot all be satisfied.",
