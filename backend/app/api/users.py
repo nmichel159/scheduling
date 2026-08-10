@@ -27,7 +27,7 @@ def users_by_role_endpoint(
 
 
 @router.get(
-    "/",
+    "",
     response_model=list[UserListResponse],
     summary="List all active users",
 )

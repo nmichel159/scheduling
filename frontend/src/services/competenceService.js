@@ -87,6 +87,6 @@ export async function removeEmployeeFromAmbulance(ambulanceId, userId) {
 
 /** List all active users in the hospital (pool for adding employees). */
 export async function fetchAllUsers() {
-  const { data } = await client.get('/users/');
+  const { data } = await client.get('/users');
   return data;
 }
