@@ -236,7 +236,6 @@ const WorkloadView = () => {
         ))}
         {cells.map((day, idx) => {
           if (day == null) {
-            // eslint-disable-next-line react/no-array-index-key
             return <div key={`e${idx}`} className="workload-cell workload-cell-empty" />;
           }
           const dateStr = isoDate(view.y, view.m, day);

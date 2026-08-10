@@ -124,11 +124,16 @@ const DepartmentsView = () => {
     if (selectedId == null) return;
     setTableLoading(true);
     try {
-      const [table, comps, users] = await Promise.all([
+      const [tableResult, compsResult, usersResult] = await Promise.allSettled([
         fetchEmployeeCompetenceTable(selectedId),
         fetchCompetences(selectedId),
         fetchAllUsers(),
       ]);
+      if (tableResult.status === 'rejected') throw tableResult.reason;
+      if (compsResult.status === 'rejected') throw compsResult.reason;
+
+      const table = tableResult.value;
+      const comps = compsResult.value;
       const nextRows = table.map((row) => ({
         user_id: row.user_id,
         email: row.email,
@@ -139,7 +144,12 @@ const DepartmentsView = () => {
       setOriginalRows(cloneRows(nextRows));
       setColumns(comps);
       setOriginalColumns(cloneColumns(comps));
-      setAllUsers(users);
+      if (usersResult.status === 'fulfilled') {
+        setAllUsers(usersResult.value);
+      } else {
+        setAllUsers([]);
+        notify(t('departments.load_error'));
+      }
     } catch {
       setRows([]);
       setOriginalRows([]);

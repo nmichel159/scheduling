@@ -41,7 +41,7 @@ const DashboardView = () => {
     setError(null);
     try {
       const [scheduleResult, nextResult, monthlyResult, workedResult, ambulancesResult] =
-        await Promise.all([
+        await Promise.allSettled([
           fetchMySchedule({ month: view.month + 1, year: view.year }),
           fetchMyNextShift(),
           fetchMyMonthlyScheduleStatistics(),
@@ -49,13 +49,23 @@ const DashboardView = () => {
           fetchMyAssignedAmbulances(),
         ]);
 
-      setSchedule(scheduleResult);
-      setNextShift(nextResult.next_shift);
-      setMonthlyStatistics(monthlyResult);
-      setWorkedStatistics(workedResult);
+      if (scheduleResult.status === 'rejected') throw scheduleResult.reason;
+      setSchedule(scheduleResult.value);
+      setNextShift(nextResult.status === 'fulfilled' ? nextResult.value.next_shift : null);
+      setMonthlyStatistics(monthlyResult.status === 'fulfilled' ? monthlyResult.value : null);
+      setWorkedStatistics(workedResult.status === 'fulfilled' ? workedResult.value : null);
       setAmbulanceNames(
-        Object.fromEntries(ambulancesResult.map((ambulance) => [ambulance.id, ambulance.name]))
+        ambulancesResult.status === 'fulfilled'
+          ? Object.fromEntries(
+              ambulancesResult.value.map((ambulance) => [ambulance.id, ambulance.name])
+            )
+          : {}
       );
+      if ([nextResult, monthlyResult, workedResult, ambulancesResult].some(
+        (result) => result.status === 'rejected'
+      )) {
+        setError(t('dashboard.load_error'));
+      }
     } catch {
       setError(t('dashboard.load_error'));
     } finally {

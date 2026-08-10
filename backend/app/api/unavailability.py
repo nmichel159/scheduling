@@ -32,7 +32,7 @@ router = APIRouter()
 
 
 @router.post(
-    "/",
+    "",
     response_model=UnavailabilityResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create an unavailability record",
@@ -47,7 +47,7 @@ def create_unavailability_endpoint(
 
 
 @router.get(
-    "/",
+    "",
     response_model=list[UnavailabilityResponse],
     summary="List unavailability records",
 )

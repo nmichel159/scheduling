@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import LoginView from '../views/LoginView';
 import DashboardView from '../views/DashboardView';
 import WorkloadView from '../views/WorkloadView';
@@ -7,14 +7,9 @@ import AmbulanceScheduleEditView from '../views/AmbulanceScheduleEditView';
 import DepartmentsView from '../views/DepartmentsView';
 import AdminView from '../views/AdminView';
 import MainLayout from '../layouts/MainLayout';
-import { useRoles } from '../hooks/useRoles';
+import RequireRole from '../components/RequireRole';
 
 /** Pustí ďalej len usera s daným flagom roly (UX vrstva, backend má vlastné 403). */
-const RequireRole = ({ flag, children }) => {
-  const roles = useRoles();
-  return roles[flag] ? children : <Navigate to="/dashboard" replace />;
-};
-
 export const router = createBrowserRouter([
   {
     path: "/",

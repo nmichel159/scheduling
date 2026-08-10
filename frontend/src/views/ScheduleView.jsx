@@ -136,7 +136,6 @@ const ScheduleView = () => {
         ))}
         {cells.map((day, idx) => {
           if (day == null) {
-            // eslint-disable-next-line react/no-array-index-key
             return <div key={`e${idx}`} className="schedule-cell schedule-cell-empty" />;
           }
           const dateStr = isoDate(view.y, view.m, day);

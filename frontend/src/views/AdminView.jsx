@@ -83,19 +83,17 @@ const ManagerAutocomplete = ({ managers, value, onChange, placeholder, emptyLabe
     );
   }, [managers, query]);
 
-  useEffect(() => {
-    setHighlight(0);
-  }, [query, open]);
-
   const pick = (manager) => {
     onChange(String(manager.id));
     setQuery('');
+    setHighlight(0);
     setOpen(false);
   };
 
   const clear = () => {
     onChange('');
     setQuery('');
+    setHighlight(0);
     setOpen(false);
   };
 
@@ -135,10 +133,12 @@ const ManagerAutocomplete = ({ managers, value, onChange, placeholder, emptyLabe
           placeholder={placeholder}
           onChange={(e) => {
             setQuery(e.target.value);
+            setHighlight(0);
             setOpen(true);
           }}
           onFocus={() => {
             setQuery('');
+            setHighlight(0);
             setOpen(true);
           }}
           onKeyDown={handleKeyDown}

@@ -38,7 +38,7 @@ export async function removeEmployee(ambulanceId, userId) {
 
 /** List all active users (manager role required). */
 export async function fetchUsers() {
-  const { data } = await client.get('/users/');
+  const { data } = await client.get('/users');
   return data;
 }
 

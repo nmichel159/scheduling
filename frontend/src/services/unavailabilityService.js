@@ -40,7 +40,7 @@ export function stateOfRecord(record) {
 
 /** Fetch records for the authenticated user within an inclusive date range. */
 export async function fetchUnavailabilities(dateFrom, dateTo) {
-  const { data } = await client.get('/unavailabilities/', {
+  const { data } = await client.get('/unavailabilities', {
     params: { date_from: dateFrom, date_to: dateTo, limit: 500 },
   });
   return data;
@@ -48,7 +48,7 @@ export async function fetchUnavailabilities(dateFrom, dateTo) {
 
 /** Create a record for a day. */
 export async function createUnavailability(dateAbsent, reason = REASON_BLOCKED) {
-  const { data } = await client.post('/unavailabilities/', {
+  const { data } = await client.post('/unavailabilities', {
     date_absent: dateAbsent,
     reason,
   });
