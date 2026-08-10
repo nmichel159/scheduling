@@ -8,7 +8,7 @@ Business rules enforced:
 """
 
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.ambulance import Ambulance
 from app.models.associations import UserAmbulance
@@ -26,22 +26,24 @@ def list_employees(db: Session, ambulance_id: int) -> list[EmployeeListResponse]
     Returns:
         A list of :class:`User` instances assigned to the ambulance.
     """
-    assignments = (
-        db.query(UserAmbulance)
+    employees = (
+        db.query(User)
+        .join(UserAmbulance, UserAmbulance.user_id == User.id)
         .filter(
             UserAmbulance.ambulance_id == ambulance_id,
-            UserAmbulance.is_active == True,
+            UserAmbulance.is_active.is_(True),
+            User.is_active.is_(True),
         )
+        .order_by(User.full_name, User.email)
         .all()
     )
     return [
         EmployeeListResponse(
-            user_id=assignment.user.id,
-            email=assignment.user.email,
-            full_name=assignment.user.full_name,
+            user_id=employee.id,
+            email=employee.email,
+            full_name=employee.full_name,
         )
-        for assignment in assignments
-        if assignment.user and assignment.user.is_active
+        for employee in employees
     ]
 
 
@@ -57,6 +59,7 @@ def list_employee_ambulances(db: Session, user_id: int) -> list[AmbulanceListRes
     assignments = (
         db.query(UserAmbulance)
         .join(Ambulance)
+        .options(joinedload(UserAmbulance.ambulance))
         .filter(
             UserAmbulance.user_id == user_id,
             UserAmbulance.is_active == True,

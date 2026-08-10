@@ -2,7 +2,7 @@ from calendar import monthrange
 from datetime import date
 
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.associations import UserAmbulance, UserCompetence
 from app.models.competence import Competence
@@ -25,7 +25,11 @@ def _response(item: Schedule) -> ScheduleResponse:
 
 
 def get_user_schedule(db: Session, user_id: int, month: int | None = None, year: int | None = None) -> list[ScheduleResponse]:
-    query = db.query(Schedule).filter(Schedule.user_id == user_id, Schedule.is_active.is_(True))
+    query = (
+        db.query(Schedule)
+        .options(joinedload(Schedule.user), joinedload(Schedule.competence))
+        .filter(Schedule.user_id == user_id, Schedule.is_active.is_(True))
+    )
     period = month_range(month, year)
     if period:
         query = query.filter(Schedule.work_date.between(*period))
@@ -33,7 +37,11 @@ def get_user_schedule(db: Session, user_id: int, month: int | None = None, year:
 
 
 def get_ambulance_schedule(db: Session, ambulance_id: int, month: int | None = None, year: int | None = None) -> list[ScheduleResponse]:
-    query = db.query(Schedule).filter(Schedule.ambulance_id == ambulance_id, Schedule.is_active.is_(True))
+    query = (
+        db.query(Schedule)
+        .options(joinedload(Schedule.user), joinedload(Schedule.competence))
+        .filter(Schedule.ambulance_id == ambulance_id, Schedule.is_active.is_(True))
+    )
     period = month_range(month, year)
     if period:
         query = query.filter(Schedule.work_date.between(*period))
@@ -45,6 +53,7 @@ def get_next_user_schedule(db: Session, user_id: int, today: date | None = None)
     reference_date = today or date.today()
     item = (
         db.query(Schedule)
+        .options(joinedload(Schedule.user), joinedload(Schedule.competence))
         .filter(
             Schedule.user_id == user_id,
             Schedule.is_active.is_(True),

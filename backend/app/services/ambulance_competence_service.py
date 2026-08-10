@@ -1,6 +1,7 @@
 """Read and synchronize the employee competence table for an ambulance."""
 
 from fastapi import HTTPException, status
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from app.models.associations import UserAmbulance, UserCompetence
@@ -16,40 +17,54 @@ from app.schemas.ambulance_competences import (
 def get_employee_competence_table(
     db: Session, ambulance_id: int
 ) -> list[AmbulanceEmployeeCompetenceRow]:
-    assignments = (
-        db.query(UserAmbulance)
-        .join(User)
+    rows = (
+        db.query(
+            UserAmbulance.user_id,
+            User.email,
+            User.full_name,
+            Competence.id.label("competence_id"),
+            Competence.name.label("competence_name"),
+        )
+        .join(User, User.id == UserAmbulance.user_id)
+        .outerjoin(
+            UserCompetence,
+            and_(
+                UserCompetence.user_id == UserAmbulance.user_id,
+                UserCompetence.is_active.is_(True),
+            ),
+        )
+        .outerjoin(
+            Competence,
+            and_(
+                Competence.id == UserCompetence.competence_id,
+                Competence.ambulance_id == ambulance_id,
+                Competence.is_active.is_(True),
+            ),
+        )
         .filter(
             UserAmbulance.ambulance_id == ambulance_id,
             UserAmbulance.is_active.is_(True),
             User.is_active.is_(True),
         )
-        .order_by(User.full_name, User.email)
+        .order_by(User.full_name, User.email, Competence.name)
         .all()
     )
-    result = []
-    for assignment in assignments:
-        competences = (
-            db.query(Competence)
-            .join(UserCompetence, UserCompetence.competence_id == Competence.id)
-            .filter(
-                UserCompetence.user_id == assignment.user_id,
-                UserCompetence.is_active.is_(True),
-                Competence.ambulance_id == ambulance_id,
-                Competence.is_active.is_(True),
-            )
-            .order_by(Competence.name)
-            .all()
-        )
-        result.append(
+    employees: dict[int, AmbulanceEmployeeCompetenceRow] = {}
+    for row in rows:
+        employee = employees.setdefault(
+            row.user_id,
             AmbulanceEmployeeCompetenceRow(
-                user_id=assignment.user_id,
-                email=assignment.user.email,
-                full_name=assignment.user.full_name,
-                competences=[CompetenceTableItem(id=c.id, name=c.name) for c in competences],
-            )
+                user_id=row.user_id,
+                email=row.email,
+                full_name=row.full_name,
+                competences=[],
+            ),
         )
-    return result
+        if row.competence_id is not None:
+            employee.competences.append(
+                CompetenceTableItem(id=row.competence_id, name=row.competence_name)
+            )
+    return list(employees.values())
 
 
 def update_employee_competence_table(

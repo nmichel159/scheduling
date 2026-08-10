@@ -1,7 +1,7 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.dependencies import get_current_user, get_manager_ambulance, require_manager_role
 from app.db.session import get_db
@@ -97,7 +97,15 @@ def save_monthly_schedule_endpoint(data: MonthlyScheduleSave, current_user: User
 @ambulance_router.get("/{ambulance_id}/schedule", response_model=list[UserMonthlySchedule])
 def get_ambulance_schedule_endpoint(ambulance: Ambulance = Depends(get_manager_ambulance), month: int | None = None, year: int | None = None, db: Session = Depends(get_db)):
     displayed_month, displayed_year = (month, year) if month is not None and year is not None else (date.today().month, date.today().year)
-    employees = db.query(UserAmbulance).filter(UserAmbulance.ambulance_id == ambulance.id, UserAmbulance.is_active.is_(True)).all()
+    employees = (
+        db.query(UserAmbulance)
+        .options(joinedload(UserAmbulance.user))
+        .filter(
+            UserAmbulance.ambulance_id == ambulance.id,
+            UserAmbulance.is_active.is_(True),
+        )
+        .all()
+    )
     entries_by_user: dict[int, list[ScheduleResponse]] = {}
     for entry in get_ambulance_schedule(db, ambulance.id, displayed_month, displayed_year):
         entries_by_user.setdefault(entry.user_id, []).append(entry)
