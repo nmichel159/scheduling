@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     SESSION_COOKIE_NAME: str = "scheduling_session"
     SESSION_TTL_HOURS: int = int(os.getenv("SESSION_TTL_HOURS", "12"))
     COOKIE_SECURE: bool = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+    AUTO_SEED: bool = os.getenv("AUTO_SEED", "false").lower() == "true"
+    SEED_CONFIG: str = os.getenv("SEED_CONFIG", "config_1")
 
     class Config:
         case_sensitive = True

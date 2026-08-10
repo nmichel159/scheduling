@@ -2,6 +2,7 @@ from app.db.seed_configs.base import AMBULANCE_ASSIGNMENTS, AMBULANCES, COMPETEN
 
 
 SEED_CONFIG = {
+    "version": "1",
     "users": USERS,
     "ambulances": AMBULANCES,
     "competences": COMPETENCES,

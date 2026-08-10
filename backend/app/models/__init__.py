@@ -6,6 +6,7 @@ from app.models.competence import Competence
 from app.models.unavailability import Unavailability
 from app.models.schedule import Schedule
 from app.models.audit import AuditLog
+from app.models.seed_version import SeedVersion
 
 __all__ = [
     "User",
@@ -17,5 +18,6 @@ __all__ = [
     "AuditLog",
     "UserRole",
     "UserAmbulance",
-    "UserCompetence"
+    "UserCompetence",
+    "SeedVersion",
 ]

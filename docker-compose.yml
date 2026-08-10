@@ -32,6 +32,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/appdb
       - PYTHONUNBUFFERED=1
+      - AUTO_SEED=true
+      - SEED_CONFIG=config_1
     volumes:
       - ./backend:/app
 
@@ -45,6 +47,8 @@ services:
     depends_on:
       - backend
     env_file: .env
+    environment:
+      - DEV_API_TARGET=http://backend:8000
     volumes:
       - ./frontend:/app
       - /app/node_modules

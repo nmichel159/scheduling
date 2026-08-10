@@ -117,4 +117,21 @@ If you are modifying this project or using an AI developer agent (like Antigravi
 * **`global.md`**: Enforces strict English code, docstrings, type hinting, and structural modularity.
 * **`backend.md`**: Mandates a strict 1:1:1 domain decoupling (SQLAlchemy Models ↔ Pydantic Schemas ↔ FastAPI Routers).
 * **`database.md`**: Outlines transaction safety boundaries and Alembic migration protocols.
+
+### Automatic test/demo data
+
+The backend startup runs the database bootstrap before Uvicorn. Schema creation is
+always safe to run, while deterministic mock data is updated only when explicitly
+enabled:
+
+```env
+AUTO_SEED=true
+SEED_CONFIG=config_1
+```
+
+Each seed profile declares a version. The backend stores applied versions in
+`seed_versions` and skips an already-current profile. Increment the profile's
+`version` whenever its data changes. Keep `AUTO_SEED=false` (the default) for
+production databases; enable it only for CI, preview, test, or controlled demo
+environments.
 * **`database-schema.md`**: Defines the exact relational database layout.
