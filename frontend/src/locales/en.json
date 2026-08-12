@@ -31,7 +31,8 @@
     "close_menu": "Close menu",
     "departments": "Workplaces",
     "admin": "Workplace administration",
-    "ambulance_schedule": "Workplace schedule"
+    "ambulance_schedule": "Workplace schedule",
+    "roles": "Role management"
   },
   "workload": {
     "title": "Restrictions",
@@ -130,6 +131,23 @@
     "confirm_delete_named": "Really delete workplace {{name}}?",
     "leave_anyway": "Delete",
     "stay": "Cancel"
+  },
+  "role_management": {
+    "title": "Role management",
+    "subtitle": "Assign or remove roles 1, 2 and 3 for users.",
+    "search": "Search by name or email...",
+    "loading": "Loading users...",
+    "load_error": "Users and roles could not be loaded.",
+    "save_error": "Roles could not be saved.",
+    "forbidden": "You do not have permission to manage roles.",
+    "empty": "No user was found.",
+    "unnamed": "No name",
+    "employee": "Employee",
+    "leader": "Leader",
+    "overseer": "Oversight",
+    "save": "Save",
+    "saving": "Saving...",
+    "saved_for": "Roles for {{name}} were saved."
   },
   "competences": {
     "title": "Competences",

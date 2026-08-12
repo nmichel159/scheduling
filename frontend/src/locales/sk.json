@@ -30,7 +30,8 @@
     "close_menu": "Zatvoriť menu",
     "departments": "Pracoviská",
     "admin": "Administrácia pracovísk",
-    "ambulance_schedule": "Rozpis pracoviska"
+    "ambulance_schedule": "Rozpis pracoviska",
+    "roles": "Správa rolí"
   },
   "workload": {
     "title": "Obmedzenia",
@@ -129,6 +130,23 @@
     "confirm_delete_named": "Naozaj zmazať pracovisko {{name}}?",
     "leave_anyway": "Zmazať",
     "stay": "Zrušiť"
+  },
+  "role_management": {
+    "title": "Správa rolí",
+    "subtitle": "Priraďuj alebo odoberaj používateľom roly 1, 2 a 3.",
+    "search": "Hľadať podľa mena alebo e-mailu...",
+    "loading": "Načítavam používateľov...",
+    "load_error": "Používateľov a roly sa nepodarilo načítať.",
+    "save_error": "Roly sa nepodarilo uložiť.",
+    "forbidden": "Nemáš oprávnenie spravovať roly.",
+    "empty": "Nenašiel sa žiadny používateľ.",
+    "unnamed": "Bez mena",
+    "employee": "Zamestnanec",
+    "leader": "Vedúci",
+    "overseer": "Dohľad",
+    "save": "Uložiť",
+    "saving": "Ukladám...",
+    "saved_for": "Roly pre {{name}} boli uložené."
   },
   "competences": {
     "title": "Kompetencie",

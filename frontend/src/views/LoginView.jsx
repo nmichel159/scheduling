@@ -4,6 +4,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
 import client from '../api/client';
 import { fetchMyRoles } from '../services/roleService';
+import { storeRoles } from '../hooks/useRoles';
 import './LoginView.css';
 
 const LoginView = () => {
@@ -15,8 +16,8 @@ const LoginView = () => {
       // Doplnenie rolí pre staršie sessions, ktoré ich ešte nemajú uložené.
       if (!localStorage.getItem('roles')) {
         fetchMyRoles()
-          .then((roles) => localStorage.setItem('roles', JSON.stringify(roles)))
-          .catch(() => localStorage.setItem('roles', '[]'))
+          .then(storeRoles)
+          .catch(() => storeRoles([]))
           .finally(() => navigate('/dashboard'));
       } else {
         navigate('/dashboard');
@@ -35,9 +36,9 @@ const LoginView = () => {
         // Role rozhodujú o tom, čo sa v UI zobrazí (pokyn: podľa GET /roles/me).
         try {
           const roles = await fetchMyRoles();
-          localStorage.setItem('roles', JSON.stringify(roles));
+          storeRoles(roles);
         } catch {
-          localStorage.setItem('roles', '[]'); // fallback: správa sa ako Rola 1
+          storeRoles([]);
         }
 
         navigate('/dashboard');

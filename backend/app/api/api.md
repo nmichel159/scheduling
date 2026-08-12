@@ -18,6 +18,7 @@ Dokumentácia backendu v UTF-8. Rozbaľ sekciu podľa oblasti.
 - Oprávnenie: verejné
 - Body: `{"token":"Google access token"}`
 - Úspech: `200` — `{id, email, full_name, login_count}` a relačná cookie
+- Ak používateľ nemá žiadnu aktívnu rolu, prihlásenie mu pridelí rolu 1; pri existujúcej role 2, 3 alebo 4 sa rola 1 nepridáva
 - Chyby: `401` neplatný token, neoverený e-mail alebo neaktívny účet
 
 ### `POST /auth/logout`
@@ -50,6 +51,19 @@ Dokumentácia backendu v UTF-8. Rozbaľ sekciu podľa oblasti.
 - Oprávnenie: prihlásený používateľ; iba vlastné role
 - Parametre: `user_id` v ceste
 - Úspech: `200` — pole ID rolí
+
+### `GET /users/role-assignments`
+
+- Oprávnenie: rola 3 alebo vyššia
+- Úspech: `200` — aktívni používatelia s detailmi všetkých aktívnych rolí
+
+### `PUT /users/{user_id}/roles`
+
+- Oprávnenie: rola 3 alebo vyššia
+- Body: `{"role_ids":[1,2,3]}`
+- Spravuje iba roly 1 až 3; rolu 4 zachová a odmietne pokus o jej zmenu
+- Prázdne pole odoberie používateľovi všetky roly 1 až 3
+- Úspech: `200` — používateľ s aktualizovanými rolami
 
 ### `GET /users/by-role?role_id={role_id}`
 

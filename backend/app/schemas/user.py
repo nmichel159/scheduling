@@ -25,6 +25,11 @@ class UserRoleInfo(BaseModel):
     code: str
 
 
+class UserRoleAssignmentInfo(UserRoleInfo):
+    name: str
+    level: int
+
+
 class UserAmbulanceInfo(BaseModel):
     id: int
     name: str
@@ -34,3 +39,11 @@ class UserByRoleResponse(UserListResponse):
     is_active: bool
     roles: list[UserRoleInfo]
     ambulances: list[UserAmbulanceInfo]
+
+
+class UserRoleAssignmentResponse(UserListResponse):
+    roles: list[UserRoleAssignmentInfo]
+
+
+class UserRolesUpdate(BaseModel):
+    role_ids: list[int]

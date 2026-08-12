@@ -59,6 +59,11 @@ const Sidebar = ({ open, onToggle }) => {
             <span className="icon">🛠️</span><span className="label">{t('sidebar.admin')}</span>
           </NavLink>
         )}
+        {hasAdmin && (
+          <NavLink to="/roles" className="nav-item">
+            <span className="icon">👥</span><span className="label">{t('sidebar.roles')}</span>
+          </NavLink>
+        )}
       </nav>
 
       <button className="user-avatar" onClick={logout}>

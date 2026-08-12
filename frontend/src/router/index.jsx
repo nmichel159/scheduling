@@ -6,6 +6,7 @@ import ScheduleView from '../views/ScheduleView';
 import AmbulanceScheduleEditView from '../views/AmbulanceScheduleEditView';
 import DepartmentsView from '../views/DepartmentsView';
 import AdminView from '../views/AdminView';
+import RoleManagementView from '../views/RoleManagementView';
 import MainLayout from '../layouts/MainLayout';
 import RequireRole from '../components/RequireRole';
 
@@ -59,6 +60,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole flag="hasAdmin">
             <AdminView />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "/roles",
+        element: (
+          <RequireRole flag="hasAdmin">
+            <RoleManagementView />
           </RequireRole>
         ),
       },

@@ -5,6 +5,8 @@ from typing import Any
 
 import requests
 from sqlalchemy.orm import Session
+from app.models.associations import UserRole
+from app.models.role import Role
 from app.models.user import User
 from app.core.auth_provider import AuthenticationProvider
 from app.core.config import session_ttl
@@ -54,7 +56,38 @@ def revoke_session(db: Session, user: User) -> None:
 
 def authenticate_user(db: Session, credential: str, provider: AuthenticationProvider) -> User:
     """Authenticate through the selected provider and translate errors at the API boundary."""
-    return provider.resolve_user(db, credential)
+    user = provider.resolve_user(db, credential)
+    ensure_default_role(db, user)
+    return user
+
+
+def ensure_default_role(db: Session, user: User) -> None:
+    """Assign EMPLOYEE only when the user has no active role at all."""
+    has_active_role = (
+        db.query(UserRole)
+        .join(Role, Role.id == UserRole.role_id)
+        .filter(UserRole.user_id == user.id, Role.is_active.is_(True))
+        .first()
+        is not None
+    )
+    if has_active_role:
+        return
+
+    employee_role = (
+        db.query(Role)
+        .filter(
+            Role.id == 1,
+            Role.code == "EMPLOYEE",
+            Role.is_active.is_(True),
+        )
+        .first()
+    )
+    if employee_role is None:
+        raise RuntimeError("Active default role EMPLOYEE with id 1 is not configured.")
+
+    db.add(UserRole(user_id=user.id, role_id=employee_role.id))
+    db.commit()
+    db.refresh(user)
 
 
 def authenticate_google_user(db: Session, token: str):
