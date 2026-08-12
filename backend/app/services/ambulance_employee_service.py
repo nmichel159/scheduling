@@ -47,6 +47,33 @@ def list_employees(db: Session, ambulance_id: int) -> list[EmployeeListResponse]
     ]
 
 
+def get_active_employee(db: Session, ambulance_id: int, user_id: int) -> User:
+    """Return an active user assigned to an ambulance.
+
+    Manager-facing employee operations use this guard after ambulance ownership
+    has been verified. Keeping the membership check in one place prevents a
+    manager from reading or changing data for an employee from another
+    ambulance by submitting a different user ID.
+    """
+    employee = (
+        db.query(User)
+        .join(UserAmbulance, UserAmbulance.user_id == User.id)
+        .filter(
+            User.id == user_id,
+            User.is_active.is_(True),
+            UserAmbulance.ambulance_id == ambulance_id,
+            UserAmbulance.is_active.is_(True),
+        )
+        .first()
+    )
+    if not employee:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User {user_id} is not an active employee of ambulance {ambulance_id}.",
+        )
+    return employee
+
+
 def list_employee_ambulances(db: Session, user_id: int) -> list[AmbulanceListResponse]:
     """List all active ambulances where the user works as an employee."""
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()

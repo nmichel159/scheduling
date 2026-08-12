@@ -32,6 +32,7 @@
     "departments": "Workplaces",
     "admin": "Workplace administration",
     "ambulance_schedule": "Workplace schedule",
+    "employee_workload": "Employee restrictions",
     "roles": "Role management"
   },
   "workload": {
@@ -60,6 +61,19 @@
       "5": "Sa",
       "6": "Su"
     }
+  },
+  "manager_workload": {
+    "title": "Employee restrictions",
+    "subtitle": "Select a workplace and an employee whose restrictions you want to view or edit.",
+    "ambulances": "My workplaces",
+    "employee": "Employee",
+    "pick_employee": "Select an employee...",
+    "loading": "Loading...",
+    "loading_employees": "Loading employees...",
+    "load_ambulances_error": "Could not load workplaces.",
+    "load_employees_error": "Could not load employees.",
+    "no_ambulances": "You do not manage any workplace.",
+    "no_employees": "This workplace has no active employees."
   },
   "departments": {
     "title": "My workplaces",

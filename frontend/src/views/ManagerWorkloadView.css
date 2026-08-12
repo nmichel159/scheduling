@@ -1,0 +1,130 @@
+.manager-workload {
+  max-width: 1120px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.manager-workload-title {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--text-h);
+}
+
+.manager-workload-subtitle {
+  margin: 6px 0 20px;
+  font-size: 0.86rem;
+  opacity: 0.75;
+}
+
+.manager-workload-banner,
+.manager-workload-empty {
+  border: 1px solid var(--border);
+  background: var(--primary-background);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+}
+
+.manager-workload-banner.is-error { border-color: #c0463c; }
+
+.manager-workload-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.manager-workload-layout.is-single { grid-template-columns: minmax(0, 1fr); }
+
+.manager-workload-ambulances {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.manager-workload-ambulance {
+  border: 1px solid var(--border);
+  background: var(--code-background);
+  border-radius: 8px;
+  padding: 10px 12px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.manager-workload-ambulance:hover { border-color: var(--primary); }
+.manager-workload-ambulance.is-selected {
+  border-color: var(--primary);
+  background: var(--primary-background);
+}
+.manager-workload-ambulance-name { font-weight: 600; color: var(--text-h); }
+.manager-workload-ambulance-description {
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manager-workload-detail {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--code-background);
+  padding: 16px;
+}
+
+.manager-workload-detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.manager-workload-detail-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-h);
+}
+
+.manager-workload-detail-head p {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.manager-workload-employee-select {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: min(280px, 100%);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.manager-workload-employee-select select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: var(--background);
+  color: var(--text-h);
+  font: inherit;
+  font-weight: 400;
+}
+
+.manager-workload-detail .workload-title { font-size: 1.1rem; }
+
+@media (max-width: 768px) {
+  .manager-workload-layout { grid-template-columns: 1fr; }
+  .manager-workload-ambulances { flex-direction: row; flex-wrap: wrap; }
+  .manager-workload-ambulance { flex: 1 1 45%; }
+  .manager-workload-detail { padding: 12px; }
+  .manager-workload-employee-select { width: 100%; }
+}

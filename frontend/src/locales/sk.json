@@ -31,6 +31,7 @@
     "departments": "Pracoviská",
     "admin": "Administrácia pracovísk",
     "ambulance_schedule": "Rozpis pracoviska",
+    "employee_workload": "Obmedzenia zamestnancov",
     "roles": "Správa rolí"
   },
   "workload": {
@@ -59,6 +60,19 @@
       "5": "So",
       "6": "Ne"
     }
+  },
+  "manager_workload": {
+    "title": "Obmedzenia zamestnancov",
+    "subtitle": "Vyber pracovisko a zamestnanca, ktorého obmedzenia chceš zobraziť alebo upraviť.",
+    "ambulances": "Moje pracoviská",
+    "employee": "Zamestnanec",
+    "pick_employee": "Vyber zamestnanca...",
+    "loading": "Načítavam...",
+    "loading_employees": "Načítavam zamestnancov...",
+    "load_ambulances_error": "Nepodarilo sa načítať pracoviská.",
+    "load_employees_error": "Nepodarilo sa načítať zamestnancov.",
+    "no_ambulances": "Nespravuješ žiadne pracovisko.",
+    "no_employees": "Toto pracovisko nemá žiadnych aktívnych zamestnancov."
   },
   "departments": {
     "title": "Moje pracoviská",
