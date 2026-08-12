@@ -22,7 +22,10 @@ dist-ssr/
 # 4. DOCKER
 .docker/
 
-# 5. SYSTÉM (Windows/Mac)
+# 5. LOKÁLNE MERANIA / BENCHMARKY (nie sú súčasťou test suite)
+backend/benchmarks/
+
+# 6. SYSTÉM (Windows/Mac)
 Thumbs.db
 .DS_Store
 *.log

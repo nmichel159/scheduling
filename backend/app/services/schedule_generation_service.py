@@ -16,7 +16,7 @@ from pulp import (
     lpSum,
     value,
 )
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.associations import UserAmbulance, UserCompetence
 from app.models.competence import Competence
@@ -39,6 +39,13 @@ class SchedulingCompetence:
     id: int
     name: str
     required_count: int
+    weekday_required_counts: tuple[int, ...] | None = None
+
+    def required_on(self, work_date: date) -> int:
+        """Return the configured demand for a concrete calendar date."""
+        if self.weekday_required_counts is None:
+            return self.required_count
+        return self.weekday_required_counts[work_date.weekday()]
 
 
 @dataclass(frozen=True)
@@ -135,9 +142,8 @@ def _detect_capacity_issues(
 ) -> list[dict[str, object]]:
     """Find obvious daily and consecutive-day capacity conflicts."""
     issues: list[dict[str, object]] = []
-    daily_required = sum(competence.required_count for competence in competences)
-
     for work_date in days:
+        daily_required = sum(competence.required_on(work_date) for competence in competences)
         daily_candidates = {
             user_id
             for user_id, _competence_id, candidate_date in variables
@@ -154,15 +160,16 @@ def _detect_capacity_issues(
             )
 
         for competence in competences:
+            required_count = competence.required_on(work_date)
             candidates = _candidate_ids(variables, competence.id, work_date)
-            if len(candidates) < competence.required_count:
+            if len(candidates) < required_count:
                 issues.append(
                     {
                         "code": "insufficient_qualified_staff",
                         "work_date": work_date.isoformat(),
                         "competence_id": competence.id,
                         "competence_name": competence.name,
-                        "required_count": competence.required_count,
+                        "required_count": required_count,
                         "available_count": len(candidates),
                     }
                 )
@@ -175,7 +182,9 @@ def _detect_capacity_issues(
             current_candidates = _candidate_ids(variables, competence.id, current_day)
             next_candidates = _candidate_ids(variables, competence.id, next_day)
             combined_count = len(current_candidates | next_candidates)
-            required_across_days = competence.required_count * 2
+            required_across_days = competence.required_on(
+                current_day
+            ) + competence.required_on(next_day)
             if combined_count < required_across_days:
                 issues.append(
                     {
@@ -194,7 +203,10 @@ def _detect_capacity_issues(
             for user_id, _competence_id, candidate_date in variables
             if candidate_date in (current_day, next_day)
         }
-        required_across_days = daily_required * 2
+        required_across_days = sum(
+            competence.required_on(current_day) + competence.required_on(next_day)
+            for competence in competences
+        )
         if len(combined_candidates) < required_across_days:
             issues.append(
                 {
@@ -244,13 +256,25 @@ def solve_monthly_schedule(
             "The ambulance has no active competences to schedule.",
             [{"code": "no_active_competences"}],
         )
+    if any(
+        competence.weekday_required_counts is not None
+        and len(competence.weekday_required_counts) != 7
+        for competence in competences
+    ):
+        raise ValueError("weekday_required_counts must contain exactly seven values")
+
+    days = _calendar_days(month, year)
     if not employees:
+        if all(
+            competence.required_on(work_date) == 0
+            for competence in competences
+            for work_date in days
+        ):
+            return []
         raise ScheduleGenerationError(
             "The ambulance has no active employees to schedule.",
             [{"code": "no_active_employees"}],
         )
-
-    days = _calendar_days(month, year)
     first_day = days[0]
     last_day = days[-1]
     previous_day = first_day - timedelta(days=1)
@@ -277,6 +301,8 @@ def solve_monthly_schedule(
             if competence.id not in employee.competence_ids:
                 continue
             for work_date in days:
+                if competence.required_on(work_date) == 0:
+                    continue
                 if work_date in blocked_dates:
                     continue
                 if work_date == first_day and employee.id in previously_scheduled_employee_ids:
@@ -303,7 +329,7 @@ def solve_monthly_schedule(
                 if competence_id == competence.id and candidate_date == work_date
             ]
             problem += (
-                lpSum(coverage_variables) == competence.required_count,
+                lpSum(coverage_variables) == competence.required_on(work_date),
                 f"coverage_{competence.id}_{work_date.isoformat()}",
             )
 
@@ -405,6 +431,7 @@ def generate_ambulance_monthly_schedule(
     )
     competence_rows = (
         db.query(Competence)
+        .options(selectinload(Competence.weekday_requirements))
         .filter(
             Competence.ambulance_id == ambulance_id,
             Competence.is_active.is_(True),
@@ -500,6 +527,13 @@ def generate_ambulance_monthly_schedule(
             id=competence.id,
             name=competence.name,
             required_count=competence.required_count,
+            weekday_required_counts=tuple(
+                {
+                    requirement.weekday: requirement.required_count
+                    for requirement in competence.weekday_requirements
+                }.get(weekday, competence.required_count)
+                for weekday in range(7)
+            ),
         )
         for competence in competence_rows
     ]

@@ -13,6 +13,11 @@ import {
 } from '../services/scheduleService';
 import ScheduleListView from '../components/ScheduleListView';
 import ConfirmDialog from '../components/ConfirmDialog';
+import {
+  groupWeekdaysByRequirements,
+  normalizeCompetenceRequirements,
+  requiredCountForGroup,
+} from '../utils/competenceRequirements';
 import './AmbulanceScheduleEditView.css';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -659,12 +664,21 @@ const AmbulanceScheduleEditView = () => {
                       className="schedule-edit-legend-swatch"
                       style={{ backgroundColor: c.color }}
                     />
-                    <span className="schedule-edit-legend-name">{c.name}</span>
-                    {c.required_count != null && (
-                      <span className="schedule-edit-legend-count">
-                        {c.required_count}
+                    <span className="schedule-edit-legend-content">
+                      <span className="schedule-edit-legend-name">{c.name}</span>
+                      <span className="schedule-edit-legend-demand">
+                        {groupWeekdaysByRequirements([
+                          normalizeCompetenceRequirements(c),
+                        ]).map((group) => (
+                          <span key={group.id}>
+                            {group.weekdays
+                              .map((weekday) => t(`workload.days.${weekday}`))
+                              .join(' · ')}{' '}
+                            <strong>{requiredCountForGroup(c, group)}</strong>
+                          </span>
+                        ))}
                       </span>
-                    )}
+                    </span>
                   </li>
                 ))}
               </ul>

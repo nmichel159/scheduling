@@ -144,7 +144,17 @@
     "load_error": "Failed to load competences.",
     "action_error": "Action failed, please try again.",
     "add_competence": "Add competence",
-    "search_placeholder": "Search employee..."
+    "search_placeholder": "Search employee...",
+    "required_count": "Required staff",
+    "staffing_status": "Qualified: {{assigned}} / required: {{required}}",
+    "edit_required": "Edit required staff",
+    "decrease_required": "Decrease count",
+    "increase_required": "Increase count",
+    "close_editor": "Close editor",
+    "split_days": "Split days into another row",
+    "split_days_title": "Split day group",
+    "split_days_hint": "Select the days that should have their own staffing counts.",
+    "create_day_group": "Create row"
   },
   "schedule": {
     "title": "My schedule",

@@ -8,10 +8,26 @@ Business rules:
 """
 
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.competence import Competence
+from app.models.competence_weekday_requirement import CompetenceWeekdayRequirement
 from app.schemas.competence import CompetenceCreate, CompetenceUpdate
+
+
+def _replace_weekday_requirements(competence: Competence, requirements) -> None:
+    """Replace a competence's complete weekly staffing definition."""
+    existing_by_weekday = {
+        item.weekday: item for item in competence.weekday_requirements
+    }
+    next_rows = []
+    for item in sorted(requirements, key=lambda value: value.weekday):
+        row = existing_by_weekday.get(item.weekday)
+        if row is None:
+            row = CompetenceWeekdayRequirement(weekday=item.weekday)
+        row.required_count = item.required_count
+        next_rows.append(row)
+    competence.weekday_requirements = next_rows
 
 
 def list_competences(db: Session, ambulance_id: int) -> list[Competence]:
@@ -26,6 +42,7 @@ def list_competences(db: Session, ambulance_id: int) -> list[Competence]:
     """
     return (
         db.query(Competence)
+        .options(selectinload(Competence.weekday_requirements))
         .filter(
             Competence.ambulance_id == ambulance_id,
             Competence.is_active == True,
@@ -52,6 +69,7 @@ def get_competence(db: Session, competence_id: int, ambulance_id: int) -> Compet
     """
     competence = (
         db.query(Competence)
+        .options(selectinload(Competence.weekday_requirements))
         .filter(
             Competence.id == competence_id,
             Competence.ambulance_id == ambulance_id,
@@ -92,6 +110,8 @@ def create_competence(db: Session, ambulance_id: int, data: CompetenceCreate) ->
         ambulance_id=ambulance_id,
         is_active=True,
     )
+    if data.weekday_requirements is not None:
+        _replace_weekday_requirements(competence, data.weekday_requirements)
     db.add(competence)
     db.commit()
     db.refresh(competence)
@@ -114,7 +134,7 @@ def update_competence(
     """
     competence = get_competence(db, competence_id, ambulance_id)
 
-    update_data = data.model_dump(exclude_unset=True)
+    update_data = data.model_dump(exclude_unset=True, exclude={"weekday_requirements"})
     if "name" in update_data:
         duplicate = db.query(Competence).filter(
             Competence.ambulance_id == ambulance_id,
@@ -126,6 +146,14 @@ def update_competence(
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An active competence with this name already exists in this ambulance.")
     for field, value in update_data.items():
         setattr(competence, field, value)
+
+    if "weekday_requirements" in data.model_fields_set:
+        _replace_weekday_requirements(competence, data.weekday_requirements or [])
+    elif "required_count" in update_data and competence.weekday_requirements:
+        # Preserve the old API contract: updating only required_count applies
+        # the same value to every day when a weekly definition already exists.
+        for requirement in competence.weekday_requirements:
+            requirement.required_count = update_data["required_count"]
 
     db.commit()
     db.refresh(competence)

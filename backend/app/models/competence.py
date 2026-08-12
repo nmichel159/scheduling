@@ -22,6 +22,12 @@ class Competence(Base):
     user_competences = relationship("UserCompetence", back_populates="competence", cascade="all, delete-orphan")
     ambulance = relationship("Ambulance", back_populates="competences")
     schedules = relationship("Schedule", back_populates="competence")
+    weekday_requirements = relationship(
+        "CompetenceWeekdayRequirement",
+        back_populates="competence",
+        cascade="all, delete-orphan",
+        order_by="CompetenceWeekdayRequirement.weekday",
+    )
 
     # Proxies for direct collection manipulation
     users = association_proxy("user_competences", "user", creator=lambda u: UserCompetence(user=u))

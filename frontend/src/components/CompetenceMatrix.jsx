@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { requiredCountForGroup } from '../utils/competenceRequirements';
 import './CompetenceMatrix.css';
 
 /**
@@ -27,6 +28,7 @@ import './CompetenceMatrix.css';
  */
 const CompetenceMatrix = ({
   columns,
+  dayGroups,
   rows,
   allUsers,
   loading,
@@ -35,6 +37,7 @@ const CompetenceMatrix = ({
   onRemoveRow,
   onAddCompetence,
   onUpdateRequiredCount,
+  onSplitRequirementDays,
   onDeleteCompetence,
 }) => {
   const { t } = useTranslation();
@@ -54,16 +57,38 @@ const CompetenceMatrix = ({
    * local draft only — they are saved together with all other edits when
    * the user clicks the shared "Uložiť" button.
    */
-  const requiredOf = (col) => col.required_count ?? col.count ?? 1;
+  const requiredOf = (col, group) => requiredCountForGroup(col, group);
 
-  const [editingRequiredId, setEditingRequiredId] = useState(null);
+  const [editingRequiredKey, setEditingRequiredKey] = useState(null);
+  const [splittingGroupId, setSplittingGroupId] = useState(null);
+  const [selectedSplitDays, setSelectedSplitDays] = useState([]);
 
-  const stepRequired = (col, delta) => {
-    const next = Math.max(1, requiredOf(col) + delta);
-    onUpdateRequiredCount(col.id, next);
+  const stepRequired = (group, col, delta) => {
+    const next = Math.max(0, requiredOf(col, group) + delta);
+    onUpdateRequiredCount(group.id, col.id, next);
   };
 
-  const closeRequiredEdit = () => setEditingRequiredId(null);
+  const closeRequiredEdit = () => setEditingRequiredKey(null);
+
+  const openSplitDays = (group) => {
+    setSplittingGroupId(group.id);
+    setSelectedSplitDays([]);
+  };
+
+  const toggleSplitDay = (weekday) => {
+    setSelectedSplitDays((previous) =>
+      previous.includes(weekday)
+        ? previous.filter((item) => item !== weekday)
+        : [...previous, weekday].sort((a, b) => a - b)
+    );
+  };
+
+  const confirmSplitDays = () => {
+    if (!splittingGroupId) return;
+    onSplitRequirementDays(splittingGroupId, selectedSplitDays);
+    setSplittingGroupId(null);
+    setSelectedSplitDays([]);
+  };
 
   /* ---------- employee search (add row) ----------
    * The dropdown opens on focus with the full list of assignable users
@@ -224,6 +249,12 @@ const CompetenceMatrix = ({
 
   const competenceColSpan = Math.max(columns.length, 1);
   const removingRow = rows.find((r) => r.user_id === removingRowId) || null;
+  const splittingGroup =
+    dayGroups.find((group) => group.id === splittingGroupId) || null;
+  const canConfirmSplit =
+    splittingGroup &&
+    selectedSplitDays.length > 0 &&
+    selectedSplitDays.length < splittingGroup.weekdays.length;
 
   return (
     <section className="cmatrix">
@@ -312,31 +343,58 @@ const CompetenceMatrix = ({
                 </th>
               ))}
             </tr>
-            {columns.length > 0 && (
-              <tr className="cmatrix-required-row">
+            {columns.length > 0 && dayGroups.map((group, groupIndex) => (
+              <tr className="cmatrix-required-row" key={group.id}>
                 <th className="cmatrix-corner cmatrix-required-label">
-                  Potrebný počet zamestnancov
+                  <div className="cmatrix-required-label-inner">
+                    {groupIndex === 0 && (
+                      <span className="cmatrix-required-caption">
+                        {t('competences.required_count')}
+                      </span>
+                    )}
+                    <span className="cmatrix-day-chips">
+                      {group.weekdays.map((weekday) => (
+                        <span className="cmatrix-day-chip" key={weekday}>
+                          {t(`workload.days.${weekday}`)}
+                        </span>
+                      ))}
+                    </span>
+                    {group.weekdays.length > 1 && (
+                      <button
+                        type="button"
+                        className="cmatrix-split-days"
+                        onClick={() => openSplitDays(group)}
+                        title={t('competences.split_days')}
+                        aria-label={t('competences.split_days')}
+                      >
+                        ✎
+                      </button>
+                    )}
+                  </div>
                 </th>
                 {columns.map((c) => {
-                  const required = requiredOf(c);
+                  const required = requiredOf(c, group);
                   const assigned = rows.filter((r) => r.competenceIds.includes(c.id)).length;
-                  const ok = assigned === required;
-                  const isEditing = editingRequiredId === c.id;
+                  const ok = assigned >= required;
+                  const editingKey = `${group.id}:${c.id}`;
+                  const isEditing = editingRequiredKey === editingKey;
                   return (
                     <th
                       key={c.id}
                       className={`cmatrix-required-cell ${ok ? 'is-ok' : 'is-off'} ${isEditing ? 'is-editing' : ''}`}
-                      title={isEditing ? undefined : `Označení: ${assigned} / potrební: ${required}`}
+                      title={isEditing ? undefined : t('competences.staffing_status', {
+                        assigned,
+                        required,
+                      })}
                     >
                       {isEditing ? (
-                        /* Stepper shown after pencil click */
                         <span className="cmatrix-required-stepper">
                           <button
                             type="button"
                             className="cmatrix-required-arrow"
-                            onClick={(e) => { e.stopPropagation(); stepRequired(c, -1); }}
-                            disabled={required <= 1}
-                            aria-label="Znížiť počet"
+                            onClick={(e) => { e.stopPropagation(); stepRequired(group, c, -1); }}
+                            disabled={required <= 0}
+                            aria-label={t('competences.decrease_required')}
                           >
                             ▼
                           </button>
@@ -344,8 +402,8 @@ const CompetenceMatrix = ({
                           <button
                             type="button"
                             className="cmatrix-required-arrow"
-                            onClick={(e) => { e.stopPropagation(); stepRequired(c, 1); }}
-                            aria-label="Zvýšiť počet"
+                            onClick={(e) => { e.stopPropagation(); stepRequired(group, c, 1); }}
+                            aria-label={t('competences.increase_required')}
                           >
                             ▲
                           </button>
@@ -353,20 +411,19 @@ const CompetenceMatrix = ({
                             type="button"
                             className="cmatrix-required-close"
                             onClick={(e) => { e.stopPropagation(); closeRequiredEdit(); }}
-                            aria-label="Zatvoriť"
+                            aria-label={t('competences.close_editor')}
                           >
                             ✕
                           </button>
                         </span>
                       ) : (
-                        /* Normal view: pencil appears on cell hover (left edge) */
                         <span className="cmatrix-required-view">
                           <button
                             type="button"
                             className="cmatrix-required-pencil"
-                            onClick={(e) => { e.stopPropagation(); setEditingRequiredId(c.id); }}
-                            aria-label="Upraviť potrebný počet"
-                            title="Upraviť potrebný počet"
+                            onClick={(e) => { e.stopPropagation(); setEditingRequiredKey(editingKey); }}
+                            aria-label={t('competences.edit_required')}
+                            title={t('competences.edit_required')}
                           >
                             ✎
                           </button>
@@ -377,7 +434,7 @@ const CompetenceMatrix = ({
                   );
                 })}
               </tr>
-            )}
+            ))}
           </thead>
           <tbody>
             {rows.length === 0 ? (
@@ -428,6 +485,56 @@ const CompetenceMatrix = ({
           </tbody>
         </table>
       </div>
+
+      {splittingGroup &&
+        createPortal(
+          <div
+            className="cmatrix-modal-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setSplittingGroupId(null);
+            }}
+          >
+            <div className="cmatrix-days-modal" role="dialog" aria-modal="true">
+              <h3>{t('competences.split_days_title')}</h3>
+              <p>{t('competences.split_days_hint')}</p>
+              <div className="cmatrix-days-picker">
+                {splittingGroup.weekdays.map((weekday) => {
+                  const selected = selectedSplitDays.includes(weekday);
+                  return (
+                    <button
+                      type="button"
+                      key={weekday}
+                      className={`cmatrix-day-option ${selected ? 'is-selected' : ''}`}
+                      aria-pressed={selected}
+                      onClick={() => toggleSplitDay(weekday)}
+                    >
+                      {t(`workload.days.${weekday}`)}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="cmatrix-popover-actions">
+                <button
+                  type="button"
+                  className="departments-btn"
+                  onClick={() => setSplittingGroupId(null)}
+                >
+                  {t('departments.cancel')}
+                </button>
+                <button
+                  type="button"
+                  className="departments-btn departments-btn-primary"
+                  disabled={!canConfirmSplit}
+                  onClick={confirmSplitDays}
+                >
+                  {t('competences.create_day_group')}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {searchOpen &&
         searchResults.length > 0 &&

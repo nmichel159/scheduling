@@ -72,9 +72,9 @@ cd scheduling
 ```
 
 
-2. **Spin up the containers** in detached mode:
-```bash
-docker compose up -d --build
+2. **Build and start the containers** in detached mode (PowerShell):
+```powershell
+.\start.ps1 -Detached
 
 ```
 
@@ -82,6 +82,8 @@ docker compose up -d --build
 This command automatically:
 * Builds the React frontend container.
 * Builds the Python FastAPI backend container.
+* Retries one transient Docker BuildKit snapshot failure automatically.
+* Applies pending Alembic database migrations before the backend starts.
 * Pulls and initializes the PostgreSQL database.
 * Links them all under a single shared network.
 

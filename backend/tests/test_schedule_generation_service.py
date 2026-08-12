@@ -8,7 +8,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.db.session import Base
-from app.models import Ambulance, Competence, Schedule, Unavailability, User
+from app.models import (
+    Ambulance,
+    Competence,
+    CompetenceWeekdayRequirement,
+    Schedule,
+    Unavailability,
+    User,
+)
 from app.models.associations import UserAmbulance, UserCompetence
 from app.services.schedule_generation_service import (
     ScheduleGenerationError,
@@ -227,6 +234,47 @@ class ScheduleGenerationSolverTests(unittest.TestCase):
             self.assertEqual(coverage[(work_date, 1)], 1)
             self.assertEqual(coverage[(work_date, 2)], 2)
 
+    def test_uses_different_headcounts_for_grouped_weekdays(self) -> None:
+        """Monday and Sunday can require different counts while other days are closed."""
+        employees = [_employee(user_id, frozenset({1})) for user_id in range(1, 7)]
+        competence = SchedulingCompetence(
+            id=1,
+            name="Triage",
+            required_count=1,
+            weekday_required_counts=(1, 0, 0, 0, 0, 0, 2),
+        )
+
+        assignments = solve_monthly_schedule(
+            employees,
+            [competence],
+            month=8,
+            year=2026,
+        )
+        coverage = Counter(item.work_date for item in assignments)
+
+        self.assertEqual(len(assignments), 15)
+        for day_number in range(1, 32):
+            work_date = date(2026, 8, day_number)
+            expected = 1 if work_date.weekday() == 0 else 2 if work_date.weekday() == 6 else 0
+            self.assertEqual(coverage[work_date], expected)
+
+    def test_all_zero_week_allows_empty_employee_pool(self) -> None:
+        """A fully closed competence produces an empty draft without requiring staff."""
+        assignments = solve_monthly_schedule(
+            [],
+            [
+                SchedulingCompetence(
+                    id=1,
+                    name="Closed role",
+                    required_count=0,
+                    weekday_required_counts=(0, 0, 0, 0, 0, 0, 0),
+                )
+            ],
+            month=8,
+            year=2026,
+        )
+        self.assertEqual(assignments, [])
+
     def test_only_true_unavailability_is_a_hard_block(self) -> None:
         """Preferred days stay neutral until preference optimization is implemented."""
         self.assertTrue(_is_hard_unavailability(None))
@@ -359,6 +407,49 @@ class ScheduleGenerationLoadingTests(unittest.TestCase):
                 for entry in result.entries
             )
         )
+
+    def test_loads_weekday_requirements_with_legacy_fallback(self) -> None:
+        """Database rows override only their weekday while absent days use legacy demand."""
+        ambulance = Ambulance(name="Weekday clinic", is_active=True)
+        users = [User(email=f"weekly{index}@example.com", is_active=True) for index in range(4)]
+        self.db.add_all([ambulance, *users])
+        self.db.flush()
+        competence = Competence(
+            name="Procedure",
+            required_count=0,
+            ambulance_id=ambulance.id,
+            is_active=True,
+        )
+        competence.weekday_requirements = [
+            CompetenceWeekdayRequirement(weekday=0, required_count=1),
+            CompetenceWeekdayRequirement(weekday=6, required_count=2),
+        ]
+        self.db.add(competence)
+        self.db.flush()
+        self.db.add_all(
+            [
+                UserAmbulance(user_id=user.id, ambulance_id=ambulance.id, is_active=True)
+                for user in users
+            ]
+            + [
+                UserCompetence(user_id=user.id, competence_id=competence.id, is_active=True)
+                for user in users
+            ]
+        )
+        self.db.commit()
+
+        result = generate_ambulance_monthly_schedule(
+            self.db,
+            ambulance.id,
+            month=8,
+            year=2026,
+        )
+        coverage = Counter(entry.work_date for entry in result.entries)
+
+        self.assertEqual(result.assignment_count, 15)
+        self.assertEqual(coverage[date(2026, 8, 3)], 1)
+        self.assertEqual(coverage[date(2026, 8, 2)], 2)
+        self.assertEqual(coverage[date(2026, 8, 4)], 0)
 
 
 if __name__ == "__main__":

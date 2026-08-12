@@ -143,7 +143,17 @@
     "load_error": "Nepodarilo sa načítať kompetencie.",
     "action_error": "Akcia zlyhala, skús to znova.",
     "add_competence": "Pridať kompetenciu",
-    "search_placeholder": "Vyhľadať zamestnanca..."
+    "search_placeholder": "Vyhľadať zamestnanca...",
+    "required_count": "Potrebný počet",
+    "staffing_status": "Kompetentní: {{assigned}} / potrební: {{required}}",
+    "edit_required": "Upraviť potrebný počet",
+    "decrease_required": "Znížiť počet",
+    "increase_required": "Zvýšiť počet",
+    "close_editor": "Zatvoriť úpravu",
+    "split_days": "Rozdeliť dni do ďalšieho riadka",
+    "split_days_title": "Rozdeliť skupinu dní",
+    "split_days_hint": "Vyber dni, ktoré majú dostať vlastné počty zamestnancov.",
+    "create_day_group": "Vytvoriť riadok"
   },
   "schedule": {
     "title": "Môj rozpis",

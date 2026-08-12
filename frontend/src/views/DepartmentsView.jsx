@@ -15,13 +15,26 @@ import {
 } from '../services/competenceService';
 import CompetenceMatrix from '../components/CompetenceMatrix';
 import ConfirmDialog from '../components/ConfirmDialog';
+import {
+  fingerprintCompetenceRequirements,
+  groupWeekdaysByRequirements,
+  mergeEquivalentDayGroups,
+  normalizeCompetenceRequirements,
+  normalizeWeekdayRequirements,
+  splitDayGroup,
+  updateGroupRequiredCount,
+} from '../utils/competenceRequirements';
 import './DepartmentsView.css';
 
 /** Deep-copies rows so edits to the draft never mutate the loaded snapshot. */
 const cloneRows = (list) => list.map((r) => ({ ...r, competenceIds: [...r.competenceIds] }));
 
-/** Deep-copies columns (including required_count). */
-const cloneColumns = (list) => list.map((c) => ({ ...c }));
+/** Deep-copies columns and their Monday-to-Sunday staffing definitions. */
+const cloneColumns = (list) =>
+  list.map((column) => ({
+    ...column,
+    weekday_requirements: normalizeWeekdayRequirements(column).map((item) => ({ ...item })),
+  }));
 
 /** Fingerprint of rows — detects employee / competence-assignment changes. */
 const fingerprintRows = (list) =>
@@ -29,14 +42,6 @@ const fingerprintRows = (list) =>
     [...list]
       .map((r) => ({ user_id: r.user_id, competence_ids: [...r.competenceIds].sort((a, b) => a - b) }))
       .sort((a, b) => a.user_id - b.user_id)
-  );
-
-/** Fingerprint of columns — detects required_count changes. */
-const fingerprintColumns = (list) =>
-  JSON.stringify(
-    [...list]
-      .map((c) => ({ id: c.id, required_count: c.required_count ?? c.count ?? 1 }))
-      .sort((a, b) => a.id - b.id)
   );
 
 /**
@@ -73,6 +78,7 @@ const DepartmentsView = () => {
   const [originalRows, setOriginalRows] = useState([]);
   const [columns, setColumns] = useState([]);
   const [originalColumns, setOriginalColumns] = useState([]);
+  const [dayGroups, setDayGroups] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [tableLoading, setTableLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -86,7 +92,8 @@ const DepartmentsView = () => {
   const isDirty = useMemo(
     () =>
       fingerprintRows(rows) !== fingerprintRows(originalRows) ||
-      fingerprintColumns(columns) !== fingerprintColumns(originalColumns),
+      fingerprintCompetenceRequirements(columns) !==
+        fingerprintCompetenceRequirements(originalColumns),
     [rows, originalRows, columns, originalColumns]
   );
 
@@ -133,7 +140,7 @@ const DepartmentsView = () => {
       if (compsResult.status === 'rejected') throw compsResult.reason;
 
       const table = tableResult.value;
-      const comps = compsResult.value;
+      const comps = compsResult.value.map(normalizeCompetenceRequirements);
       const nextRows = table.map((row) => ({
         user_id: row.user_id,
         email: row.email,
@@ -144,6 +151,7 @@ const DepartmentsView = () => {
       setOriginalRows(cloneRows(nextRows));
       setColumns(comps);
       setOriginalColumns(cloneColumns(comps));
+      setDayGroups(groupWeekdaysByRequirements(comps));
       if (usersResult.status === 'fulfilled') {
         setAllUsers(usersResult.value);
       } else {
@@ -155,6 +163,7 @@ const DepartmentsView = () => {
       setOriginalRows([]);
       setColumns([]);
       setOriginalColumns([]);
+      setDayGroups([]);
       notify(t('departments.load_error'));
     } finally {
       setTableLoading(false);
@@ -244,22 +253,45 @@ const DepartmentsView = () => {
     setRows((prev) => prev.filter((r) => r.user_id !== userId));
   };
 
-  /** Draft-only update of required_count for a competence column. */
-  const updateRequiredCount = (competenceId, requiredCount) => {
-    setColumns((prev) =>
-      prev.map((c) =>
-        c.id === competenceId ? { ...c, required_count: requiredCount } : c
-      )
-    );
+  /** Draft-only update for one competence across every day in a grouped row. */
+  const updateRequiredCount = (groupId, competenceId, requiredCount) => {
+    setColumns((previousColumns) => {
+      const group = dayGroups.find((item) => item.id === groupId);
+      if (!group) return previousColumns;
+      const nextColumns = updateGroupRequiredCount(
+        previousColumns,
+        competenceId,
+        group.weekdays,
+        requiredCount
+      );
+      setDayGroups((previousGroups) =>
+        mergeEquivalentDayGroups(previousGroups, nextColumns)
+      );
+      return nextColumns;
+    });
+  };
+
+  const splitRequirementDays = (groupId, weekdays) => {
+    setDayGroups((previous) => splitDayGroup(previous, groupId, weekdays));
   };
 
   /* ---------- codebook actions (immediate — registry, not draft) ---------- */
 
   const handleAddCompetence = async (name) => {
     try {
-      const created = await createCompetence(selectedId, name);
-      setColumns((prev) => [...prev, created]);
-      setOriginalColumns((prev) => [...prev, { ...created }]);
+      const created = normalizeCompetenceRequirements(
+        await createCompetence(selectedId, name)
+      );
+      setColumns((prev) => {
+        const next = [...prev, created];
+        setDayGroups((groups) =>
+          groups.length > 0
+            ? mergeEquivalentDayGroups(groups, next)
+            : groupWeekdaysByRequirements(next)
+        );
+        return next;
+      });
+      setOriginalColumns((prev) => [...prev, cloneColumns([created])[0]]);
       notify(t('competences.added'));
     } catch {
       notify(t('competences.action_error'));
@@ -269,7 +301,13 @@ const DepartmentsView = () => {
   const handleDeleteCompetence = async (competenceId) => {
     try {
       await deleteCompetence(selectedId, competenceId);
-      setColumns((prev) => prev.filter((c) => c.id !== competenceId));
+      setColumns((prev) => {
+        const next = prev.filter((c) => c.id !== competenceId);
+        setDayGroups((groups) =>
+          next.length > 0 ? mergeEquivalentDayGroups(groups, next) : []
+        );
+        return next;
+      });
       setOriginalColumns((prev) => prev.filter((c) => c.id !== competenceId));
       const stripCompetence = (list) =>
         list.map((r) => ({
@@ -319,13 +357,20 @@ const DepartmentsView = () => {
 
       await saveEmployeeCompetenceTable(selectedId, payload);
 
-      // Patch required_count for columns whose value changed
-      const origMap = new Map(originalColumns.map((c) => [c.id, c.required_count ?? c.count ?? 1]));
+      // Patch complete weekday requirements for changed competence columns.
+      const origMap = new Map(
+        originalColumns.map((column) => [
+          column.id,
+          JSON.stringify(normalizeWeekdayRequirements(column)),
+        ])
+      );
       for (const col of columns) {
-        const newVal = col.required_count ?? col.count ?? 1;
-        if (origMap.get(col.id) !== newVal) {
+        const weekdayRequirements = normalizeWeekdayRequirements(col);
+        if (origMap.get(col.id) !== JSON.stringify(weekdayRequirements)) {
           try {
-            await updateCompetence(selectedId, col.id, { required_count: newVal });
+            await updateCompetence(selectedId, col.id, {
+              weekday_requirements: weekdayRequirements,
+            });
           } catch {
             notify(t('competences.action_error'));
           }
@@ -428,6 +473,7 @@ const DepartmentsView = () => {
 
               <CompetenceMatrix
                 columns={columns}
+                dayGroups={dayGroups}
                 rows={rows}
                 allUsers={allUsers}
                 loading={tableLoading}
@@ -436,6 +482,7 @@ const DepartmentsView = () => {
                 onRemoveRow={removeRow}
                 onAddCompetence={handleAddCompetence}
                 onUpdateRequiredCount={updateRequiredCount}
+                onSplitRequirementDays={splitRequirementDays}
                 onDeleteCompetence={handleDeleteCompetence}
               />
             </>
