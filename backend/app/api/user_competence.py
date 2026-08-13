@@ -5,7 +5,7 @@ Allows ambulance managers (Role Level >= 2) to assign and remove
 competences from employees working in their ambulances.
 """
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_manager_ambulance
@@ -33,11 +33,28 @@ router = APIRouter()
 )
 def list_employees_by_competence_endpoint(
     competence_id: int,
+    after_id: int | None = Query(
+        None,
+        ge=0,
+        description="Return employees after this user ID",
+    ),
+    limit: int | None = Query(
+        None,
+        ge=1,
+        le=500,
+        description="Max employees to return",
+    ),
     ambulance: Ambulance = Depends(get_manager_ambulance),
     db: Session = Depends(get_db),
 ) -> list[UserListResponse]:
     """Return active employees who can perform a competence in an ambulance."""
-    return list_employees_by_competence(db, ambulance.id, competence_id)
+    return list_employees_by_competence(
+        db,
+        ambulance.id,
+        competence_id,
+        after_id=after_id,
+        limit=limit,
+    )
 
 
 @router.get(

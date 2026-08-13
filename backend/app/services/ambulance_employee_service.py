@@ -16,7 +16,12 @@ from app.models.user import User
 from app.schemas.ambulance_employee import AmbulanceListResponse, EmployeeListResponse
 
 
-def list_employees(db: Session, ambulance_id: int) -> list[EmployeeListResponse]:
+def list_employees(
+    db: Session,
+    ambulance_id: int,
+    after_id: int | None = None,
+    limit: int | None = None,
+) -> list[EmployeeListResponse]:
     """List all active employees assigned to an ambulance.
 
     Args:
@@ -26,7 +31,7 @@ def list_employees(db: Session, ambulance_id: int) -> list[EmployeeListResponse]
     Returns:
         A list of :class:`User` instances assigned to the ambulance.
     """
-    employees = (
+    query = (
         db.query(User)
         .join(UserAmbulance, UserAmbulance.user_id == User.id)
         .filter(
@@ -34,9 +39,16 @@ def list_employees(db: Session, ambulance_id: int) -> list[EmployeeListResponse]
             UserAmbulance.is_active.is_(True),
             User.is_active.is_(True),
         )
-        .order_by(User.full_name, User.email)
-        .all()
     )
+    if after_id is not None:
+        query = query.filter(User.id > after_id)
+    if after_id is not None or limit is not None:
+        query = query.order_by(User.id)
+    else:
+        query = query.order_by(User.full_name, User.email)
+    if limit is not None:
+        query = query.limit(limit)
+    employees = query.all()
     return [
         EmployeeListResponse(
             user_id=employee.id,

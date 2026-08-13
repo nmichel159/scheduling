@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Index, text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.session import Base
@@ -7,6 +7,22 @@ from app.models.associations import UserCompetence
 
 class Competence(Base):
     __tablename__ = "competences"
+    __table_args__ = (
+        Index(
+            "ix_competences_ambulance_active_name",
+            "ambulance_id",
+            "is_active",
+            "name",
+        ),
+        Index(
+            "uq_competences_active_ambulance_name",
+            "ambulance_id",
+            "name",
+            unique=True,
+            postgresql_where=text("is_active IS TRUE"),
+            sqlite_where=text("is_active = 1"),
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)

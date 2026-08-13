@@ -5,7 +5,7 @@ Restricted to managers (Role Level >= 2), used to pick employees
 when managing ambulance assignments.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, require_admin_role, require_manager_role
@@ -34,19 +34,23 @@ router = APIRouter()
     summary="List users with assigned roles",
 )
 def list_role_assignments_endpoint(
+    after_id: int | None = Query(None, ge=0, description="Return users after this ID"),
+    limit: int | None = Query(None, ge=1, le=500, description="Max users to return"),
     _admin: User = Depends(require_admin_role),
     db: Session = Depends(get_db),
 ) -> list[UserRoleAssignmentResponse]:
-    return list_user_role_assignments(db)
+    return list_user_role_assignments(db, after_id=after_id, limit=limit)
 
 
 @router.get("/by-role", response_model=list[UserByRoleResponse], summary="List users by role")
 def users_by_role_endpoint(
     role_id: int,
+    after_id: int | None = Query(None, ge=0, description="Return users after this ID"),
+    limit: int | None = Query(None, ge=1, le=500, description="Max users to return"),
     _admin: User = Depends(require_admin_role),
     db: Session = Depends(get_db),
 ) -> list[UserByRoleResponse]:
-    return list_users_by_role(db, role_id)
+    return list_users_by_role(db, role_id, after_id=after_id, limit=limit)
 
 
 @router.get(
@@ -55,11 +59,13 @@ def users_by_role_endpoint(
     summary="List all active users",
 )
 def list_users_endpoint(
+    after_id: int | None = Query(None, ge=0, description="Return users after this ID"),
+    limit: int | None = Query(None, ge=1, le=500, description="Max users to return"),
     _manager: User = Depends(require_manager_role),
     db: Session = Depends(get_db),
 ) -> list[UserListResponse]:
     """Retrieve all active users. Manager role required."""
-    return list_users(db)
+    return list_users(db, after_id=after_id, limit=limit)
 
 
 @router.get(

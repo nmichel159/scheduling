@@ -1,7 +1,8 @@
 from datetime import date
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session, joinedload
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session, contains_eager
 
 from app.core.dependencies import get_current_user, get_manager_ambulance, require_manager_role
 from app.db.session import get_db
@@ -21,6 +22,18 @@ def _is_admin(user: User) -> bool:
     return any(item.role and item.role.is_active and item.role.level >= 3 for item in user.user_roles)
 
 
+def _bounded_schedule_period(
+    month: int | None,
+    year: int | None,
+    today: date | None = None,
+) -> tuple[int | None, int | None]:
+    """Default unbounded API reads to the current calendar month."""
+    if month is None and year is None:
+        reference_date = today or date.today()
+        return reference_date.month, reference_date.year
+    return month, year
+
+
 def _can_manage_user(current_user: User, db: Session, user_id: int, ambulance_id: int | None = None) -> None:
     if _is_admin(current_user):
         return
@@ -31,9 +44,43 @@ def _can_manage_user(current_user: User, db: Session, user_id: int, ambulance_id
         raise HTTPException(status_code=403, detail="You may manage schedules only in ambulances you manage.")
 
 
+def _can_manage_schedule_pairs(
+    current_user: User,
+    db: Session,
+    schedule_pairs: set[tuple[int, int]],
+) -> None:
+    """Authorize many user/ambulance schedule pairs with one query."""
+    if _is_admin(current_user) or not schedule_pairs:
+        return
+    user_ids = {user_id for user_id, _ambulance_id in schedule_pairs}
+    ambulance_ids = {ambulance_id for _user_id, ambulance_id in schedule_pairs}
+    manageable_pairs = {
+        (user_id, ambulance_id)
+        for user_id, ambulance_id in db.query(
+            UserAmbulance.user_id,
+            UserAmbulance.ambulance_id,
+        )
+        .join(Ambulance)
+        .filter(
+            UserAmbulance.user_id.in_(user_ids),
+            UserAmbulance.ambulance_id.in_(ambulance_ids),
+            UserAmbulance.is_active.is_(True),
+            Ambulance.managed_by_user_id == current_user.id,
+            Ambulance.is_active.is_(True),
+        )
+        .all()
+    }
+    if not schedule_pairs.issubset(manageable_pairs):
+        raise HTTPException(
+            status_code=403,
+            detail="You may manage schedules only in ambulances you manage.",
+        )
+
+
 @router.get("/me", response_model=list[ScheduleResponse])
 def get_my_schedule(month: int | None = None, year: int | None = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return get_user_schedule(db, current_user.id, month, year)
+    selected_month, selected_year = _bounded_schedule_period(month, year)
+    return get_user_schedule(db, current_user.id, selected_month, selected_year)
 
 
 @router.get("/me/next", response_model=NextScheduleResponse)
@@ -55,7 +102,8 @@ def get_my_worked_schedule_statistics(current_user: User = Depends(get_current_u
 @router.get("/user/{user_id}", response_model=list[ScheduleResponse])
 def get_user_schedule_endpoint(user_id: int, month: int | None = None, year: int | None = None, current_user: User = Depends(require_manager_role), db: Session = Depends(get_db)):
     _can_manage_user(current_user, db, user_id)
-    return get_user_schedule(db, user_id, month, year)
+    selected_month, selected_year = _bounded_schedule_period(month, year)
+    return get_user_schedule(db, user_id, selected_month, selected_year)
 
 
 @router.post("", response_model=ScheduleResponse, status_code=status.HTTP_201_CREATED)
@@ -84,30 +132,65 @@ def deactivate_schedule_endpoint(schedule_id: int, current_user: User = Depends(
 
 @router.put("/monthly", response_model=list[ScheduleResponse])
 def save_monthly_schedule_endpoint(data: MonthlyScheduleSave, current_user: User = Depends(require_manager_role), db: Session = Depends(get_db)):
-    for entry in data.entries:
-        _can_manage_user(current_user, db, data.user_id, entry.ambulance_id)
     # The synchronization also deactivates omitted entries. A manager must
     # therefore be authorized for every existing entry that can be affected.
     existing = get_user_schedule(db, data.user_id, data.month, data.year)
-    for entry in existing:
-        _can_manage_user(current_user, db, data.user_id, entry.ambulance_id)
+    schedule_pairs = {
+        (data.user_id, entry.ambulance_id)
+        for entry in [*data.entries, *existing]
+    }
+    _can_manage_schedule_pairs(current_user, db, schedule_pairs)
     return save_monthly_schedule(db, data.user_id, data.month, data.year, data.entries)
 
 
 @ambulance_router.get("/{ambulance_id}/schedule", response_model=list[UserMonthlySchedule])
-def get_ambulance_schedule_endpoint(ambulance: Ambulance = Depends(get_manager_ambulance), month: int | None = None, year: int | None = None, db: Session = Depends(get_db)):
+def get_ambulance_schedule_endpoint(
+    ambulance: Ambulance = Depends(get_manager_ambulance),
+    month: int | None = None,
+    year: int | None = None,
+    after_id: Annotated[
+        int | None,
+        Query(ge=0, description="Return employees after this user ID"),
+    ] = None,
+    limit: Annotated[
+        int | None,
+        Query(ge=1, le=500, description="Max employees to return"),
+    ] = None,
+    db: Session = Depends(get_db),
+):
     displayed_month, displayed_year = (month, year) if month is not None and year is not None else (date.today().month, date.today().year)
-    employees = (
+    employees_query = (
         db.query(UserAmbulance)
-        .options(joinedload(UserAmbulance.user))
+        .join(User, User.id == UserAmbulance.user_id)
+        .options(contains_eager(UserAmbulance.user))
         .filter(
             UserAmbulance.ambulance_id == ambulance.id,
             UserAmbulance.is_active.is_(True),
+            User.is_active.is_(True),
         )
-        .all()
     )
+    if after_id is not None:
+        employees_query = employees_query.filter(UserAmbulance.user_id > after_id)
+    if after_id is not None or limit is not None:
+        employees_query = employees_query.order_by(UserAmbulance.user_id)
+    if limit is not None:
+        employees_query = employees_query.limit(limit)
+    employees = employees_query.all()
+    displayed_user_ids = {
+        item.user_id for item in employees if item.user and item.user.is_active
+    }
     entries_by_user: dict[int, list[ScheduleResponse]] = {}
-    for entry in get_ambulance_schedule(db, ambulance.id, displayed_month, displayed_year):
+    for entry in get_ambulance_schedule(
+        db,
+        ambulance.id,
+        displayed_month,
+        displayed_year,
+        user_ids=(
+            displayed_user_ids
+            if after_id is not None or limit is not None
+            else None
+        ),
+    ):
         entries_by_user.setdefault(entry.user_id, []).append(entry)
     return [UserMonthlySchedule(user_id=item.user_id, user_full_name=item.user.full_name if item.user else None, month=displayed_month, year=displayed_year, entries=entries_by_user.get(item.user_id, [])) for item in employees if item.user and item.user.is_active]
 

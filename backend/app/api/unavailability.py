@@ -63,19 +63,30 @@ def create_unavailability_endpoint(
     summary="List unavailability records",
 )
 def list_unavailabilities_endpoint(
-    skip: int = Query(0, ge=0, description="Pagination offset"),
+    skip: int = Query(0, ge=0, deprecated=True, description="Legacy pagination offset"),
     limit: int = Query(100, ge=1, le=500, description="Max records to return"),
     date_from: Optional[date] = Query(None, description="Start date filter (inclusive)"),
     date_to: Optional[date] = Query(None, description="End date filter (inclusive)"),
+    after_date: Optional[date] = Query(None, description="Cursor date from the previous page"),
+    after_id: Optional[int] = Query(None, ge=0, description="Cursor ID from the previous page"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[UnavailabilityResponse]:
     """Retrieve the authenticated user's unavailability records.
 
-    Supports pagination via ``skip`` and ``limit``, and optional
-    date-range filtering via ``date_from`` and ``date_to``.
+    Supports keyset pagination via ``after_date``, ``after_id`` and ``limit``.
+    The legacy ``skip`` parameter remains available for older clients.
     """
-    return get_unavailabilities(db, current_user.id, skip, limit, date_from, date_to)
+    return get_unavailabilities(
+        db,
+        current_user.id,
+        skip,
+        limit,
+        date_from,
+        date_to,
+        after_date,
+        after_id,
+    )
 
 
 @router.get(

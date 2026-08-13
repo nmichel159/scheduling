@@ -12,10 +12,12 @@ from datetime import date
 from typing import Optional
 
 from fastapi import HTTPException, status
+from sqlalchemy import tuple_
 from sqlalchemy.orm import Session
 
 from app.models.unavailability import Unavailability
 from app.schemas.unavailability import UnavailabilityCreate, UnavailabilityUpdate
+from app.services.database_conflict import commit_or_conflict
 
 
 def _first_day_of_current_month() -> date:
@@ -87,7 +89,10 @@ def create_unavailability(db: Session, user_id: int, data: UnavailabilityCreate)
         is_active=True,
     )
     db.add(record)
-    db.commit()
+    commit_or_conflict(
+        db,
+        f"Unavailability record already exists for date {data.date_absent}.",
+    )
     db.refresh(record)
     return record
 
@@ -99,16 +104,20 @@ def get_unavailabilities(
     limit: int = 100,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    after_date: Optional[date] = None,
+    after_id: Optional[int] = None,
 ) -> list[Unavailability]:
     """Retrieve unavailability records for a user with optional date-range filtering.
 
     Args:
         db: Active database session.
         user_id: The owner of the records.
-        skip: Number of records to skip (pagination offset).
+        skip: Legacy number of records to skip (pagination offset).
         limit: Maximum number of records to return.
         date_from: Optional start date for range filtering (inclusive).
         date_to: Optional end date for range filtering (inclusive).
+        after_date: Date component of the keyset pagination cursor.
+        after_id: ID component of the keyset pagination cursor.
 
     Returns:
         A list of matching :class:`Unavailability` records.
@@ -122,7 +131,31 @@ def get_unavailabilities(
     if date_to is not None:
         query = query.filter(Unavailability.date_absent <= date_to)
 
-    return query.order_by(Unavailability.date_absent).offset(skip).limit(limit).all()
+    if (after_date is None) != (after_id is None):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="after_date and after_id must be provided together.",
+        )
+    if after_date is not None and skip:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="skip cannot be combined with the cursor parameters.",
+        )
+    if after_date is not None and after_id is not None:
+        query = query.filter(
+            tuple_(
+                Unavailability.date_absent,
+                Unavailability.id,
+            )
+            > (after_date, after_id)
+        )
+
+    return (
+        query.order_by(Unavailability.date_absent, Unavailability.id)
+        .offset(skip if after_date is None else 0)
+        .limit(limit)
+        .all()
+    )
 
 
 def get_unavailability(db: Session, unavailability_id: int, user_id: int) -> Unavailability:
@@ -187,7 +220,10 @@ def update_unavailability(
     for field, value in update_data.items():
         setattr(record, field, value)
 
-    db.commit()
+    commit_or_conflict(
+        db,
+        f"Unavailability record already exists for date {record.date_absent}.",
+    )
     db.refresh(record)
     return record
 

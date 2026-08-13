@@ -1,7 +1,7 @@
 """Authorization and CRUD tests for manager-edited employee restrictions."""
 
 import unittest
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import create_engine
@@ -12,6 +12,7 @@ from app.db.session import Base
 from app.models.ambulance import Ambulance
 from app.models.associations import UserAmbulance, UserRole
 from app.models.role import Role
+from app.models.unavailability import Unavailability
 from app.models.user import User
 from app.schemas.unavailability import UnavailabilityCreate, UnavailabilityUpdate
 from app.services.ambulance_employee_service import get_active_employee
@@ -124,6 +125,69 @@ class ManagerUnavailabilityTests(unittest.TestCase):
 
         delete_unavailability(self.session, record.id, selected.id)
         self.assertEqual(get_unavailabilities(self.session, selected.id), [])
+
+    def test_unavailability_keyset_cursor_has_no_gaps(self) -> None:
+        """A date-and-ID cursor neither repeats nor skips ordered rows."""
+        target_date = date.today()
+        records = [
+            Unavailability(
+                user_id=self.employee.id,
+                date_absent=target_date,
+                reason="UNAVAILABLE",
+                is_active=True,
+            ),
+            Unavailability(
+                user_id=self.employee.id,
+                date_absent=target_date + timedelta(days=1),
+                reason="PREFERRED",
+                is_active=True,
+            ),
+            Unavailability(
+                user_id=self.employee.id,
+                date_absent=target_date + timedelta(days=2),
+                reason="UNAVAILABLE",
+                is_active=True,
+            ),
+        ]
+        self.session.add_all(records)
+        self.session.commit()
+
+        first_page = get_unavailabilities(
+            self.session,
+            self.employee.id,
+            limit=2,
+        )
+        second_page = get_unavailabilities(
+            self.session,
+            self.employee.id,
+            limit=2,
+            after_date=first_page[-1].date_absent,
+            after_id=first_page[-1].id,
+        )
+        self.assertEqual(
+            [item.id for item in [*first_page, *second_page]],
+            [item.id for item in records],
+        )
+
+    def test_unavailability_cursor_requires_complete_non_offset_cursor(self) -> None:
+        """Invalid cursor combinations fail instead of returning ambiguous pages."""
+        with self.assertRaises(HTTPException) as partial_cursor:
+            get_unavailabilities(
+                self.session,
+                self.employee.id,
+                after_date=date.today(),
+            )
+        self.assertEqual(partial_cursor.exception.status_code, 422)
+
+        with self.assertRaises(HTTPException) as mixed_pagination:
+            get_unavailabilities(
+                self.session,
+                self.employee.id,
+                skip=1,
+                after_date=date.today(),
+                after_id=1,
+            )
+        self.assertEqual(mixed_pagination.exception.status_code, 422)
 
 
 if __name__ == "__main__":

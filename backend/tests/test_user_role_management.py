@@ -1,12 +1,17 @@
 """Tests for login defaults and administrator-managed application roles."""
 
+import inspect
 import unittest
+from datetime import datetime, timedelta, timezone
+from hashlib import sha256
 
 from fastapi import HTTPException
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from app.core.dependencies import require_admin_role
+from app.core.auth_provider import SessionAuthenticationProvider
+from app.api.auth import google_auth
 from app.db.session import Base
 from app.models.associations import UserRole
 from app.models.role import Role
@@ -83,6 +88,38 @@ class UserRoleManagementTests(unittest.TestCase):
         )
 
         self.assertEqual(self._role_ids(user.id), [1])
+
+    def test_google_login_runs_in_fastapi_threadpool(self) -> None:
+        """Synchronous Google I/O must not block the async event loop."""
+        self.assertFalse(inspect.iscoroutinefunction(google_auth))
+
+    def test_session_authentication_eager_loads_roles_in_one_query(self) -> None:
+        """Authorization guards must not add lazy role queries per request."""
+        credential = "benchmark-session-token"
+        user = self._user("session@example.com", [3])
+        user.auth_token = sha256(credential.encode("utf-8")).hexdigest()
+        user.auth_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        self.session.commit()
+        user_id = user.id
+        self.session.expunge_all()
+
+        statements: list[str] = []
+
+        def record_statement(*args) -> None:
+            statements.append(args[2])
+
+        event.listen(self.engine, "before_cursor_execute", record_statement)
+        try:
+            authenticated = SessionAuthenticationProvider().resolve_user(
+                self.session,
+                credential,
+            )
+            self.assertEqual(authenticated.id, user_id)
+            self.assertTrue(require_admin_role(authenticated))
+        finally:
+            event.remove(self.engine, "before_cursor_execute", record_statement)
+
+        self.assertEqual(len(statements), 1, statements)
 
     def test_login_does_not_add_role_one_when_role_two_exists(self) -> None:
         user = self._user("leader@example.com", [2])

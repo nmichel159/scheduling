@@ -3,7 +3,7 @@ Service layer for user listing operations.
 """
 
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models.user import User
 from app.models.associations import UserRole
@@ -22,7 +22,11 @@ from app.schemas.user import (
 MANAGEABLE_ROLE_IDS = {1, 2, 3}
 
 
-def list_users(db: Session) -> list[User]:
+def list_users(
+    db: Session,
+    after_id: int | None = None,
+    limit: int | None = None,
+) -> list[User]:
     """List all active users ordered by name.
 
     Args:
@@ -31,12 +35,16 @@ def list_users(db: Session) -> list[User]:
     Returns:
         A list of active :class:`User` instances.
     """
-    return (
-        db.query(User)
-        .filter(User.is_active == True)
-        .order_by(User.full_name, User.email)
-        .all()
-    )
+    query = db.query(User).filter(User.is_active == True)
+    if after_id is not None:
+        query = query.filter(User.id > after_id)
+    if after_id is not None or limit is not None:
+        query = query.order_by(User.id)
+    else:
+        query = query.order_by(User.full_name, User.email)
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()
 
 
 def list_user_role_ids(db: Session, user_id: int) -> list[int]:
@@ -53,12 +61,36 @@ def list_user_role_ids(db: Session, user_id: int) -> list[int]:
     )]
 
 
-def list_users_by_role(db: Session, role_id: int) -> list[UserByRoleResponse]:
+def list_users_by_role(
+    db: Session,
+    role_id: int,
+    after_id: int | None = None,
+    limit: int | None = None,
+) -> list[UserByRoleResponse]:
     role = db.query(Role).filter(Role.id == role_id, Role.is_active.is_(True)).first()
     if not role:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Role not found or inactive.")
-    users = db.query(User).join(UserRole).filter(UserRole.role_id == role_id).order_by(User.full_name, User.email).all()
+    query = (
+        db.query(User)
+        .join(UserRole)
+        .options(
+            selectinload(User.user_roles).selectinload(UserRole.role),
+            selectinload(User.user_ambulances).selectinload(
+                UserAmbulance.ambulance
+            ),
+        )
+        .filter(UserRole.role_id == role_id)
+    )
+    if after_id is not None:
+        query = query.filter(User.id > after_id)
+    if after_id is not None or limit is not None:
+        query = query.order_by(User.id)
+    else:
+        query = query.order_by(User.full_name, User.email)
+    if limit is not None:
+        query = query.limit(limit)
+    users = query.all()
     result = []
     for user in users:
         roles = [UserRoleInfo(id=item.role.id, code=item.role.code) for item in user.user_roles if item.role and item.role.is_active]
@@ -67,15 +99,26 @@ def list_users_by_role(db: Session, role_id: int) -> list[UserByRoleResponse]:
     return result
 
 
-def list_user_role_assignments(db: Session) -> list[UserRoleAssignmentResponse]:
+def list_user_role_assignments(
+    db: Session,
+    after_id: int | None = None,
+    limit: int | None = None,
+) -> list[UserRoleAssignmentResponse]:
     """List active users and their active roles without per-user queries."""
-    users = (
+    query = (
         db.query(User)
         .options(joinedload(User.user_roles).joinedload(UserRole.role))
         .filter(User.is_active.is_(True))
-        .order_by(User.full_name, User.email)
-        .all()
     )
+    if after_id is not None:
+        query = query.filter(User.id > after_id)
+    if after_id is not None or limit is not None:
+        query = query.order_by(User.id)
+    else:
+        query = query.order_by(User.full_name, User.email)
+    if limit is not None:
+        query = query.limit(limit)
+    users = query.all()
     return [_serialize_user_role_assignment(user) for user in users]
 
 

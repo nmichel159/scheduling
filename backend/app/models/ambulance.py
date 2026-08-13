@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.session import Base
@@ -7,6 +7,20 @@ from app.models.associations import UserAmbulance
 
 class Ambulance(Base):
     __tablename__ = "ambulances"
+    __table_args__ = (
+        Index(
+            "ix_ambulances_manager_active_name",
+            "managed_by_user_id",
+            "is_active",
+            "name",
+        ),
+        Index(
+            "ix_ambulances_active_urgent_name",
+            "is_active",
+            "isurgent",
+            "name",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)

@@ -1,10 +1,27 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Date
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Date, Index, text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.session import Base
 
 class Unavailability(Base):
     __tablename__ = "unavailabilities"
+    __table_args__ = (
+        Index(
+            "ix_unavailabilities_user_active_date",
+            "user_id",
+            "is_active",
+            "date_absent",
+            "id",
+        ),
+        Index(
+            "uq_unavailabilities_active_user_date",
+            "user_id",
+            "date_absent",
+            unique=True,
+            postgresql_where=text("is_active IS TRUE"),
+            sqlite_where=text("is_active = 1"),
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)

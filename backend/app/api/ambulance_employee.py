@@ -6,7 +6,7 @@ authenticated manager owns the target ambulance.
 """
 
 from datetime import date
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
@@ -67,10 +67,23 @@ def get_managed_employee(
     summary="List employees and their competences for an ambulance",
 )
 def list_employee_competence_table(
+    after_id: Annotated[
+        int | None,
+        Query(ge=0, description="Return employees after this user ID"),
+    ] = None,
+    limit: Annotated[
+        int | None,
+        Query(ge=1, le=500, description="Max employees to return"),
+    ] = None,
     ambulance: Ambulance = Depends(get_manager_ambulance),
     db: Session = Depends(get_db),
 ):
-    return get_employee_competence_table(db, ambulance.id)
+    return get_employee_competence_table(
+        db,
+        ambulance.id,
+        after_id=after_id,
+        limit=limit,
+    )
 
 
 @router.put(
@@ -126,11 +139,13 @@ def my_assigned_ambulances(current_user=Depends(get_current_user), db: Session =
     summary="List employees assigned to an ambulance",
 )
 def list_employees_endpoint(
+    after_id: int | None = Query(None, ge=0, description="Return employees after this user ID"),
+    limit: int | None = Query(None, ge=1, le=500, description="Max employees to return"),
     ambulance: Ambulance = Depends(get_manager_ambulance),
     db: Session = Depends(get_db),
 ) -> list[EmployeeListResponse]:
     """Retrieve all active employees assigned to the manager's ambulance."""
-    return list_employees(db, ambulance.id)
+    return list_employees(db, ambulance.id, after_id=after_id, limit=limit)
 
 
 @router.get(
@@ -139,15 +154,26 @@ def list_employees_endpoint(
     summary="List an employee's unavailability records",
 )
 def list_employee_unavailabilities_endpoint(
-    skip: int = Query(0, ge=0, description="Pagination offset"),
+    skip: int = Query(0, ge=0, deprecated=True, description="Legacy pagination offset"),
     limit: int = Query(100, ge=1, le=500, description="Max records to return"),
     date_from: Optional[date] = Query(None, description="Start date filter (inclusive)"),
     date_to: Optional[date] = Query(None, description="End date filter (inclusive)"),
+    after_date: Optional[date] = Query(None, description="Cursor date from the previous page"),
+    after_id: Optional[int] = Query(None, ge=0, description="Cursor ID from the previous page"),
     employee: User = Depends(get_managed_employee),
     db: Session = Depends(get_db),
 ) -> list[UnavailabilityResponse]:
     """List restrictions for an employee of the manager's ambulance."""
-    return get_unavailabilities(db, employee.id, skip, limit, date_from, date_to)
+    return get_unavailabilities(
+        db,
+        employee.id,
+        skip,
+        limit,
+        date_from,
+        date_to,
+        after_date,
+        after_id,
+    )
 
 
 @router.post(

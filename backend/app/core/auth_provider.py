@@ -9,8 +9,9 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from typing import Protocol
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
+from app.models.associations import UserRole
 from app.models.user import User
 
 
@@ -25,6 +26,7 @@ class SessionAuthenticationProvider:
     def resolve_user(self, db: Session, credential: str) -> User:
         user = (
             db.query(User)
+            .options(joinedload(User.user_roles).joinedload(UserRole.role))
             .filter(User.auth_token == sha256(credential.encode("utf-8")).hexdigest(), User.is_active.is_(True))
             .first()
         )

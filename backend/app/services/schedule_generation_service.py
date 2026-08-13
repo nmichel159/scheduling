@@ -18,6 +18,7 @@ from pulp import (
 )
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.config import settings
 from app.models.associations import UserAmbulance, UserCompetence
 from app.models.competence import Competence
 from app.models.schedule import Schedule
@@ -69,6 +70,18 @@ class GeneratedAssignment:
     work_date: date
 
 
+@dataclass
+class ScheduleVariableIndex:
+    """Precomputed views of decision variables used by model constraints."""
+
+    by_competence_date: dict[tuple[int, date], list[LpVariable]]
+    candidate_ids_by_competence_date: dict[tuple[int, date], set[int]]
+    by_user_date: dict[tuple[int, date], list[LpVariable]]
+    by_user: dict[int, list[LpVariable]]
+    candidate_dates_by_user: dict[int, set[date]]
+    candidate_ids_by_date: dict[date, set[int]]
+
+
 class ScheduleGenerationError(Exception):
     """Raised when no schedule can satisfy all hard constraints."""
 
@@ -99,6 +112,39 @@ def _candidate_ids(
         for user_id, candidate_competence_id, candidate_date in variables
         if candidate_competence_id == competence_id and candidate_date == work_date
     }
+
+
+def _index_schedule_variables(
+    variables: dict[tuple[int, int, date], LpVariable],
+) -> ScheduleVariableIndex:
+    """Build all constraint lookup maps in one linear pass."""
+    by_competence_date: dict[tuple[int, date], list[LpVariable]] = {}
+    candidate_ids_by_competence_date: dict[tuple[int, date], set[int]] = {}
+    by_user_date: dict[tuple[int, date], list[LpVariable]] = {}
+    by_user: dict[int, list[LpVariable]] = {}
+    candidate_dates_by_user: dict[int, set[date]] = {}
+    candidate_ids_by_date: dict[date, set[int]] = {}
+
+    for (user_id, competence_id, work_date), variable in variables.items():
+        competence_date = (competence_id, work_date)
+        user_date = (user_id, work_date)
+        by_competence_date.setdefault(competence_date, []).append(variable)
+        candidate_ids_by_competence_date.setdefault(
+            competence_date, set()
+        ).add(user_id)
+        by_user_date.setdefault(user_date, []).append(variable)
+        by_user.setdefault(user_id, []).append(variable)
+        candidate_dates_by_user.setdefault(user_id, set()).add(work_date)
+        candidate_ids_by_date.setdefault(work_date, set()).add(user_id)
+
+    return ScheduleVariableIndex(
+        by_competence_date=by_competence_date,
+        candidate_ids_by_competence_date=candidate_ids_by_competence_date,
+        by_user_date=by_user_date,
+        by_user=by_user,
+        candidate_dates_by_user=candidate_dates_by_user,
+        candidate_ids_by_date=candidate_ids_by_date,
+    )
 
 
 def _is_hard_unavailability(reason: str | None) -> bool:
@@ -139,16 +185,14 @@ def _detect_capacity_issues(
     variables: dict[tuple[int, int, date], LpVariable],
     competences: list[SchedulingCompetence],
     days: list[date],
+    variable_index: ScheduleVariableIndex | None = None,
 ) -> list[dict[str, object]]:
     """Find obvious daily and consecutive-day capacity conflicts."""
+    index = variable_index or _index_schedule_variables(variables)
     issues: list[dict[str, object]] = []
     for work_date in days:
         daily_required = sum(competence.required_on(work_date) for competence in competences)
-        daily_candidates = {
-            user_id
-            for user_id, _competence_id, candidate_date in variables
-            if candidate_date == work_date
-        }
+        daily_candidates = index.candidate_ids_by_date.get(work_date, set())
         if len(daily_candidates) < daily_required:
             issues.append(
                 {
@@ -161,7 +205,9 @@ def _detect_capacity_issues(
 
         for competence in competences:
             required_count = competence.required_on(work_date)
-            candidates = _candidate_ids(variables, competence.id, work_date)
+            candidates = index.candidate_ids_by_competence_date.get(
+                (competence.id, work_date), set()
+            )
             if len(candidates) < required_count:
                 issues.append(
                     {
@@ -179,8 +225,12 @@ def _detect_capacity_issues(
 
     for current_day, next_day in zip(days, days[1:]):
         for competence in competences:
-            current_candidates = _candidate_ids(variables, competence.id, current_day)
-            next_candidates = _candidate_ids(variables, competence.id, next_day)
+            current_candidates = index.candidate_ids_by_competence_date.get(
+                (competence.id, current_day), set()
+            )
+            next_candidates = index.candidate_ids_by_competence_date.get(
+                (competence.id, next_day), set()
+            )
             combined_count = len(current_candidates | next_candidates)
             required_across_days = competence.required_on(
                 current_day
@@ -198,11 +248,9 @@ def _detect_capacity_issues(
                     }
                 )
 
-        combined_candidates = {
-            user_id
-            for user_id, _competence_id, candidate_date in variables
-            if candidate_date in (current_day, next_day)
-        }
+        combined_candidates = index.candidate_ids_by_date.get(
+            current_day, set()
+        ) | index.candidate_ids_by_date.get(next_day, set())
         required_across_days = sum(
             competence.required_on(current_day) + competence.required_on(next_day)
             for competence in competences
@@ -314,7 +362,13 @@ def solve_monthly_schedule(
                     cat="Binary",
                 )
 
-    capacity_issues = _detect_capacity_issues(variables, competences, days)
+    variable_index = _index_schedule_variables(variables)
+    capacity_issues = _detect_capacity_issues(
+        variables,
+        competences,
+        days,
+        variable_index,
+    )
     if capacity_issues:
         raise ScheduleGenerationError(
             "There are not enough available qualified employees to cover the schedule.",
@@ -323,22 +377,18 @@ def solve_monthly_schedule(
 
     for work_date in days:
         for competence in competences:
-            coverage_variables = [
-                variable
-                for (user_id, competence_id, candidate_date), variable in variables.items()
-                if competence_id == competence.id and candidate_date == work_date
-            ]
+            coverage_variables = variable_index.by_competence_date.get(
+                (competence.id, work_date), []
+            )
             problem += (
                 lpSum(coverage_variables) == competence.required_on(work_date),
                 f"coverage_{competence.id}_{work_date.isoformat()}",
             )
 
         for employee in employees:
-            daily_variables = [
-                variable
-                for (user_id, _competence_id, candidate_date), variable in variables.items()
-                if user_id == employee.id and candidate_date == work_date
-            ]
+            daily_variables = variable_index.by_user_date.get(
+                (employee.id, work_date), []
+            )
             problem += (
                 lpSum(daily_variables) <= 1,
                 f"one_role_{employee.id}_{work_date.isoformat()}",
@@ -346,11 +396,10 @@ def solve_monthly_schedule(
 
     for employee in employees:
         for current_day, next_day in zip(days, days[1:]):
-            consecutive_variables = [
-                variable
-                for (user_id, _competence_id, candidate_date), variable in variables.items()
-                if user_id == employee.id and candidate_date in (current_day, next_day)
-            ]
+            consecutive_variables = (
+                variable_index.by_user_date.get((employee.id, current_day), [])
+                + variable_index.by_user_date.get((employee.id, next_day), [])
+            )
             problem += (
                 lpSum(consecutive_variables) <= 1,
                 f"rest_{employee.id}_{current_day.isoformat()}",
@@ -358,16 +407,10 @@ def solve_monthly_schedule(
 
     marginal_workload_costs: list[LpAffineExpression] = []
     for employee in employees:
-        employee_variables = [
-            variable
-            for (user_id, _competence_id, _work_date), variable in variables.items()
-            if user_id == employee.id
-        ]
-        candidate_dates = {
-            work_date
-            for (user_id, _competence_id, work_date) in variables
-            if user_id == employee.id
-        }
+        employee_variables = variable_index.by_user.get(employee.id, [])
+        candidate_dates = variable_index.candidate_dates_by_user.get(
+            employee.id, set()
+        )
         maximum_workload = _maximum_nonconsecutive_days(candidate_dates)
         if maximum_workload == 0:
             continue
@@ -389,9 +432,25 @@ def solve_monthly_schedule(
         )
 
     problem += lpSum(marginal_workload_costs)
-    problem.solve(PULP_CBC_CMD(msg=False))
+    problem.solve(
+        PULP_CBC_CMD(
+            msg=False,
+            timeLimit=settings.SCHEDULE_SOLVER_TIME_LIMIT_SECONDS,
+        )
+    )
 
-    if LpStatus[problem.status] != "Optimal":
+    solver_status = LpStatus[problem.status]
+    if solver_status == "Not Solved":
+        raise ScheduleGenerationError(
+            "Schedule generation exceeded the configured time limit.",
+            [
+                {
+                    "code": "solver_timeout",
+                    "time_limit_seconds": settings.SCHEDULE_SOLVER_TIME_LIMIT_SECONDS,
+                }
+            ],
+        )
+    if solver_status != "Optimal":
         raise ScheduleGenerationError(
             "No feasible schedule satisfies all coverage, availability, and rotation constraints.",
             [{"code": "constraint_conflict"}],

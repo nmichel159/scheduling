@@ -1,0 +1,217 @@
+{
+  "requests": [
+    {
+      "name": "health",
+      "method": "GET",
+      "path": "/",
+      "expected_status": 200
+    },
+    {
+      "name": "unavailabilities_page",
+      "method": "GET",
+      "path": "/unavailabilities",
+      "params": {"limit": 100},
+      "expected_status": 200
+    },
+    {
+      "name": "unavailabilities_slash_page",
+      "method": "GET",
+      "path": "/unavailabilities/",
+      "params": {"limit": 100},
+      "expected_status": 200
+    },
+    {
+      "name": "unavailability_detail",
+      "method": "GET",
+      "path": "/unavailabilities/${BENCHMARK_UNAVAILABILITY_ID}",
+      "expected_status": 200
+    },
+    {
+      "name": "ambulance_competence_table",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/employees/competences",
+      "params": {"limit": 100},
+      "expected_status": 200
+    },
+    {
+      "name": "employee_ambulances",
+      "method": "GET",
+      "path": "/ambulances/employees/${BENCHMARK_TARGET_USER_ID}/ambulances",
+      "expected_status": 200
+    },
+    {
+      "name": "manager_ambulances",
+      "method": "GET",
+      "path": "/ambulances/managers/${BENCHMARK_CURRENT_USER_ID}/ambulances",
+      "expected_status": 200
+    },
+    {
+      "name": "my_managed_ambulances",
+      "method": "GET",
+      "path": "/ambulances/me/managed",
+      "expected_status": 200
+    },
+    {
+      "name": "my_assigned_ambulances",
+      "method": "GET",
+      "path": "/ambulances/me/assigned",
+      "expected_status": 200
+    },
+    {
+      "name": "ambulance_employees_page",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/employees",
+      "params": {"limit": 100},
+      "expected_status": 200
+    },
+    {
+      "name": "employee_unavailabilities_page",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/employees/${BENCHMARK_TARGET_USER_ID}/unavailabilities",
+      "params": {"limit": 100},
+      "expected_status": 200
+    },
+    {
+      "name": "my_ambulance_competences",
+      "method": "GET",
+      "path": "/ambulances/my-ambulance-competences",
+      "expected_status": 200
+    },
+    {
+      "name": "ambulance_competences",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/competences",
+      "expected_status": 200
+    },
+    {
+      "name": "competence_employees_page",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/competences/${BENCHMARK_COMPETENCE_ID}/employees",
+      "params": {"limit": 100},
+      "expected_status": 200
+    },
+    {
+      "name": "employee_competences",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/employees/${BENCHMARK_TARGET_USER_ID}/competences",
+      "expected_status": 200
+    },
+    {
+      "name": "role_assignments_page",
+      "method": "GET",
+      "path": "/users/role-assignments",
+      "params": {"limit": 100},
+      "expected_status": 200
+    },
+    {
+      "name": "users_by_role_page",
+      "method": "GET",
+      "path": "/users/by-role",
+      "params": {"role_id": "${BENCHMARK_ROLE_ID}", "limit": 100},
+      "expected_status": 200
+    },
+    {
+      "name": "users_page",
+      "method": "GET",
+      "path": "/users",
+      "params": {"limit": 100},
+      "expected_status": 200
+    },
+    {
+      "name": "my_user_role_ids",
+      "method": "GET",
+      "path": "/users/${BENCHMARK_CURRENT_USER_ID}/roles",
+      "expected_status": 200
+    },
+    {
+      "name": "my_roles",
+      "method": "GET",
+      "path": "/roles/me",
+      "expected_status": 200
+    },
+    {
+      "name": "roles",
+      "method": "GET",
+      "path": "/roles",
+      "expected_status": 200
+    },
+    {
+      "name": "standard_ambulances",
+      "method": "GET",
+      "path": "/ambulances/standard",
+      "expected_status": 200
+    },
+    {
+      "name": "urgent_ambulances",
+      "method": "GET",
+      "path": "/ambulances/urgent",
+      "expected_status": 200
+    },
+    {
+      "name": "ambulances",
+      "method": "GET",
+      "path": "/ambulances",
+      "expected_status": 200
+    },
+    {
+      "name": "competences_alias",
+      "method": "GET",
+      "path": "/competences",
+      "params": {"ambulance_id": "${BENCHMARK_AMBULANCE_ID}"},
+      "expected_status": 200
+    },
+    {
+      "name": "employee_competences_alias",
+      "method": "GET",
+      "path": "/employees/competences",
+      "params": {
+        "ambulance_id": "${BENCHMARK_AMBULANCE_ID}",
+        "user_id": "${BENCHMARK_TARGET_USER_ID}"
+      },
+      "expected_status": 200
+    },
+    {
+      "name": "personal_schedule_month",
+      "method": "GET",
+      "path": "/schedules/me",
+      "params": {"month": "${BENCHMARK_MONTH}", "year": "${BENCHMARK_YEAR}"},
+      "expected_status": 200
+    },
+    {
+      "name": "next_personal_schedule",
+      "method": "GET",
+      "path": "/schedules/me/next",
+      "expected_status": 200
+    },
+    {
+      "name": "personal_monthly_statistics",
+      "method": "GET",
+      "path": "/schedules/me/monthly-statistics",
+      "expected_status": 200
+    },
+    {
+      "name": "personal_worked_statistics",
+      "method": "GET",
+      "path": "/schedules/me/worked-statistics",
+      "expected_status": 200
+    },
+    {
+      "name": "user_schedule_month",
+      "method": "GET",
+      "path": "/schedules/user/${BENCHMARK_TARGET_USER_ID}",
+      "params": {"month": "${BENCHMARK_MONTH}", "year": "${BENCHMARK_YEAR}"},
+      "expected_status": 200
+    },
+    {
+      "name": "ambulance_schedule_month",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/schedule",
+      "params": {
+        "month": "${BENCHMARK_MONTH}",
+        "year": "${BENCHMARK_YEAR}",
+        "limit": 100
+      },
+      "expected_status": 200
+    }
+  ]
+}

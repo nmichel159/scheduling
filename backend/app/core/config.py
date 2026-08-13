@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     COOKIE_SECURE: bool = os.getenv("COOKIE_SECURE", "false").lower() == "true"
     AUTO_SEED: bool = os.getenv("AUTO_SEED", "false").lower() == "true"
     SEED_CONFIG: str = os.getenv("SEED_CONFIG", "config_1")
+    SCHEDULE_SOLVER_TIME_LIMIT_SECONDS: int = max(
+        1,
+        int(os.getenv("SCHEDULE_SOLVER_TIME_LIMIT_SECONDS", "30")),
+    )
 
     class Config:
         case_sensitive = True

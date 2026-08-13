@@ -9,7 +9,7 @@ Business rules enforced:
 """
 
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, contains_eager
 
 from app.models.associations import UserAmbulance, UserCompetence
 from app.models.competence import Competence
@@ -30,25 +30,26 @@ def _validate_employee_in_ambulance(db: Session, ambulance_id: int, user_id: int
         HTTPException 404: If the user does not exist or is inactive.
         HTTPException 400: If the employee is not assigned to the ambulance.
     """
-    # Verify user exists
-    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
-    if not user:
+    user_and_assignment = (
+        db.query(
+            User.id.label("user_id"),
+            UserAmbulance.ambulance_id.label("assigned_ambulance_id"),
+        )
+        .outerjoin(
+            UserAmbulance,
+            (UserAmbulance.user_id == User.id)
+            & (UserAmbulance.ambulance_id == ambulance_id)
+            & (UserAmbulance.is_active.is_(True)),
+        )
+        .filter(User.id == user_id, User.is_active.is_(True))
+        .first()
+    )
+    if not user_and_assignment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"User with id {user_id} not found or inactive.",
         )
-
-    # Verify employee is assigned to ambulance
-    assignment = (
-        db.query(UserAmbulance)
-        .filter(
-            UserAmbulance.user_id == user_id,
-            UserAmbulance.ambulance_id == ambulance_id,
-            UserAmbulance.is_active == True,
-        )
-        .first()
-    )
-    if not assignment:
+    if user_and_assignment.assigned_ambulance_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"User {user_id} is not assigned to ambulance {ambulance_id}.",
@@ -106,6 +107,7 @@ def list_user_competences(
     assignments = (
         db.query(UserCompetence)
         .join(Competence, UserCompetence.competence_id == Competence.id)
+        .options(contains_eager(UserCompetence.competence))
         .filter(
             UserCompetence.user_id == user_id,
             Competence.ambulance_id == ambulance_id,
@@ -130,7 +132,11 @@ def list_user_competences(
 
 
 def list_employees_by_competence(
-    db: Session, ambulance_id: int, competence_id: int
+    db: Session,
+    ambulance_id: int,
+    competence_id: int,
+    after_id: int | None = None,
+    limit: int | None = None,
 ) -> list[UserListResponse]:
     """List active ambulance employees assigned to a competence.
 
@@ -140,7 +146,7 @@ def list_employees_by_competence(
     """
     _validate_competence_in_ambulance(db, ambulance_id, competence_id)
 
-    users = (
+    query = (
         db.query(User)
         .join(UserCompetence, UserCompetence.user_id == User.id)
         .join(
@@ -154,9 +160,16 @@ def list_employees_by_competence(
             UserAmbulance.is_active.is_(True),
             User.is_active.is_(True),
         )
-        .order_by(User.full_name, User.email)
-        .all()
     )
+    if after_id is not None:
+        query = query.filter(User.id > after_id)
+    if after_id is not None or limit is not None:
+        query = query.order_by(User.id)
+    else:
+        query = query.order_by(User.full_name, User.email)
+    if limit is not None:
+        query = query.limit(limit)
+    users = query.all()
     return [UserListResponse.model_validate(user) for user in users]
 
 

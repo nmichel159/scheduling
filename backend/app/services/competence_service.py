@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.models.competence import Competence
 from app.models.competence_weekday_requirement import CompetenceWeekdayRequirement
 from app.schemas.competence import CompetenceCreate, CompetenceUpdate
+from app.services.database_conflict import commit_or_conflict
 
 
 def _replace_weekday_requirements(competence: Competence, requirements) -> None:
@@ -113,7 +114,10 @@ def create_competence(db: Session, ambulance_id: int, data: CompetenceCreate) ->
     if data.weekday_requirements is not None:
         _replace_weekday_requirements(competence, data.weekday_requirements)
     db.add(competence)
-    db.commit()
+    commit_or_conflict(
+        db,
+        "An active competence with this name already exists in this ambulance.",
+    )
     db.refresh(competence)
     return competence
 
@@ -155,7 +159,10 @@ def update_competence(
         for requirement in competence.weekday_requirements:
             requirement.required_count = update_data["required_count"]
 
-    db.commit()
+    commit_or_conflict(
+        db,
+        "An active competence with this name already exists in this ambulance.",
+    )
     db.refresh(competence)
     return competence
 

@@ -15,7 +15,7 @@ def get_authentication_provider() -> GoogleAuthenticationProvider:
     return GoogleAuthenticationProvider()
 
 @router.post("/google", response_model=UserResponse)
-async def google_auth(
+def google_auth(
     data: GoogleLoginRequest,
     request: Request,
     response: Response,

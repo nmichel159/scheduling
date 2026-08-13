@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.session import Base
@@ -7,6 +7,14 @@ from app.models.associations import UserRole, UserAmbulance, UserCompetence
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        Index(
+            "ix_users_active_full_name_email",
+            "is_active",
+            "full_name",
+            "email",
+        ),
+    )
     
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)

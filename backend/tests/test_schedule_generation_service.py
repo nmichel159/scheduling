@@ -4,6 +4,7 @@ from collections import Counter
 from datetime import date, timedelta
 import unittest
 
+from pulp import LpVariable
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -21,6 +22,8 @@ from app.services.schedule_generation_service import (
     ScheduleGenerationError,
     SchedulingCompetence,
     SchedulingEmployee,
+    _detect_capacity_issues,
+    _index_schedule_variables,
     _is_hard_unavailability,
     generate_ambulance_monthly_schedule,
     solve_monthly_schedule,
@@ -46,6 +49,36 @@ def _employee(
 
 class ScheduleGenerationSolverTests(unittest.TestCase):
     """Verify all hard constraints and workload balancing."""
+
+    def test_indexes_decision_variables_for_constant_time_lookup(self) -> None:
+        """Every constraint view is populated by one reusable variable index."""
+        first_day = date(2026, 8, 1)
+        second_day = date(2026, 8, 2)
+        variables = {
+            (1, 1, first_day): LpVariable("a_1_1_1", cat="Binary"),
+            (1, 2, first_day): LpVariable("a_1_2_1", cat="Binary"),
+            (2, 1, second_day): LpVariable("a_2_1_2", cat="Binary"),
+        }
+
+        index = _index_schedule_variables(variables)
+
+        self.assertEqual(len(index.by_competence_date[(1, first_day)]), 1)
+        self.assertEqual(len(index.by_user_date[(1, first_day)]), 2)
+        self.assertEqual(len(index.by_user[1]), 2)
+        self.assertEqual(index.candidate_dates_by_user[1], {first_day})
+        self.assertEqual(index.candidate_ids_by_date[first_day], {1})
+        self.assertEqual(
+            index.candidate_ids_by_competence_date[(1, second_day)],
+            {2},
+        )
+
+        issues = _detect_capacity_issues(
+            {},
+            [SchedulingCompetence(id=1, name="Triage", required_count=1)],
+            [first_day, second_day],
+            index,
+        )
+        self.assertEqual(issues, [])
 
     def test_generates_covered_balanced_schedule_with_hard_constraints(self) -> None:
         """The solver covers roles without absences, overlaps, or adjacent duties."""

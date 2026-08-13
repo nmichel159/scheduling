@@ -6,11 +6,12 @@ definitions (codebook) scoped to their own ambulances.
 """
 
 from fastapi import APIRouter, Depends, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.dependencies import get_manager_ambulance, require_manager_role
 from app.db.session import get_db
 from app.models.ambulance import Ambulance
+from app.models.competence import Competence
 from app.schemas.competence import (
     CompetenceCreate,
     CompetenceResponse,
@@ -24,7 +25,6 @@ from app.services.competence_service import (
     update_competence,
 )
 from app.models.user import User
-from app.models.ambulance import Ambulance
 
 router = APIRouter()
 
@@ -38,15 +38,28 @@ def my_ambulance_competences(
     current_user: User = Depends(require_manager_role),
     db: Session = Depends(get_db),
 ) -> list[AmbulanceCompetenceGroup]:
-    ambulances = db.query(Ambulance).filter(
-        Ambulance.managed_by_user_id == current_user.id,
-        Ambulance.is_active.is_(True),
-    ).order_by(Ambulance.name).all()
+    ambulances = (
+        db.query(Ambulance)
+        .options(
+            selectinload(
+                Ambulance.competences.and_(Competence.is_active.is_(True))
+            ).selectinload(Competence.weekday_requirements)
+        )
+        .filter(
+            Ambulance.managed_by_user_id == current_user.id,
+            Ambulance.is_active.is_(True),
+        )
+        .order_by(Ambulance.name)
+        .all()
+    )
     return [AmbulanceCompetenceGroup(
         ambulance_id=ambulance.id,
         ambulance_name=ambulance.name,
         ambulance_description=ambulance.description,
-        competences=list_competences(db, ambulance.id),
+        competences=sorted(
+            ambulance.competences,
+            key=lambda competence: competence.name,
+        ),
     ) for ambulance in ambulances]
 
 

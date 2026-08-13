@@ -10,6 +10,7 @@ from app.models.schedule import Schedule
 from app.models.unavailability import Unavailability
 from app.models.user import User
 from app.schemas.schedule import ScheduleCreate, ScheduleEdit, ScheduleEntry, ScheduleResponse
+from app.services.database_conflict import commit_or_conflict
 
 
 def month_range(month: int | None, year: int | None) -> tuple[date, date] | None:
@@ -36,7 +37,13 @@ def get_user_schedule(db: Session, user_id: int, month: int | None = None, year:
     return [_response(row) for row in query.order_by(Schedule.work_date, Schedule.competence_id).all()]
 
 
-def get_ambulance_schedule(db: Session, ambulance_id: int, month: int | None = None, year: int | None = None) -> list[ScheduleResponse]:
+def get_ambulance_schedule(
+    db: Session,
+    ambulance_id: int,
+    month: int | None = None,
+    year: int | None = None,
+    user_ids: set[int] | None = None,
+) -> list[ScheduleResponse]:
     query = (
         db.query(Schedule)
         .options(joinedload(Schedule.user), joinedload(Schedule.competence))
@@ -45,6 +52,10 @@ def get_ambulance_schedule(db: Session, ambulance_id: int, month: int | None = N
     period = month_range(month, year)
     if period:
         query = query.filter(Schedule.work_date.between(*period))
+    if user_ids is not None:
+        if not user_ids:
+            return []
+        query = query.filter(Schedule.user_id.in_(user_ids))
     return [_response(row) for row in query.order_by(Schedule.work_date, Schedule.competence_id, Schedule.user_id).all()]
 
 
@@ -111,22 +122,124 @@ def get_user_worked_statistics(
     }
 
 
+def _validate_entries(
+    db: Session,
+    entries: list[tuple[int, ScheduleCreate]],
+) -> None:
+    """Validate schedule entries with a bounded set of database queries."""
+    if not entries:
+        return
+
+    user_ids = {user_id for user_id, _entry in entries}
+    ambulance_ids = {entry.ambulance_id for _user_id, entry in entries}
+    competence_ids = {entry.competence_id for _user_id, entry in entries}
+    work_dates = {entry.work_date for _user_id, entry in entries}
+
+    active_user_ids = {
+        user_id
+        for (user_id,) in db.query(User.id)
+        .filter(User.id.in_(user_ids), User.is_active.is_(True))
+        .all()
+    }
+    active_memberships = {
+        (user_id, ambulance_id)
+        for user_id, ambulance_id in db.query(
+            UserAmbulance.user_id,
+            UserAmbulance.ambulance_id,
+        )
+        .filter(
+            UserAmbulance.user_id.in_(user_ids),
+            UserAmbulance.ambulance_id.in_(ambulance_ids),
+            UserAmbulance.is_active.is_(True),
+        )
+        .all()
+    }
+    active_competences = {
+        (competence_id, ambulance_id)
+        for competence_id, ambulance_id in db.query(
+            Competence.id,
+            Competence.ambulance_id,
+        )
+        .filter(
+            Competence.id.in_(competence_ids),
+            Competence.ambulance_id.in_(ambulance_ids),
+            Competence.is_active.is_(True),
+        )
+        .all()
+    }
+    active_qualifications = {
+        (user_id, competence_id)
+        for user_id, competence_id in db.query(
+            UserCompetence.user_id,
+            UserCompetence.competence_id,
+        )
+        .filter(
+            UserCompetence.user_id.in_(user_ids),
+            UserCompetence.competence_id.in_(competence_ids),
+            UserCompetence.is_active.is_(True),
+        )
+        .all()
+    }
+    unavailable_dates = {
+        (user_id, unavailable_date)
+        for user_id, unavailable_date in db.query(
+            Unavailability.user_id,
+            Unavailability.date_absent,
+        )
+        .filter(
+            Unavailability.user_id.in_(user_ids),
+            Unavailability.date_absent.in_(work_dates),
+            Unavailability.is_active.is_(True),
+        )
+        .all()
+    }
+    scheduled_ambulances: dict[tuple[int, date], set[int]] = {}
+    schedule_rows = (
+        db.query(Schedule.user_id, Schedule.ambulance_id, Schedule.work_date)
+        .filter(
+            Schedule.user_id.in_(user_ids),
+            Schedule.work_date.in_(work_dates),
+            Schedule.is_active.is_(True),
+        )
+        .all()
+    )
+    for user_id, ambulance_id, work_date in schedule_rows:
+        scheduled_ambulances.setdefault((user_id, work_date), set()).add(
+            ambulance_id
+        )
+
+    for user_id, entry in entries:
+        if user_id not in active_user_ids:
+            raise HTTPException(status_code=404, detail="User not found or inactive.")
+        if (
+            (user_id, entry.ambulance_id) not in active_memberships
+            or (entry.competence_id, entry.ambulance_id) not in active_competences
+            or (user_id, entry.competence_id) not in active_qualifications
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="User must be an active, qualified member of the selected ambulance.",
+            )
+        if (user_id, entry.work_date) in unavailable_dates:
+            raise HTTPException(
+                status_code=400,
+                detail="User is unavailable on the selected date.",
+            )
+        if any(
+            ambulance_id != entry.ambulance_id
+            for ambulance_id in scheduled_ambulances.get(
+                (user_id, entry.work_date), set()
+            )
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="User already has a duty in another ambulance on the selected date.",
+            )
+
+
 def _validate_entry(db: Session, user_id: int, data: ScheduleCreate) -> None:
-    """Validate ambulance membership, qualification, and date availability."""
-    user = db.query(User).filter(User.id == user_id, User.is_active.is_(True)).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found or inactive.")
-    assigned = db.query(UserAmbulance).filter(UserAmbulance.user_id == user_id, UserAmbulance.ambulance_id == data.ambulance_id, UserAmbulance.is_active.is_(True)).first()
-    competence = db.query(Competence).filter(Competence.id == data.competence_id, Competence.ambulance_id == data.ambulance_id, Competence.is_active.is_(True)).first()
-    qualified = db.query(UserCompetence).filter(UserCompetence.user_id == user_id, UserCompetence.competence_id == data.competence_id, UserCompetence.is_active.is_(True)).first()
-    if not assigned or not competence or not qualified:
-        raise HTTPException(status_code=400, detail="User must be an active, qualified member of the selected ambulance.")
-    unavailable = db.query(Unavailability).filter(Unavailability.user_id == user_id, Unavailability.date_absent == data.work_date, Unavailability.is_active.is_(True)).first()
-    if unavailable:
-        raise HTTPException(status_code=400, detail="User is unavailable on the selected date.")
-    external_schedule = db.query(Schedule).filter(Schedule.user_id == user_id, Schedule.ambulance_id != data.ambulance_id, Schedule.work_date == data.work_date, Schedule.is_active.is_(True)).first()
-    if external_schedule:
-        raise HTTPException(status_code=409, detail="User already has a duty in another ambulance on the selected date.")
+    """Validate one entry through the same bounded bulk-validation path."""
+    _validate_entries(db, [(user_id, data)])
 
 
 def create_schedule(db: Session, user_id: int, data: ScheduleCreate) -> ScheduleResponse:
@@ -140,7 +253,8 @@ def create_schedule(db: Session, user_id: int, data: ScheduleCreate) -> Schedule
     else:
         item = Schedule(user_id=user_id, is_active=True, **data.model_dump())
         db.add(item)
-    db.commit(); db.refresh(item)
+    commit_or_conflict(db, "Schedule entry already exists.")
+    db.refresh(item)
     return _response(item)
 
 
@@ -149,7 +263,8 @@ def update_schedule(db: Session, item: Schedule, data: ScheduleEdit) -> Schedule
     candidate = ScheduleCreate(ambulance_id=item.ambulance_id, competence_id=payload.get("competence_id", item.competence_id), work_date=payload.get("work_date", item.work_date))
     _validate_entry(db, item.user_id, candidate)
     for field, value in payload.items(): setattr(item, field, value)
-    db.commit(); db.refresh(item)
+    commit_or_conflict(db, "Schedule entry already exists.")
+    db.refresh(item)
     return _response(item)
 
 
@@ -161,8 +276,7 @@ def deactivate_schedule(db: Session, item: Schedule) -> None:
 def save_monthly_schedule(db: Session, user_id: int, month: int, year: int, entries: list[ScheduleCreate]) -> list[ScheduleResponse]:
     start, end = month_range(month, year)
     requested = {(entry.ambulance_id, entry.competence_id, entry.work_date): entry for entry in entries}
-    for entry in entries:
-        _validate_entry(db, user_id, entry)
+    _validate_entries(db, [(user_id, entry) for entry in entries])
     existing = db.query(Schedule).filter(Schedule.user_id == user_id, Schedule.work_date.between(start, end)).all()
     existing_by_key = {(item.ambulance_id, item.competence_id, item.work_date): item for item in existing}
     for key, item in existing_by_key.items():
@@ -172,7 +286,7 @@ def save_monthly_schedule(db: Session, user_id: int, month: int, year: int, entr
             existing_by_key[key].is_active = True
         else:
             db.add(Schedule(user_id=user_id, is_active=True, **entry.model_dump()))
-    db.commit()
+    commit_or_conflict(db, "One or more schedule entries already exist.")
     return get_user_schedule(db, user_id, month, year)
 
 
@@ -192,9 +306,8 @@ def save_ambulance_monthly_schedule(
     start, end = month_range(month, year)
     requested = {(entry.user_id, entry.competence_id, entry.work_date): entry for entry in entries}
 
-    for entry in requested.values():
-        _validate_entry(
-            db,
+    validation_entries = [
+        (
             entry.user_id,
             ScheduleCreate(
                 ambulance_id=ambulance_id,
@@ -202,6 +315,9 @@ def save_ambulance_monthly_schedule(
                 work_date=entry.work_date,
             ),
         )
+        for entry in requested.values()
+    ]
+    _validate_entries(db, validation_entries)
 
     existing = (
         db.query(Schedule)
@@ -231,5 +347,5 @@ def save_ambulance_monthly_schedule(
                 )
             )
 
-    db.commit()
+    commit_or_conflict(db, "One or more schedule entries already exist.")
     return get_ambulance_schedule(db, ambulance_id, month, year)
