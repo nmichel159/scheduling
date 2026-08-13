@@ -1,13 +1,14 @@
 import client from '../api/client';
+import { fetchAllCursorPages } from '../api/pagination';
 
 /**
  * Frontend service wrapper for ambulance management APIs.
  * Used by managers (Role Level >= 2) to manage employee assignments.
  */
 
-/** List ambulances managed by the given user. */
-export async function fetchManagerAmbulances(userId) {
-  const { data } = await client.get(`/ambulances/managers/${userId}/ambulances`);
+/** List ambulances managed by the logged-in user. */
+export async function fetchManagerAmbulances() {
+  const { data } = await client.get('/ambulances/me/managed');
   return data;
 }
 
@@ -19,8 +20,15 @@ export async function fetchMyAssignedAmbulances() {
 
 /** List employees assigned to an ambulance (manager-owned only). */
 export async function fetchEmployees(ambulanceId) {
-  const { data } = await client.get(`/ambulances/${ambulanceId}/employees`);
-  return data;
+  return fetchAllCursorPages(
+    async (afterId, limit) => {
+      const { data } = await client.get(`/ambulances/${ambulanceId}/employees`, {
+        params: { after_id: afterId, limit },
+      });
+      return data;
+    },
+    (employee) => employee.user_id
+  );
 }
 
 /** Assign a user to an ambulance. */
@@ -38,14 +46,26 @@ export async function removeEmployee(ambulanceId, userId) {
 
 /** List all active users (manager role required). */
 export async function fetchUsers() {
-  const { data } = await client.get('/users');
-  return data;
+  return fetchAllCursorPages(
+    async (afterId, limit) => {
+      const { data } = await client.get('/users', { params: { after_id: afterId, limit } });
+      return data;
+    },
+    (user) => user.id
+  );
 }
 
 /** List active users holding a specific role (e.g. 2 = LEADER, 3 = AMBULANCE_OVERSEER). */
 export async function fetchUsersByRole(roleId) {
-  const { data } = await client.get('/users/by-role', { params: { role_id: roleId } });
-  return data;
+  return fetchAllCursorPages(
+    async (afterId, limit) => {
+      const { data } = await client.get('/users/by-role', {
+        params: { role_id: roleId, after_id: afterId, limit },
+      });
+      return data;
+    },
+    (user) => user.id
+  );
 }
 
 /** List role IDs assigned to the logged-in user. */

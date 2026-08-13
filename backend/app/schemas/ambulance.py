@@ -1,15 +1,15 @@
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class AmbulanceCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
+    name: str = Field(min_length=1, max_length=200)
+    description: Optional[str] = Field(None, max_length=2000)
     isurgent: bool = False
     manager_id: Optional[int] = None
 
 class AmbulanceUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    description: Optional[str] = Field(None, max_length=2000)
     isurgent: Optional[bool] = None
     manager_id: Optional[int] = None
 

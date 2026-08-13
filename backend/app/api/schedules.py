@@ -1,9 +1,11 @@
 from datetime import date
+from threading import BoundedSemaphore
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, contains_eager
 
+from app.core.config import settings
 from app.core.dependencies import get_current_user, get_manager_ambulance, require_manager_role
 from app.db.session import get_db
 from app.models.ambulance import Ambulance
@@ -12,10 +14,13 @@ from app.models.schedule import Schedule
 from app.models.user import User
 from app.schemas.schedule import MonthlyScheduleSave, MonthlyScheduleStatistics, NextScheduleResponse, ScheduleCreate, ScheduleEdit, ScheduleGenerationResponse, ScheduleResponse, ScheduleUpdate, UserMonthlySchedule, WorkedScheduleStatistics
 from app.services.schedule_generation_service import ScheduleGenerationError, generate_ambulance_monthly_schedule
-from app.services.schedule_service import create_schedule, deactivate_schedule, get_ambulance_schedule, get_next_user_schedule, get_user_monthly_statistics, get_user_schedule, get_user_worked_statistics, save_ambulance_monthly_schedule, save_monthly_schedule, update_schedule
+from app.services.schedule_service import create_schedule, deactivate_schedule, get_ambulance_schedule, get_manageable_user_ambulance_ids, get_next_user_schedule, get_user_monthly_statistics, get_user_schedule, get_user_worked_statistics, save_ambulance_monthly_schedule, save_monthly_schedule, update_schedule
 
 router = APIRouter()
 ambulance_router = APIRouter()
+_schedule_generation_slots = BoundedSemaphore(
+    value=settings.SCHEDULE_GENERATION_MAX_CONCURRENCY
+)
 
 
 def _is_admin(user: User) -> bool:
@@ -101,9 +106,15 @@ def get_my_worked_schedule_statistics(current_user: User = Depends(get_current_u
 
 @router.get("/user/{user_id}", response_model=list[ScheduleResponse])
 def get_user_schedule_endpoint(user_id: int, month: int | None = None, year: int | None = None, current_user: User = Depends(require_manager_role), db: Session = Depends(get_db)):
-    _can_manage_user(current_user, db, user_id)
+    ambulance_ids = get_manageable_user_ambulance_ids(db, current_user, user_id)
     selected_month, selected_year = _bounded_schedule_period(month, year)
-    return get_user_schedule(db, user_id, selected_month, selected_year)
+    return get_user_schedule(
+        db,
+        user_id,
+        selected_month,
+        selected_year,
+        ambulance_ids=ambulance_ids,
+    )
 
 
 @router.post("", response_model=ScheduleResponse, status_code=status.HTTP_201_CREATED)
@@ -153,9 +164,9 @@ def get_ambulance_schedule_endpoint(
         Query(ge=0, description="Return employees after this user ID"),
     ] = None,
     limit: Annotated[
-        int | None,
+        int,
         Query(ge=1, le=500, description="Max employees to return"),
-    ] = None,
+    ] = 250,
     db: Session = Depends(get_db),
 ):
     displayed_month, displayed_year = (month, year) if month is not None and year is not None else (date.today().month, date.today().year)
@@ -222,10 +233,19 @@ def generate_ambulance_schedule_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="month and year must be valid.",
         )
-    try:
-        return generate_ambulance_monthly_schedule(db, ambulance.id, month, year)
-    except ScheduleGenerationError as exc:
+    if not _schedule_generation_slots.acquire(blocking=False):
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=exc.as_detail(),
-        ) from exc
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Schedule generation capacity is currently in use. Try again shortly.",
+            headers={"Retry-After": "5"},
+        )
+    try:
+        try:
+            return generate_ambulance_monthly_schedule(db, ambulance.id, month, year)
+        except ScheduleGenerationError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=exc.as_detail(),
+            ) from exc
+    finally:
+        _schedule_generation_slots.release()

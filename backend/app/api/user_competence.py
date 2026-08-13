@@ -38,8 +38,8 @@ def list_employees_by_competence_endpoint(
         ge=0,
         description="Return employees after this user ID",
     ),
-    limit: int | None = Query(
-        None,
+    limit: int = Query(
+        250,
         ge=1,
         le=500,
         description="Max employees to return",

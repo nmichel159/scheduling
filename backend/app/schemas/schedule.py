@@ -64,7 +64,7 @@ class WorkedScheduleStatistics(BaseModel):
     worked_day_count: int
 
 class ScheduleUpdate(BaseModel):
-    entries: list[ScheduleEntry]
+    entries: list[ScheduleEntry] = Field(max_length=20000)
 
 
 class ScheduleEdit(BaseModel):
@@ -77,7 +77,7 @@ class MonthlyScheduleSave(BaseModel):
     user_id: int
     month: int = Field(ge=1, le=12)
     year: int = Field(ge=2000, le=2100)
-    entries: list[ScheduleCreate] = Field(default_factory=list)
+    entries: list[ScheduleCreate] = Field(default_factory=list, max_length=20000)
 
     @model_validator(mode="after")
     def entries_must_belong_to_month(self):

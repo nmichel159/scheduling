@@ -35,7 +35,7 @@ router = APIRouter()
 )
 def list_role_assignments_endpoint(
     after_id: int | None = Query(None, ge=0, description="Return users after this ID"),
-    limit: int | None = Query(None, ge=1, le=500, description="Max users to return"),
+    limit: int = Query(250, ge=1, le=500, description="Max users to return"),
     _admin: User = Depends(require_admin_role),
     db: Session = Depends(get_db),
 ) -> list[UserRoleAssignmentResponse]:
@@ -46,7 +46,7 @@ def list_role_assignments_endpoint(
 def users_by_role_endpoint(
     role_id: int,
     after_id: int | None = Query(None, ge=0, description="Return users after this ID"),
-    limit: int | None = Query(None, ge=1, le=500, description="Max users to return"),
+    limit: int = Query(250, ge=1, le=500, description="Max users to return"),
     _admin: User = Depends(require_admin_role),
     db: Session = Depends(get_db),
 ) -> list[UserByRoleResponse]:
@@ -60,7 +60,7 @@ def users_by_role_endpoint(
 )
 def list_users_endpoint(
     after_id: int | None = Query(None, ge=0, description="Return users after this ID"),
-    limit: int | None = Query(None, ge=1, le=500, description="Max users to return"),
+    limit: int = Query(250, ge=1, le=500, description="Max users to return"),
     _manager: User = Depends(require_manager_role),
     db: Session = Depends(get_db),
 ) -> list[UserListResponse]:

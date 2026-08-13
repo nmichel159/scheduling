@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 # Add the project root to python path to allow absolute imports.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from app.db.session import Base, SessionLocal, engine
+from app.db.session import SessionLocal, engine
 from app.models.ambulance import Ambulance
 from app.models.associations import UserAmbulance, UserCompetence, UserRole
 from app.models.competence import Competence
@@ -556,8 +556,6 @@ def seed_db(config_name: str | None = None, *, only_if_outdated: bool = False) -
         f"Checking database seed {selected_config_name} "
         f"(target version {target_version})..."
     )
-
-    Base.metadata.create_all(bind=engine)
 
     db: Session = SessionLocal()
     try:

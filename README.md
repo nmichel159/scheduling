@@ -71,6 +71,12 @@ cd scheduling
 
 ```
 
+Copy the environment template and replace the placeholder password and secret:
+
+```powershell
+Copy-Item .env.example .env
+```
+
 
 2. **Build and start the containers** in detached mode (PowerShell):
 ```powershell

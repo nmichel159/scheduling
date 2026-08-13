@@ -6,13 +6,46 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 from alembic import command
 from alembic.config import Config
 import sqlalchemy as sa
 
+from app.db.session import Base
+import app.models  # noqa: F401 - register expected application tables
+
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
+
+
+class FreshDatabaseMigrationTests(unittest.TestCase):
+    """Verify a new installation can be created entirely through Alembic."""
+
+    def test_upgrade_head_creates_the_complete_application_schema(self) -> None:
+        handle, database_path = tempfile.mkstemp(suffix=".sqlite3")
+        os.close(handle)
+        path = Path(database_path)
+        database_url = f"sqlite:///{path.as_posix()}"
+        engine = sa.create_engine(database_url)
+        config = Config(str(BACKEND_ROOT / "alembic.ini"))
+        config.set_main_option("sqlalchemy.url", database_url)
+        try:
+            with mock.patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("DATABASE_URL", None)
+                command.upgrade(config, "head")
+                command.check(config)
+
+            table_names = set(sa.inspect(engine).get_table_names())
+            self.assertTrue(set(Base.metadata.tables).issubset(table_names))
+            with engine.connect() as connection:
+                self.assertEqual(
+                    connection.scalar(sa.text("SELECT version_num FROM alembic_version")),
+                    "20260813_02",
+                )
+        finally:
+            engine.dispose()
+            path.unlink(missing_ok=True)
 
 
 class CompetenceWeekdayMigrationTests(unittest.TestCase):
@@ -51,7 +84,7 @@ class CompetenceWeekdayMigrationTests(unittest.TestCase):
         config = Config(str(BACKEND_ROOT / "alembic.ini"))
         config.set_main_option("sqlalchemy.url", self.database_url)
 
-        with unittest.mock.patch.dict(os.environ, {}, clear=False):
+        with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("DATABASE_URL", None)
             command.upgrade(config, "head")
 

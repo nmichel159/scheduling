@@ -1,1 +1,1 @@
--- Empty init script. Table creation is handled by SQLAlchemy in the backend.
+-- Empty init script. Table creation is handled by Alembic migrations.

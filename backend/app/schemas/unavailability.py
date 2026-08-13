@@ -21,7 +21,7 @@ class UnavailabilityBase(BaseModel):
     """Shared fields between read and write operations."""
 
     date_absent: date = Field(..., description="The date the user is unavailable.")
-    reason: Optional[str] = Field(None, description="Optional reason for unavailability.")
+    reason: Optional[str] = Field(None, max_length=1000, description="Optional reason for unavailability.")
 
 
 class UnavailabilityCreate(UnavailabilityBase):
@@ -37,7 +37,7 @@ class UnavailabilityUpdate(BaseModel):
     """
 
     date_absent: Optional[date] = Field(None, description="Updated absence date.")
-    reason: Optional[str] = Field(None, description="Updated reason for unavailability.")
+    reason: Optional[str] = Field(None, max_length=1000, description="Updated reason for unavailability.")
 
 
 class UnavailabilityResponse(UnavailabilityBase):

@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.db.session import engine, Base
 from app.api import auth  # Ak si vytvoríš router v api
 from app.api import unavailability
 from app.api import ambulance_employee
@@ -13,16 +12,16 @@ from app.api import employee_competences
 from app.api import schedules
 from app.core.config import settings
 import app.models  # Import all models so they are registered in Base.metadata
+from app.services.audit_service import install_audit_hooks
 
-# Vytvorenie tabuliek pri štarte
-Base.metadata.create_all(bind=engine)
+# Register transactional audit hooks once for all application sessions.
+install_audit_hooks()
 
 app = FastAPI(title="Scheduling API")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in settings.FRONTEND_ORIGINS.split(",") if origin.strip()],
-    allow_origin_regex=settings.FRONTEND_ORIGIN_REGEX or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import require_admin_role
+from app.core.dependencies import get_current_user, require_admin_role
 from app.db.session import get_db
 from app.models.ambulance import Ambulance
 from app.models.user import User
@@ -15,13 +15,13 @@ def _active(db, urgent=None):
     return query.order_by(Ambulance.name).all()
 
 @router.get("/standard", response_model=list[AmbulanceResponse])
-def get_standard_ambulances(db: Session = Depends(get_db)): return _active(db, False)
+def get_standard_ambulances(_: User = Depends(get_current_user), db: Session = Depends(get_db)): return _active(db, False)
 
 @router.get("/urgent", response_model=list[AmbulanceResponse])
-def get_urgent_ambulances(db: Session = Depends(get_db)): return _active(db, True)
+def get_urgent_ambulances(_: User = Depends(get_current_user), db: Session = Depends(get_db)): return _active(db, True)
 
 @router.get("", response_model=list[AmbulanceResponse])
-def list_ambulances(db: Session = Depends(get_db)): return _active(db)
+def list_ambulances(_: User = Depends(get_current_user), db: Session = Depends(get_db)): return _active(db)
 
 @router.post("", response_model=AmbulanceResponse, status_code=201)
 def create_ambulance(data: AmbulanceCreate, _: User = Depends(require_admin_role), db: Session = Depends(get_db)):

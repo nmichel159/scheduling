@@ -18,7 +18,7 @@ class CompetenceWeekdayRequirementData(BaseModel):
     """Required staffing for one ISO weekday (Monday=0, Sunday=6)."""
 
     weekday: int = Field(..., ge=0, le=6)
-    required_count: int = Field(..., ge=0)
+    required_count: int = Field(..., ge=0, le=1000)
 
     class Config:
         from_attributes = True
@@ -39,11 +39,12 @@ def _validate_complete_weekday_requirements(
 class CompetenceBase(BaseModel):
     """Shared fields between read and write operations."""
 
-    name: str = Field(..., description="Name of the competence.")
-    description: Optional[str] = Field(None, description="Optional description of the competence.")
+    name: str = Field(..., min_length=1, max_length=200, description="Name of the competence.")
+    description: Optional[str] = Field(None, max_length=2000, description="Optional description of the competence.")
     required_count: int = Field(
         1,
         ge=0,
+        le=1000,
         description="Legacy all-days worker count used when weekday requirements are absent.",
     )
     weekday_requirements: Optional[list[CompetenceWeekdayRequirementData]] = Field(
@@ -68,9 +69,9 @@ class CompetenceUpdate(BaseModel):
     All fields are optional to support partial updates.
     """
 
-    name: Optional[str] = Field(None, description="Updated competence name.")
-    description: Optional[str] = Field(None, description="Updated competence description.")
-    required_count: Optional[int] = Field(None, ge=0, description="Updated legacy worker count.")
+    name: Optional[str] = Field(None, min_length=1, max_length=200, description="Updated competence name.")
+    description: Optional[str] = Field(None, max_length=2000, description="Updated competence description.")
+    required_count: Optional[int] = Field(None, ge=0, le=1000, description="Updated legacy worker count.")
     weekday_requirements: Optional[list[CompetenceWeekdayRequirementData]] = None
 
     _validate_weekdays = field_validator("weekday_requirements")(

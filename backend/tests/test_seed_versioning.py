@@ -143,11 +143,11 @@ class SeedVersioningTests(unittest.TestCase):
         with (
             patch.object(bootstrap.settings, "AUTO_SEED", False),
             patch.object(bootstrap, "seed_db") as seed_db,
-            patch.object(bootstrap.Base.metadata, "create_all") as create_all,
+            patch.object(bootstrap, "migrate_database") as migrate_database,
         ):
             self.assertFalse(bootstrap.bootstrap_database())
 
-        create_all.assert_called_once_with(bind=bootstrap.engine)
+        migrate_database.assert_called_once_with()
         seed_db.assert_not_called()
 
     def test_seed_schedule_failure_exposes_solver_reasons(self) -> None:

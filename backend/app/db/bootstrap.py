@@ -1,13 +1,22 @@
-"""Prepare the database schema and optionally update deterministic mock data."""
+"""Prepare the database schema, migrate it, and optionally seed mock data."""
+
+from pathlib import Path
+
+from alembic import command
+from alembic.config import Config
 
 from app.core.config import settings
 from app.db.seed import seed_db
-from app.db.session import Base, engine
-import app.models  # noqa: F401 - registers every model in Base.metadata
+
+
+def migrate_database() -> None:
+    """Run all committed migrations before optional seed writes."""
+    alembic_config = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
+    command.upgrade(alembic_config, "head")
 
 
 def bootstrap_database() -> bool:
-    Base.metadata.create_all(bind=engine)
+    migrate_database()
     if not settings.AUTO_SEED:
         print("Automatic database seeding is disabled (AUTO_SEED=false).")
         return False

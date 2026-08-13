@@ -8,7 +8,7 @@ authenticated manager owns the target ambulance.
 from datetime import date
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, get_manager_ambulance
@@ -52,6 +52,19 @@ from app.services.unavailability_service import (
 router = APIRouter()
 
 
+def _can_read_user_ambulances(current_user: User, user_id: int) -> None:
+    """Allow self-service reads and hospital administrators only."""
+    is_admin = any(
+        item.role and item.role.is_active and item.role.level >= 3
+        for item in current_user.user_roles
+    )
+    if current_user.id != user_id and not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only read your own ambulance assignments.",
+        )
+
+
 def get_managed_employee(
     user_id: int,
     ambulance: Ambulance = Depends(get_manager_ambulance),
@@ -72,9 +85,9 @@ def list_employee_competence_table(
         Query(ge=0, description="Return employees after this user ID"),
     ] = None,
     limit: Annotated[
-        int | None,
+        int,
         Query(ge=1, le=500, description="Max employees to return"),
-    ] = None,
+    ] = 250,
     ambulance: Ambulance = Depends(get_manager_ambulance),
     db: Session = Depends(get_db),
 ):
@@ -106,9 +119,11 @@ def update_employee_competence_table_endpoint(
 )
 def list_employee_ambulances_endpoint(
     user_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[AmbulanceListResponse]:
     """Retrieve all active ambulances assigned to an employee."""
+    _can_read_user_ambulances(current_user, user_id)
     return list_employee_ambulances(db, user_id)
 
 
@@ -119,9 +134,11 @@ def list_employee_ambulances_endpoint(
 )
 def list_manager_ambulances_endpoint(
     user_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[AmbulanceListResponse]:
     """Retrieve all active ambulances where the user is the manager."""
+    _can_read_user_ambulances(current_user, user_id)
     return list_manager_ambulances(db, user_id)
 
 @router.get("/me/managed", response_model=list[AmbulanceListResponse])
@@ -140,7 +157,7 @@ def my_assigned_ambulances(current_user=Depends(get_current_user), db: Session =
 )
 def list_employees_endpoint(
     after_id: int | None = Query(None, ge=0, description="Return employees after this user ID"),
-    limit: int | None = Query(None, ge=1, le=500, description="Max employees to return"),
+    limit: int = Query(250, ge=1, le=500, description="Max employees to return"),
     ambulance: Ambulance = Depends(get_manager_ambulance),
     db: Session = Depends(get_db),
 ) -> list[EmployeeListResponse]:

@@ -18,12 +18,14 @@ def get_employee_competence_table(
     ambulance_id: int,
     after_id: int | None = None,
     limit: int | None = None,
+    user_ids: set[int] | None = None,
 ) -> list[AmbulanceEmployeeCompetenceRow]:
     rows = _get_employee_competence_rows(
         db,
         ambulance_id,
         after_id=after_id,
         limit=limit,
+        user_ids=user_ids,
     )
     employees: dict[int, AmbulanceEmployeeCompetenceRow] = {}
     for row in rows:
@@ -48,6 +50,7 @@ def _get_employee_competence_rows(
     ambulance_id: int,
     after_id: int | None = None,
     limit: int | None = None,
+    user_ids: set[int] | None = None,
 ) -> list:
     """Load only assignments whose competence belongs to this ambulance."""
     employee_ids_query = (
@@ -62,6 +65,12 @@ def _get_employee_competence_rows(
     if after_id is not None:
         employee_ids_query = employee_ids_query.filter(
             UserAmbulance.user_id > after_id
+        )
+    if user_ids is not None:
+        if not user_ids:
+            return []
+        employee_ids_query = employee_ids_query.filter(
+            UserAmbulance.user_id.in_(user_ids)
         )
     if after_id is not None or limit is not None:
         employee_ids_query = employee_ids_query.order_by(UserAmbulance.user_id)
@@ -176,4 +185,8 @@ def update_employee_competence_table(
             existing.append(item)
 
     db.commit()
-    return get_employee_competence_table(db, ambulance_id)
+    return get_employee_competence_table(
+        db,
+        ambulance_id,
+        user_ids=submitted_ids,
+    )

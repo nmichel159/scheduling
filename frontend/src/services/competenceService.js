@@ -1,4 +1,5 @@
 import client from '../api/client';
+import { fetchAllCursorPages } from '../api/pagination';
 
 /**
  * Frontend service for the competence codebook and the bulk employee
@@ -52,8 +53,16 @@ export async function deleteCompetence(ambulanceId, competenceId) {
 
 /** Load the full employee/competence table for an ambulance in one call. */
 export async function fetchEmployeeCompetenceTable(ambulanceId) {
-  const { data } = await client.get(`/ambulances/${ambulanceId}/employees/competences`);
-  return data;
+  return fetchAllCursorPages(
+    async (afterId, limit) => {
+      const { data } = await client.get(
+        `/ambulances/${ambulanceId}/employees/competences`,
+        { params: { after_id: afterId, limit } }
+      );
+      return data;
+    },
+    (employee) => employee.user_id
+  );
 }
 
 /**
@@ -87,6 +96,11 @@ export async function removeEmployeeFromAmbulance(ambulanceId, userId) {
 
 /** List all active users in the hospital (pool for adding employees). */
 export async function fetchAllUsers() {
-  const { data } = await client.get('/users');
-  return data;
+  return fetchAllCursorPages(
+    async (afterId, limit) => {
+      const { data } = await client.get('/users', { params: { after_id: afterId, limit } });
+      return data;
+    },
+    (user) => user.id
+  );
 }

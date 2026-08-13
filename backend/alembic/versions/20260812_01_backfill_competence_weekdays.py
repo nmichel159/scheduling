@@ -1,7 +1,7 @@
 """Create and backfill weekday staffing requirements.
 
 Revision ID: 20260812_01
-Revises:
+Revises: 20260811_01
 Create Date: 2026-08-12
 """
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 revision = "20260812_01"
-down_revision = None
+down_revision = "20260811_01"
 branch_labels = None
 depends_on = None
 

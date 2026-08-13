@@ -1,4 +1,5 @@
 import client from '../api/client';
+import { fetchAllCursorPages } from '../api/pagination';
 
 /** Zoznam rolí prihláseného usera: [{ name: 'LEADER', index: 2 }, ...] */
 export async function fetchMyRoles() {
@@ -14,8 +15,15 @@ export async function fetchAllRoles() {
 
 
 export async function fetchRoleAssignments() {
-  const { data } = await client.get('/users/role-assignments');
-  return data;
+  return fetchAllCursorPages(
+    async (afterId, limit) => {
+      const { data } = await client.get('/users/role-assignments', {
+        params: { after_id: afterId, limit },
+      });
+      return data;
+    },
+    (user) => user.id
+  );
 }
 
 

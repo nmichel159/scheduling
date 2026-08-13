@@ -1,4 +1,5 @@
 import client from '../api/client';
+import { fetchAllCursorPages } from '../api/pagination';
 
 /**
  * Frontend service wrapper for the /schedules API.
@@ -41,8 +42,16 @@ export async function fetchMyWorkedScheduleStatistics() {
  * flatten them into a single list of shifts for the calendar.
  */
 export async function fetchAmbulanceSchedule(ambulanceId, params = {}) {
-  const { data } = await client.get(`/ambulances/${ambulanceId}/schedule`, { params });
-  return data.flatMap((employee) => employee.entries || []);
+  const employees = await fetchAllCursorPages(
+    async (afterId, limit) => {
+      const { data } = await client.get(`/ambulances/${ambulanceId}/schedule`, {
+        params: { ...params, after_id: afterId, limit },
+      });
+      return data;
+    },
+    (employee) => employee.user_id
+  );
+  return employees.flatMap((employee) => employee.entries || []);
 }
 
 /**

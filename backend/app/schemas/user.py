@@ -6,7 +6,7 @@ Used by managers to pick users when assigning employees to ambulances.
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UserListResponse(BaseModel):
@@ -46,4 +46,4 @@ class UserRoleAssignmentResponse(UserListResponse):
 
 
 class UserRolesUpdate(BaseModel):
-    role_ids: list[int]
+    role_ids: list[int] = Field(max_length=3)

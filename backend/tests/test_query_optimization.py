@@ -41,6 +41,7 @@ from app.services.schedule_service import (
 from app.api.schedules import (
     _bounded_schedule_period,
     get_ambulance_schedule_endpoint,
+    get_user_schedule_endpoint,
     save_monthly_schedule_endpoint,
 )
 from app.api.competence import my_ambulance_competences
@@ -502,6 +503,53 @@ class AmbulanceReadQueryTests(unittest.TestCase):
             ),
         )
         self.assertEqual(len(result), 1)
+
+    def test_user_schedule_read_does_not_leak_another_managers_clinic(self) -> None:
+        """A shared employee's duties are limited to clinics owned by the caller."""
+        external_ambulance = (
+            self.session.query(Ambulance)
+            .filter(Ambulance.id != self.ambulance_id)
+            .one()
+        )
+        external_ambulance.managed_by_user_id = 1000
+        employee_id = self.employee_ids[0]
+        self.session.add(
+            UserAmbulance(
+                user_id=employee_id,
+                ambulance_id=external_ambulance.id,
+                is_active=True,
+            )
+        )
+        self.session.add(
+            Schedule(
+                user_id=employee_id,
+                ambulance_id=external_ambulance.id,
+                competence_id=self.external_competence_id,
+                work_date=date(2026, 8, 2),
+                is_active=True,
+            )
+        )
+        self.session.commit()
+        manager = User(
+            id=999,
+            email="manager@example.com",
+            full_name="Manager",
+            is_active=True,
+        )
+
+        result = self._assert_query_count(
+            2,
+            lambda: get_user_schedule_endpoint(
+                user_id=employee_id,
+                month=8,
+                year=2026,
+                current_user=manager,
+                db=self.session,
+            ),
+        )
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].ambulance_id, self.ambulance_id)
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.user import User
 from app.models.ambulance import Ambulance
+from app.services.audit_service import AUDIT_ACTOR_KEY
 from app.core.auth_provider import SessionAuthenticationProvider
 from app.core.config import settings
 
@@ -44,6 +45,7 @@ def get_current_user(
         user = _authentication_provider.resolve_user(db, session_token)
     except LookupError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired session.")
+    db.info[AUDIT_ACTOR_KEY] = user.id
     return user
 
 

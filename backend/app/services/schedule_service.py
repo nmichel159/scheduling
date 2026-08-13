@@ -4,6 +4,7 @@ from datetime import date
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.ambulance import Ambulance
 from app.models.associations import UserAmbulance, UserCompetence
 from app.models.competence import Competence
 from app.models.schedule import Schedule
@@ -25,7 +26,45 @@ def _response(item: Schedule) -> ScheduleResponse:
     return ScheduleResponse(id=item.id, user_id=item.user_id, ambulance_id=item.ambulance_id, competence_id=item.competence_id, work_date=item.work_date, user_email=item.user.email if item.user else None, user_full_name=item.user.full_name if item.user else None, competence_name=item.competence.name if item.competence else None, created_at=item.created_at, updated_at=item.updated_at)
 
 
-def get_user_schedule(db: Session, user_id: int, month: int | None = None, year: int | None = None) -> list[ScheduleResponse]:
+def get_manageable_user_ambulance_ids(
+    db: Session,
+    current_user: User,
+    user_id: int,
+) -> set[int] | None:
+    """Return the employee's clinics visible to a manager; admins see all."""
+    is_admin = any(
+        item.role and item.role.is_active and item.role.level >= 3
+        for item in current_user.user_roles
+    )
+    if is_admin:
+        return None
+    ambulance_ids = {
+        ambulance_id
+        for (ambulance_id,) in db.query(UserAmbulance.ambulance_id)
+        .join(Ambulance)
+        .filter(
+            UserAmbulance.user_id == user_id,
+            UserAmbulance.is_active.is_(True),
+            Ambulance.managed_by_user_id == current_user.id,
+            Ambulance.is_active.is_(True),
+        )
+        .all()
+    }
+    if not ambulance_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You may view schedules only in ambulances you manage.",
+        )
+    return ambulance_ids
+
+
+def get_user_schedule(
+    db: Session,
+    user_id: int,
+    month: int | None = None,
+    year: int | None = None,
+    ambulance_ids: set[int] | None = None,
+) -> list[ScheduleResponse]:
     query = (
         db.query(Schedule)
         .options(joinedload(Schedule.user), joinedload(Schedule.competence))
@@ -34,6 +73,10 @@ def get_user_schedule(db: Session, user_id: int, month: int | None = None, year:
     period = month_range(month, year)
     if period:
         query = query.filter(Schedule.work_date.between(*period))
+    if ambulance_ids is not None:
+        if not ambulance_ids:
+            return []
+        query = query.filter(Schedule.ambulance_id.in_(ambulance_ids))
     return [_response(row) for row in query.order_by(Schedule.work_date, Schedule.competence_id).all()]
 
 
@@ -348,4 +391,10 @@ def save_ambulance_monthly_schedule(
             )
 
     commit_or_conflict(db, "One or more schedule entries already exist.")
-    return get_ambulance_schedule(db, ambulance_id, month, year)
+    return get_ambulance_schedule(
+        db,
+        ambulance_id,
+        month,
+        year,
+        user_ids={entry.user_id for entry in entries},
+    )
