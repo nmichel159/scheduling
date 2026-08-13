@@ -81,12 +81,28 @@ class CompetenceUpdate(BaseModel):
 class CompetenceResponse(CompetenceBase):
     """Schema for serializing a competence record in API responses."""
 
+    weekday_requirements: Optional[list[CompetenceWeekdayRequirementData]] = None
     id: int
     ambulance_id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     is_active: Optional[bool] = None
     count: int
+
+    @field_validator("weekday_requirements", mode="before")
+    @classmethod
+    def _empty_weekday_requirements_use_legacy_count(cls, requirements):
+        """Serialize pre-migration rows through the legacy count contract.
+
+        Some deployed databases can contain competences without the optional
+        weekday child rows.  Returning ``None`` keeps that established state
+        readable; clients already expand it to seven days from
+        ``required_count``.  Non-empty definitions still pass through the
+        complete-week validator inherited from :class:`CompetenceBase`.
+        """
+        if requirements is not None and len(requirements) == 0:
+            return None
+        return requirements
 
     class Config:
         from_attributes = True

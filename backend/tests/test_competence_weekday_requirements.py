@@ -7,7 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.db.session import Base
-from app.models import Ambulance
+from app.models import Ambulance, Competence
 from app.schemas.competence import CompetenceCreate, CompetenceResponse, CompetenceUpdate
 from app.services.competence_service import create_competence, update_competence
 
@@ -88,6 +88,36 @@ class CompetenceWeekdayRequirementTests(unittest.TestCase):
             [item.required_count for item in updated.weekday_requirements],
             [4] * 7,
         )
+
+    def test_response_keeps_pre_migration_empty_week_readable(self) -> None:
+        """Missing child rows use required_count instead of causing HTTP 500."""
+        competence = Competence(
+            name="Legacy",
+            ambulance_id=self.ambulance_id,
+            required_count=3,
+            is_active=True,
+        )
+        self.db.add(competence)
+        self.db.commit()
+        self.db.refresh(competence)
+
+        response = CompetenceResponse.model_validate(competence)
+
+        self.assertIsNone(response.weekday_requirements)
+        self.assertEqual(response.required_count, 3)
+
+    def test_response_still_rejects_incomplete_nonempty_week(self) -> None:
+        """Compatibility must not hide partially corrupt weekly definitions."""
+        payload = {
+            "id": 1,
+            "ambulance_id": self.ambulance_id,
+            "name": "Partial",
+            "required_count": 2,
+            "count": 2,
+            "weekday_requirements": _week([2, 2, 2]),
+        }
+        with self.assertRaises(ValidationError):
+            CompetenceResponse.model_validate(payload)
 
 
 if __name__ == "__main__":
