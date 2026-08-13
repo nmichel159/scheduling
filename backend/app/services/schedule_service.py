@@ -2,6 +2,7 @@ from calendar import monthrange
 from datetime import date
 
 from fastapi import HTTPException, status
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.ambulance import Ambulance
@@ -10,7 +11,13 @@ from app.models.competence import Competence
 from app.models.schedule import Schedule
 from app.models.unavailability import Unavailability
 from app.models.user import User
-from app.schemas.schedule import ScheduleCreate, ScheduleEdit, ScheduleEntry, ScheduleResponse
+from app.schemas.schedule import (
+    ScheduleApprovalResponse,
+    ScheduleCreate,
+    ScheduleEdit,
+    ScheduleEntry,
+    ScheduleResponse,
+)
 from app.services.database_conflict import commit_or_conflict
 
 
@@ -23,7 +30,41 @@ def month_range(month: int | None, year: int | None) -> tuple[date, date] | None
 
 
 def _response(item: Schedule) -> ScheduleResponse:
-    return ScheduleResponse(id=item.id, user_id=item.user_id, ambulance_id=item.ambulance_id, competence_id=item.competence_id, work_date=item.work_date, user_email=item.user.email if item.user else None, user_full_name=item.user.full_name if item.user else None, competence_name=item.competence.name if item.competence else None, created_at=item.created_at, updated_at=item.updated_at)
+    """Serialize one schedule row with its publication state."""
+    return ScheduleResponse(
+        id=item.id,
+        user_id=item.user_id,
+        ambulance_id=item.ambulance_id,
+        competence_id=item.competence_id,
+        work_date=item.work_date,
+        user_email=item.user.email if item.user else None,
+        user_full_name=item.user.full_name if item.user else None,
+        competence_name=item.competence.name if item.competence else None,
+        is_approved=item.is_approved,
+        created_at=item.created_at,
+        updated_at=item.updated_at,
+    )
+
+
+def _unapprove_schedule_packages(
+    db: Session,
+    packages: set[tuple[int, int, int]],
+) -> None:
+    """Hide every affected ambulance-month package after any schedule edit."""
+    conditions = []
+    for ambulance_id, month, year in packages:
+        start, end = month_range(month, year)
+        conditions.append(
+            and_(
+                Schedule.ambulance_id == ambulance_id,
+                Schedule.work_date.between(start, end),
+            )
+        )
+    if conditions:
+        db.query(Schedule).filter(or_(*conditions)).update(
+            {Schedule.is_approved: False},
+            synchronize_session=False,
+        )
 
 
 def get_manageable_user_ambulance_ids(
@@ -64,6 +105,7 @@ def get_user_schedule(
     month: int | None = None,
     year: int | None = None,
     ambulance_ids: set[int] | None = None,
+    approved_only: bool = False,
 ) -> list[ScheduleResponse]:
     query = (
         db.query(Schedule)
@@ -77,6 +119,8 @@ def get_user_schedule(
         if not ambulance_ids:
             return []
         query = query.filter(Schedule.ambulance_id.in_(ambulance_ids))
+    if approved_only:
+        query = query.filter(Schedule.is_approved.is_(True))
     return [_response(row) for row in query.order_by(Schedule.work_date, Schedule.competence_id).all()]
 
 
@@ -111,6 +155,7 @@ def get_next_user_schedule(db: Session, user_id: int, today: date | None = None)
         .filter(
             Schedule.user_id == user_id,
             Schedule.is_active.is_(True),
+            Schedule.is_approved.is_(True),
             Schedule.work_date >= reference_date,
         )
         .order_by(Schedule.work_date, Schedule.competence_id, Schedule.id)
@@ -130,6 +175,7 @@ def get_user_monthly_statistics(
         .filter(
             Schedule.user_id == user_id,
             Schedule.is_active.is_(True),
+            Schedule.is_approved.is_(True),
             Schedule.work_date.between(start, end),
         )
         .count()
@@ -152,6 +198,7 @@ def get_user_worked_statistics(
         .filter(
             Schedule.user_id == user_id,
             Schedule.is_active.is_(True),
+            Schedule.is_approved.is_(True),
             Schedule.work_date.between(start, reference_date),
         )
         .distinct()
@@ -225,9 +272,10 @@ def _validate_entries(
     }
     unavailable_dates = {
         (user_id, unavailable_date)
-        for user_id, unavailable_date in db.query(
+        for user_id, unavailable_date, reason in db.query(
             Unavailability.user_id,
             Unavailability.date_absent,
+            Unavailability.reason,
         )
         .filter(
             Unavailability.user_id.in_(user_ids),
@@ -235,6 +283,7 @@ def _validate_entries(
             Unavailability.is_active.is_(True),
         )
         .all()
+        if (reason or "").strip().upper() != "PREFERRED"
     }
     scheduled_ambulances: dict[tuple[int, date], set[int]] = {}
     schedule_rows = (
@@ -286,15 +335,26 @@ def _validate_entry(db: Session, user_id: int, data: ScheduleCreate) -> None:
 
 
 def create_schedule(db: Session, user_id: int, data: ScheduleCreate) -> ScheduleResponse:
+    """Create one draft entry and revoke approval for its monthly package."""
     _validate_entry(db, user_id, data)
+    _unapprove_schedule_packages(
+        db,
+        {(data.ambulance_id, data.work_date.month, data.work_date.year)},
+    )
     existing = db.query(Schedule).filter(Schedule.user_id == user_id, Schedule.ambulance_id == data.ambulance_id, Schedule.competence_id == data.competence_id, Schedule.work_date == data.work_date).first()
     if existing and existing.is_active:
         raise HTTPException(status_code=409, detail="Schedule entry already exists.")
     if existing:
         existing.is_active = True
+        existing.is_approved = False
         item = existing
     else:
-        item = Schedule(user_id=user_id, is_active=True, **data.model_dump())
+        item = Schedule(
+            user_id=user_id,
+            is_active=True,
+            is_approved=False,
+            **data.model_dump(),
+        )
         db.add(item)
     commit_or_conflict(db, "Schedule entry already exists.")
     db.refresh(item)
@@ -302,33 +362,72 @@ def create_schedule(db: Session, user_id: int, data: ScheduleCreate) -> Schedule
 
 
 def update_schedule(db: Session, item: Schedule, data: ScheduleEdit) -> ScheduleResponse:
+    """Update one entry and revoke approval in both affected monthly packages."""
     payload = data.model_dump(exclude_unset=True)
     candidate = ScheduleCreate(ambulance_id=item.ambulance_id, competence_id=payload.get("competence_id", item.competence_id), work_date=payload.get("work_date", item.work_date))
     _validate_entry(db, item.user_id, candidate)
+    _unapprove_schedule_packages(
+        db,
+        {
+            (item.ambulance_id, item.work_date.month, item.work_date.year),
+            (
+                candidate.ambulance_id,
+                candidate.work_date.month,
+                candidate.work_date.year,
+            ),
+        },
+    )
     for field, value in payload.items(): setattr(item, field, value)
+    item.is_approved = False
     commit_or_conflict(db, "Schedule entry already exists.")
     db.refresh(item)
     return _response(item)
 
 
 def deactivate_schedule(db: Session, item: Schedule) -> None:
+    """Deactivate one entry and revoke approval for its monthly package."""
+    _unapprove_schedule_packages(
+        db,
+        {(item.ambulance_id, item.work_date.month, item.work_date.year)},
+    )
     item.is_active = False
+    item.is_approved = False
     db.commit()
 
 
 def save_monthly_schedule(db: Session, user_id: int, month: int, year: int, entries: list[ScheduleCreate]) -> list[ScheduleResponse]:
+    """Synchronize one employee month and revoke every affected package."""
     start, end = month_range(month, year)
     requested = {(entry.ambulance_id, entry.competence_id, entry.work_date): entry for entry in entries}
     _validate_entries(db, [(user_id, entry) for entry in entries])
     existing = db.query(Schedule).filter(Schedule.user_id == user_id, Schedule.work_date.between(start, end)).all()
     existing_by_key = {(item.ambulance_id, item.competence_id, item.work_date): item for item in existing}
+    _unapprove_schedule_packages(
+        db,
+        {
+            (ambulance_id, month, year)
+            for ambulance_id in {
+                *(entry.ambulance_id for entry in entries),
+                *(item.ambulance_id for item in existing),
+            }
+        },
+    )
     for key, item in existing_by_key.items():
         item.is_active = key in requested
+        item.is_approved = False
     for key, entry in requested.items():
         if key in existing_by_key:
             existing_by_key[key].is_active = True
+            existing_by_key[key].is_approved = False
         else:
-            db.add(Schedule(user_id=user_id, is_active=True, **entry.model_dump()))
+            db.add(
+                Schedule(
+                    user_id=user_id,
+                    is_active=True,
+                    is_approved=False,
+                    **entry.model_dump(),
+                )
+            )
     commit_or_conflict(db, "One or more schedule entries already exist.")
     return get_user_schedule(db, user_id, month, year)
 
@@ -376,9 +475,11 @@ def save_ambulance_monthly_schedule(
 
     for key, item in existing_by_key.items():
         item.is_active = key in requested
+        item.is_approved = False
     for key, entry in requested.items():
         if key in existing_by_key:
             existing_by_key[key].is_active = True
+            existing_by_key[key].is_approved = False
         else:
             db.add(
                 Schedule(
@@ -387,6 +488,7 @@ def save_ambulance_monthly_schedule(
                     competence_id=entry.competence_id,
                     work_date=entry.work_date,
                     is_active=True,
+                    is_approved=False,
                 )
             )
 
@@ -397,4 +499,38 @@ def save_ambulance_monthly_schedule(
         month,
         year,
         user_ids={entry.user_id for entry in entries},
+    )
+
+
+def approve_ambulance_monthly_schedule(
+    db: Session,
+    ambulance_id: int,
+    month: int,
+    year: int,
+) -> ScheduleApprovalResponse:
+    """Publish every active entry in one ambulance-month package atomically."""
+    start, end = month_range(month, year)
+    entries = (
+        db.query(Schedule)
+        .filter(
+            Schedule.ambulance_id == ambulance_id,
+            Schedule.work_date.between(start, end),
+            Schedule.is_active.is_(True),
+        )
+        .all()
+    )
+    if not entries:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An empty schedule cannot be approved.",
+        )
+    for entry in entries:
+        entry.is_approved = True
+    db.commit()
+    return ScheduleApprovalResponse(
+        ambulance_id=ambulance_id,
+        month=month,
+        year=year,
+        is_approved=True,
+        approved_entry_count=len(entries),
     )

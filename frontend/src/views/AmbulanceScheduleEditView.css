@@ -247,6 +247,32 @@
   min-width: 0;
 }
 
+.schedule-edit-month-navigation {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.schedule-edit-month-button {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--background);
+  color: var(--text-h);
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.schedule-edit-month-button:hover {
+  border-color: var(--primary);
+}
+
 .schedule-edit-topbar-name {
   font-weight: 700;
   font-size: 1.05rem;
@@ -264,6 +290,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .schedule-edit-status {
@@ -277,6 +304,27 @@
 .schedule-edit-unsaved {
   color: #ffb74d;
   opacity: 1;
+}
+
+.schedule-edit-approval-status {
+  padding: 5px 9px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.schedule-edit-approval-status.is-approved {
+  color: #2e9d62;
+  border-color: rgba(46, 157, 98, 0.45);
+  background: rgba(46, 157, 98, 0.1);
+}
+
+.schedule-edit-approval-status.is-draft {
+  color: #d99a2b;
+  border-color: rgba(217, 154, 43, 0.45);
+  background: rgba(217, 154, 43, 0.1);
 }
 
 .schedule-edit-btn {
@@ -304,6 +352,14 @@
 .schedule-edit-btn-primary:not(:disabled):hover {
   filter: brightness(1.1);
   border-color: var(--primary);
+}
+.schedule-edit-btn-approve {
+  color: #2e9d62;
+  border-color: rgba(46, 157, 98, 0.6);
+}
+.schedule-edit-btn-approve:not(:disabled):hover {
+  background: rgba(46, 157, 98, 0.1);
+  border-color: #2e9d62;
 }
 .schedule-edit-btn-danger {
   color: #ef5350;

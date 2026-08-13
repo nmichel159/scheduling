@@ -463,7 +463,7 @@ class AmbulanceReadQueryTests(unittest.TestCase):
             )
         ]
         result = self._assert_query_count(
-            8,
+            9,
             lambda: save_monthly_schedule(
                 self.session,
                 self.employee_ids[0],
@@ -495,7 +495,7 @@ class AmbulanceReadQueryTests(unittest.TestCase):
             is_active=True,
         )
         result = self._assert_query_count(
-            10,
+            11,
             lambda: save_monthly_schedule_endpoint(
                 data=payload,
                 current_user=manager,

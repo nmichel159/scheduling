@@ -20,6 +20,7 @@ class ScheduleResponse(ScheduleEntry):
     user_email: str | None = None
     user_full_name: str | None = None
     competence_name: str | None = None
+    is_approved: bool = False
     created_at: datetime | None = None
     updated_at: datetime | None = None
     class Config:
@@ -42,6 +43,16 @@ class ScheduleGenerationResponse(BaseModel):
     year: int
     assignment_count: int
     entries: list[GeneratedScheduleEntry]
+
+
+class ScheduleApprovalResponse(BaseModel):
+    """Approval state for one ambulance schedule package and calendar month."""
+
+    ambulance_id: int
+    month: int
+    year: int
+    is_approved: bool
+    approved_entry_count: int
 
 
 class NextScheduleResponse(BaseModel):

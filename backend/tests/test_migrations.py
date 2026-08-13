@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import date
 from pathlib import Path
 import tempfile
 import unittest
@@ -41,8 +42,92 @@ class FreshDatabaseMigrationTests(unittest.TestCase):
             with engine.connect() as connection:
                 self.assertEqual(
                     connection.scalar(sa.text("SELECT version_num FROM alembic_version")),
-                    "20260813_02",
+                    "20260813_03",
                 )
+        finally:
+            engine.dispose()
+            path.unlink(missing_ok=True)
+
+
+class ScheduleApprovalMigrationTests(unittest.TestCase):
+    """Preserve existing employee visibility while new schedules start as drafts."""
+
+    def test_existing_rows_are_approved_and_new_rows_default_to_unapproved(self) -> None:
+        """The approval migration is backward-compatible with persisted schedules."""
+        handle, database_path = tempfile.mkstemp(suffix=".sqlite3")
+        os.close(handle)
+        path = Path(database_path)
+        database_url = f"sqlite:///{path.as_posix()}"
+        engine = sa.create_engine(database_url)
+        config = Config(str(BACKEND_ROOT / "alembic.ini"))
+        config.set_main_option("sqlalchemy.url", database_url)
+        try:
+            with mock.patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("DATABASE_URL", None)
+                command.upgrade(config, "20260813_02")
+
+            metadata = sa.MetaData()
+            metadata.reflect(engine)
+            with engine.begin() as connection:
+                connection.execute(
+                    metadata.tables["users"].insert(),
+                    {"id": 1, "email": "employee@example.com", "is_active": True},
+                )
+                connection.execute(
+                    metadata.tables["ambulances"].insert(),
+                    {"id": 1, "name": "Clinic", "isurgent": False, "is_active": True},
+                )
+                connection.execute(
+                    metadata.tables["competences"].insert(),
+                    {
+                        "id": 1,
+                        "name": "Physician",
+                        "required_count": 1,
+                        "ambulance_id": 1,
+                        "is_active": True,
+                    },
+                )
+                connection.execute(
+                    metadata.tables["schedules"].insert(),
+                    {
+                        "id": 1,
+                        "user_id": 1,
+                        "ambulance_id": 1,
+                        "competence_id": 1,
+                        "work_date": date(2026, 8, 1),
+                        "is_active": True,
+                    },
+                )
+
+            with mock.patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("DATABASE_URL", None)
+                command.upgrade(config, "head")
+
+            schedules = sa.Table(
+                "schedules",
+                sa.MetaData(),
+                autoload_with=engine,
+            )
+            with engine.begin() as connection:
+                existing_approved = connection.scalar(
+                    sa.select(schedules.c.is_approved).where(schedules.c.id == 1)
+                )
+                connection.execute(
+                    schedules.insert(),
+                    {
+                        "id": 2,
+                        "user_id": 1,
+                        "ambulance_id": 1,
+                        "competence_id": 1,
+                        "work_date": date(2026, 8, 2),
+                        "is_active": True,
+                    },
+                )
+                new_approved = connection.scalar(
+                    sa.select(schedules.c.is_approved).where(schedules.c.id == 2)
+                )
+            self.assertTrue(existing_approved)
+            self.assertFalse(new_approved)
         finally:
             engine.dispose()
             path.unlink(missing_ok=True)

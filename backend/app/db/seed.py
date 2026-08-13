@@ -327,8 +327,12 @@ def _seed_schedules(
                     competence_id=competence.id,
                     work_date=work_date,
                     is_active=True,
+                    is_approved=True,
                 )
             )
+        else:
+            existing.is_active = True
+            existing.is_approved = True
     db.flush()
     print("Schedules seeding completed.")
 
@@ -499,6 +503,7 @@ def _generate_and_seed_schedules(
                     competence_id=entry.competence_id,
                     work_date=entry.work_date,
                     is_active=True,
+                    is_approved=True,
                 )
                 for entry in generated.entries
             ]

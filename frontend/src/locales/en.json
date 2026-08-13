@@ -195,7 +195,9 @@
     "retry": "Try again",
     "empty": "You have no shifts scheduled this month.",
     "shift_count": "Shifts this month: {{count}}",
-    "ambulance_fallback": "Workplace #{{id}}"
+    "ambulance_fallback": "Workplace #{{id}}",
+    "previous_month": "Previous month",
+    "next_month": "Next month"
   },
   "schedule_edit": {
     "title": "Workplace schedule",
@@ -204,6 +206,15 @@
     "load_ambulances_error": "Failed to load workplaces.",
     "load_schedule_error": "Failed to load schedule.",
     "save_error": "Failed to save.",
+    "approve": "Approve schedule",
+    "approving": "Approving...",
+    "approved": "Approved",
+    "not_approved": "Not approved",
+    "approve_warning": "Approving makes this schedule visible to employees. Continue?",
+    "approve_success": "The schedule is approved and visible to employees.",
+    "approve_error": "The schedule could not be approved.",
+    "previous_month": "Previous month",
+    "next_month": "Next month",
     "generate": "Generate schedule",
     "generating": "Generating...",
     "generate_hint": "Creates an optimized draft. It is saved only after review with Save schedule.",

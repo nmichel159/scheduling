@@ -37,6 +37,7 @@ class Schedule(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     is_active = Column(Boolean, default=True)
+    is_approved = Column(Boolean, nullable=False, default=False, server_default="false")
 
     user = relationship("User", back_populates="schedules")
     ambulance = relationship("Ambulance", back_populates="schedules")

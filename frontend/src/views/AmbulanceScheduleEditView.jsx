@@ -7,6 +7,7 @@ import {
   fetchEmployeeCompetenceTable,
 } from '../services/competenceService';
 import {
+  approveAmbulanceSchedule,
   fetchAmbulanceSchedule,
   generateAmbulanceSchedule,
   updateAmbulanceSchedule,
@@ -23,6 +24,10 @@ import './AmbulanceScheduleEditView.css';
 const pad = (n) => String(n).padStart(2, '0');
 const isoDate = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const isoWeekday = (dateObj) => (dateObj.getDay() + 6) % 7;
+const shiftedMonth = ({ y, m }, offset) => {
+  const value = new Date(y, m + offset, 1);
+  return { y: value.getFullYear(), m: value.getMonth() };
+};
 
 /**
  * Fixed palette assigned to competences by their order (sorted by id).
@@ -88,6 +93,7 @@ const AmbulanceScheduleEditView = () => {
   const [originalShifts, setOriginalShifts] = useState([]); // Baseline for dirty check
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
   const [generationMessage, setGenerationMessage] = useState(null);
@@ -104,7 +110,10 @@ const AmbulanceScheduleEditView = () => {
   const [draftCompetenceId, setDraftCompetenceId] = useState(null);
   const [draftUserId, setDraftUserId] = useState(null);
 
-  const view = { y: today.getFullYear(), m: today.getMonth() };
+  const [view, setView] = useState({
+    y: today.getFullYear(),
+    m: today.getMonth(),
+  });
 
   const loadAmbulances = useCallback(async () => {
     setLoading(true);
@@ -143,8 +152,7 @@ const AmbulanceScheduleEditView = () => {
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, t]);
+  }, [selectedId, t, view.m, view.y]);
 
   useEffect(() => {
     loadAmbulances();
@@ -189,6 +197,13 @@ const AmbulanceScheduleEditView = () => {
   const isDirty = useMemo(
     () => JSON.stringify(shifts) !== JSON.stringify(originalShifts),
     [shifts, originalShifts]
+  );
+  const isApproved = useMemo(
+    () =>
+      !isDirty &&
+      shifts.length > 0 &&
+      shifts.every((shift) => shift.is_approved === true),
+    [isDirty, shifts]
   );
 
   /* ---------- leave-page guards while there are unsaved changes ---------- */
@@ -359,6 +374,25 @@ const AmbulanceScheduleEditView = () => {
 
   const handleRemoveShift = (shiftId) => {
     setShifts((prev) => prev.filter((s) => s.id !== shiftId));
+  };
+
+  const changeMonth = (offset) => {
+    const applyChange = () => {
+      setGenerationMessage(null);
+      setView((current) => shiftedMonth(current, offset));
+    };
+    if (!isDirty) {
+      applyChange();
+      return;
+    }
+    setConfirmState({
+      message: t('schedule_edit.unsaved_warning'),
+      onConfirm: () => {
+        setConfirmState(null);
+        applyChange();
+      },
+      onCancel: () => setConfirmState(null),
+    });
   };
 
   const formatGenerationIssue = (issue) => {
@@ -565,6 +599,41 @@ const AmbulanceScheduleEditView = () => {
     }
   };
 
+  const approveSchedule = async () => {
+    setApproving(true);
+    setError(null);
+    try {
+      await approveAmbulanceSchedule(selectedId, {
+        month: view.m + 1,
+        year: view.y,
+      });
+      const approvedShifts = shifts.map((shift) => ({
+        ...shift,
+        is_approved: true,
+      }));
+      setShifts(approvedShifts);
+      setOriginalShifts(approvedShifts);
+      setGenerationMessage(t('schedule_edit.approve_success'));
+    } catch {
+      setError(t('schedule_edit.approve_error'));
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  const handleApprove = () => {
+    if (!selectedId || isDirty || isApproved || shifts.length === 0) return;
+    setConfirmState({
+      message: t('schedule_edit.approve_warning'),
+      confirmLabel: t('schedule_edit.approve'),
+      onConfirm: () => {
+        setConfirmState(null);
+        approveSchedule();
+      },
+      onCancel: () => setConfirmState(null),
+    });
+  };
+
   const handleCancel = () => {
     if (!isDirty) {
       setShifts(originalShifts);
@@ -641,7 +710,7 @@ const AmbulanceScheduleEditView = () => {
               type="button"
               className="schedule-edit-btn schedule-edit-btn-generate"
               onClick={handleGenerate}
-              disabled={loading || saving || generating}
+              disabled={loading || saving || generating || approving}
             >
               {generating
                 ? t('schedule_edit.generating')
@@ -694,7 +763,25 @@ const AmbulanceScheduleEditView = () => {
           <div className="schedule-edit-topbar">
             <div className="schedule-edit-topbar-info">
               <span className="schedule-edit-topbar-name">{selected.name}</span>
-              <span className="schedule-edit-topbar-month">{monthLabel}</span>
+              <div className="schedule-edit-month-navigation">
+                <button
+                  type="button"
+                  className="schedule-edit-month-button"
+                  onClick={() => changeMonth(-1)}
+                  aria-label={t('schedule_edit.previous_month')}
+                >
+                  ‹
+                </button>
+                <span className="schedule-edit-topbar-month">{monthLabel}</span>
+                <button
+                  type="button"
+                  className="schedule-edit-month-button"
+                  onClick={() => changeMonth(1)}
+                  aria-label={t('schedule_edit.next_month')}
+                >
+                  ›
+                </button>
+              </div>
             </div>
             <div className="schedule-edit-topbar-actions">
               <div
@@ -727,11 +814,37 @@ const AmbulanceScheduleEditView = () => {
                 {isDirty && <span className="schedule-edit-unsaved">●</span>}
                 {isDirty ? t('schedule_edit.unsaved') : t('schedule_edit.saved')}
               </span>
+              <span
+                className={`schedule-edit-approval-status ${
+                  isApproved ? 'is-approved' : 'is-draft'
+                }`}
+              >
+                {isApproved
+                  ? t('schedule_edit.approved')
+                  : t('schedule_edit.not_approved')}
+              </span>
+              <button
+                type="button"
+                className="schedule-edit-btn schedule-edit-btn-approve"
+                onClick={handleApprove}
+                disabled={
+                  isDirty ||
+                  isApproved ||
+                  shifts.length === 0 ||
+                  saving ||
+                  generating ||
+                  approving
+                }
+              >
+                {approving
+                  ? t('schedule_edit.approving')
+                  : t('schedule_edit.approve')}
+              </button>
               <button
                 type="button"
                 className="schedule-edit-btn schedule-edit-btn-cancel"
                 onClick={handleCancel}
-                disabled={!isDirty}
+                disabled={!isDirty || approving}
               >
                 {t('schedule_edit.cancel')}
               </button>
@@ -739,7 +852,7 @@ const AmbulanceScheduleEditView = () => {
                 type="button"
                 className="schedule-edit-btn schedule-edit-btn-primary"
                 onClick={handleSave}
-                disabled={!isDirty || saving}
+                disabled={!isDirty || saving || approving}
               >
                 {saving ? t('schedule_edit.saving') : t('schedule_edit.save')}
               </button>

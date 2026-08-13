@@ -73,3 +73,13 @@ export async function generateAmbulanceSchedule(ambulanceId, params) {
   );
   return data;
 }
+
+/** Approve and publish one saved ambulance schedule package. */
+export async function approveAmbulanceSchedule(ambulanceId, params) {
+  const { data } = await client.post(
+    `/ambulances/${ambulanceId}/schedule/approve`,
+    null,
+    { params }
+  );
+  return data;
+}

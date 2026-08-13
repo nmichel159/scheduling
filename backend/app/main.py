@@ -1,3 +1,6 @@
+import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth  # Ak si vytvoríš router v api
@@ -13,11 +16,33 @@ from app.api import schedules
 from app.core.config import settings
 import app.models  # Import all models so they are registered in Base.metadata
 from app.services.audit_service import install_audit_hooks
+from app.services.automatic_schedule_generation_service import (
+    automatic_schedule_generation_loop,
+)
 
 # Register transactional audit hooks once for all application sessions.
 install_audit_hooks()
 
-app = FastAPI(title="Scheduling API")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """Run the monthly schedule clock for the lifetime of this server process."""
+    stop_event = asyncio.Event()
+    scheduler_task = None
+    if settings.AUTOMATIC_SCHEDULE_GENERATION_ENABLED:
+        scheduler_task = asyncio.create_task(
+            automatic_schedule_generation_loop(stop_event),
+            name="automatic-monthly-schedule-generation",
+        )
+    try:
+        yield
+    finally:
+        stop_event.set()
+        if scheduler_task is not None:
+            await scheduler_task
+
+
+app = FastAPI(title="Scheduling API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

@@ -22,6 +22,26 @@ class Settings(BaseSettings):
         1,
         int(os.getenv("SCHEDULE_GENERATION_MAX_CONCURRENCY", "1")),
     )
+    AUTOMATIC_SCHEDULE_GENERATION_ENABLED: bool = (
+        os.getenv("AUTOMATIC_SCHEDULE_GENERATION_ENABLED", "true").lower()
+        == "true"
+    )
+    AUTOMATIC_SCHEDULE_GENERATION_TIMEZONE: str = os.getenv(
+        "AUTOMATIC_SCHEDULE_GENERATION_TIMEZONE",
+        "Europe/Bratislava",
+    )
+    AUTOMATIC_SCHEDULE_GENERATION_DAY: int = min(
+        28,
+        max(1, int(os.getenv("AUTOMATIC_SCHEDULE_GENERATION_DAY", "21"))),
+    )
+    AUTOMATIC_SCHEDULE_GENERATION_HOUR: int = min(
+        23,
+        max(0, int(os.getenv("AUTOMATIC_SCHEDULE_GENERATION_HOUR", "20"))),
+    )
+    AUTOMATIC_SCHEDULE_GENERATION_POLL_SECONDS: int = max(
+        1,
+        int(os.getenv("AUTOMATIC_SCHEDULE_GENERATION_POLL_SECONDS", "60")),
+    )
 
     class Config:
         case_sensitive = True

@@ -194,7 +194,9 @@
     "retry": "Skúsiť znova",
     "empty": "V tomto mesiaci nemáš naplánovanú žiadnu službu.",
     "shift_count": "Služby v mesiaci: {{count}}",
-    "ambulance_fallback": "Pracovisko #{{id}}"
+    "ambulance_fallback": "Pracovisko #{{id}}",
+    "previous_month": "Predchádzajúci mesiac",
+    "next_month": "Nasledujúci mesiac"
   },
   "schedule_edit": {
     "title": "Rozpis pracoviska",
@@ -203,6 +205,15 @@
     "load_ambulances_error": "Nepodarilo sa načítať pracoviská.",
     "load_schedule_error": "Nepodarilo sa načítať rozpis.",
     "save_error": "Uloženie zlyhalo.",
+    "approve": "Schváliť rozvrh",
+    "approving": "Schvaľujem...",
+    "approved": "Schválený",
+    "not_approved": "Neschválený",
+    "approve_warning": "Schválením sa tento rozvrh sprístupní zamestnancom. Pokračovať?",
+    "approve_success": "Rozvrh bol schválený a je viditeľný zamestnancom.",
+    "approve_error": "Rozvrh sa nepodarilo schváliť.",
+    "previous_month": "Predchádzajúci mesiac",
+    "next_month": "Nasledujúci mesiac",
     "generate": "Generovať rozvrh",
     "generating": "Generujem...",
     "generate_hint": "Vytvorí optimalizovaný návrh. Uloží sa až po kontrole tlačidlom Uložiť rozvrh.",

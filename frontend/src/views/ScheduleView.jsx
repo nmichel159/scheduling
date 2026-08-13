@@ -31,10 +31,8 @@ function buildMonthCells(year, month) {
 /**
  * Read-only monthly schedule for the logged-in employee (role 1).
  *
- * The backend decides the month: GET /schedules/me is fixed to the running
- * month, so the view labels whichever month that is and offers no month
- * navigation. Adding year/month query params server-side is all that stands
- * between this and a browsable calendar.
+ * Employees can browse the previous, current, and next month. The backend
+ * returns only manager-approved schedule packages.
  */
 const ScheduleView = () => {
   const { t, i18n } = useTranslation();
@@ -44,8 +42,12 @@ const ScheduleView = () => {
   const [ambulanceNames, setAmbulanceNames] = useState({}); // { id: name }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const view = { y: today.getFullYear(), m: today.getMonth() };
+  const [view, setView] = useState({
+    y: today.getFullYear(),
+    m: today.getMonth(),
+  });
+  const currentMonthIndex = today.getFullYear() * 12 + today.getMonth();
+  const viewMonthIndex = view.y * 12 + view.m;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -56,7 +58,7 @@ const ScheduleView = () => {
        * assignment list. A failure there must not blank out the schedule,
        * hence allSettled rather than Promise.all. */
       const [scheduleResult, ambulancesResult] = await Promise.allSettled([
-        fetchMySchedule(),
+        fetchMySchedule({ month: view.m + 1, year: view.y }),
         fetchMyAssignedAmbulances(),
       ]);
 
@@ -75,7 +77,7 @@ const ScheduleView = () => {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, view.m, view.y]);
 
   useEffect(() => {
     load();
@@ -108,11 +110,36 @@ const ScheduleView = () => {
   const labelFor = (shift) =>
     ambulanceNames[shift.ambulance_id] || t('schedule.ambulance_fallback', { id: shift.ambulance_id });
 
+  const changeMonth = (offset) => {
+    const next = new Date(view.y, view.m + offset, 1);
+    setView({ y: next.getFullYear(), m: next.getMonth() });
+  };
+
   return (
     <div className="schedule">
       <header className="schedule-head">
         <h1 className="schedule-title">{t('schedule.title')}</h1>
-        <span className="schedule-monthlabel">{monthLabel}</span>
+        <div className="schedule-month-navigation">
+          <button
+            type="button"
+            className="schedule-month-button"
+            onClick={() => changeMonth(-1)}
+            disabled={viewMonthIndex <= currentMonthIndex - 1}
+            aria-label={t('schedule.previous_month')}
+          >
+            ‹
+          </button>
+          <span className="schedule-monthlabel">{monthLabel}</span>
+          <button
+            type="button"
+            className="schedule-month-button"
+            onClick={() => changeMonth(1)}
+            disabled={viewMonthIndex >= currentMonthIndex + 1}
+            aria-label={t('schedule.next_month')}
+          >
+            ›
+          </button>
+        </div>
       </header>
 
       {error && (
@@ -140,7 +167,10 @@ const ScheduleView = () => {
           }
           const dateStr = isoDate(view.y, view.m, day);
           const dayShifts = byDate[dateStr] || [];
-          const isToday = day === today.getDate();
+          const isToday =
+            view.y === today.getFullYear() &&
+            view.m === today.getMonth() &&
+            day === today.getDate();
           return (
             <div
               key={dateStr}

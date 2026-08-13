@@ -128,3 +128,33 @@
   .schedule-cell { min-height: 64px; padding: 5px; }
   .schedule-shift { font-size: 0.62rem; padding: 3px 4px; }
 }
+
+.schedule-month-navigation {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.schedule-month-button {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--code-background);
+  color: var(--text-h);
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.1rem;
+}
+
+.schedule-month-button:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+
+.schedule-month-button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}

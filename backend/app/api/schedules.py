@@ -12,9 +12,9 @@ from app.models.ambulance import Ambulance
 from app.models.associations import UserAmbulance
 from app.models.schedule import Schedule
 from app.models.user import User
-from app.schemas.schedule import MonthlyScheduleSave, MonthlyScheduleStatistics, NextScheduleResponse, ScheduleCreate, ScheduleEdit, ScheduleGenerationResponse, ScheduleResponse, ScheduleUpdate, UserMonthlySchedule, WorkedScheduleStatistics
+from app.schemas.schedule import MonthlyScheduleSave, MonthlyScheduleStatistics, NextScheduleResponse, ScheduleApprovalResponse, ScheduleCreate, ScheduleEdit, ScheduleGenerationResponse, ScheduleResponse, ScheduleUpdate, UserMonthlySchedule, WorkedScheduleStatistics
 from app.services.schedule_generation_service import ScheduleGenerationError, generate_ambulance_monthly_schedule
-from app.services.schedule_service import create_schedule, deactivate_schedule, get_ambulance_schedule, get_manageable_user_ambulance_ids, get_next_user_schedule, get_user_monthly_statistics, get_user_schedule, get_user_worked_statistics, save_ambulance_monthly_schedule, save_monthly_schedule, update_schedule
+from app.services.schedule_service import approve_ambulance_monthly_schedule, create_schedule, deactivate_schedule, get_ambulance_schedule, get_manageable_user_ambulance_ids, get_next_user_schedule, get_user_monthly_statistics, get_user_schedule, get_user_worked_statistics, save_ambulance_monthly_schedule, save_monthly_schedule, update_schedule
 
 router = APIRouter()
 ambulance_router = APIRouter()
@@ -85,7 +85,13 @@ def _can_manage_schedule_pairs(
 @router.get("/me", response_model=list[ScheduleResponse])
 def get_my_schedule(month: int | None = None, year: int | None = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     selected_month, selected_year = _bounded_schedule_period(month, year)
-    return get_user_schedule(db, current_user.id, selected_month, selected_year)
+    return get_user_schedule(
+        db,
+        current_user.id,
+        selected_month,
+        selected_year,
+        approved_only=True,
+    )
 
 
 @router.get("/me/next", response_model=NextScheduleResponse)
@@ -214,6 +220,31 @@ def update_ambulance_schedule_endpoint(data: ScheduleUpdate, ambulance: Ambulanc
         if entry.work_date.month != selected_month or entry.work_date.year != selected_year:
             raise HTTPException(status_code=400, detail="Entries must belong to the selected month and year.")
     return save_ambulance_monthly_schedule(db, ambulance.id, selected_month, selected_year, data.entries)
+
+
+@ambulance_router.post(
+    "/{ambulance_id}/schedule/approve",
+    response_model=ScheduleApprovalResponse,
+    summary="Approve and publish one ambulance monthly schedule",
+)
+def approve_ambulance_schedule_endpoint(
+    month: int,
+    year: int,
+    ambulance: Ambulance = Depends(get_manager_ambulance),
+    db: Session = Depends(get_db),
+) -> ScheduleApprovalResponse:
+    """Publish a complete ambulance-month package to its employees."""
+    if not 1 <= month <= 12 or not 2000 <= year <= 2100:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="month and year must be valid.",
+        )
+    return approve_ambulance_monthly_schedule(
+        db,
+        ambulance.id,
+        month,
+        year,
+    )
 
 
 @ambulance_router.post(
