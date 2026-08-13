@@ -81,6 +81,16 @@ const ManagerWorkloadView = () => {
     [employees, selectedEmployeeId]
   );
 
+  const selectAmbulance = useCallback((ambulanceId) => {
+    if (ambulanceId === selectedAmbulanceId) return;
+    // Clear the old employee in the click event itself. Waiting for the
+    // selected-ambulance effect leaves one render where WorkloadCalendar can
+    // request the previous employee under the newly selected ambulance.
+    setSelectedEmployeeId(null);
+    setEmployees([]);
+    setSelectedAmbulanceId(ambulanceId);
+  }, [selectedAmbulanceId]);
+
   const fetchEntries = useCallback(
     (dateFrom, dateTo) =>
       fetchEmployeeUnavailabilities(
@@ -153,7 +163,7 @@ const ManagerWorkloadView = () => {
                 className={`manager-workload-ambulance ${
                   ambulance.id === selectedAmbulanceId ? 'is-selected' : ''
                 }`}
-                onClick={() => setSelectedAmbulanceId(ambulance.id)}
+                onClick={() => selectAmbulance(ambulance.id)}
               >
                 <span className="manager-workload-ambulance-name">{ambulance.name}</span>
                 {ambulance.description && (
