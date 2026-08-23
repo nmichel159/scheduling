@@ -1,3 +1,4 @@
+import { formatShortName } from '../utils/formatEmployeeName';
 import './ScheduleListView.css';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -76,6 +77,7 @@ const ScheduleListView = ({
             <div className="schedule-list-shifts">
               {dayShifts.map((shift) => {
                 const color = competenceColor(shift.competence_id);
+                const fullLabel = shift.user_full_name || shift.user_email;
                 return (
                   <div
                     key={shift.id}
@@ -87,10 +89,17 @@ const ScheduleListView = ({
                     draggable
                     onDragStart={(event) => onDragStart(event, shift, dateStr)}
                     onClick={() => onShiftClick(shift)}
-                    title={shift.competence_name || ''}
                   >
-                    <span className="schedule-list-shift-name">
-                      {shift.user_full_name || shift.user_email}
+                    <span className="schedule-list-shift-name-wrap">
+                      <span className="schedule-list-shift-name">
+                        {formatShortName(shift.user_full_name) || shift.user_email}
+                      </span>
+                      {/* Custom hover tooltip: full name incl. titles, shown
+                          after a short dwell so it doesn't flash on quick
+                          mouse passes. */}
+                      <span className="schedule-list-shift-tooltip">
+                        {fullLabel}
+                      </span>
                     </span>
                     <button
                       type="button"

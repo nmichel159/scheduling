@@ -19,6 +19,7 @@ import {
   normalizeCompetenceRequirements,
   requiredCountForGroup,
 } from '../utils/competenceRequirements';
+import { formatShortName } from '../utils/formatEmployeeName';
 import './AmbulanceScheduleEditView.css';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -906,6 +907,7 @@ const AmbulanceScheduleEditView = () => {
                     {dayShifts.map((shift) => {
                       const color = competenceColor(shift.competence_id);
                       const isTemp = isTempShiftId(shift.id);
+                      const fullLabel = shift.user_full_name || shift.user_email;
                       return (
                         <div
                           key={shift.id}
@@ -917,10 +919,17 @@ const AmbulanceScheduleEditView = () => {
                           draggable
                           onDragStart={(e) => handleDragStart(e, shift, dateStr)}
                           onClick={() => openEditorForShift(shift)}
-                          title={shift.competence_name || ''}
                         >
-                          <span className="schedule-edit-shift-name">
-                            {shift.user_full_name || shift.user_email}
+                          <span className="schedule-edit-shift-name-wrap">
+                            <span className="schedule-edit-shift-name">
+                              {formatShortName(shift.user_full_name) || shift.user_email}
+                            </span>
+                            {/* Custom hover tooltip: full name incl. titles,
+                                shown after a short dwell so it doesn't flash
+                                on quick mouse passes. */}
+                            <span className="schedule-edit-shift-tooltip">
+                              {fullLabel}
+                            </span>
                           </span>
                           <button
                             type="button"

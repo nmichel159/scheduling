@@ -100,7 +100,12 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  max-width: 240px;
+  /* Fixed, uniform width instead of the old variable max-width: 240px —
+     names are now short ("P. Priezvisko"), so every chip fits comfortably,
+     and any outlier still truncates cleanly via the ellipsis below rather
+     than stretching the row. */
+  width: 108px;
+  flex-shrink: 0;
   padding: 5px 7px;
   border-left: 3px solid transparent;
   border-radius: 6px;
@@ -112,12 +117,52 @@
   cursor: grabbing;
 }
 
+/* Wraps the short name so the tooltip can be positioned relative to it. */
+.schedule-list-shift-name-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
 .schedule-list-shift-name {
+  display: block;
   overflow: hidden;
   color: var(--text-h);
   font-size: 0.8rem;
+  letter-spacing: -0.1px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Custom tooltip: full name incl. titles. Appears after a short dwell
+   (rather than instantly) so it doesn't flicker on quick mouse passes,
+   and is styled with the app's own tokens instead of the native browser
+   tooltip. */
+.schedule-list-shift-tooltip {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  max-width: 260px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--code-background);
+  color: var(--text-h);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(3px);
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0s linear 0.12s;
+  z-index: 30;
+}
+.schedule-list-shift-name-wrap:hover .schedule-list-shift-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition-delay: 0.45s, 0.45s, 0s;
 }
 
 .schedule-list-shift-remove {

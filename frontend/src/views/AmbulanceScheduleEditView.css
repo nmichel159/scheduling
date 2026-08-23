@@ -494,13 +494,54 @@
   outline-offset: -2px;
 }
 
-.schedule-edit-shift-name {
+/* Wraps the short name so the tooltip can be positioned relative to it. */
+.schedule-edit-shift-name-wrap {
+  position: relative;
   flex: 1;
+  min-width: 0;
+}
+
+.schedule-edit-shift-name {
+  display: block;
   font-size: 0.8rem;
+  /* Names are now short ("P. Priezvisko"), so a touch of negative tracking
+     keeps them compact and consistent-looking across chips. */
+  letter-spacing: -0.1px;
   color: var(--text-h);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Custom tooltip: full name incl. titles. Appears after a short dwell
+   (rather than instantly) so it doesn't flicker on quick mouse passes,
+   and is styled with the app's own tokens instead of the native browser
+   tooltip. */
+.schedule-edit-shift-tooltip {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  max-width: 260px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--code-background);
+  color: var(--text-h);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(3px);
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0s linear 0.12s;
+  z-index: 30;
+}
+.schedule-edit-shift-name-wrap:hover .schedule-edit-shift-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition-delay: 0.45s, 0.45s, 0s;
 }
 
 .schedule-edit-shift-remove {
