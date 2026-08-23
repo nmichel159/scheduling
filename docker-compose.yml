@@ -31,7 +31,7 @@ services:
     env_file: .env
     environment:
       - PYTHONUNBUFFERED=1
-      - AUTO_SEED=${AUTO_SEED:-false}
+      - AUTO_SEED=${AUTO_SEED:-true}
       - SEED_CONFIG=${SEED_CONFIG:-config_1}
     volumes:
       - ./backend:/app

@@ -213,6 +213,7 @@
     "approve_warning": "Approving makes this schedule visible to employees. Continue?",
     "approve_success": "The schedule is approved and visible to employees.",
     "approve_error": "The schedule could not be approved.",
+    "approve_empty_error": "The schedule could not be approved: no shifts are saved for this month. The view has been refreshed.",
     "previous_month": "Previous month",
     "next_month": "Next month",
     "generate": "Generate schedule",

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useBlocker } from 'react-router-dom';
 import {
@@ -133,8 +133,17 @@ const AmbulanceScheduleEditView = () => {
     }
   }, [selectedId, t]);
 
+  // Only the newest load may publish its result. Switching ambulance or month
+  // leaves the previous request in flight; without this guard a slower earlier
+  // response overwrites the current one and `shifts` ends up describing a
+  // different ambulance-month than the toolbar does -- approving then posts a
+  // period the backend has no rows for and answers 409.
+  const loadRequestId = useRef(0);
+
   const loadSchedule = useCallback(async () => {
     if (!selectedId) return;
+    const requestId = loadRequestId.current + 1;
+    loadRequestId.current = requestId;
     setLoading(true);
     setError(null);
     setGenerationMessage(null);
@@ -144,14 +153,20 @@ const AmbulanceScheduleEditView = () => {
         fetchCompetences(selectedId),
         fetchEmployeeCompetenceTable(selectedId),
       ]);
+      if (loadRequestId.current !== requestId) return;
       setShifts(scheduleData);
       setOriginalShifts(scheduleData);
       setCompetences(competenceData);
       setEmployees(employeeData);
     } catch {
+      if (loadRequestId.current !== requestId) return;
+      // Drop the stale rows too: showing the previous period's schedule under
+      // the new heading is worse than showing an empty one with the error.
+      setShifts([]);
+      setOriginalShifts([]);
       setError(t('schedule_edit.load_schedule_error'));
     } finally {
-      setLoading(false);
+      if (loadRequestId.current === requestId) setLoading(false);
     }
   }, [selectedId, t, view.m, view.y]);
 
@@ -615,7 +630,17 @@ const AmbulanceScheduleEditView = () => {
       setShifts(approvedShifts);
       setOriginalShifts(approvedShifts);
       setGenerationMessage(t('schedule_edit.approve_success'));
-    } catch {
+    } catch (err) {
+      console.error('[schedule approve]', err?.response?.status, err?.response?.data ?? err);
+      // 409 means the backend found no saved rows for this ambulance-month, so
+      // whatever is on screen no longer matches the database. Reload instead of
+      // leaving the phantom rows in place for a second failing attempt.
+      if (err?.response?.status === 409) {
+        // loadSchedule() clears `error` on entry, so set the message after it.
+        await loadSchedule();
+        setError(t('schedule_edit.approve_empty_error'));
+        return;
+      }
       setError(t('schedule_edit.approve_error'));
     } finally {
       setApproving(false);
@@ -623,7 +648,7 @@ const AmbulanceScheduleEditView = () => {
   };
 
   const handleApprove = () => {
-    if (!selectedId || isDirty || isApproved || shifts.length === 0) return;
+    if (!selectedId || loading || isDirty || isApproved || shifts.length === 0) return;
     setConfirmState({
       message: t('schedule_edit.approve_warning'),
       confirmLabel: t('schedule_edit.approve'),
@@ -829,6 +854,7 @@ const AmbulanceScheduleEditView = () => {
                 className="schedule-edit-btn schedule-edit-btn-approve"
                 onClick={handleApprove}
                 disabled={
+                  loading ||
                   isDirty ||
                   isApproved ||
                   shifts.length === 0 ||

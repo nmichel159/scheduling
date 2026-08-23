@@ -213,6 +213,7 @@
     "approve_warning": "Schválením sa tento rozvrh sprístupní zamestnancom. Pokračovať?",
     "approve_success": "Rozvrh bol schválený a je viditeľný zamestnancom.",
     "approve_error": "Rozvrh sa nepodarilo schváliť.",
+    "approve_empty_error": "Rozvrh sa nepodarilo schváliť: pre tento mesiac nie sú uložené žiadne služby. Zobrazenie bolo obnovené.",
     "previous_month": "Predchádzajúci mesiac",
     "next_month": "Nasledujúci mesiac",
     "generate": "Generovať rozvrh",
