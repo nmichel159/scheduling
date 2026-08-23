@@ -186,7 +186,9 @@
     "split_days": "Rozdeliť dni do ďalšieho riadka",
     "split_days_title": "Rozdeliť skupinu dní",
     "split_days_hint": "Vyberte dni, ktoré majú dostať vlastné počty zamestnancov.",
-    "create_day_group": "Vytvoriť riadok"
+    "create_day_group": "Vytvoriť riadok",
+    "toggle_week": "Prepnúť celý týždeň",
+    "toggle_week_named": "Prepnúť celý týždeň — {{name}} — {{competence}}"
   },
   "schedule": {
     "title": "Môj rozpis",
@@ -213,6 +215,7 @@
     "approve_warning": "Schválením sa tento rozvrh sprístupní zamestnancom. Pokračovať?",
     "approve_success": "Rozvrh bol schválený a je viditeľný zamestnancom.",
     "approve_error": "Rozvrh sa nepodarilo schváliť.",
+    "approve_empty_error": "Rozvrh sa nepodarilo schváliť: pre tento mesiac nie sú uložené žiadne služby. Zobrazenie bolo obnovené.",
     "previous_month": "Predchádzajúci mesiac",
     "next_month": "Nasledujúci mesiac",
     "generate": "Generovať rozvrh",

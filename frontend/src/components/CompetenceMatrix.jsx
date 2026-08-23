@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { requiredCountForGroup } from '../utils/competenceRequirements';
+import { ISO_WEEKDAYS, requiredCountForGroup } from '../utils/competenceRequirements';
 import './CompetenceMatrix.css';
 
 /**
@@ -14,12 +14,21 @@ import './CompetenceMatrix.css';
  * which the parent resolves immediately (adding/removing a competence
  * definition is a registry write, not part of the editable draft).
  *
+ * Each employee x competence cell now carries a per-weekday breakdown
+ * instead of one flat yes/no — a person can hold a competence on some
+ * days of the week and a different one on others. The cell renders as a
+ * row of seven small day dots (Po..Ne) plus a compact "week" toggle for
+ * the common case of assigning the whole week at once.
+ *
  * Props:
  * - columns: [{ id, name, description }] — competences of the ambulance
- * - rows: [{ user_id, email, full_name, competenceIds: number[] }] — draft state
+ * - rows: [{ user_id, email, full_name, competenceDays: { [competenceId]: number[] } }] — draft state.
+ *   competenceDays[competenceId] holds the ISO weekdays (0=Po..6=Ne) on which
+ *   that employee holds that competence; a missing/empty entry means "not assigned".
  * - allUsers: [{ id, email, full_name }] — hospital-wide pool for the search box
  * - loading: table is (re)loading
- * - onToggleCell(userId, competenceId)
+ * - onToggleDay(userId, competenceId, weekday)
+ * - onToggleWeek(userId, competenceId) — assign/clear all 7 days at once
  * - onAddRow(user)
  * - onRemoveRow(userId)
  * - onAddCompetence(name): Promise
@@ -32,7 +41,8 @@ const CompetenceMatrix = ({
   rows,
   allUsers,
   loading,
-  onToggleCell,
+  onToggleDay,
+  onToggleWeek,
   onAddRow,
   onRemoveRow,
   onAddCompetence,
@@ -40,6 +50,12 @@ const CompetenceMatrix = ({
   onSplitRequirementDays,
   onDeleteCompetence,
 }) => {
+  // Day-chips (Po/Ut/St/.../Ne) and the split-into-groups pencil next to
+  // "Potrebný počet" are hidden for now — set to true to bring them back.
+  // Nothing was deleted: openSplitDays/splitRequirementDays and the modal
+  // still work, they're just not reachable from the UI while this is off.
+  const SHOW_REQUIRED_DAY_CHIPS = false;
+
   const { t } = useTranslation();
 
   const [search, setSearch] = useState('');
@@ -352,14 +368,16 @@ const CompetenceMatrix = ({
                         {t('competences.required_count')}
                       </span>
                     )}
-                    <span className="cmatrix-day-chips">
-                      {group.weekdays.map((weekday) => (
-                        <span className="cmatrix-day-chip" key={weekday}>
-                          {t(`workload.days.${weekday}`)}
-                        </span>
-                      ))}
-                    </span>
-                    {group.weekdays.length > 1 && (
+                    {SHOW_REQUIRED_DAY_CHIPS && (
+                      <span className="cmatrix-day-chips">
+                        {group.weekdays.map((weekday) => (
+                          <span className="cmatrix-day-chip" key={weekday}>
+                            {t(`workload.days.${weekday}`)}
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                    {SHOW_REQUIRED_DAY_CHIPS && group.weekdays.length > 1 && (
                       <button
                         type="button"
                         className="cmatrix-split-days"
@@ -374,7 +392,9 @@ const CompetenceMatrix = ({
                 </th>
                 {columns.map((c) => {
                   const required = requiredOf(c, group);
-                  const assigned = rows.filter((r) => r.competenceIds.includes(c.id)).length;
+                  const assigned = rows.filter((r) =>
+                    (r.competenceDays[c.id] || []).includes(group.weekdays[0])
+                  ).length;
                   const ok = assigned >= required;
                   const editingKey = `${group.id}:${c.id}`;
                   const isEditing = editingRequiredKey === editingKey;
@@ -464,18 +484,44 @@ const CompetenceMatrix = ({
                     </div>
                   </th>
                   {columns.map((c) => {
-                    const has = r.competenceIds.includes(c.id);
+                    const activeDays = r.competenceDays[c.id] || [];
+                    const allOn = activeDays.length === ISO_WEEKDAYS.length;
+                    const anyOn = activeDays.length > 0;
                     return (
                       <td key={c.id} className="cmatrix-cell-td">
-                        <button
-                          type="button"
-                          className={`cmatrix-cell ${has ? 'is-on' : ''}`}
-                          onClick={() => onToggleCell(r.user_id, c.id)}
-                          aria-pressed={has}
-                          aria-label={`${r.full_name || r.email} — ${c.name}`}
+                        <div
+                          className={`cmatrix-daycell ${anyOn ? 'is-on' : ''} ${allOn ? 'is-full' : ''}`}
                         >
-                          {has ? '✕' : ''}
-                        </button>
+                          <button
+                            type="button"
+                            className="cmatrix-daycell-week"
+                            onClick={() => onToggleWeek(r.user_id, c.id)}
+                            aria-pressed={allOn}
+                            title={t('competences.toggle_week')}
+                            aria-label={t('competences.toggle_week_named', {
+                              name: r.full_name || r.email,
+                              competence: c.name,
+                            })}
+                          >
+                            {allOn ? '✕' : ''}
+                          </button>
+                          <span className="cmatrix-daycell-dots">
+                            {ISO_WEEKDAYS.map((weekday) => {
+                              const active = activeDays.includes(weekday);
+                              return (
+                                <button
+                                  key={weekday}
+                                  type="button"
+                                  className={`cmatrix-day-dot ${active ? 'is-on' : ''}`}
+                                  onClick={() => onToggleDay(r.user_id, c.id, weekday)}
+                                  aria-pressed={active}
+                                  title={t(`workload.days.${weekday}`)}
+                                  aria-label={`${t(`workload.days.${weekday}`)} — ${r.full_name || r.email} — ${c.name}`}
+                                />
+                              );
+                            })}
+                          </span>
+                        </div>
                       </td>
                     );
                   })}

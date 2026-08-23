@@ -16,6 +16,7 @@ import {
 import CompetenceMatrix from '../components/CompetenceMatrix';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
+  ISO_WEEKDAYS,
   fingerprintCompetenceRequirements,
   groupWeekdaysByRequirements,
   mergeEquivalentDayGroups,
@@ -26,8 +27,16 @@ import {
 } from '../utils/competenceRequirements';
 import './DepartmentsView.css';
 
-/** Deep-copies rows so edits to the draft never mutate the loaded snapshot. */
-const cloneRows = (list) => list.map((r) => ({ ...r, competenceIds: [...r.competenceIds] }));
+/** Deep-copies rows so edits to the draft never mutate the loaded snapshot.
+ *  competenceDays maps competenceId -> sorted array of active ISO weekdays
+ *  (0=Po..6=Ne); a missing or empty entry means the competence isn't held. */
+const cloneRows = (list) =>
+  list.map((r) => ({
+    ...r,
+    competenceDays: Object.fromEntries(
+      Object.entries(r.competenceDays).map(([id, days]) => [id, [...days]])
+    ),
+  }));
 
 /** Deep-copies columns and their Monday-to-Sunday staffing definitions. */
 const cloneColumns = (list) =>
@@ -36,11 +45,18 @@ const cloneColumns = (list) =>
     weekday_requirements: normalizeWeekdayRequirements(column).map((item) => ({ ...item })),
   }));
 
-/** Fingerprint of rows — detects employee / competence-assignment changes. */
+/** Fingerprint of rows — detects employee / competence-assignment changes,
+ *  including which weekdays each competence is held on. */
 const fingerprintRows = (list) =>
   JSON.stringify(
     [...list]
-      .map((r) => ({ user_id: r.user_id, competence_ids: [...r.competenceIds].sort((a, b) => a - b) }))
+      .map((r) => ({
+        user_id: r.user_id,
+        competence_days: Object.entries(r.competenceDays)
+          .filter(([, days]) => days.length > 0)
+          .map(([id, days]) => [Number(id), [...days].sort((a, b) => a - b)])
+          .sort((a, b) => a[0] - b[0]),
+      }))
       .sort((a, b) => a.user_id - b.user_id)
   );
 
@@ -145,7 +161,12 @@ const DepartmentsView = () => {
         user_id: row.user_id,
         email: row.email,
         full_name: row.full_name,
-        competenceIds: row.competences.map((c) => c.id),
+        // The backend only knows "has this competence" today, not on which
+        // days — so a loaded assignment starts out as the whole week. Once
+        // the API returns per-weekday data this can read it directly instead.
+        competenceDays: Object.fromEntries(
+          row.competences.map((c) => [c.id, [...ISO_WEEKDAYS]])
+        ),
       }));
       setRows(nextRows);
       setOriginalRows(cloneRows(nextRows));
@@ -227,17 +248,35 @@ const DepartmentsView = () => {
 
   /* ---------- draft edits (local only) ---------- */
 
-  const toggleCell = (userId, competenceId) => {
+  /** Toggle a single weekday of one competence for one employee. */
+  const toggleDay = (userId, competenceId, weekday) => {
     setRows((prev) =>
       prev.map((r) => {
         if (r.user_id !== userId) return r;
-        const has = r.competenceIds.includes(competenceId);
-        return {
-          ...r,
-          competenceIds: has
-            ? r.competenceIds.filter((id) => id !== competenceId)
-            : [...r.competenceIds, competenceId],
-        };
+        const current = r.competenceDays[competenceId] || [];
+        const has = current.includes(weekday);
+        const nextDays = has
+          ? current.filter((d) => d !== weekday)
+          : [...current, weekday].sort((a, b) => a - b);
+        const nextCompetenceDays = { ...r.competenceDays };
+        if (nextDays.length > 0) nextCompetenceDays[competenceId] = nextDays;
+        else delete nextCompetenceDays[competenceId];
+        return { ...r, competenceDays: nextCompetenceDays };
+      })
+    );
+  };
+
+  /** Shortcut: assign every weekday at once, or clear all of them. */
+  const toggleWeek = (userId, competenceId) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.user_id !== userId) return r;
+        const current = r.competenceDays[competenceId] || [];
+        const allOn = current.length === ISO_WEEKDAYS.length;
+        const nextCompetenceDays = { ...r.competenceDays };
+        if (allOn) delete nextCompetenceDays[competenceId];
+        else nextCompetenceDays[competenceId] = [...ISO_WEEKDAYS];
+        return { ...r, competenceDays: nextCompetenceDays };
       })
     );
   };
@@ -245,7 +284,7 @@ const DepartmentsView = () => {
   const addRow = (user) => {
     setRows((prev) => [
       ...prev,
-      { user_id: user.id, email: user.email, full_name: user.full_name, competenceIds: [] },
+      { user_id: user.id, email: user.email, full_name: user.full_name, competenceDays: {} },
     ]);
   };
 
@@ -310,10 +349,12 @@ const DepartmentsView = () => {
       });
       setOriginalColumns((prev) => prev.filter((c) => c.id !== competenceId));
       const stripCompetence = (list) =>
-        list.map((r) => ({
-          ...r,
-          competenceIds: r.competenceIds.filter((id) => id !== competenceId),
-        }));
+        list.map((r) => {
+          if (!(competenceId in r.competenceDays)) return r;
+          const nextCompetenceDays = { ...r.competenceDays };
+          delete nextCompetenceDays[competenceId];
+          return { ...r, competenceDays: nextCompetenceDays };
+        });
       setRows(stripCompetence);
       setOriginalRows(stripCompetence);
       notify(t('competences.deleted'));
@@ -351,9 +392,28 @@ const DepartmentsView = () => {
         }
       }
 
+      // NOTE: the backend today only stores "has this competence" for the
+      // whole week (see AmbulanceEmployeeCompetenceUpdate.competence_ids).
+      // competence_ids below keeps that working exactly as before (any
+      // competence with at least one active day counts as assigned).
+      // `competences` carries the actual per-weekday breakdown so nothing
+      // is lost from the UI's perspective; the current API ignores unknown
+      // fields, so this is safe to send today and just needs šéf to add
+      // real per-weekday persistence on the backend (see Slack) before it
+      // actually takes effect.
       const payload = rows
         .filter((r) => !failedAdds.has(r.user_id))
-        .map((r) => ({ user_id: r.user_id, competence_ids: r.competenceIds }));
+        .map((r) => {
+          const entries = Object.entries(r.competenceDays).filter(([, days]) => days.length > 0);
+          return {
+            user_id: r.user_id,
+            competence_ids: entries.map(([id]) => Number(id)),
+            competences: entries.map(([id, days]) => ({
+              competence_id: Number(id),
+              weekdays: [...days].sort((a, b) => a - b),
+            })),
+          };
+        });
 
       await saveEmployeeCompetenceTable(selectedId, payload);
 
@@ -477,7 +537,8 @@ const DepartmentsView = () => {
                 rows={rows}
                 allUsers={allUsers}
                 loading={tableLoading}
-                onToggleCell={toggleCell}
+                onToggleDay={toggleDay}
+                onToggleWeek={toggleWeek}
                 onAddRow={addRow}
                 onRemoveRow={removeRow}
                 onAddCompetence={handleAddCompetence}

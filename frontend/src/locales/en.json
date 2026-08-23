@@ -186,7 +186,9 @@
     "split_days": "Split days into another row",
     "split_days_title": "Split day group",
     "split_days_hint": "Select the days that should have their own staffing counts.",
-    "create_day_group": "Create row"
+    "create_day_group": "Create row",
+    "toggle_week": "Toggle whole week",
+    "toggle_week_named": "Toggle whole week — {{name}} — {{competence}}"
   },
   "schedule": {
     "title": "My schedule",
@@ -213,6 +215,7 @@
     "approve_warning": "Approving makes this schedule visible to employees. Continue?",
     "approve_success": "The schedule is approved and visible to employees.",
     "approve_error": "The schedule could not be approved.",
+    "approve_empty_error": "The schedule could not be approved: no shifts are saved for this month. The view has been refreshed.",
     "previous_month": "Previous month",
     "next_month": "Next month",
     "generate": "Generate schedule",

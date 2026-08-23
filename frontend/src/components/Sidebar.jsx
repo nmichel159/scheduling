@@ -31,43 +31,55 @@ const Sidebar = ({ open, onToggle }) => {
       </button>
 
       <nav className="sidebar-nav">
-        <NavLink to="/dashboard" className="nav-item">
-          <span className="icon">🏠</span><span className="label">{t('sidebar.dashboard')}</span>
-        </NavLink>
+        <div className="nav-section">
+          <NavLink to="/dashboard" className="nav-item">
+            <span className="icon">🏠</span><span className="label">{t('sidebar.dashboard')}</span>
+          </NavLink>
+        </div>
+
         {hasEmployee && (
-          <NavLink to="/schedule" className="nav-item">
-            <span className="icon">🗓️</span><span className="label">{t('sidebar.schedule')}</span>
-          </NavLink>
+          <div className="nav-section">
+            <div className="nav-section-title">
+              <span className="label">{t('sidebar.section_employee')}</span>
+            </div>
+            <NavLink to="/schedule" className="nav-item">
+              <span className="icon">🗓️</span><span className="label">{t('sidebar.schedule')}</span>
+            </NavLink>
+            <NavLink to="/workload" className="nav-item">
+              <span className="icon">📋</span><span className="label">{t('sidebar.workload')}</span>
+            </NavLink>
+          </div>
         )}
+
         {hasManager && (
-          <NavLink to="/ambulances/schedule" className="nav-item">
-            <span className="icon">📅</span><span className="label">{t('sidebar.ambulance_schedule')}</span>
-          </NavLink>
+          <div className="nav-section">
+            <div className="nav-section-title">
+              <span className="label">{t('sidebar.section_manager')}</span>
+            </div>
+            <NavLink to="/ambulances/schedule" className="nav-item">
+              <span className="icon">📅</span><span className="label">{t('sidebar.ambulance_schedule')}</span>
+            </NavLink>
+            <NavLink to="/ambulances/workload" className="nav-item">
+              <span className="icon">📋</span><span className="label">{t('sidebar.employee_workload')}</span>
+            </NavLink>
+            <NavLink to="/departments" className="nav-item">
+              <span className="icon">🏥</span><span className="label">{t('sidebar.departments')}</span>
+            </NavLink>
+          </div>
         )}
-        {hasManager && (
-          <NavLink to="/ambulances/workload" className="nav-item">
-            <span className="icon">📋</span><span className="label">{t('sidebar.employee_workload')}</span>
-          </NavLink>
-        )}
-        {hasEmployee && (
-          <NavLink to="/workload" className="nav-item">
-            <span className="icon">📋</span><span className="label">{t('sidebar.workload')}</span>
-          </NavLink>
-        )}
-        {hasManager && (
-          <NavLink to="/departments" className="nav-item">
-            <span className="icon">🏥</span><span className="label">{t('sidebar.departments')}</span>
-          </NavLink>
-        )}
+
         {hasAdmin && (
-          <NavLink to="/admin" className="nav-item">
-            <span className="icon">🛠️</span><span className="label">{t('sidebar.admin')}</span>
-          </NavLink>
-        )}
-        {hasAdmin && (
-          <NavLink to="/roles" className="nav-item">
-            <span className="icon">👥</span><span className="label">{t('sidebar.roles')}</span>
-          </NavLink>
+          <div className="nav-section">
+            <div className="nav-section-title">
+              <span className="label">{t('sidebar.section_admin')}</span>
+            </div>
+            <NavLink to="/admin" className="nav-item">
+              <span className="icon">🛠️</span><span className="label">{t('sidebar.admin')}</span>
+            </NavLink>
+            <NavLink to="/roles" className="nav-item">
+              <span className="icon">👥</span><span className="label">{t('sidebar.roles')}</span>
+            </NavLink>
+          </div>
         )}
       </nav>
 

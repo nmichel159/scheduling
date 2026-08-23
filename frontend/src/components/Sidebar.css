@@ -71,6 +71,39 @@
   border-radius: 3px;
 }
 
+/* Vizuálne oddelené skupiny (Home / Zamestnanec / Vedúci / Admin) */
+.nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-section + .nav-section {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);   /* čiara oddeľujúca skupiny rolí */
+}
+
+.nav-section-title {
+  padding: 2px 10px 6px;
+  white-space: nowrap;
+}
+
+.nav-section-title .label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--secondary);
+}
+
+/* v zatvorenom stave nadpis skupiny nezaberá miesto, ostáva len čiara */
+.sidebar:not(.is-open) .nav-section-title {
+  padding: 0;
+  height: 0;
+  overflow: hidden;
+}
+
 .nav-item, .user-avatar {
   display: flex;
   align-items: center;
@@ -118,5 +151,6 @@
     transform: translateX(0);        /* otvorená = vysunutá */
   }
   .sidebar .label { display: inline; } /* texty na mobile vždy, panel je plný */
+  .sidebar .nav-section-title { padding: 2px 10px 6px; height: auto; overflow: visible; }
   .sidebar .sidebar-nav { scrollbar-width: thin; }
 }
