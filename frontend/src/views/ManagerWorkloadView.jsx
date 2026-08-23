@@ -1,227 +1,199 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import WorkloadCalendar from '../components/WorkloadCalendar';
-import { fetchMyManagedAmbulances } from '../services/competenceService';
-import { fetchEmployees } from '../services/ambulanceService';
+import { storeRoles } from '../hooks/useRoles';
 import {
-  fetchEmployeeUnavailabilities,
-  createEmployeeUnavailability,
-  updateEmployeeUnavailability,
-  deleteEmployeeUnavailability,
-} from '../services/unavailabilityService';
-import './ManagerWorkloadView.css';
+  fetchMyRoles,
+  fetchRoleAssignments,
+  updateUserRoles,
+} from '../services/roleService';
+import './RoleManagementView.css';
 
-/** Manager view for editing one employee's restriction calendar. */
-const ManagerWorkloadView = () => {
+const MANAGED_ROLES = [
+  { id: 1, key: 'employee' },
+  { id: 2, key: 'leader' },
+  { id: 3, key: 'overseer' },
+];
+
+const roleIdsOf = (user) => user.roles
+  .map((role) => role.id)
+  .filter((roleId) => roleId <= 3)
+  .sort((a, b) => a - b);
+
+const sameIds = (left, right) => (
+  left.length === right.length && left.every((id, index) => id === right[index])
+);
+
+const RoleManagementView = () => {
   const { t } = useTranslation();
-  const [ambulances, setAmbulances] = useState([]);
-  const [selectedAmbulanceId, setSelectedAmbulanceId] = useState(null);
-  const [employees, setEmployees] = useState([]);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+  const navigate = useNavigate();
+  const [users, setUsers] = useState([]);
+  const [drafts, setDrafts] = useState({});
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [employeesLoading, setEmployeesLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [savingId, setSavingId] = useState(null);
+  const [message, setMessage] = useState(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const list = await fetchMyManagedAmbulances();
-        if (cancelled) return;
-        setAmbulances(list);
-        setSelectedAmbulanceId(list[0]?.id ?? null);
-      } catch {
-        if (!cancelled) setError(t('manager_workload.load_ambulances_error'));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [t]);
-
-  useEffect(() => {
-    if (selectedAmbulanceId == null) {
-      setEmployees([]);
-      setSelectedEmployeeId(null);
-      return undefined;
+  const load = async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const result = await fetchRoleAssignments();
+      setUsers(result);
+      setDrafts(Object.fromEntries(result.map((user) => [user.id, roleIdsOf(user)])));
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error.response?.status === 403
+          ? t('role_management.forbidden')
+          : t('role_management.load_error'),
+      });
+    } finally {
+      setLoading(false);
     }
+  };
 
-    let cancelled = false;
-    (async () => {
-      setEmployeesLoading(true);
-      setError(null);
-      setEmployees([]);
-      setSelectedEmployeeId(null);
-      try {
-        const list = await fetchEmployees(selectedAmbulanceId);
-        if (cancelled) return;
-        setEmployees(list);
-        setSelectedEmployeeId(list[0]?.user_id ?? null);
-      } catch {
-        if (!cancelled) setError(t('manager_workload.load_employees_error'));
-      } finally {
-        if (!cancelled) setEmployeesLoading(false);
+  useEffect(() => {
+    load();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const visibleUsers = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    if (!query) return users;
+    return users.filter((user) => (
+      `${user.full_name || ''} ${user.email}`.toLocaleLowerCase().includes(query)
+    ));
+  }, [search, users]);
+
+  const toggleRole = (userId, roleId) => {
+    setMessage(null);
+    setDrafts((current) => {
+      const selected = new Set(current[userId] || []);
+      if (selected.has(roleId)) selected.delete(roleId);
+      else selected.add(roleId);
+      return { ...current, [userId]: [...selected].sort((a, b) => a - b) };
+    });
+  };
+
+  const save = async (user) => {
+    setSavingId(user.id);
+    setMessage(null);
+    try {
+      const updated = await updateUserRoles(user.id, drafts[user.id] || []);
+      setUsers((current) => current.map((item) => item.id === user.id ? updated : item));
+      setDrafts((current) => ({ ...current, [user.id]: roleIdsOf(updated) }));
+      setMessage({
+        type: 'success',
+        text: t('role_management.saved_for', {
+          name: updated.full_name || updated.email,
+        }),
+      });
+
+      const signedInUser = JSON.parse(localStorage.getItem('user') || 'null');
+      if (signedInUser?.id === user.id) {
+        const myRoles = await fetchMyRoles();
+        storeRoles(myRoles);
+        const stillAdmin = myRoles.some((role) => (
+          role.name === 'AMBULANCE_OVERSEER' || role.name === 'HOSPITAL_ADMIN'
+        ));
+        if (!stillAdmin) navigate('/dashboard', { replace: true });
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedAmbulanceId, t]);
-
-  const selectedAmbulance = useMemo(
-    () => ambulances.find((item) => item.id === selectedAmbulanceId) || null,
-    [ambulances, selectedAmbulanceId]
-  );
-  const selectedEmployee = useMemo(
-    () => employees.find((item) => item.user_id === selectedEmployeeId) || null,
-    [employees, selectedEmployeeId]
-  );
-
-  const selectAmbulance = useCallback((ambulanceId) => {
-    if (ambulanceId === selectedAmbulanceId) return;
-    // Clear the old employee in the click event itself. Waiting for the
-    // selected-ambulance effect leaves one render where WorkloadCalendar can
-    // request the previous employee under the newly selected ambulance.
-    setSelectedEmployeeId(null);
-    setEmployees([]);
-    setSelectedAmbulanceId(ambulanceId);
-  }, [selectedAmbulanceId]);
-
-  const fetchEntries = useCallback(
-    (dateFrom, dateTo) =>
-      fetchEmployeeUnavailabilities(
-        selectedAmbulanceId,
-        selectedEmployeeId,
-        dateFrom,
-        dateTo
-      ),
-    [selectedAmbulanceId, selectedEmployeeId]
-  );
-  const createEntry = useCallback(
-    (dateAbsent, reason) =>
-      createEmployeeUnavailability(
-        selectedAmbulanceId,
-        selectedEmployeeId,
-        dateAbsent,
-        reason
-      ),
-    [selectedAmbulanceId, selectedEmployeeId]
-  );
-  const updateEntry = useCallback(
-    (id, reason) =>
-      updateEmployeeUnavailability(
-        selectedAmbulanceId,
-        selectedEmployeeId,
-        id,
-        reason
-      ),
-    [selectedAmbulanceId, selectedEmployeeId]
-  );
-  const deleteEntry = useCallback(
-    (id) => deleteEmployeeUnavailability(selectedAmbulanceId, selectedEmployeeId, id),
-    [selectedAmbulanceId, selectedEmployeeId]
-  );
-
-  if (loading) {
-    return <div className="manager-workload"><p>{t('manager_workload.loading')}</p></div>;
-  }
-
-  if (ambulances.length === 0) {
-    return (
-      <div className="manager-workload">
-        <h1 className="manager-workload-title">{t('manager_workload.title')}</h1>
-        <div className="manager-workload-banner">
-          {error || t('manager_workload.no_ambulances')}
-        </div>
-      </div>
-    );
-  }
-
-  const showAmbulanceList = ambulances.length > 1;
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error.response?.status === 403
+          ? t('role_management.forbidden')
+          : t('role_management.save_error'),
+      });
+    } finally {
+      setSavingId(null);
+    }
+  };
 
   return (
-    <div className="manager-workload">
-      <h1 className="manager-workload-title">{t('manager_workload.title')}</h1>
-      <p className="manager-workload-subtitle">{t('manager_workload.subtitle')}</p>
-
-      {error && <div className="manager-workload-banner is-error">{error}</div>}
-
-      <div className={`manager-workload-layout ${showAmbulanceList ? '' : 'is-single'}`}>
-        {showAmbulanceList && (
-          <nav
-            className="manager-workload-ambulances"
-            aria-label={t('manager_workload.ambulances')}
-          >
-            {ambulances.map((ambulance) => (
-              <button
-                type="button"
-                key={ambulance.id}
-                className={`manager-workload-ambulance ${
-                  ambulance.id === selectedAmbulanceId ? 'is-selected' : ''
-                }`}
-                onClick={() => selectAmbulance(ambulance.id)}
-              >
-                <span className="manager-workload-ambulance-name">{ambulance.name}</span>
-                {ambulance.description && (
-                  <span className="manager-workload-ambulance-description">
-                    {ambulance.description}
-                  </span>
-                )}
-              </button>
-            ))}
-          </nav>
-        )}
-
-        <section className="manager-workload-detail">
-          <header className="manager-workload-detail-head">
-            <div>
-              <h2>{selectedAmbulance?.name}</h2>
-              {!showAmbulanceList && selectedAmbulance?.description && (
-                <p>{selectedAmbulance.description}</p>
-              )}
-            </div>
-            <label className="manager-workload-employee-select">
-              <span>{t('manager_workload.employee')}</span>
-              <select
-                value={selectedEmployeeId ?? ''}
-                onChange={(event) => setSelectedEmployeeId(Number(event.target.value))}
-                disabled={employeesLoading || employees.length === 0}
-              >
-                {employees.length === 0 && (
-                  <option value="">{t('manager_workload.pick_employee')}</option>
-                )}
-                {employees.map((employee) => (
-                  <option key={employee.user_id} value={employee.user_id}>
-                    {employee.full_name || employee.email}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </header>
-
-          {employeesLoading && <p>{t('manager_workload.loading_employees')}</p>}
-          {!employeesLoading && employees.length === 0 && (
-            <div className="manager-workload-empty">{t('manager_workload.no_employees')}</div>
-          )}
-          {!employeesLoading && selectedEmployee && (
-            <WorkloadCalendar
-              key={`${selectedAmbulanceId}:${selectedEmployeeId}`}
-              title={selectedEmployee.full_name || selectedEmployee.email}
-              titleLevel={3}
-              fetchEntries={fetchEntries}
-              createEntry={createEntry}
-              updateEntry={updateEntry}
-              deleteEntry={deleteEntry}
-            />
-          )}
-        </section>
+    <section className="role-management">
+      <div className="role-management-heading">
+        <div>
+          <h1>{t('role_management.title')}</h1>
+          <p>{t('role_management.subtitle')}</p>
+        </div>
+        <label className="role-management-search">
+          <span className="sr-only">{t('role_management.search')}</span>
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={t('role_management.search')}
+          />
+        </label>
       </div>
-    </div>
+
+      <div className="role-management-legend">
+        {MANAGED_ROLES.map((role) => (
+          <span key={role.id}>
+            <strong>{role.id}</strong> {t(`role_management.${role.key}`)}
+          </span>
+        ))}
+      </div>
+
+      {message && (
+        <div className={`role-management-message is-${message.type}`} role="status">
+          {message.text}
+        </div>
+      )}
+
+      {loading ? (
+        <p className="role-management-state">{t('role_management.loading')}</p>
+      ) : visibleUsers.length === 0 ? (
+        <p className="role-management-state">{t('role_management.empty')}</p>
+      ) : (
+        <div className="role-management-list">
+          {visibleUsers.map((user) => {
+            const original = roleIdsOf(user);
+            const selected = drafts[user.id] || [];
+            const dirty = !sameIds(original, selected);
+
+            return (
+              <article className="role-management-card" key={user.id}>
+                <div className="role-management-person">
+                  <span className="role-management-identity">
+                    <strong>{user.full_name || t('role_management.unnamed')}</strong>
+                    <small>{user.email}</small>
+                  </span>
+                </div>
+
+                <div className="role-management-options">
+                  {MANAGED_ROLES.map((role) => (
+                    <label className="role-management-option" key={role.id}>
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(role.id)}
+                        disabled={savingId === user.id}
+                        onChange={() => toggleRole(user.id, role.id)}
+                      />
+                      <span className="role-management-role-number">{role.id}</span>
+                      <span>{t(`role_management.${role.key}`)}</span>
+                    </label>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  className="role-management-save"
+                  disabled={!dirty || savingId === user.id}
+                  onClick={() => save(user)}
+                >
+                  {savingId === user.id
+                    ? t('role_management.saving')
+                    : t('role_management.save')}
+                </button>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 };
 
-export default ManagerWorkloadView;
+export default RoleManagementView;

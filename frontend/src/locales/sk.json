@@ -1,4 +1,5 @@
 {
+  "app_title": "Rozpisy",
   "login_title": "Prihlásenie",
   "login_subtitle": "Vyberte si spôsob prihlásenia",
   "login_google": "Prihlásiť sa cez Google",
@@ -33,7 +34,10 @@
     "admin": "Administrácia pracovísk",
     "ambulance_schedule": "Rozpis pracoviska",
     "employee_workload": "Obmedzenia zamestnancov",
-    "roles": "Správa rolí"
+    "roles": "Správa rolí",
+    "section_employee": "Zamestnanec",
+    "section_manager": "Vedúci pracoviska",
+    "section_admin": "Administrácia"
   },
   "workload": {
     "title": "Obmedzenia",

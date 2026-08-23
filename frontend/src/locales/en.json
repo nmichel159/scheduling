@@ -1,4 +1,5 @@
 {
+  "app_title": "Scheduling",
   "login_title": "Login",
   "login_subtitle": "Select login method",
   "login_google": "Login with Google",
@@ -33,7 +34,10 @@
     "admin": "Workplace administration",
     "ambulance_schedule": "Workplace schedule",
     "employee_workload": "Employee restrictions",
-    "roles": "Role management"
+    "roles": "Role management",
+    "section_employee": "Employee",
+    "section_manager": "Manager",
+    "section_admin": "Administration"
   },
   "workload": {
     "title": "Restrictions",

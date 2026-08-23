@@ -12,7 +12,8 @@
 .dashboard-calendar-card.is-loading, .dashboard-summary.is-loading { opacity: 0.62; }
 .dashboard-next-shift { display: flex; align-items: flex-start; gap: 13px; }
 .dashboard-card-icon { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 10px; background: rgba(124, 92, 240, 0.16); color: var(--primary); font-size: 1.35rem; }
-.dashboard-next-shift h2 { font-size: 1.05rem; text-transform: capitalize; }
+.dashboard-next-shift h2 { font-size: 1.05rem; }
+.dashboard-next-shift-date { text-transform: capitalize; }
 .dashboard-next-shift p:not(.dashboard-card-label) { margin: 5px 0 0; color: var(--text-p); font-size: 0.88rem; }
 .dashboard-stat-card { display: flex; flex-direction: column; justify-content: center; }
 .dashboard-stat-card strong { font-size: 2rem; line-height: 1; }

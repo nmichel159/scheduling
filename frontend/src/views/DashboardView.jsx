@@ -136,7 +136,7 @@ const DashboardView = () => {
             <p className="dashboard-card-label">{t('dashboard.next_shift')}</p>
             {nextShift ? (
               <>
-                <h2>{dateLabel(nextShift.work_date)}</h2>
+                <h2 className="dashboard-next-shift-date">{dateLabel(nextShift.work_date)}</h2>
                 <p>{shiftLabel(nextShift)}{nextShift.competence_name ? ` · ${nextShift.competence_name}` : ''}</p>
               </>
             ) : (
