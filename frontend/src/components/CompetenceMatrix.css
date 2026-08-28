@@ -145,19 +145,25 @@
   color: var(--text-h);
 }
 
+/* Each day-group requirement row (e.g. Po–Ne vs Št–Pi–So) sits on its own
+ * otherwise-black background, so a plain 1px border between two of them
+ * barely reads. A thicker divider plus a faint alternating tint on the
+ * label cell gives each group a visible boundary of its own. */
+.cmatrix-required-row > th,
+.cmatrix-required-row > td {
+  border-top: 2px solid var(--border);
+  border-bottom: 2px solid var(--border);
+}
+
+.cmatrix-required-row.is-alt > th.cmatrix-required-label {
+  background: color-mix(in srgb, var(--background) 88%, var(--primary) 8%);
+}
+
 .cmatrix-required-label-inner {
   display: flex;
   align-items: center;
-  gap: 7px;
-  min-height: 28px;
-}
-
-.cmatrix-required-caption {
-  margin-right: auto;
-  font-size: 0.74rem;
-  line-height: 1.15;
-  color: var(--text);
-  white-space: normal;
+  gap: 10px;
+  min-height: 34px;
 }
 
 .cmatrix-day-chips {
@@ -202,99 +208,74 @@
 .cmatrix-required-cell {
   font-weight: 700;
   white-space: nowrap;
+  padding: 6px;
 }
-.cmatrix-required-cell.is-ok {
+
+/* Inner colored box, inset from the cell's own border — mirrors the
+ * .cmatrix-daycell pattern below so each day-group's status reads as its
+ * own rounded chip instead of one solid band of color across the row.
+ * The number stays centered at all times; a minus/plus button fades in
+ * on hover at the left/right edge and commits the change immediately —
+ * no separate edit step. */
+.cmatrix-required-fill {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 32px;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+.cmatrix-required-fill.is-ok {
   background: rgba(46, 160, 67, 0.18);
+  border: 1px solid rgba(46, 160, 67, 0.45);
   color: #2ea043;
 }
-.cmatrix-required-cell.is-off {
+.cmatrix-required-fill.is-off {
   background: rgba(192, 70, 60, 0.18);
+  border: 1px solid rgba(192, 70, 60, 0.45);
   color: #c0463c;
 }
 
-/* ---- Normal (non-editing) cell content ---- */
-.cmatrix-required-view {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: 100%;
-}
-
-/* Pencil — left edge, hidden until cell hover */
-.cmatrix-required-pencil {
-  border: none;
-  background: none;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.8rem;
-  color: inherit;
-  padding: 1px 3px;
-  border-radius: 4px;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-  line-height: 1;
-}
-.cmatrix-required-cell:hover .cmatrix-required-pencil,
-.cmatrix-required-pencil:focus-visible { opacity: 0.85; }
-.cmatrix-required-pencil:hover { opacity: 1 !important; }
-.cmatrix-required-pencil:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 1px;
-}
-@media (hover: none) {
-  .cmatrix-required-pencil { opacity: 0.85; }
-}
-
-/* ---- Edit (stepper) cell content ---- */
-.cmatrix-required-stepper {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-}
-
-.cmatrix-required-arrow {
-  border: none;
-  background: none;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.6rem;
-  line-height: 1;
-  padding: 2px 5px;
-  color: inherit;
-  border-radius: 4px;
-  opacity: 0.85;
-  transition: background 0.1s, opacity 0.1s;
-  min-width: 20px;
-  min-height: 20px;
-}
-.cmatrix-required-arrow:hover:not(:disabled) { opacity: 1; background: rgba(128,128,128,0.2); }
-.cmatrix-required-arrow:disabled { opacity: 0.25; cursor: not-allowed; }
-.cmatrix-required-arrow:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 1px;
-}
-
-.cmatrix-required-close {
-  border: none;
-  background: none;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.65rem;
-  line-height: 1;
-  padding: 2px 4px;
-  color: inherit;
-  border-radius: 4px;
-  opacity: 0.5;
-  margin-left: 2px;
-}
-.cmatrix-required-close:hover { opacity: 0.9; background: rgba(128,128,128,0.2); }
-
-/* Number — shared between both states */
 .cmatrix-required-number {
   min-width: 1.6ch;
   text-align: center;
+  font-weight: 700;
+}
+
+.cmatrix-required-step {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 4px 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.cmatrix-required-step-minus { left: 2px; }
+.cmatrix-required-step-plus { right: 2px; }
+
+.cmatrix-required-fill:hover .cmatrix-required-step {
+  opacity: 0.85;
+}
+.cmatrix-required-step:hover:not(:disabled) { opacity: 1 !important; }
+.cmatrix-required-step:disabled { cursor: not-allowed; opacity: 0.25 !important; }
+.cmatrix-required-step:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+@media (hover: none) {
+  .cmatrix-required-step { opacity: 0.85; }
 }
 
 .cmatrix-modal-backdrop {
@@ -360,13 +341,14 @@
 .cmatrix-table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .cmatrix-table th,
 .cmatrix-table td {
   border: 1px solid var(--border);
-  padding: 6px 8px;
+  padding: 11px 14px;
   text-align: center;
 }
 
@@ -384,12 +366,20 @@
   white-space: nowrap;
 }
 .cmatrix-col-inner {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
 }
-.cmatrix-colname { min-width: 0; }
+.cmatrix-colname {
+  grid-column: 2;
+  min-width: 0;
+  text-align: center;
+}
+.cmatrix-col-inner > .cmatrix-remove-btn {
+  grid-column: 3;
+  justify-self: end;
+}
 
 .cmatrix-row {
   position: relative;
@@ -398,6 +388,20 @@
   font-weight: 600;
   text-align: left;
   white-space: nowrap;
+}
+
+/* Zebra striping + hover highlight on employee rows, so a long list of
+ * competences stays easy to scan across. The hover tint sits behind the
+ * (mostly transparent) daycell buttons, so it still peeks through the
+ * 4px gap around an assigned cell's inner oval. */
+tbody tr:nth-child(even) > th.cmatrix-row,
+tbody tr:nth-child(even) > td.cmatrix-cell-td {
+  background: color-mix(in srgb, var(--background) 90%, var(--border) 10%);
+}
+
+tbody tr:hover > th.cmatrix-row,
+tbody tr:hover > td.cmatrix-cell-td {
+  background: color-mix(in srgb, var(--primary-background) 70%, transparent);
 }
 
 .cmatrix-row-inner {
@@ -481,12 +485,11 @@
 }
 .cmatrix-iconbtn:hover { opacity: 1; }
 
-/* Per-weekday competence cell — a person can hold a competence on some
- * days of the week and not others, so the cell shows a row of seven
- * small day dots (Po..Ne) instead of one flat toggle. The "week" button
- * on the left is a shortcut for the common case of the whole week at
- * once; it stays subtle until the cell has at least one active day, and
- * fills solid once every day is on. */
+/* Per-weekday competence cell — the whole cell is one clickable button
+ * (not just a small square in the middle). The 4px transparent border +
+ * background-clip:padding-box keeps the colored fill inside an inner
+ * "oval" area rather than covering the entire cell edge-to-edge; the
+ * assignment mark (✕) is centered inside it. */
 .cmatrix-cell-td { padding: 0; }
 
 .cmatrix-daycell {
@@ -494,42 +497,44 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
   width: 100%;
   height: 100%;
   min-width: 112px;
-  min-height: 40px;
-  padding: 6px 8px;
+  min-height: 48px;
+  padding: 8px 10px;
   border: 4px solid transparent;
   border-radius: 10px;
   background: none;
   background-clip: padding-box;
-}
-.cmatrix-daycell.is-on { background: var(--primary-background); }
-
-.cmatrix-daycell-week {
-  flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--background);
-  color: var(--primary);
-  font-size: 0.7rem;
-  font-weight: 700;
-  line-height: 1;
   cursor: pointer;
-  padding: 0;
+  font: inherit;
+  color: inherit;
 }
-.cmatrix-daycell-week:hover { border-color: var(--primary); }
-.cmatrix-daycell.is-full .cmatrix-daycell-week {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: #fff;
+
+.cmatrix-daycell:hover {
+  background: color-mix(in srgb, var(--primary-background) 60%, transparent);
 }
-.cmatrix-daycell-week:focus-visible {
+
+.cmatrix-daycell.is-on {
+  background: var(--primary-background);
+}
+
+.cmatrix-daycell.is-on:hover {
+  background: var(--primary-background);
+  opacity: 0.85;
+}
+
+.cmatrix-daycell:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 1px;
+}
+
+.cmatrix-daycell-mark {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--primary);
+  pointer-events: none;
 }
 
 .cmatrix-daycell-dots {

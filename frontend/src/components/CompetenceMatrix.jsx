@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { ISO_WEEKDAYS, requiredCountForGroup } from '../utils/competenceRequirements';
+import { requiredCountForGroup } from '../utils/competenceRequirements';
 import './CompetenceMatrix.css';
 
 /**
@@ -14,25 +14,33 @@ import './CompetenceMatrix.css';
  * which the parent resolves immediately (adding/removing a competence
  * definition is a registry write, not part of the editable draft).
  *
- * Each employee x competence cell now carries a per-weekday breakdown
- * instead of one flat yes/no — a person can hold a competence on some
- * days of the week and a different one on others. The cell renders as a
- * row of seven small day dots (Po..Ne) plus a compact "week" toggle for
- * the common case of assigning the whole week at once.
+ * Each employee x competence cell is a single binary toggle for the
+ * whole week — a person either holds the competence in this ambulance
+ * or doesn't; there is no per-weekday breakdown here (that's what
+ * `onToggleWeek` flips). The whole cell area is clickable (not just a
+ * small inner square) — see .cmatrix-daycell in the CSS.
+ *
+ * The "Potrebný počet" header rows show, per day-group (e.g. Po–Pi vs
+ * So–Ne), how many people with that competence the ambulance needs on
+ * those days. The ✎ pencil next to the day-chips splits a group into a
+ * finer day range with its own required count.
  *
  * Props:
  * - columns: [{ id, name, description }] — competences of the ambulance
  * - rows: [{ user_id, email, full_name, competenceDays: { [competenceId]: number[] } }] — draft state.
  *   competenceDays[competenceId] holds the ISO weekdays (0=Po..6=Ne) on which
  *   that employee holds that competence; a missing/empty entry means "not assigned".
+ *   This view only ever sets it to "all 7 days" or empty (see onToggleWeek).
  * - allUsers: [{ id, email, full_name }] — hospital-wide pool for the search box
  * - loading: table is (re)loading
- * - onToggleDay(userId, competenceId, weekday)
- * - onToggleWeek(userId, competenceId) — assign/clear all 7 days at once
+ * - onToggleWeek(userId, competenceId) — assign/clear the competence for the whole week
  * - onAddRow(user)
  * - onRemoveRow(userId)
  * - onAddCompetence(name): Promise
- * - onUpdateRequiredCount(competenceId, requiredCount): Promise
+ * - onUpdateRequiredCount(groupId, competenceId, requiredCount) — draft-only;
+ *   the parent only commits this to the backend when the shared "Uložiť"
+ *   button is clicked, same as every other edit in this table.
+ * - onSplitRequirementDays(groupId, weekdays)
  * - onDeleteCompetence(competenceId): Promise
  */
 const CompetenceMatrix = ({
@@ -41,7 +49,6 @@ const CompetenceMatrix = ({
   rows,
   allUsers,
   loading,
-  onToggleDay,
   onToggleWeek,
   onAddRow,
   onRemoveRow,
@@ -50,12 +57,6 @@ const CompetenceMatrix = ({
   onSplitRequirementDays,
   onDeleteCompetence,
 }) => {
-  // Day-chips (Po/Ut/St/.../Ne) and the split-into-groups pencil next to
-  // "Potrebný počet" are hidden for now — set to true to bring them back.
-  // Nothing was deleted: openSplitDays/splitRequirementDays and the modal
-  // still work, they're just not reachable from the UI while this is off.
-  const SHOW_REQUIRED_DAY_CHIPS = false;
-
   const { t } = useTranslation();
 
   const [search, setSearch] = useState('');
@@ -75,7 +76,6 @@ const CompetenceMatrix = ({
    */
   const requiredOf = (col, group) => requiredCountForGroup(col, group);
 
-  const [editingRequiredKey, setEditingRequiredKey] = useState(null);
   const [splittingGroupId, setSplittingGroupId] = useState(null);
   const [selectedSplitDays, setSelectedSplitDays] = useState([]);
 
@@ -83,8 +83,6 @@ const CompetenceMatrix = ({
     const next = Math.max(0, requiredOf(col, group) + delta);
     onUpdateRequiredCount(group.id, col.id, next);
   };
-
-  const closeRequiredEdit = () => setEditingRequiredKey(null);
 
   const openSplitDays = (group) => {
     setSplittingGroupId(group.id);
@@ -359,25 +357,21 @@ const CompetenceMatrix = ({
                 </th>
               ))}
             </tr>
-            {columns.length > 0 && dayGroups.map((group, groupIndex) => (
-              <tr className="cmatrix-required-row" key={group.id}>
+            {columns.length > 0 && dayGroups.map((group, index) => (
+              <tr
+                className={`cmatrix-required-row ${index % 2 === 1 ? 'is-alt' : ''}`}
+                key={group.id}
+              >
                 <th className="cmatrix-corner cmatrix-required-label">
                   <div className="cmatrix-required-label-inner">
-                    {groupIndex === 0 && (
-                      <span className="cmatrix-required-caption">
-                        {t('competences.required_count')}
-                      </span>
-                    )}
-                    {SHOW_REQUIRED_DAY_CHIPS && (
-                      <span className="cmatrix-day-chips">
-                        {group.weekdays.map((weekday) => (
-                          <span className="cmatrix-day-chip" key={weekday}>
-                            {t(`workload.days.${weekday}`)}
-                          </span>
-                        ))}
-                      </span>
-                    )}
-                    {SHOW_REQUIRED_DAY_CHIPS && group.weekdays.length > 1 && (
+                    <span className="cmatrix-day-chips">
+                      {group.weekdays.map((weekday) => (
+                        <span className="cmatrix-day-chip" key={weekday}>
+                          {t(`workload.days.${weekday}`)}
+                        </span>
+                      ))}
+                    </span>
+                    {group.weekdays.length > 1 && (
                       <button
                         type="button"
                         className="cmatrix-split-days"
@@ -396,60 +390,34 @@ const CompetenceMatrix = ({
                     (r.competenceDays[c.id] || []).includes(group.weekdays[0])
                   ).length;
                   const ok = assigned >= required;
-                  const editingKey = `${group.id}:${c.id}`;
-                  const isEditing = editingRequiredKey === editingKey;
                   return (
                     <th
                       key={c.id}
-                      className={`cmatrix-required-cell ${ok ? 'is-ok' : 'is-off'} ${isEditing ? 'is-editing' : ''}`}
-                      title={isEditing ? undefined : t('competences.staffing_status', {
-                        assigned,
-                        required,
-                      })}
+                      className="cmatrix-required-cell"
+                      title={t('competences.staffing_status', { assigned, required })}
                     >
-                      {isEditing ? (
-                        <span className="cmatrix-required-stepper">
-                          <button
-                            type="button"
-                            className="cmatrix-required-arrow"
-                            onClick={(e) => { e.stopPropagation(); stepRequired(group, c, -1); }}
-                            disabled={required <= 0}
-                            aria-label={t('competences.decrease_required')}
-                          >
-                            ▼
-                          </button>
-                          <span className="cmatrix-required-number">{required}</span>
-                          <button
-                            type="button"
-                            className="cmatrix-required-arrow"
-                            onClick={(e) => { e.stopPropagation(); stepRequired(group, c, 1); }}
-                            aria-label={t('competences.increase_required')}
-                          >
-                            ▲
-                          </button>
-                          <button
-                            type="button"
-                            className="cmatrix-required-close"
-                            onClick={(e) => { e.stopPropagation(); closeRequiredEdit(); }}
-                            aria-label={t('competences.close_editor')}
-                          >
-                            ✕
-                          </button>
-                        </span>
-                      ) : (
-                        <span className="cmatrix-required-view">
-                          <button
-                            type="button"
-                            className="cmatrix-required-pencil"
-                            onClick={(e) => { e.stopPropagation(); setEditingRequiredKey(editingKey); }}
-                            aria-label={t('competences.edit_required')}
-                            title={t('competences.edit_required')}
-                          >
-                            ✎
-                          </button>
-                          <span className="cmatrix-required-number">{required}</span>
-                        </span>
-                      )}
+                      <div className={`cmatrix-required-fill ${ok ? 'is-ok' : 'is-off'}`}>
+                        <button
+                          type="button"
+                          className="cmatrix-required-step cmatrix-required-step-minus"
+                          onClick={(e) => { e.stopPropagation(); stepRequired(group, c, -1); }}
+                          disabled={required <= 0}
+                          aria-label={t('competences.decrease_required')}
+                          title={t('competences.decrease_required')}
+                        >
+                          −
+                        </button>
+                        <span className="cmatrix-required-number">{required}</span>
+                        <button
+                          type="button"
+                          className="cmatrix-required-step cmatrix-required-step-plus"
+                          onClick={(e) => { e.stopPropagation(); stepRequired(group, c, 1); }}
+                          aria-label={t('competences.increase_required')}
+                          title={t('competences.increase_required')}
+                        >
+                          +
+                        </button>
+                      </div>
                     </th>
                   );
                 })}
@@ -484,44 +452,24 @@ const CompetenceMatrix = ({
                     </div>
                   </th>
                   {columns.map((c) => {
-                    const activeDays = r.competenceDays[c.id] || [];
-                    const allOn = activeDays.length === ISO_WEEKDAYS.length;
-                    const anyOn = activeDays.length > 0;
+                    const assigned = (r.competenceDays[c.id] || []).length > 0;
                     return (
                       <td key={c.id} className="cmatrix-cell-td">
-                        <div
-                          className={`cmatrix-daycell ${anyOn ? 'is-on' : ''} ${allOn ? 'is-full' : ''}`}
+                        <button
+                          type="button"
+                          className={`cmatrix-daycell ${assigned ? 'is-on' : ''}`}
+                          onClick={() => onToggleWeek(r.user_id, c.id)}
+                          aria-pressed={assigned}
+                          title={c.name}
+                          aria-label={t('competences.toggle_week_named', {
+                            name: r.full_name || r.email,
+                            competence: c.name,
+                          })}
                         >
-                          <button
-                            type="button"
-                            className="cmatrix-daycell-week"
-                            onClick={() => onToggleWeek(r.user_id, c.id)}
-                            aria-pressed={allOn}
-                            title={t('competences.toggle_week')}
-                            aria-label={t('competences.toggle_week_named', {
-                              name: r.full_name || r.email,
-                              competence: c.name,
-                            })}
-                          >
-                            {allOn ? '✕' : ''}
-                          </button>
-                          <span className="cmatrix-daycell-dots">
-                            {ISO_WEEKDAYS.map((weekday) => {
-                              const active = activeDays.includes(weekday);
-                              return (
-                                <button
-                                  key={weekday}
-                                  type="button"
-                                  className={`cmatrix-day-dot ${active ? 'is-on' : ''}`}
-                                  onClick={() => onToggleDay(r.user_id, c.id, weekday)}
-                                  aria-pressed={active}
-                                  title={t(`workload.days.${weekday}`)}
-                                  aria-label={`${t(`workload.days.${weekday}`)} — ${r.full_name || r.email} — ${c.name}`}
-                                />
-                              );
-                            })}
+                          <span className="cmatrix-daycell-mark" aria-hidden="true">
+                            {assigned ? '✕' : ''}
                           </span>
-                        </div>
+                        </button>
                       </td>
                     );
                   })}

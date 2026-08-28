@@ -292,21 +292,24 @@ const DepartmentsView = () => {
     setRows((prev) => prev.filter((r) => r.user_id !== userId));
   };
 
-  /** Draft-only update for one competence across every day in a grouped row. */
+  /** Draft-only update for one competence across every day in a grouped row.
+   *  Deliberately does NOT re-group/merge dayGroups here: two rows that
+   *  happen to reach the same numbers mid-edit (e.g. while clicking one
+   *  row's count up towards another row's value) must stay separate rows
+   *  until the user actually saves — merging them immediately would pull
+   *  both rows under one shared count and make it impossible to set them
+   *  to different values. The table only re-groups (merging equal rows or
+   *  splitting changed ones) when `loadTable()` re-fetches after Save. */
   const updateRequiredCount = (groupId, competenceId, requiredCount) => {
     setColumns((previousColumns) => {
       const group = dayGroups.find((item) => item.id === groupId);
       if (!group) return previousColumns;
-      const nextColumns = updateGroupRequiredCount(
+      return updateGroupRequiredCount(
         previousColumns,
         competenceId,
         group.weekdays,
         requiredCount
       );
-      setDayGroups((previousGroups) =>
-        mergeEquivalentDayGroups(previousGroups, nextColumns)
-      );
-      return nextColumns;
     });
   };
 
