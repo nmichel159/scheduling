@@ -32,6 +32,14 @@ from app.schemas.schedule import (
 
 PREFERRED_UNAVAILABILITY_REASON = "PREFERRED"
 
+# Reward budget shared by every honored request, expressed in workload-cost
+# units. The marginal workload costs are consecutive odd numbers, so the
+# cheapest possible worsening of the balance costs 2. Keeping the *total*
+# preference reward strictly below that makes the objective lexicographic:
+# preferences order schedules that are already equally balanced, and can never
+# buy an honored request with a less balanced roster.
+PREFERENCE_REWARD_BUDGET = 1.0
+
 
 @dataclass(frozen=True)
 class SchedulingCompetence:
@@ -59,6 +67,7 @@ class SchedulingEmployee:
     competence_ids: frozenset[int]
     unavailable_dates: frozenset[date]
     externally_scheduled_dates: frozenset[date]
+    preferred_dates: frozenset[date] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -150,9 +159,9 @@ def _index_schedule_variables(
 def _is_hard_unavailability(reason: str | None) -> bool:
     """Return whether an availability record must block schedule generation.
 
-    The current UI stores preferred days in the unavailability table as a
-    transitional representation. Preferences are not optimized yet, so they
-    must remain neutral rather than being treated as absences.
+    The UI stores preferred days in the unavailability table as a transitional
+    representation. A preferred day is the opposite of an absence: it never
+    blocks an assignment, and it is rewarded by the objective instead.
     """
     return reason != PREFERRED_UNAVAILABILITY_REASON
 
@@ -280,8 +289,11 @@ def solve_monthly_schedule(
 
     The model guarantees full daily coverage, employee availability, at most
     one role per employee per day, and a complete day of rest between duties.
-    The objective uses an increasing marginal cost for every additional duty,
-    which balances workload as evenly as the hard constraints permit.
+    The objective has two lexicographic terms. The primary term uses an
+    increasing marginal cost for every additional duty, which balances workload
+    as evenly as the hard constraints permit. The secondary term rewards duties
+    placed on a day the employee asked for, and is scaled so it can only order
+    equally balanced schedules, never make the balance worse.
 
     Args:
         employees: Active ambulance employees with qualifications and absences.
@@ -363,6 +375,11 @@ def solve_monthly_schedule(
                 )
 
     variable_index = _index_schedule_variables(variables)
+    preferred_dates_by_employee = {
+        employee.id: employee.preferred_dates
+        for employee in employees
+        if employee.preferred_dates
+    }
     capacity_issues = _detect_capacity_issues(
         variables,
         competences,
@@ -431,7 +448,21 @@ def solve_monthly_schedule(
             for level, workload_level in enumerate(workload_levels, start=1)
         )
 
-    problem += lpSum(marginal_workload_costs)
+    objective = lpSum(marginal_workload_costs)
+    preferred_variables = [
+        variable
+        for (user_id, _competence_id, work_date), variable in variables.items()
+        if work_date in preferred_dates_by_employee.get(user_id, frozenset())
+    ]
+    if preferred_variables:
+        # Spreading one fixed budget over every request keeps the reward below
+        # the cheapest balance step no matter how large the month is, so the
+        # solver maximizes honored requests strictly inside the set of optimally
+        # balanced schedules.
+        preference_reward = PREFERENCE_REWARD_BUDGET / (len(preferred_variables) + 1)
+        objective -= preference_reward * lpSum(preferred_variables)
+
+    problem += objective
     problem.solve(
         PULP_CBC_CMD(
             msg=False,
@@ -516,6 +547,7 @@ def generate_ambulance_monthly_schedule(
             qualifications[user_id].add(competence_id)
 
     unavailable_dates: dict[int, set[date]] = {user_id: set() for user_id in user_ids}
+    preferred_dates: dict[int, set[date]] = {user_id: set() for user_id in user_ids}
     if user_ids:
         unavailability_rows = (
             db.query(
@@ -533,6 +565,8 @@ def generate_ambulance_monthly_schedule(
         for user_id, unavailable_date, reason in unavailability_rows:
             if _is_hard_unavailability(reason):
                 unavailable_dates[user_id].add(unavailable_date)
+            else:
+                preferred_dates[user_id].add(unavailable_date)
 
     externally_scheduled_dates: dict[int, set[date]] = {
         user_id: set() for user_id in user_ids
@@ -578,6 +612,7 @@ def generate_ambulance_monthly_schedule(
             competence_ids=frozenset(qualifications[user.id]),
             unavailable_dates=frozenset(unavailable_dates[user.id]),
             externally_scheduled_dates=frozenset(externally_scheduled_dates[user.id]),
+            preferred_dates=frozenset(preferred_dates[user.id]),
         )
         for user in user_rows
     ]

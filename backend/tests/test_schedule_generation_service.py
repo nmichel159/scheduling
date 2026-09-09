@@ -35,6 +35,7 @@ def _employee(
     competence_ids: frozenset[int] = frozenset({1, 2}),
     unavailable_dates: frozenset[date] = frozenset(),
     externally_scheduled_dates: frozenset[date] = frozenset(),
+    preferred_dates: frozenset[date] = frozenset(),
 ) -> SchedulingEmployee:
     """Build a concise employee fixture for solver tests."""
     return SchedulingEmployee(
@@ -44,6 +45,7 @@ def _employee(
         competence_ids=competence_ids,
         unavailable_dates=unavailable_dates,
         externally_scheduled_dates=externally_scheduled_dates,
+        preferred_dates=preferred_dates,
     )
 
 
@@ -308,8 +310,77 @@ class ScheduleGenerationSolverTests(unittest.TestCase):
         )
         self.assertEqual(assignments, [])
 
+    def test_places_duties_on_requested_days_without_losing_balance(self) -> None:
+        """Every duty of a requesting employee lands on a day they asked for."""
+        requested = frozenset(date(2026, 8, day) for day in range(1, 16, 2))
+        employees = [
+            _employee(1, competence_ids=frozenset({1})),
+            _employee(2, competence_ids=frozenset({1})),
+            _employee(3, competence_ids=frozenset({1})),
+            _employee(4, competence_ids=frozenset({1}), preferred_dates=requested),
+        ]
+        assignments = solve_monthly_schedule(
+            employees,
+            [SchedulingCompetence(id=1, name="Triage", required_count=1)],
+            month=8,
+            year=2026,
+        )
+
+        workload = Counter(item.user_id for item in assignments)
+        # 31 duties over four employees: the balanced split is the only optimum.
+        self.assertEqual(sorted(workload.values()), [7, 8, 8, 8])
+        self.assertEqual(
+            {item.work_date for item in assignments if item.user_id == 4},
+            set(requested),
+        )
+
+    def test_requests_never_buy_a_less_balanced_roster(self) -> None:
+        """One employee asking for the whole month still gets an even share."""
+        all_month = frozenset(date(2026, 8, day) for day in range(1, 32))
+        employees = [
+            _employee(1, competence_ids=frozenset({1})),
+            _employee(2, competence_ids=frozenset({1})),
+            _employee(3, competence_ids=frozenset({1}), preferred_dates=all_month),
+        ]
+        assignments = solve_monthly_schedule(
+            employees,
+            [SchedulingCompetence(id=1, name="Triage", required_count=1)],
+            month=8,
+            year=2026,
+        )
+
+        workload = Counter(item.user_id for item in assignments)
+        self.assertEqual(sorted(workload.values()), [10, 10, 11])
+
+    def test_requests_on_blocked_days_are_ignored(self) -> None:
+        """A day that is both requested and unavailable stays unavailable."""
+        blocked = frozenset({date(2026, 8, 4)})
+        employees = [
+            _employee(1, competence_ids=frozenset({1})),
+            _employee(2, competence_ids=frozenset({1})),
+            _employee(
+                3,
+                competence_ids=frozenset({1}),
+                unavailable_dates=blocked,
+                preferred_dates=blocked,
+            ),
+        ]
+        assignments = solve_monthly_schedule(
+            employees,
+            [SchedulingCompetence(id=1, name="Triage", required_count=1)],
+            month=8,
+            year=2026,
+        )
+
+        self.assertFalse(
+            any(
+                item.user_id == 3 and item.work_date == date(2026, 8, 4)
+                for item in assignments
+            )
+        )
+
     def test_only_true_unavailability_is_a_hard_block(self) -> None:
-        """Preferred days stay neutral until preference optimization is implemented."""
+        """A preferred day is rewarded by the objective, never a hard block."""
         self.assertTrue(_is_hard_unavailability(None))
         self.assertTrue(_is_hard_unavailability("UNAVAILABLE"))
         self.assertTrue(_is_hard_unavailability("Vacation"))
