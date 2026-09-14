@@ -26,11 +26,9 @@
   height: 100svh;
 }
 
-@media (prefers-color-scheme: dark) {
-  .sidebar {
-    --nav-hover: rgba(243, 244, 246, 0.07);
-    --nav-menu-bg: #23242d;
-  }
+:root[data-theme='dark'] .sidebar {
+  --nav-hover: rgba(243, 244, 246, 0.07);
+  --nav-menu-bg: #23242d;
 }
 
 .sidebar.is-open {
@@ -253,9 +251,7 @@
   display: grid;
   place-items: center;
 }
-@media (prefers-color-scheme: dark) {
-  .avatar { color: #16171d; }
-}
+:root[data-theme='dark'] .avatar { color: #16171d; }
 
 .user-meta {
   display: none;                     /* v raile ostane len štvorček s iniciálami */
@@ -318,31 +314,6 @@
 .nav-menu-item:hover { background: var(--nav-hover); }
 .nav-menu-item:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .nav-menu-item .nav-icon { width: 18px; height: 18px; }
-
-.nav-menu-langs {
-  display: flex;
-  gap: 5px;
-  padding: 2px 4px 6px;
-}
-.nav-menu-langs button {
-  flex: 1;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: none;
-  font: inherit;
-  font-size: 0.76rem;
-  color: var(--text);
-  padding: 5px 0;
-  cursor: pointer;
-}
-.nav-menu-langs button:hover { background: var(--nav-hover); }
-.nav-menu-langs button.is-selected {
-  border-color: var(--primary-border);
-  background: var(--primary-background);
-  color: var(--text-h);
-  font-weight: 600;
-}
-.nav-menu-langs button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 
 .nav-menu-divider {
   border: none;

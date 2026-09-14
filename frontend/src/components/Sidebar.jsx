@@ -5,17 +5,18 @@ import { useRoles } from '../hooks/useRoles';
 import { useMediaQuery, DESKTOP_QUERY } from '../hooks/useMediaQuery';
 import ConfirmDialog from './ConfirmDialog';
 import QuickJump from './QuickJump';
+import SettingsDialog from './SettingsDialog';
 import {
   AdminIcon,
   ChevronLeftIcon,
   HomeIcon,
-  LanguageIcon,
   LimitsIcon,
   LogoutIcon,
   MoreIcon,
   MyScheduleIcon,
   RolesIcon,
   SearchIcon,
+  SettingsIcon,
   TeamLimitsIcon,
   TeamScheduleIcon,
   WorkplaceIcon,
@@ -87,7 +88,7 @@ const isItemActive = (pathname, to) => pathname === to || pathname.startsWith(`$
 const Sidebar = ({ open, onToggle, onClose }) => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { hasEmployee, hasManager, hasAdmin } = useRoles();
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
 
@@ -97,6 +98,7 @@ const Sidebar = ({ open, onToggle, onClose }) => {
   const [flyout, setFlyout] = useState(null);      // { id, top } — otvorená sekcia v raile
   const [userMenu, setUserMenu] = useState(null);  // { bottom } | true pri vypísanom menu
   const [quickJumpOpen, setQuickJumpOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [logoutAsked, setLogoutAsked] = useState(false);
 
   const closeTimer = useRef(null);
@@ -224,23 +226,18 @@ const Sidebar = ({ open, onToggle, onClose }) => {
 
   const userMenuContent = (
     <>
-      <p className="nav-menu-title">{t('sidebar.language')}</p>
-      <div className="nav-menu-langs">
-        <button
-          type="button"
-          className={i18n.resolvedLanguage?.startsWith('sk') ? 'is-selected' : ''}
-          onClick={() => i18n.changeLanguage('sk')}
-        >
-          Slovenčina
-        </button>
-        <button
-          type="button"
-          className={i18n.resolvedLanguage?.startsWith('en') ? 'is-selected' : ''}
-          onClick={() => i18n.changeLanguage('en')}
-        >
-          English
-        </button>
-      </div>
+      <p className="nav-menu-title">{t('sidebar.account')}</p>
+      <button
+        type="button"
+        className="nav-menu-item"
+        onClick={() => {
+          setUserMenu(null);
+          setSettingsOpen(true);
+        }}
+      >
+        <SettingsIcon className="nav-icon" />
+        {t('sidebar.settings')}
+      </button>
       <hr className="nav-menu-divider" />
       <button
         type="button"
@@ -415,6 +412,8 @@ const Sidebar = ({ open, onToggle, onClose }) => {
         items={jumpItems}
         onClose={() => setQuickJumpOpen(false)}
       />
+
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <ConfirmDialog
         open={logoutAsked}

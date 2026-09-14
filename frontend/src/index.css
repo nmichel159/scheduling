@@ -19,7 +19,7 @@
 
   font: 18px/1.45 var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
+  color-scheme: light;
   color: var(--text);
   background: var(--background);
   font-synthesis: none;
@@ -32,26 +32,28 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-  --primary: #c084fc;     
+/* Tmavý motív. data-theme na <html> nastavuje src/theme.js — pri systémovom
+   režime podľa prefers-color-scheme, inak podľa voľby v Nastaveniach. */
+:root[data-theme='dark'] {
+  --primary: #c084fc;
   --secondary: #8b8695;
-  --background: #16171d;        
+  --background: #16171d;
 
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --border: #2e303a;
-    --code-background: #1f2028;
-    --primary-background: rgba(192, 132, 252, 0.15);
-    --primary-border: rgba(192, 132, 252, 0.5);
-    --social-background: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+  --text: #9ca3af;
+  --text-h: #f3f4f6;
+  --border: #2e303a;
+  --code-background: #1f2028;
+  --primary-background: rgba(192, 132, 252, 0.15);
+  --primary-border: rgba(192, 132, 252, 0.5);
+  --social-background: rgba(47, 48, 58, 0.5);
+  --shadow:
+    rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+  color-scheme: dark;
+}
+
+:root[data-theme='dark'] #social .button-icon {
+  filter: invert(1) brightness(2);
 }
 
 body {

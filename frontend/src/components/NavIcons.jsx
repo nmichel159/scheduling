@@ -125,3 +125,34 @@ export const MoreIcon = (props) => (
     <circle cx="18" cy="12" r="1.5" fill="currentColor" stroke="none" />
   </Icon>
 );
+
+/** Nastavenia — ozubené koleso. */
+export const SettingsIcon = (props) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="2.9" />
+    <path d="M19.1 14.4a1.5 1.5 0 0 0 .3 1.7l.1.1a1.8 1.8 0 1 1-2.6 2.6l-.1-.1a1.5 1.5 0 0 0-1.7-.3 1.5 1.5 0 0 0-.9 1.4v.3a1.8 1.8 0 1 1-3.6 0V20a1.5 1.5 0 0 0-1-1.4 1.5 1.5 0 0 0-1.7.3l-.1.1a1.8 1.8 0 1 1-2.6-2.6l.1-.1a1.5 1.5 0 0 0 .3-1.7 1.5 1.5 0 0 0-1.4-.9H4a1.8 1.8 0 1 1 0-3.6h.1a1.5 1.5 0 0 0 1.4-1 1.5 1.5 0 0 0-.3-1.7l-.1-.1a1.8 1.8 0 1 1 2.6-2.6l.1.1a1.5 1.5 0 0 0 1.7.3h.1a1.5 1.5 0 0 0 .9-1.4V4a1.8 1.8 0 1 1 3.6 0v.1a1.5 1.5 0 0 0 .9 1.4h.1a1.5 1.5 0 0 0 1.7-.3l.1-.1a1.8 1.8 0 1 1 2.6 2.6l-.1.1a1.5 1.5 0 0 0-.3 1.7v.1a1.5 1.5 0 0 0 1.4.9h.3a1.8 1.8 0 1 1 0 3.6H20a1.5 1.5 0 0 0-1.4.9z" />
+  </Icon>
+);
+
+/** Svetlý motív — slnko. */
+export const SunIcon = (props) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="4.2" />
+    <path d="M12 2.6v2.2M12 19.2v2.2M4.4 4.4l1.6 1.6M18 18l1.6 1.6M2.6 12h2.2M19.2 12h2.2M4.4 19.6 6 18M18 6l1.6-1.6" />
+  </Icon>
+);
+
+/** Tmavý motív — mesiac. */
+export const MoonIcon = (props) => (
+  <Icon {...props}>
+    <path d="M20.4 13.6A8.4 8.4 0 0 1 10.4 3.6a8.4 8.4 0 1 0 10 10z" />
+  </Icon>
+);
+
+/** Systémový motív — obrazovka, teda "ako to má nastavené počítač". */
+export const MonitorIcon = (props) => (
+  <Icon {...props}>
+    <rect x="3" y="4.4" width="18" height="12" rx="2" />
+    <path d="M8.6 20h6.8M12 16.4V20" />
+  </Icon>
+);

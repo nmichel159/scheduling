@@ -5,6 +5,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google' // 1. Pridaný import
 import { router } from './router'
 import './index.css'
 import './i18n'
+import './theme'   // zapíše zvolený vzhľad do <html> ešte pred prvým vykreslením
 
 // 2. Načítanie Google Client ID z .env súboru
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
