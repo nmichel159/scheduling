@@ -1,5 +1,10 @@
 .sidebar {
-  width: 56px;                       /* zatvorená lišta */
+  /* Neutrálny hover — aktívna položka je fialová, hover nesmie vyzerať rovnako,
+     inak pri prechode myšou nevidno, na ktorej stránke stojíš. */
+  --nav-hover: rgba(8, 6, 13, 0.06);
+  --nav-menu-bg: #ffffff;
+
+  width: 56px;                       /* zatvorená lišta (rail) */
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -13,7 +18,7 @@
 
   /* Sidebar sa "prilepí" na vrch okna a je vysoký presne ako viewport,
      takže pri dlhých views (ScheduleView, AdminView...) neodíde dole
-     spolu s obsahom — logout je stále na spodku obrazovky. */
+     spolu s obsahom — pätka je stále na spodku obrazovky. */
   position: sticky;
   top: 0;
   align-self: flex-start;            /* bez toho by ho flex roztiahol a sticky by nefungoval */
@@ -21,29 +26,34 @@
   height: 100svh;
 }
 
-.sidebar.is-open {
-  width: 260px;                      /* otvorený sidebar */
+@media (prefers-color-scheme: dark) {
+  .sidebar {
+    --nav-hover: rgba(243, 244, 246, 0.07);
+    --nav-menu-bg: #23242d;
+  }
 }
 
-/* logo hore – pri hoveri sa vymení za šípku */
-.logo-btn {
+.sidebar.is-open {
+  width: 260px;                      /* rozbalená lišta — všetky položky s popiskami */
+}
+
+/* hlavička s logom; logo je len logo, prepínač má vlastné tlačidlo v pätke */
+.sidebar-head {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 40px;
+  gap: 10px;
   height: 40px;
-  border: none;
-  background: none;
-  border-radius: 8px;
-  cursor: pointer;
-  margin-bottom: 16px;
-  flex-shrink: 0;                    /* logo sa nikdy nestláča */
+  padding: 0 6px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
 }
-.logo-btn:hover { background: var(--primary-background); }
-.logo-img { width: 28px; height: 28px; object-fit: contain; }
-.toggle-icon { display: none; color: var(--text); }
-.logo-btn:hover .logo-img { display: none; }
-.logo-btn:hover .toggle-icon { display: inline; }
+.logo-img { width: 28px; height: 28px; object-fit: contain; border-radius: 5px; flex-shrink: 0; }
+.logo-title {
+  font-weight: 600;
+  color: var(--text-h);
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
 
 .sidebar-nav {
   display: flex;
@@ -51,31 +61,27 @@
   gap: 4px;
   flex: 1;
   min-height: 0;                     /* nutné, aby sa mohol scrollovať vnútri flexu */
-  overflow-y: auto;                  /* keď pribudne veľa položiek, scrolluje sa len zoznam */
+  overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;      /* scroll v menu nepretečie na stránku */
   scrollbar-width: thin;
 }
 
-/* v zatvorenom stave (56px) by scrollbar zaberal priveľa miesta */
-.sidebar:not(.is-open) .sidebar-nav {
-  scrollbar-width: none;
-}
-.sidebar:not(.is-open) .sidebar-nav::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
+/* v zbalenom stave (56px) by scrollbar zaberal priveľa miesta */
+.sidebar.is-rail .sidebar-nav { scrollbar-width: none; }
+.sidebar.is-rail .sidebar-nav::-webkit-scrollbar { width: 0; height: 0; }
 .sidebar-nav::-webkit-scrollbar { width: 6px; }
 .sidebar-nav::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 3px;
 }
 
-/* Vizuálne oddelené skupiny (Home / Zamestnanec / Vedúci / Admin) */
+/* Vizuálne oddelené skupiny (Domov / Zamestnanec / Vedúci / Admin) */
 .nav-section {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  position: relative;                /* kotva pre fly-out */
 }
 
 .nav-section + .nav-section {
@@ -97,43 +103,254 @@
   color: var(--secondary);
 }
 
-/* v zatvorenom stave nadpis skupiny nezaberá miesto, ostáva len čiara */
-.sidebar:not(.is-open) .nav-section-title {
-  padding: 0;
-  height: 0;
-  overflow: hidden;
-}
+/* ---------- položky ---------- */
 
-.nav-item, .user-avatar {
+.nav-item {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px;
+  border: none;
   border-radius: 8px;
+  background: none;
+  font: inherit;
+  font-size: 0.86rem;
   color: var(--text);
   text-decoration: none;
   white-space: nowrap;               /* text sa neláme pri animácii */
-}
-.nav-item:hover { background: var(--primary-background); }
-.nav-item.active { background: var(--primary-background); color: var(--text-h); }
-
-/* texty vidno len v otvorenom stave */
-.label { display: none; }
-.sidebar.is-open .label { display: inline; }
-
-.user-avatar {
-  border-top: 1px solid var(--border);
-  border-left: none;
-  border-right: none;
-  border-bottom: none;
-  background: none;
-  cursor: pointer;
-  font: inherit;
   width: 100%;
-  margin-top: auto;                  /* vždy zatlačený na spodok sidebaru */
-  flex-shrink: 0;                    /* nikdy sa nestlačí ani neschová */
+  box-sizing: border-box;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
 }
-.user-avatar:hover { background: var(--primary-background); }
+
+.nav-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: block;
+}
+
+.nav-item .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-item:hover { background: var(--nav-hover); }
+
+/* Aktívna položka: fialová plocha, ťažší text, zafarbená ikona a prúžok vľavo.
+   NavLink dopĺňa .active aj aria-current="page" sám. */
+.nav-item.active,
+.nav-item.is-current {
+  background: var(--primary-background);
+  color: var(--text-h);
+  font-weight: 600;
+  box-shadow: inset 2.5px 0 0 var(--primary);
+}
+.nav-item.active .nav-icon,
+.nav-item.is-current .nav-icon { color: var(--primary); }
+
+.nav-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+/* texty vidno len v rozbalenom stave */
+.label { display: none; }
+.sidebar:not(.is-rail) .label { display: inline; }
+
+/* v raile sú položky iba ikony — vycentrované */
+.sidebar.is-rail .nav-item {
+  justify-content: center;
+  padding: 10px 0;
+}
+.sidebar.is-rail .nav-section-title { padding: 0; height: 0; overflow: hidden; }
+
+/* ---------- rýchly skok ---------- */
+
+.nav-search { color: var(--secondary); }
+.nav-kbd {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--secondary);
+  flex-shrink: 0;
+}
+.sidebar:not(.is-rail) .nav-kbd { display: inline-block; }
+
+/* ---------- fly-out zbalenej lišty ---------- */
+
+/* position: fixed, aby ho nerezal overflow railu ani scroll navigácie;
+   .sidebar nemá transform, takže fixed sa počíta voči oknu. */
+.nav-flyout {
+  position: fixed;
+  z-index: 120;
+  width: 244px;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--nav-menu-bg);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-flyout-title,
+.nav-menu-title {
+  margin: 0;
+  padding: 6px 9px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--secondary);
+}
+
+/* vo fly-oute sú popisky vždy vidieť, aj keď je lišta zbalená */
+.nav-flyout .nav-item {
+  justify-content: flex-start;
+  padding: 9px 10px;
+  font-size: 0.84rem;
+}
+.flyout-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- pätka: prepínač + účet ---------- */
+
+.sidebar-foot {
+  margin-top: auto;                  /* vždy zatlačená na spodok lišty */
+  flex-shrink: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-toggle { color: var(--secondary); font-size: 0.8rem; }
+.nav-toggle .nav-icon.is-flipped { transform: rotate(180deg); }
+
+.user-block { position: relative; }
+
+.avatar {
+  width: 22px;
+  height: 22px;
+  margin: -1px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  display: grid;
+  place-items: center;
+}
+@media (prefers-color-scheme: dark) {
+  .avatar { color: #16171d; }
+}
+
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.sidebar:not(.is-rail) .user-meta { display: flex; }
+.user-meta b {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-h);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.user-meta em {
+  font-style: normal;
+  font-size: 0.68rem;
+  color: var(--secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.user-more { width: 16px; height: 16px; opacity: 0.6; }
+.sidebar:not(.is-rail) .user-more { display: block; }
+
+/* ---------- menu účtu ---------- */
+
+.nav-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* v rozbalenej lište a na mobile sa menu vypíše priamo nad tlačidlom */
+.user-menu-inline {
+  margin-bottom: 6px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--nav-menu-bg);
+}
+
+.nav-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--text);
+  text-align: left;
+  padding: 8px 9px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.nav-menu-item:hover { background: var(--nav-hover); }
+.nav-menu-item:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.nav-menu-item .nav-icon { width: 18px; height: 18px; }
+
+.nav-menu-langs {
+  display: flex;
+  gap: 5px;
+  padding: 2px 4px 6px;
+}
+.nav-menu-langs button {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: none;
+  font: inherit;
+  font-size: 0.76rem;
+  color: var(--text);
+  padding: 5px 0;
+  cursor: pointer;
+}
+.nav-menu-langs button:hover { background: var(--nav-hover); }
+.nav-menu-langs button.is-selected {
+  border-color: var(--primary-border);
+  background: var(--primary-background);
+  color: var(--text-h);
+  font-weight: 600;
+}
+.nav-menu-langs button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+.nav-menu-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 4px 2px;
+}
+
+/* ---------- mobil: overlay s vypísanými položkami ---------- */
 
 @media (max-width: 768px) {
   .sidebar {
@@ -153,4 +370,10 @@
   .sidebar .label { display: inline; } /* texty na mobile vždy, panel je plný */
   .sidebar .nav-section-title { padding: 2px 10px 6px; height: auto; overflow: visible; }
   .sidebar .sidebar-nav { scrollbar-width: thin; }
+  .sidebar .nav-toggle { display: none; }  /* zatvára sa cez ☰ v hlavičke a backdrop */
+  .sidebar .nav-kbd { display: none; }     /* Ctrl+K na dotykovom displeji nedáva zmysel */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar { transition: none; }
 }

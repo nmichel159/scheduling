@@ -37,7 +37,15 @@
     "roles": "Správa rolí",
     "section_employee": "Zamestnanec",
     "section_manager": "Vedúci pracoviska",
-    "section_admin": "Administrácia"
+    "section_admin": "Administrácia",
+    "nav_label": "Hlavná navigácia",
+    "account": "Účet",
+    "language": "Jazyk",
+    "quick_jump": "Rýchly skok",
+    "quick_jump_placeholder": "Hľadať obrazovku…",
+    "quick_jump_empty": "Nič sa nenašlo.",
+    "logout_confirm": "Naozaj sa chcete odhlásiť?",
+    "cancel": "Zrušiť"
   },
   "workload": {
     "title": "Obmedzenia",

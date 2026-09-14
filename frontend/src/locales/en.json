@@ -37,7 +37,15 @@
     "roles": "Role management",
     "section_employee": "Employee",
     "section_manager": "Manager",
-    "section_admin": "Administration"
+    "section_admin": "Administration",
+    "nav_label": "Main navigation",
+    "account": "Account",
+    "language": "Language",
+    "quick_jump": "Quick jump",
+    "quick_jump_placeholder": "Search screens…",
+    "quick_jump_empty": "No matches.",
+    "logout_confirm": "Do you really want to log out?",
+    "cancel": "Cancel"
   },
   "workload": {
     "title": "Restrictions",
