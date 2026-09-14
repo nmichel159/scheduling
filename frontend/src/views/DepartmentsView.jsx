@@ -22,7 +22,7 @@ import {
   mergeEquivalentDayGroups,
   normalizeCompetenceRequirements,
   normalizeWeekdayRequirements,
-  splitDayGroup,
+  extractDayGroup,
   updateGroupRequiredCount,
 } from '../utils/competenceRequirements';
 import './DepartmentsView.css';
@@ -313,8 +313,17 @@ const DepartmentsView = () => {
     });
   };
 
-  const splitRequirementDays = (groupId, weekdays) => {
-    setDayGroups((previous) => splitDayGroup(previous, groupId, weekdays));
+  /** Build a new day-group out of the days the user picked in the matrix.
+   *  `sourceWeekday` is the day they clicked first; every day joining the
+   *  group takes that day's counts, so days pulled out of different groups
+   *  end up agreeing and the new group is one editable row. Draft-only,
+   *  like every other edit here — Save persists it, and the reload
+   *  afterwards folds the group back into its neighbour if the counts
+   *  turned out to match. */
+  const createDayGroup = (weekdays, sourceWeekday) => {
+    const next = extractDayGroup(dayGroups, columns, weekdays, sourceWeekday);
+    setDayGroups(next.groups);
+    setColumns(next.columns);
   };
 
   /* ---------- codebook actions (immediate — registry, not draft) ---------- */
@@ -546,7 +555,7 @@ const DepartmentsView = () => {
                 onRemoveRow={removeRow}
                 onAddCompetence={handleAddCompetence}
                 onUpdateRequiredCount={updateRequiredCount}
-                onSplitRequirementDays={splitRequirementDays}
+                onCreateDayGroup={createDayGroup}
                 onDeleteCompetence={handleDeleteCompetence}
               />
             </>

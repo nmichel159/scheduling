@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { requiredCountForGroup } from '../utils/competenceRequirements';
+import { ISO_WEEKDAYS, requiredCountForGroup } from '../utils/competenceRequirements';
 import './CompetenceMatrix.css';
 
 /**
@@ -22,8 +22,10 @@ import './CompetenceMatrix.css';
  *
  * The "Potrebný počet" header rows show, per day-group (e.g. Po–Pi vs
  * So–Ne), how many people with that competence the ambulance needs on
- * those days. The ✎ pencil next to the day-chips splits a group into a
- * finer day range with its own required count.
+ * those days. Each row carries a full seven-slot week track and fills in
+ * only the days it owns, so Monday sits at the same x in every row and a
+ * group reads as one connected pill. Clicking any day opens a popover
+ * that collects days into a new group (see `onCreateDayGroup`).
  *
  * Props:
  * - columns: [{ id, name, description }] — competences of the ambulance
@@ -40,7 +42,9 @@ import './CompetenceMatrix.css';
  * - onUpdateRequiredCount(groupId, competenceId, requiredCount) — draft-only;
  *   the parent only commits this to the backend when the shared "Uložiť"
  *   button is clicked, same as every other edit in this table.
- * - onSplitRequirementDays(groupId, weekdays)
+ * - onCreateDayGroup(weekdays, sourceWeekday) — move `weekdays` into a new
+ *   group; every one of them takes `sourceWeekday`'s counts. Draft-only,
+ *   like onUpdateRequiredCount.
  * - onDeleteCompetence(competenceId): Promise
  */
 const CompetenceMatrix = ({
@@ -54,7 +58,7 @@ const CompetenceMatrix = ({
   onRemoveRow,
   onAddCompetence,
   onUpdateRequiredCount,
-  onSplitRequirementDays,
+  onCreateDayGroup,
   onDeleteCompetence,
 }) => {
   const { t } = useTranslation();
@@ -68,41 +72,90 @@ const CompetenceMatrix = ({
 
   /* ---------- required head-count row (per competence) ----------
    * Shows how many employees each competence needs in this ambulance.
-   * The cell is green when the draft count matches the requirement exactly,
-   * red otherwise. Hovering a cell reveals a pencil icon (left edge);
-   * clicking it opens an inline stepper with ▲/▼ arrows. Changes are
-   * local draft only — they are saved together with all other edits when
-   * the user clicks the shared "Uložiť" button.
+   * The cell is green when enough people are qualified, red otherwise.
+   * Hovering it fades in a − / + stepper at its left and right edge, which
+   * changes the count straight away. Changes are local draft only — they
+   * are saved together with all other edits when the user clicks the
+   * shared "Uložiť" button.
    */
   const requiredOf = (col, group) => requiredCountForGroup(col, group);
-
-  const [splittingGroupId, setSplittingGroupId] = useState(null);
-  const [selectedSplitDays, setSelectedSplitDays] = useState([]);
 
   const stepRequired = (group, col, delta) => {
     const next = Math.max(0, requiredOf(col, group) + delta);
     onUpdateRequiredCount(group.id, col.id, next);
   };
 
-  const openSplitDays = (group) => {
-    setSplittingGroupId(group.id);
-    setSelectedSplitDays([]);
+  /* ---------- building a new day group ----------
+   * Clicking a day opens a popover that keeps collecting days as the user
+   * clicks more of them, in any row. The first day clicked is the source:
+   * every day that joins inherits its counts, which is what allows days
+   * taken from two different groups to land in one row under one number.
+   *
+   * `draftSource` holds a weekday index, and Monday is 0 — every check
+   * against it must be `!== null`, never a truthiness test.
+   */
+  const [draftDays, setDraftDays] = useState([]);
+  const [draftSource, setDraftSource] = useState(null);
+  const groupAnchorRef = useRef(null);
+  const groupPopoverRef = useRef(null);
+  const [groupRect, setGroupRect] = useState(null);
+
+  const closeDayGroup = () => {
+    setDraftSource(null);
+    setDraftDays([]);
   };
 
-  const toggleSplitDay = (weekday) => {
-    setSelectedSplitDays((previous) =>
+  const startOrToggleDay = (weekday, element) => {
+    if (draftSource === null) {
+      groupAnchorRef.current = element;
+      setDraftSource(weekday);
+      setDraftDays([weekday]);
+      return;
+    }
+    // The source anchors the inherited counts, so it stays put; the popover's
+    // Cancel button (or Escape) is how you back out of the whole selection.
+    if (weekday === draftSource) return;
+    setDraftDays((previous) =>
       previous.includes(weekday)
         ? previous.filter((item) => item !== weekday)
         : [...previous, weekday].sort((a, b) => a - b)
     );
   };
 
-  const confirmSplitDays = () => {
-    if (!splittingGroupId) return;
-    onSplitRequirementDays(splittingGroupId, selectedSplitDays);
-    setSplittingGroupId(null);
-    setSelectedSplitDays([]);
+  const confirmDayGroup = () => {
+    if (draftSource === null || draftDays.length === 0) return;
+    onCreateDayGroup(draftDays, draftSource);
+    closeDayGroup();
   };
+
+  useLayoutEffect(() => {
+    if (draftSource === null || !groupAnchorRef.current) return;
+    const anchor = groupAnchorRef.current;
+    const update = () => setGroupRect(anchor.getBoundingClientRect());
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+
+    // Clicks on other day buttons are how the selection grows, so they must
+    // not count as clicking away.
+    const handleMouseDown = (e) => {
+      if (e.target.closest && e.target.closest('.cmatrix-day')) return;
+      if (groupPopoverRef.current && groupPopoverRef.current.contains(e.target)) return;
+      closeDayGroup();
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') closeDayGroup();
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [draftSource]);
 
   /* ---------- employee search (add row) ----------
    * The dropdown opens on focus with the full list of assignable users
@@ -263,12 +316,6 @@ const CompetenceMatrix = ({
 
   const competenceColSpan = Math.max(columns.length, 1);
   const removingRow = rows.find((r) => r.user_id === removingRowId) || null;
-  const splittingGroup =
-    dayGroups.find((group) => group.id === splittingGroupId) || null;
-  const canConfirmSplit =
-    splittingGroup &&
-    selectedSplitDays.length > 0 &&
-    selectedSplitDays.length < splittingGroup.weekdays.length;
 
   return (
     <section className="cmatrix">
@@ -357,72 +404,99 @@ const CompetenceMatrix = ({
                 </th>
               ))}
             </tr>
-            {columns.length > 0 && dayGroups.map((group, index) => (
-              <tr
-                className={`cmatrix-required-row ${index % 2 === 1 ? 'is-alt' : ''}`}
-                key={group.id}
-              >
-                <th className="cmatrix-corner cmatrix-required-label">
-                  <div className="cmatrix-required-label-inner">
-                    <span className="cmatrix-day-chips">
-                      {group.weekdays.map((weekday) => (
-                        <span className="cmatrix-day-chip" key={weekday}>
-                          {t(`workload.days.${weekday}`)}
-                        </span>
-                      ))}
-                    </span>
-                    {group.weekdays.length > 1 && (
-                      <button
-                        type="button"
-                        className="cmatrix-split-days"
-                        onClick={() => openSplitDays(group)}
-                        title={t('competences.split_days')}
-                        aria-label={t('competences.split_days')}
+            {columns.length > 0 && dayGroups.map((group, index) => {
+              const groupDays = new Set(group.weekdays);
+              return (
+                <tr
+                  className={`cmatrix-required-row ${index % 2 === 1 ? 'is-alt' : ''}`}
+                  key={group.id}
+                >
+                  <th className="cmatrix-corner cmatrix-required-label">
+                    {/* Full week track: every row lays out all seven slots and
+                      * fills only the days it owns, so Monday keeps the same x
+                      * in every row and the days of one group join into a
+                      * single pill via the is-start/is-end rounding. */}
+                    <div className="cmatrix-day-track">
+                      {ISO_WEEKDAYS.map((weekday) => {
+                        if (!groupDays.has(weekday)) {
+                          return (
+                            <span
+                              key={weekday}
+                              className="cmatrix-day-empty"
+                              aria-hidden="true"
+                            />
+                          );
+                        }
+                        const picked = draftDays.includes(weekday);
+                        const isSource = draftSource === weekday;
+                        const className = [
+                          'cmatrix-day',
+                          groupDays.has(weekday - 1) ? '' : 'is-start',
+                          groupDays.has(weekday + 1) ? '' : 'is-end',
+                          picked ? 'is-picked' : '',
+                          isSource ? 'is-source' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ');
+                        return (
+                          <button
+                            type="button"
+                            key={weekday}
+                            className={className}
+                            aria-pressed={picked}
+                            onClick={(e) => startOrToggleDay(weekday, e.currentTarget)}
+                            title={
+                              isSource
+                                ? t('competences.source_day')
+                                : t('competences.new_group_start')
+                            }
+                          >
+                            {t(`workload.days.${weekday}`)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </th>
+                  {columns.map((c) => {
+                    const required = requiredOf(c, group);
+                    const assigned = rows.filter((r) =>
+                      (r.competenceDays[c.id] || []).includes(group.weekdays[0])
+                    ).length;
+                    const ok = assigned >= required;
+                    return (
+                      <th
+                        key={c.id}
+                        className="cmatrix-required-cell"
+                        title={t('competences.staffing_status', { assigned, required })}
                       >
-                        ✎
-                      </button>
-                    )}
-                  </div>
-                </th>
-                {columns.map((c) => {
-                  const required = requiredOf(c, group);
-                  const assigned = rows.filter((r) =>
-                    (r.competenceDays[c.id] || []).includes(group.weekdays[0])
-                  ).length;
-                  const ok = assigned >= required;
-                  return (
-                    <th
-                      key={c.id}
-                      className="cmatrix-required-cell"
-                      title={t('competences.staffing_status', { assigned, required })}
-                    >
-                      <div className={`cmatrix-required-fill ${ok ? 'is-ok' : 'is-off'}`}>
-                        <button
-                          type="button"
-                          className="cmatrix-required-step cmatrix-required-step-minus"
-                          onClick={(e) => { e.stopPropagation(); stepRequired(group, c, -1); }}
-                          disabled={required <= 0}
-                          aria-label={t('competences.decrease_required')}
-                          title={t('competences.decrease_required')}
-                        >
-                          −
-                        </button>
-                        <span className="cmatrix-required-number">{required}</span>
-                        <button
-                          type="button"
-                          className="cmatrix-required-step cmatrix-required-step-plus"
-                          onClick={(e) => { e.stopPropagation(); stepRequired(group, c, 1); }}
-                          aria-label={t('competences.increase_required')}
-                          title={t('competences.increase_required')}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </th>
-                  );
-                })}
-              </tr>
-            ))}
+                        <div className={`cmatrix-required-fill ${ok ? 'is-ok' : 'is-off'}`}>
+                          <button
+                            type="button"
+                            className="cmatrix-required-step cmatrix-required-step-minus"
+                            onClick={(e) => { e.stopPropagation(); stepRequired(group, c, -1); }}
+                            disabled={required <= 0}
+                            aria-label={t('competences.decrease_required')}
+                            title={t('competences.decrease_required')}
+                          >
+                            −
+                          </button>
+                          <span className="cmatrix-required-number">{required}</span>
+                          <button
+                            type="button"
+                            className="cmatrix-required-step cmatrix-required-step-plus"
+                            onClick={(e) => { e.stopPropagation(); stepRequired(group, c, 1); }}
+                            aria-label={t('competences.increase_required')}
+                            title={t('competences.increase_required')}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </th>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </thead>
           <tbody>
             {rows.length === 0 ? (
@@ -480,51 +554,47 @@ const CompetenceMatrix = ({
         </table>
       </div>
 
-      {splittingGroup &&
+      {draftSource !== null &&
+        groupRect &&
         createPortal(
           <div
-            className="cmatrix-modal-backdrop"
-            role="presentation"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) setSplittingGroupId(null);
+            ref={groupPopoverRef}
+            className="cmatrix-popover cmatrix-group-popover"
+            role="dialog"
+            style={{
+              top: groupRect.bottom + 8,
+              left: Math.max(8, Math.min(groupRect.left - 60, window.innerWidth - 268)),
             }}
           >
-            <div className="cmatrix-days-modal" role="dialog" aria-modal="true">
-              <h3>{t('competences.split_days_title')}</h3>
-              <p>{t('competences.split_days_hint')}</p>
-              <div className="cmatrix-days-picker">
-                {splittingGroup.weekdays.map((weekday) => {
-                  const selected = selectedSplitDays.includes(weekday);
-                  return (
-                    <button
-                      type="button"
-                      key={weekday}
-                      className={`cmatrix-day-option ${selected ? 'is-selected' : ''}`}
-                      aria-pressed={selected}
-                      onClick={() => toggleSplitDay(weekday)}
-                    >
-                      {t(`workload.days.${weekday}`)}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="cmatrix-popover-actions">
-                <button
-                  type="button"
-                  className="departments-btn"
-                  onClick={() => setSplittingGroupId(null)}
+            <p className="cmatrix-popover-title">{t('competences.new_group_title')}</p>
+            <div className="cmatrix-group-days">
+              {draftDays.map((weekday) => (
+                <span
+                  key={weekday}
+                  className={`cmatrix-group-day ${draftSource === weekday ? 'is-source' : ''}`}
+                  title={draftSource === weekday ? t('competences.source_day') : undefined}
                 >
-                  {t('departments.cancel')}
-                </button>
-                <button
-                  type="button"
-                  className="departments-btn departments-btn-primary"
-                  disabled={!canConfirmSplit}
-                  onClick={confirmSplitDays}
-                >
-                  {t('competences.create_day_group')}
-                </button>
-              </div>
+                  {t(`workload.days.${weekday}`)}
+                </span>
+              ))}
+            </div>
+            <p className="cmatrix-popover-text">
+              {t('competences.new_group_inherits', {
+                day: t(`workload.days.${draftSource}`),
+              })}
+            </p>
+            <p className="cmatrix-popover-hint">{t('competences.new_group_hint')}</p>
+            <div className="cmatrix-popover-actions">
+              <button type="button" className="departments-btn" onClick={closeDayGroup}>
+                {t('departments.cancel')}
+              </button>
+              <button
+                type="button"
+                className="departments-btn departments-btn-primary"
+                onClick={confirmDayGroup}
+              >
+                {t('competences.create_group')}
+              </button>
             </div>
           </div>,
           document.body

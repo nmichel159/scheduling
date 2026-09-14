@@ -31,6 +31,17 @@ const requirementMap = (column) =>
     ])
   );
 
+/** Drop emptied groups and order everything by the first day it covers, so
+ *  the rows always read Mon -> Sun no matter how they were assembled. */
+const sortDayGroups = (groups) =>
+  groups
+    .filter((group) => group.weekdays.length > 0)
+    .map((group) => ({
+      ...group,
+      weekdays: [...new Set(group.weekdays)].sort((a, b) => a - b),
+    }))
+    .sort((a, b) => a.weekdays[0] - b.weekdays[0]);
+
 const signatureForWeekday = (columns, weekday) =>
   [...columns]
     .sort((a, b) => a.id - b.id)
@@ -52,7 +63,7 @@ export const groupWeekdaysByRequirements = (columns) => {
       });
     }
   });
-  return [...bySignature.values()];
+  return sortDayGroups([...bySignature.values()]);
 };
 
 /** Merge existing UI groups when their current demand vectors become equal. */
@@ -66,10 +77,7 @@ export const mergeEquivalentDayGroups = (groups, columns) => {
       if (current) current.weekdays.push(...group.weekdays);
       else merged.set(signature, { ...group, weekdays: [...group.weekdays] });
     });
-  return [...merged.values()].map((group) => ({
-    ...group,
-    weekdays: [...new Set(group.weekdays)].sort((a, b) => a - b),
-  }));
+  return sortDayGroups([...merged.values()]);
 };
 
 /** Apply one group's edited count to each of its weekdays. */
@@ -93,24 +101,44 @@ export const updateGroupRequiredCount = (
   });
 };
 
-/** Split a non-empty proper subset of weekdays into a new editable row. */
-export const splitDayGroup = (groups, groupId, selectedWeekdays) => {
-  const selected = [...new Set(selectedWeekdays)].sort((a, b) => a - b);
-  const source = groups.find((group) => group.id === groupId);
-  if (!source || selected.length === 0 || selected.length >= source.weekdays.length) {
-    return groups;
+/** Pull `weekdays` out of whatever groups hold them into one new group.
+ *
+ *  Unlike a plain split this can gather days that currently live in
+ *  different groups, so the days it collects may disagree on their counts.
+ *  `sourceWeekday` — the day the user clicked first — settles that: every
+ *  collected day inherits that day's count for every competence, which is
+ *  also what makes the new group internally consistent and therefore a
+ *  single row. Groups left without any day disappear.
+ *
+ *  Returns both halves of the change because the grouping (UI-only) and the
+ *  counts (persisted) have to move together.
+ */
+export const extractDayGroup = (groups, columns, weekdays, sourceWeekday) => {
+  const selected = [...new Set(weekdays)].sort((a, b) => a - b);
+  if (selected.length === 0 || sourceWeekday === null || sourceWeekday === undefined) {
+    return { groups, columns };
   }
   const selectedSet = new Set(selected);
-  const remaining = source.weekdays.filter((weekday) => !selectedSet.has(weekday));
-  const nextId = `${groupId}-split-${selected.join('-')}`;
-  return groups.flatMap((group) =>
-    group.id === groupId
-      ? [
-          { ...group, weekdays: remaining },
-          { id: nextId, weekdays: selected },
-        ]
-      : [group]
-  );
+  const nextGroups = sortDayGroups([
+    ...groups.map((group) => ({
+      ...group,
+      weekdays: group.weekdays.filter((weekday) => !selectedSet.has(weekday)),
+    })),
+    { id: `days-${selected.join('-')}-${Date.now()}`, weekdays: selected },
+  ]);
+  const nextColumns = columns.map((column) => {
+    const inherited =
+      requirementMap(column).get(sourceWeekday) ?? legacyRequiredCount(column);
+    return {
+      ...column,
+      weekday_requirements: normalizeWeekdayRequirements(column).map((item) =>
+        selectedSet.has(item.weekday)
+          ? { ...item, required_count: inherited }
+          : item
+      ),
+    };
+  });
+  return { groups: nextGroups, columns: nextColumns };
 };
 
 export const requiredCountForGroup = (column, group) => {
