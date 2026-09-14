@@ -7,10 +7,19 @@ import './ConfirmDialog.css';
  * Props:
  * - open: whether to render the dialog
  * - message: body text
+ * - details: optional secondary line under the message (e.g. an estimate)
  * - confirmLabel / cancelLabel: button labels
  * - onConfirm / onCancel: callbacks
  */
-const ConfirmDialog = ({ open, message, confirmLabel, cancelLabel, onConfirm, onCancel }) => {
+const ConfirmDialog = ({
+  open,
+  message,
+  details,
+  confirmLabel,
+  cancelLabel,
+  onConfirm,
+  onCancel,
+}) => {
   const confirmBtnRef = useRef(null);
 
   useEffect(() => {
@@ -35,6 +44,7 @@ const ConfirmDialog = ({ open, message, confirmLabel, cancelLabel, onConfirm, on
     >
       <div className="confirm-dialog" role="dialog" aria-modal="true">
         <p className="confirm-dialog-message">{message}</p>
+        {details && <p className="confirm-dialog-details">{details}</p>}
         <div className="confirm-dialog-actions">
           <button type="button" className="departments-btn" onClick={onCancel}>
             {cancelLabel}

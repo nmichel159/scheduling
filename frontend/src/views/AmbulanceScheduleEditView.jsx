@@ -14,11 +14,16 @@ import {
 } from '../services/scheduleService';
 import ScheduleListView from '../components/ScheduleListView';
 import ConfirmDialog from '../components/ConfirmDialog';
+import GenerationProgressDialog from '../components/GenerationProgressDialog';
 import {
   groupWeekdaysByRequirements,
   normalizeCompetenceRequirements,
   requiredCountForGroup,
 } from '../utils/competenceRequirements';
+import {
+  displayedGenerationSeconds,
+  formatDurationSeconds,
+} from '../utils/generationEstimate';
 import { formatShortName } from '../utils/formatEmployeeName';
 import './AmbulanceScheduleEditView.css';
 
@@ -303,6 +308,18 @@ const AmbulanceScheduleEditView = () => {
     return formatter.format(new Date(view.y, view.m, 1));
   }, [view.y, view.m, i18n.language]);
 
+  // Shown before the solve starts, so the manager can decide whether to wait.
+  // Derived from the employees and competences already on screen -- see
+  // utils/generationEstimate.js for the calibration and the safety factor.
+  const estimateLabel = useMemo(() => {
+    const seconds = displayedGenerationSeconds(employees, competences, view.y, view.m);
+    if (seconds === 0) return null;
+    return formatDurationSeconds(seconds, t);
+  }, [employees, competences, view.y, view.m, t]);
+
+  const isCurrentMonth =
+    view.y === today.getFullYear() && view.m === today.getMonth();
+
   const dayLabels = useMemo(
     () => [0, 1, 2, 3, 4, 5, 6].map((i) => t(`workload.days.${i}`)),
     [t]
@@ -392,10 +409,15 @@ const AmbulanceScheduleEditView = () => {
     setShifts((prev) => prev.filter((s) => s.id !== shiftId));
   };
 
+  /** Step by `offset` months, or jump back to the running month when null. */
   const changeMonth = (offset) => {
     const applyChange = () => {
       setGenerationMessage(null);
-      setView((current) => shiftedMonth(current, offset));
+      setView((current) =>
+        offset === null
+          ? { y: today.getFullYear(), m: today.getMonth() }
+          : shiftedMonth(current, offset)
+      );
     };
     if (!isDirty) {
       applyChange();
@@ -492,15 +514,24 @@ const AmbulanceScheduleEditView = () => {
     }
   };
 
+  // Generation always asks first, even with nothing unsaved: it discards the
+  // whole month that is on screen -- including a schedule the manager already
+  // saved -- and the solve cannot be undone or cancelled once it starts.
   const handleGenerate = () => {
-    if (!selectedId || generating) return;
-    if (!isDirty) {
-      generateSchedule();
-      return;
-    }
+    if (!selectedId || generating || loading || saving || approving) return;
+    const warning = t('schedule_edit.generate_confirm', {
+      ambulance: selected?.name || '',
+      month: monthLabel,
+    });
     setConfirmState({
-      message: t('schedule_edit.generate_replace_warning'),
+      message: isDirty
+        ? `${warning} ${t('schedule_edit.generate_confirm_unsaved')}`
+        : warning,
+      details: estimateLabel
+        ? t('schedule_edit.generate_confirm_estimate', { duration: estimateLabel })
+        : null,
       confirmLabel: t('schedule_edit.generate'),
+      cancelLabel: t('schedule_edit.editor_cancel'),
       onConfirm: () => {
         setConfirmState(null);
         generateSchedule();
@@ -794,6 +825,7 @@ const AmbulanceScheduleEditView = () => {
                   type="button"
                   className="schedule-edit-month-button"
                   onClick={() => changeMonth(-1)}
+                  disabled={loading || generating || saving || approving}
                   aria-label={t('schedule_edit.previous_month')}
                 >
                   ‹
@@ -803,10 +835,23 @@ const AmbulanceScheduleEditView = () => {
                   type="button"
                   className="schedule-edit-month-button"
                   onClick={() => changeMonth(1)}
+                  disabled={loading || generating || saving || approving}
                   aria-label={t('schedule_edit.next_month')}
                 >
                   ›
                 </button>
+                {/* Months are unbounded in both directions, so after browsing a
+                    year back there is no cheap way home without this. */}
+                {!isCurrentMonth && (
+                  <button
+                    type="button"
+                    className="schedule-edit-month-today"
+                    onClick={() => changeMonth(null)}
+                    disabled={loading || generating || saving || approving}
+                  >
+                    {t('schedule_edit.current_month')}
+                  </button>
+                )}
               </div>
             </div>
             <div className="schedule-edit-topbar-actions">
@@ -1142,10 +1187,31 @@ const AmbulanceScheduleEditView = () => {
       <ConfirmDialog
         open={!!confirmState}
         message={confirmState?.message}
+        details={confirmState?.details}
         confirmLabel={confirmState?.confirmLabel || t('schedule_edit.leave_anyway')}
-        cancelLabel={t('schedule_edit.stay')}
+        cancelLabel={confirmState?.cancelLabel || t('schedule_edit.stay')}
         onConfirm={confirmState?.onConfirm}
         onCancel={confirmState?.onCancel}
+      />
+      {/* Closes on its own when generateSchedule() settles, uncovering the
+          freshly generated month underneath. */}
+      <GenerationProgressDialog
+        open={generating}
+        title={t('schedule_edit.generating_title')}
+        body={t('schedule_edit.generating_body', {
+          ambulance: selected?.name || '',
+          month: monthLabel,
+        })}
+        estimateLabel={
+          estimateLabel
+            ? t('schedule_edit.generating_estimate', { duration: estimateLabel })
+            : null
+        }
+        elapsedLabel={(seconds) =>
+          t('schedule_edit.generating_elapsed', {
+            duration: formatDurationSeconds(seconds, t),
+          })
+        }
       />
     </div>
   );

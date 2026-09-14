@@ -1,0 +1,102 @@
+.generation-progress-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  /* Above ConfirmDialog (1000): the confirm closes as this one opens, and a
+     brief overlap during that swap must not show the confirm on top. */
+  z-index: 1100;
+}
+
+.generation-progress {
+  width: 100%;
+  max-width: 380px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--code-background);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  padding: 24px 20px 20px;
+  text-align: center;
+}
+
+.generation-progress-spinner {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 14px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: generation-progress-spin 0.9s linear infinite;
+}
+
+.generation-progress-title {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.generation-progress-body {
+  margin: 0 0 16px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-h);
+  opacity: 0.75;
+}
+
+.generation-progress-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+/* Indeterminate: CBC reports no progress, so a sweeping bar is the honest
+   signal that work is happening. It never implies a completion percentage. */
+.generation-progress-bar {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--primary);
+  animation: generation-progress-sweep 1.4s ease-in-out infinite;
+}
+
+.generation-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 0.78rem;
+  color: var(--text-h);
+  opacity: 0.6;
+}
+
+.generation-progress-meta span:only-child {
+  margin: 0 auto;
+}
+
+@keyframes generation-progress-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes generation-progress-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .generation-progress-spinner,
+  .generation-progress-bar {
+    animation-duration: 3s;
+  }
+}
