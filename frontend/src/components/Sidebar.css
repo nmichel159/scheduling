@@ -258,7 +258,7 @@
 }
 
 .user-meta {
-  display: flex;
+  display: none;                     /* v raile ostane len štvorček s iniciálami */
   flex-direction: column;
   line-height: 1.25;
   min-width: 0;
