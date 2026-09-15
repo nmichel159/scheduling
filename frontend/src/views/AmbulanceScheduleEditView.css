@@ -153,28 +153,14 @@
   flex-shrink: 0;
 }
 
-.schedule-edit-legend-content {
+/* The legend is now purely colour -> competence; the per-day head-counts it
+   used to carry moved to the coverage table above the calendar. */
+.schedule-edit-legend-name {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.schedule-edit-legend-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.schedule-edit-legend-demand {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px 8px;
-  font-size: 0.68rem;
-  line-height: 1.25;
-  color: var(--text);
-  opacity: 0.72;
 }
 
 .schedule-edit-legend-empty {

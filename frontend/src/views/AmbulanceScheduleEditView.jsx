@@ -13,13 +13,9 @@ import {
   updateAmbulanceSchedule,
 } from '../services/scheduleService';
 import ScheduleListView from '../components/ScheduleListView';
+import CompetenceCoverage from '../components/CompetenceCoverage';
 import ConfirmDialog from '../components/ConfirmDialog';
 import GenerationProgressDialog from '../components/GenerationProgressDialog';
-import {
-  groupWeekdaysByRequirements,
-  normalizeCompetenceRequirements,
-  requiredCountForGroup,
-} from '../utils/competenceRequirements';
 import {
   displayedGenerationSeconds,
   formatDurationSeconds,
@@ -62,6 +58,9 @@ const FALLBACK_COLOR = '#9e9e9e';
  */
 const makeTempShiftId = () => `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const isTempShiftId = (id) => typeof id === 'string' && id.startsWith('new-');
+
+/** Remembers whether the weekly coverage table above the calendar is folded. */
+const COVERAGE_COLLAPSED_KEY = 'scheduleCoverageCollapsed';
 
 function buildMonthCells(year, month) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -108,6 +107,9 @@ const AmbulanceScheduleEditView = () => {
   const [draggedShift, setDraggedShift] = useState(null);
   const [dragOverDate, setDragOverDate] = useState(null);
   const [scheduleView, setScheduleView] = useState('calendar');
+  const [coverageCollapsed, setCoverageCollapsed] = useState(
+    () => localStorage.getItem(COVERAGE_COLLAPSED_KEY) === 'true'
+  );
 
   // Shift editor state.
   //   editingShift: the shift being edited (or a fresh one when isNew=true).
@@ -407,6 +409,14 @@ const AmbulanceScheduleEditView = () => {
 
   const handleRemoveShift = (shiftId) => {
     setShifts((prev) => prev.filter((s) => s.id !== shiftId));
+  };
+
+  const toggleCoverage = () => {
+    setCoverageCollapsed((previous) => {
+      const next = !previous;
+      localStorage.setItem(COVERAGE_COLLAPSED_KEY, String(next));
+      return next;
+    });
   };
 
   /** Step by `offset` months, or jump back to the running month when null. */
@@ -790,20 +800,12 @@ const AmbulanceScheduleEditView = () => {
                       className="schedule-edit-legend-swatch"
                       style={{ backgroundColor: c.color }}
                     />
-                    <span className="schedule-edit-legend-content">
-                      <span className="schedule-edit-legend-name">{c.name}</span>
-                      <span className="schedule-edit-legend-demand">
-                        {groupWeekdaysByRequirements([
-                          normalizeCompetenceRequirements(c),
-                        ]).map((group) => (
-                          <span key={group.id}>
-                            {group.weekdays
-                              .map((weekday) => t(`workload.days.${weekday}`))
-                              .join(' · ')}{' '}
-                            <strong>{requiredCountForGroup(c, group)}</strong>
-                          </span>
-                        ))}
-                      </span>
+                    {/* Colour -> competence only. The per-day head-counts that
+                        used to be crammed in here as wrapping text now live in
+                        the weekly coverage table above the calendar, where the
+                        days actually line up into columns. */}
+                    <span className="schedule-edit-legend-name" title={c.description || c.name}>
+                      {c.name}
                     </span>
                   </li>
                 ))}
@@ -930,6 +932,14 @@ const AmbulanceScheduleEditView = () => {
               </button>
             </div>
           </div>
+
+          {/* The demand the solver is given, right above the month it fills:
+              one row per competence, one column per weekday. */}
+          <CompetenceCoverage
+            competences={legend}
+            collapsed={coverageCollapsed}
+            onToggle={toggleCoverage}
+          />
 
           {scheduleView === 'calendar' ? (
             <div className={`schedule-edit-grid ${loading ? 'is-loading' : ''}`}>

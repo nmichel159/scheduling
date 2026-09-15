@@ -1,0 +1,211 @@
+/* Weekly staffing demand table (see CompetenceCoverage.jsx).
+
+   Sits above the month calendar in the schedule editor and uses the same
+   card shell as the top action bar: 1px hairline, 10px radius, no fill.
+   Tokens come from src/index.css (--border, --text, --text-h, --primary). */
+
+.coverage {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.coverage-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 14px;
+}
+
+/* Folded away the card is just its title row, so drop the divider that
+   would otherwise underline nothing. */
+.coverage:not(.is-collapsed) .coverage-head {
+  border-bottom: 1px solid var(--border);
+}
+
+.coverage-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.coverage-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-h);
+  opacity: 0.7;
+}
+
+.coverage-hint {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: var(--text-h);
+  opacity: 0.55;
+}
+
+.coverage-toggle {
+  flex-shrink: 0;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--background);
+  color: var(--text-h);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.coverage-toggle:hover {
+  border-color: var(--primary);
+}
+
+/* --- The table itself ---
+   table-layout:fixed keeps all seven day columns exactly equal whatever the
+   numbers are, so a column reads as one straight line down the week; without
+   it a two-digit count would widen its own column and break the alignment
+   that is the whole point of this panel. */
+
+.coverage-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.coverage-caption {
+  /* The visible <h2> above already titles the panel; this caption exists
+     only so the table is announced with a name. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.coverage-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.coverage-corner,
+.coverage-dayhead {
+  padding: 7px 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-h);
+  opacity: 0.6;
+  border-bottom: 1px solid var(--border);
+}
+
+.coverage-corner {
+  width: 22%;
+  min-width: 118px;
+  text-align: left;
+  padding-left: 14px;
+}
+
+.coverage-dayhead {
+  text-align: center;
+}
+
+.coverage-name {
+  padding: 6px 6px 6px 14px;
+  font-weight: 500;
+  text-align: left;
+  color: var(--text-h);
+}
+
+.coverage-name-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.coverage-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.coverage-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coverage-cell {
+  padding: 6px 4px;
+  text-align: center;
+  color: var(--text-h);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.coverage-cell.is-zero {
+  color: var(--text);
+  opacity: 0.35;
+  font-weight: 400;
+}
+
+/* Saturday and Sunday carry a different demand almost everywhere, so tint
+   them to separate the working week from the weekend at a glance. Mixed
+   towards --text rather than set to --code-background, which is identical
+   to --background in the light theme and would tint nothing. */
+.coverage-dayhead.is-weekend,
+.coverage-cell.is-weekend {
+  background: color-mix(in srgb, var(--background) 92%, var(--text) 8%);
+}
+
+.coverage-table tbody tr + tr .coverage-name,
+.coverage-table tbody tr + tr .coverage-cell {
+  border-top: 1px solid var(--border);
+}
+
+.coverage-total-name,
+.coverage-total-cell {
+  border-top: 1px solid var(--border);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+
+.coverage-total-cell {
+  font-size: 0.82rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+@media (max-width: 720px) {
+  .coverage-corner,
+  .coverage-name {
+    padding-left: 10px;
+    min-width: 92px;
+  }
+  .coverage-head {
+    padding: 8px 10px;
+  }
+  .coverage-table {
+    font-size: 0.78rem;
+  }
+}
