@@ -167,12 +167,11 @@
 
 .stats-kpis {
   display: grid;
-  /* Capped rather than 1fr: a tile holds a number and two words, so letting
-     it stretch the full width leaves it mostly empty — and the row has two
-     tiles for one workplace and three for the hospital, which would otherwise
-     change their size as you switch scope. */
-  grid-template-columns: repeat(auto-fit, minmax(180px, 250px));
-  justify-content: start;
+  /* The tiles fill the row: auto-fit + 1fr divides the full width between
+     however many there are, so three tiles for the hospital and two for a
+     single workplace both span the page edge to edge. Wraps to fewer columns
+     on narrow screens without a media query per breakpoint. */
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
 }
 
