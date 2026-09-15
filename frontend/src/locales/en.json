@@ -246,6 +246,7 @@
     "previous_month": "Previous month",
     "next_month": "Next month",
     "current_month": "Current month",
+    "jump_today": "Today",
     "generate": "Generate schedule",
     "generating": "Generating...",
     "generating_title": "Generating the schedule",

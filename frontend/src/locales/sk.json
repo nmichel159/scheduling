@@ -246,6 +246,7 @@
     "previous_month": "Predchádzajúci mesiac",
     "next_month": "Nasledujúci mesiac",
     "current_month": "Aktuálny mesiac",
+    "jump_today": "Dnes",
     "generate": "Generovať rozvrh",
     "generating": "Generujem...",
     "generating_title": "Rozvrh sa generuje",

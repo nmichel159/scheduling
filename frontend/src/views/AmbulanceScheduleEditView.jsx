@@ -787,8 +787,10 @@ const AmbulanceScheduleEditView = () => {
                     className="schedule-edit-month-today"
                     onClick={() => changeMonth(null)}
                     disabled={loading || generating || saving || approving}
+                    title={t('schedule_edit.current_month')}
+                    aria-label={t('schedule_edit.current_month')}
                   >
-                    {t('schedule_edit.current_month')}
+                    {t('schedule_edit.jump_today')}
                   </button>
                 )}
               </div>
