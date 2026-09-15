@@ -730,9 +730,35 @@ const AmbulanceScheduleEditView = () => {
         </nav>
 
         <div className="schedule-edit-detail">
+          {/* Two rows, each with one job: what you are looking at and what
+              state it is in, then everything you can do to it. Before this the
+              name, the month stepper, the view toggle, two status texts and
+              three buttons all sat in one flat row with equal weight, which
+              read as a pile rather than a bar. */}
           <div className="schedule-edit-topbar">
-            <div className="schedule-edit-topbar-info">
-              <span className="schedule-edit-topbar-name">{selected.name}</span>
+            <div className="schedule-edit-topbar-row schedule-edit-topbar-identity">
+              <h1 className="schedule-edit-topbar-name">{selected.name}</h1>
+              <div className="schedule-edit-state">
+                <span
+                  className={`schedule-edit-pill ${isDirty ? 'is-dirty' : 'is-clean'}`}
+                >
+                  <span className="schedule-edit-pill-dot" aria-hidden="true" />
+                  {isDirty ? t('schedule_edit.unsaved') : t('schedule_edit.saved')}
+                </span>
+                <span
+                  className={`schedule-edit-pill ${
+                    isApproved ? 'is-approved' : 'is-draft'
+                  }`}
+                >
+                  <span className="schedule-edit-pill-dot" aria-hidden="true" />
+                  {isApproved
+                    ? t('schedule_edit.approved')
+                    : t('schedule_edit.not_approved')}
+                </span>
+              </div>
+            </div>
+
+            <div className="schedule-edit-topbar-row schedule-edit-topbar-controls">
               <div className="schedule-edit-month-navigation">
                 <button
                   type="button"
@@ -766,8 +792,8 @@ const AmbulanceScheduleEditView = () => {
                   </button>
                 )}
               </div>
-            </div>
-            <div className="schedule-edit-topbar-actions">
+
+              <div className="schedule-edit-topbar-actions">
               <div
                 className="schedule-view-switch"
                 role="group"
@@ -794,19 +820,26 @@ const AmbulanceScheduleEditView = () => {
                   {viewLabels.list}
                 </button>
               </div>
-              <span className="schedule-edit-status">
-                {isDirty && <span className="schedule-edit-unsaved">●</span>}
-                {isDirty ? t('schedule_edit.unsaved') : t('schedule_edit.saved')}
-              </span>
-              <span
-                className={`schedule-edit-approval-status ${
-                  isApproved ? 'is-approved' : 'is-draft'
-                }`}
+              <span className="schedule-edit-topbar-divider" aria-hidden="true" />
+              <button
+                type="button"
+                className="schedule-edit-btn schedule-edit-btn-cancel"
+                onClick={handleCancel}
+                disabled={!isDirty || approving}
               >
-                {isApproved
-                  ? t('schedule_edit.approved')
-                  : t('schedule_edit.not_approved')}
-              </span>
+                {t('schedule_edit.cancel')}
+              </button>
+              <button
+                type="button"
+                className="schedule-edit-btn schedule-edit-btn-primary"
+                onClick={handleSave}
+                disabled={!isDirty || saving || approving}
+              >
+                {saving ? t('schedule_edit.saving') : t('schedule_edit.save')}
+              </button>
+              {/* Publishing is a different lifecycle step from editing, so it
+                  sits past a divider instead of blending into the edit pair. */}
+              <span className="schedule-edit-topbar-divider" aria-hidden="true" />
               <button
                 type="button"
                 className="schedule-edit-btn schedule-edit-btn-approve"
@@ -825,22 +858,7 @@ const AmbulanceScheduleEditView = () => {
                   ? t('schedule_edit.approving')
                   : t('schedule_edit.approve')}
               </button>
-              <button
-                type="button"
-                className="schedule-edit-btn schedule-edit-btn-cancel"
-                onClick={handleCancel}
-                disabled={!isDirty || approving}
-              >
-                {t('schedule_edit.cancel')}
-              </button>
-              <button
-                type="button"
-                className="schedule-edit-btn schedule-edit-btn-primary"
-                onClick={handleSave}
-                disabled={!isDirty || saving || approving}
-              >
-                {saving ? t('schedule_edit.saving') : t('schedule_edit.save')}
-              </button>
+              </div>
             </div>
           </div>
 
