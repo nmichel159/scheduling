@@ -59,9 +59,6 @@ const FALLBACK_COLOR = '#9e9e9e';
 const makeTempShiftId = () => `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const isTempShiftId = (id) => typeof id === 'string' && id.startsWith('new-');
 
-/** Remembers whether the weekly coverage table above the calendar is folded. */
-const COVERAGE_COLLAPSED_KEY = 'scheduleCoverageCollapsed';
-
 function buildMonthCells(year, month) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const offset = isoWeekday(new Date(year, month, 1));
@@ -107,9 +104,6 @@ const AmbulanceScheduleEditView = () => {
   const [draggedShift, setDraggedShift] = useState(null);
   const [dragOverDate, setDragOverDate] = useState(null);
   const [scheduleView, setScheduleView] = useState('calendar');
-  const [coverageCollapsed, setCoverageCollapsed] = useState(
-    () => localStorage.getItem(COVERAGE_COLLAPSED_KEY) === 'true'
-  );
 
   // Shift editor state.
   //   editingShift: the shift being edited (or a fresh one when isNew=true).
@@ -409,14 +403,6 @@ const AmbulanceScheduleEditView = () => {
 
   const handleRemoveShift = (shiftId) => {
     setShifts((prev) => prev.filter((s) => s.id !== shiftId));
-  };
-
-  const toggleCoverage = () => {
-    setCoverageCollapsed((previous) => {
-      const next = !previous;
-      localStorage.setItem(COVERAGE_COLLAPSED_KEY, String(next));
-      return next;
-    });
   };
 
   /** Step by `offset` months, or jump back to the running month when null. */
@@ -788,34 +774,13 @@ const AmbulanceScheduleEditView = () => {
             </span>
           </div>
 
-          <div className="schedule-edit-legend">
-            <span className="schedule-edit-legend-title">
-              {t('schedule_edit.legend_title')}
-            </span>
-            {legend.length > 0 ? (
-              <ul className="schedule-edit-legend-list">
-                {legend.map((c) => (
-                  <li key={c.id} className="schedule-edit-legend-item">
-                    <span
-                      className="schedule-edit-legend-swatch"
-                      style={{ backgroundColor: c.color }}
-                    />
-                    {/* Colour -> competence only. The per-day head-counts that
-                        used to be crammed in here as wrapping text now live in
-                        the weekly coverage table above the calendar, where the
-                        days actually line up into columns. */}
-                    <span className="schedule-edit-legend-name" title={c.description || c.name}>
-                      {c.name}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="schedule-edit-legend-empty">
-                {t('schedule_edit.legend_empty')}
-              </p>
-            )}
-          </div>
+          {/* Doubles as the colour -> competence map the legend used to be:
+              same swatches in the same order as the calendar chips, with the
+              per-day head-counts finally lined up into columns. */}
+          <CompetenceCoverage
+            competences={legend}
+            emptyLabel={t('schedule_edit.legend_empty')}
+          />
         </nav>
 
         <div className="schedule-edit-detail">
@@ -932,14 +897,6 @@ const AmbulanceScheduleEditView = () => {
               </button>
             </div>
           </div>
-
-          {/* The demand the solver is given, right above the month it fills:
-              one row per competence, one column per weekday. */}
-          <CompetenceCoverage
-            competences={legend}
-            collapsed={coverageCollapsed}
-            onToggle={toggleCoverage}
-          />
 
           {scheduleView === 'calendar' ? (
             <div className={`schedule-edit-grid ${loading ? 'is-loading' : ''}`}>

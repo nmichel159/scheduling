@@ -10,30 +10,29 @@ import './CompetenceCoverage.css';
  * Weekly staffing demand of one ambulance: how many people of each
  * competence the workplace needs on each day of the week.
  *
- * This is the reference the manager checks against while generating or
- * editing a month — it is the target the solver is given, not what the
- * month currently contains. It is read-only here on purpose: the numbers
- * are part of the ambulance setup and are edited in the competence matrix
- * (Pracoviská), so the schedule screen can keep its single save action
- * for shifts alone.
+ * Lives in the left column of the schedule editor, in place of the old
+ * competence map — it is the same colour -> competence legend, with the
+ * per-day head-counts laid out as a small seven-column table instead of
+ * the wrapping text they used to be ("Po · Ut · St · Št · Pi 2 So · Ne 1"
+ * under every entry, where nothing lined up between competences).
  *
- * Laid out as a real table, one row per competence and one column per
- * weekday, because that is the only arrangement in which "how many people
- * of which competence on this day" is a single glance down a column. The
- * previous inline form ("Po · Ut · St · Št · Pi 2 So · Ne 1" per legend
- * entry) packed the same numbers into wrapping prose in a 240px sidebar,
- * where nothing lined up between competences.
+ * It is sized to a ~260px rail, so every measurement here is deliberately
+ * tight: the day columns are fixed-width and the name column takes what is
+ * left, ellipsised with the full name on hover.
+ *
+ * Read-only on purpose: the numbers are part of the ambulance setup and
+ * are edited in the competence matrix (Pracoviská), which keeps the
+ * schedule screen's single save action about shifts alone.
  *
  * Props:
  * - competences: [{ id, name, description, color, weekday_requirements }] —
- *   already ordered and colored by the caller's competence map, so the row
- *   order and the swatches match the calendar chips and the legend.
- * - collapsed / onToggle: the panel sits above the calendar, so it can be
- *   folded away to a single title row when the numbers are settled.
+ *   already ordered and coloured by the caller's competence map, so the row
+ *   order and the swatches match the calendar chips.
+ * - emptyLabel: shown when the ambulance has no competences yet.
  */
 const WEEKEND_DAYS = new Set([5, 6]);
 
-const CompetenceCoverage = ({ competences, collapsed, onToggle }) => {
+const CompetenceCoverage = ({ competences, emptyLabel }) => {
   const { t } = useTranslation();
 
   /* Index by weekday: normalizeWeekdayRequirements always returns all seven
@@ -58,43 +57,27 @@ const CompetenceCoverage = ({ competences, collapsed, onToggle }) => {
     [rows]
   );
 
-  if (rows.length === 0) return null;
-
   const dayName = (weekday) => t(`workload.days.${weekday}`);
 
   return (
-    <section className={`coverage ${collapsed ? 'is-collapsed' : ''}`}>
-      <div className="coverage-head">
-        <div className="coverage-head-text">
-          <h2 className="coverage-title">{t('schedule_edit.coverage_title')}</h2>
-          <p className="coverage-hint">{t('schedule_edit.coverage_hint')}</p>
-        </div>
-        <button
-          type="button"
-          className="coverage-toggle"
-          onClick={onToggle}
-          aria-expanded={!collapsed}
-          title={
-            collapsed
-              ? t('schedule_edit.coverage_expand')
-              : t('schedule_edit.coverage_collapse')
-          }
-        >
-          {collapsed
-            ? t('schedule_edit.coverage_expand')
-            : t('schedule_edit.coverage_collapse')}
-        </button>
-      </div>
+    <section className="coverage">
+      <span className="coverage-title" title={t('schedule_edit.coverage_hint')}>
+        {t('schedule_edit.coverage_title')}
+      </span>
 
-      {!collapsed && (
+      {rows.length === 0 ? (
+        <p className="coverage-empty">{emptyLabel}</p>
+      ) : (
         <table className="coverage-table">
           <caption className="coverage-caption">
-            {t('schedule_edit.coverage_title')}
+            {t('schedule_edit.coverage_hint')}
           </caption>
           <thead>
             <tr>
               <th scope="col" className="coverage-corner">
-                {t('schedule_edit.coverage_competence')}
+                <span className="coverage-sr-only">
+                  {t('schedule_edit.coverage_competence')}
+                </span>
               </th>
               {ISO_WEEKDAYS.map((weekday) => (
                 <th

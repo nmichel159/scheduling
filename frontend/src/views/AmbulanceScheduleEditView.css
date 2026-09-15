@@ -1,6 +1,7 @@
 /* Editable ambulance schedule.
    No page header — a compact top action bar sits directly above the calendar.
-   Left column: ambulance list + competence color map (legend).
+   Left column: ambulance list + weekly staffing table (CompetenceCoverage),
+   which also carries the competence colour map.
    Day cells hold colored, draggable employee chips (color = competence).
 
    Uses this app's real design tokens (see src/index.css):
@@ -38,13 +39,15 @@
 
 .schedule-edit-layout {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  /* 272px, not the old 240: the coverage table in the rail needs room for a
+     competence name plus seven day columns. */
+  grid-template-columns: 272px minmax(0, 1fr);
   gap: 16px;
   align-items: start;
   min-height: 0;
 }
 .schedule-edit-layout.is-single {
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 272px minmax(0, 1fr);
 }
 
 /* The side column stays pinned while the calendar scrolls past it. */
@@ -105,67 +108,6 @@
 }
 .schedule-edit-item-desc {
   font-size: 0.8rem;
-  color: var(--text-h);
-  opacity: 0.6;
-}
-
-/* --- Competence map (legend) --- */
-
-.schedule-edit-legend {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.schedule-edit-legend-title {
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-h);
-  opacity: 0.6;
-}
-
-.schedule-edit-legend-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.schedule-edit-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
-  color: var(--text-h);
-}
-
-.schedule-edit-legend-swatch {
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
-  flex-shrink: 0;
-}
-
-/* The legend is now purely colour -> competence; the per-day head-counts it
-   used to carry moved to the coverage table above the calendar. */
-.schedule-edit-legend-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.schedule-edit-legend-empty {
-  margin: 0;
-  font-size: 0.85rem;
   color: var(--text-h);
   opacity: 0.6;
 }
@@ -842,9 +784,9 @@
     flex: 1;
     min-width: 200px;
   }
-  .schedule-edit-legend {
+  .coverage {
     flex: 1;
-    min-width: 200px;
+    min-width: 248px;
   }
   .schedule-edit-cell-add {
     opacity: 0.7;
