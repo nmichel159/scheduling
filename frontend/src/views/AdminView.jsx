@@ -25,7 +25,7 @@ import './AdminView.css';
 //   1) ak backend `level` niekedy doplní, použije sa (žiadna zmena tu netreba),
 //   2) inak sa role rozpoznajú podľa kódu (`name`) — tie tri kódy sú presne tie,
 //      ktoré majú v číselníku level >= 2.
-const MANAGER_ROLE_CODES = new Set(['LEADER', 'AMBULANCE_OVERSEER', 'HOSPITAL_ADMIN']);
+const MANAGER_ROLE_CODES = new Set(['LEADER', 'AMBULANCE_OVERSEER', 'ANALYST']);
 
 const hasLevels = (roles) => roles.some((r) => Number.isFinite(Number(r.level)));
 

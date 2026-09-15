@@ -46,8 +46,8 @@ class UserRoleManagementTests(unittest.TestCase):
                 ),
                 Role(
                     id=4,
-                    code="HOSPITAL_ADMIN",
-                    name="Cela nemocnica",
+                    code="ANALYST",
+                    name="Analytik",
                     level=4,
                     is_active=True,
                 ),

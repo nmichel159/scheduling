@@ -30,7 +30,7 @@ ROLES_DATA = [
     {"id": 1, "code": "EMPLOYEE", "name": "Zamestnanec", "level": 1},
     {"id": 2, "code": "LEADER", "name": "Veduci", "level": 2},
     {"id": 3, "code": "AMBULANCE_OVERSEER", "name": "Dohlad nad ambulanciou", "level": 3},
-    {"id": 4, "code": "HOSPITAL_ADMIN", "name": "Cela nemocnica", "level": 4},
+    {"id": 4, "code": "ANALYST", "name": "Analytik", "level": 4},
 ]
 
 

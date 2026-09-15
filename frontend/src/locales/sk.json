@@ -45,7 +45,9 @@
     "quick_jump_placeholder": "Hľadať obrazovku…",
     "quick_jump_empty": "Nič sa nenašlo.",
     "logout_confirm": "Naozaj sa chcete odhlásiť?",
-    "cancel": "Zrušiť"
+    "cancel": "Zrušiť",
+    "section_analyst": "Analytik",
+    "statistics": "Štatistiky"
   },
   "settings": {
     "title": "Nastavenia",
@@ -155,7 +157,7 @@
     "manager_placeholder": "Vyhľadajte rozvrhára podľa mena alebo emailu...",
     "manager_no_results": "Žiadny rozvrhár nevyhovuje hľadaniu.",
     "manager_clear": "Zrušiť výber rozvrhára",
-    "manager_empty": "Žiadny používateľ nemá rolu rozvrhára (LEADER / AMBULANCE_OVERSEER / HOSPITAL_ADMIN).",
+    "manager_empty": "Žiadny používateľ nemá rolu rozvrhára (LEADER / AMBULANCE_OVERSEER / ANALYST).",
     "create": "Vytvoriť",
     "created": "Pracovisko vytvorené",
     "cancel": "Zrušiť",
@@ -328,5 +330,38 @@
     "approve_error": "{{ambulance}}: rozvrh sa nepodarilo schváliť.",
     "approve_empty_error": "{{ambulance}}: rozvrh sa nepodarilo schváliť, na tento mesiac nie sú uložené žiadne služby. Prehľad bol obnovený.",
     "cancel": "Zrušiť"
+  },
+  "statistics": {
+    "loading": "Načítavam štatistiky…",
+    "load_error": "Štatistiky sa nepodarilo načítať.",
+    "no_data": "Za tento rok nie sú evidované žiadne služby.",
+    "previous_year": "Predchádzajúci rok",
+    "next_year": "Nasledujúci rok",
+    "current_year": "Aktuálny rok",
+    "through": "Odpracované počítané k {{date}}",
+    "kpi_worked": "Odpracované služby",
+    "kpi_worked_note": "z {{planned}} naplánovaných na celý rok",
+    "kpi_people": "Zapojených ľudí",
+    "kpi_people_note": "priemerne {{average}} služieb na človeka",
+    "kpi_workplaces": "Pracovísk s rozvrhom",
+    "kpi_workplaces_note": "{{idle}} bez jedinej služby",
+    "kpi_approved": "Schválených služieb",
+    "kpi_approved_note": "{{approved}} zverejnených zamestnancom",
+    "by_month_title": "Služby po mesiacoch",
+    "month_tooltip": "{{month}}: {{worked}} odpracovaných z {{planned}} naplánovaných",
+    "legend_worked": "Odpracované",
+    "legend_planned": "Naplánované",
+    "by_workplace_title": "Podľa pracoviska",
+    "by_employee_title": "Najvyťaženejší ľudia",
+    "by_employee_hint": "Zoradené podľa počtu naplánovaných služieb za rok.",
+    "workplace": "Pracovisko",
+    "employee": "Zamestnanec",
+    "worked": "Odpracované",
+    "planned": "Naplánované",
+    "covered_days": "Obsadené dni",
+    "people": "Ľudia",
+    "workplaces": "Pracoviská",
+    "load": "Podiel",
+    "hours_note": "Systém eviduje službu ako deň, nie ako počet hodín — rozvrh nemá pole s dĺžkou služby, takže sa tu počítajú služby a obsadené dni. Hodiny bude možné vyčísliť, až keď kompetencia dostane dĺžku služby."
   }
 }

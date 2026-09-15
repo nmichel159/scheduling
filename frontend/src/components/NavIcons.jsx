@@ -87,6 +87,16 @@ export const ScheduleOverviewIcon = (props) => (
   </Icon>
 );
 
+/** Statistiky — stlpcovy graf. */
+export const StatisticsIcon = (props) => (
+  <Icon {...props}>
+    <path d="M3.8 20.2h16.4" />
+    <rect x="5.6" y="12.4" width="3.4" height="6" rx="1" />
+    <rect x="10.9" y="8.2" width="3.4" height="10.2" rx="1" />
+    <rect x="16.2" y="4.6" width="3.4" height="13.8" rx="1" />
+  </Icon>
+);
+
 export const RolesIcon = (props) => (
   <Icon {...props}>
     <path d="M12 3.2 5.2 5.8v5.6c0 4.2 2.7 7.6 6.8 9.4 4.1-1.8 6.8-5.2 6.8-9.4V5.8z" />

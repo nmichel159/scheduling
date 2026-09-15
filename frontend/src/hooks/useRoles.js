@@ -37,6 +37,8 @@ export function useRoles() {
     roles,
     hasEmployee: codes.has('EMPLOYEE'),
     hasManager: codes.has('LEADER'),
-    hasAdmin: codes.has('AMBULANCE_OVERSEER') || codes.has('HOSPITAL_ADMIN'),
+    hasAdmin: codes.has('AMBULANCE_OVERSEER') || codes.has('ANALYST'),
+    // Level 4: reads across every workplace, which is what the reports need.
+    hasAnalyst: codes.has('ANALYST'),
   };
 }

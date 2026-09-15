@@ -83,6 +83,34 @@ def require_admin_role(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
+def require_analyst_role(current_user: User = Depends(get_current_user)) -> User:
+    """Require role level 4 or higher.
+
+    Level 4 (ANALYST) is the hospital-wide tier above the per-ambulance
+    administrator: it reads across every workplace at once, which is exactly
+    what the reporting endpoints expose and all they expose -- the role grants
+    no extra write access.
+
+    Args:
+        current_user: The resolved :class:`User` from :func:`get_current_user`.
+
+    Returns:
+        The same :class:`User` if they satisfy the role requirement.
+
+    Raises:
+        HTTPException 403: If the user has no role with level >= 4.
+    """
+    if not any(
+        ur.role and ur.role.is_active and ur.role.level >= 4
+        for ur in current_user.user_roles
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Hospital-wide role (level >= 4) required.",
+        )
+    return current_user
+
+
 def get_manager_ambulance(
     ambulance_id: int,
     manager: User = Depends(require_manager_role),

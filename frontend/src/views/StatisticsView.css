@@ -1,0 +1,409 @@
+/* Hospital-wide yearly statistics (analyst role).
+   Year switcher, four KPI tiles, a twelve-month bar chart, and two tables.
+
+   Uses this app's real design tokens (see src/index.css):
+     --background         page / input background
+     --border             hairline border
+     --text / --text-h    body text / high-emphasis text (mute with opacity)
+     --primary            accent
+*/
+
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.stats-banner {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--text-h);
+}
+
+.stats-banner.is-error {
+  background: rgba(239, 83, 80, 0.15);
+  border: 1px solid rgba(239, 83, 80, 0.5);
+}
+
+.stats-empty {
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  color: var(--text-h);
+  opacity: 0.6;
+}
+
+.stats-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.stats-body.is-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* --- Year switcher --- */
+
+.stats-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.stats-year-navigation {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stats-year-button {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--background);
+  color: var(--text-h);
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.3rem;
+  line-height: 1;
+  padding-bottom: 2px; /* optically centre the chevron glyph in the square */
+}
+
+.stats-year-button:not(:disabled):hover,
+.stats-year-today:not(:disabled):hover {
+  border-color: var(--primary);
+}
+
+.stats-year-button:disabled,
+.stats-year-today:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.stats-year {
+  min-width: 4em;
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-h);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-year-today {
+  margin-left: 2px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--background);
+  color: var(--text-h);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.stats-through {
+  font-size: 0.8rem;
+  color: var(--text-h);
+  opacity: 0.65;
+}
+
+/* --- KPI tiles --- */
+
+.stats-kpis {
+  display: grid;
+  /* Wraps to two columns, then one, without a media query per breakpoint. */
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.stats-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-width: 0;
+}
+
+.stats-kpi-value {
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text-h);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-kpi-of {
+  font-size: 1.05rem;
+  font-weight: 600;
+  opacity: 0.5;
+}
+
+.stats-kpi-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-h);
+  opacity: 0.7;
+}
+
+.stats-kpi-note {
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: var(--text-h);
+  opacity: 0.55;
+}
+
+/* --- Cards --- */
+
+.stats-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-width: 0;
+}
+
+.stats-card-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-h);
+  opacity: 0.7;
+}
+
+.stats-card-hint,
+.stats-card-empty {
+  margin: -4px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-h);
+  opacity: 0.55;
+}
+
+/* --- Monthly bar chart ---
+   Plain flex columns rather than a chart library: twelve values need no
+   axis machinery, and the numbers are printed above the bars anyway. */
+
+.stats-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 168px;
+}
+
+.stats-chart-col {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.stats-chart-value {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-h);
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+  min-height: 1em;
+}
+
+.stats-chart-track {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: flex-end;
+}
+
+/* The outer bar is everything planned; the inner fill is the part already
+   worked, anchored to the bottom so the two read as one stacked column. */
+.stats-chart-bar {
+  width: 100%;
+  border-radius: 5px 5px 0 0;
+  background: color-mix(in srgb, var(--primary) 26%, transparent);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.stats-chart-worked {
+  width: 100%;
+  background: var(--primary);
+  border-radius: 5px 5px 0 0;
+}
+
+.stats-chart-label {
+  font-size: 0.7rem;
+  color: var(--text-h);
+  opacity: 0.55;
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.stats-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--text-h);
+  opacity: 0.65;
+}
+
+.stats-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stats-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.stats-swatch.is-worked {
+  background: var(--primary);
+}
+
+.stats-swatch.is-planned {
+  background: color-mix(in srgb, var(--primary) 26%, transparent);
+}
+
+/* --- Tables --- */
+
+.stats-scroll {
+  /* Six columns do not fit a phone; the table scrolls inside its card rather
+     than the page scrolling sideways. */
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.stats-table th,
+.stats-table td {
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.stats-table thead th {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-h);
+  opacity: 0.55;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.stats-table tbody tr + tr th,
+.stats-table tbody tr + tr td {
+  border-top: 1px solid var(--border);
+}
+
+/* A workplace with nothing planned is the finding, so it is dimmed rather
+   than hidden — it still has to be readable. */
+.stats-table tbody tr.is-idle .stats-name,
+.stats-table tbody tr.is-idle .stats-num {
+  opacity: 0.5;
+}
+
+.stats-name {
+  font-weight: 600;
+  color: var(--text-h);
+  min-width: 0;
+}
+
+/* Qualified with the table so they beat `.stats-table th/td`, which sets
+   text-align on every cell and would otherwise win on specificity. */
+.stats-table th.stats-num,
+.stats-table td.stats-num {
+  text-align: center;
+}
+
+.stats-num {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-h);
+  white-space: nowrap;
+}
+
+.stats-table th.stats-load,
+.stats-table td.stats-load {
+  width: 26%;
+  min-width: 90px;
+}
+
+.stats-load-track {
+  height: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background) 88%, var(--text) 12%);
+  overflow: hidden;
+}
+
+.stats-load-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--primary);
+}
+
+.stats-footnote {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--text-h);
+  opacity: 0.55;
+}
+
+@media (max-width: 720px) {
+  .stats-card,
+  .stats-kpi,
+  .stats-topbar {
+    padding: 10px 12px;
+  }
+  .stats-chart {
+    height: 140px;
+    gap: 3px;
+  }
+  .stats-kpi-value {
+    font-size: 1.6rem;
+  }
+}

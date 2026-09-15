@@ -94,7 +94,7 @@ const RoleManagementView = () => {
         const myRoles = await fetchMyRoles();
         storeRoles(myRoles);
         const stillAdmin = myRoles.some((role) => (
-          role.name === 'AMBULANCE_OVERSEER' || role.name === 'HOSPITAL_ADMIN'
+          role.name === 'AMBULANCE_OVERSEER' || role.name === 'ANALYST'
         ));
         if (!stillAdmin) navigate('/dashboard', { replace: true });
       }

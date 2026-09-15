@@ -12,16 +12,16 @@ from app.db.seed_configs.ikaim import (
 
 
 SEED_CONFIG = {
-    "version": "2",
+    "version": "3",
     "users": USERS + IKAIM_USERS,
     "ambulances": AMBULANCES + [IKAIM_AMBULANCE],
     "competences": {**COMPETENCES, "I.KAIM": IKAIM_COMPETENCES},
     "role_assignments": {
         "alexthesecond0000@gmail.com": ["EMPLOYEE", "LEADER"],
-        "noro.michel159@gmail.com": ["EMPLOYEE", "LEADER", "AMBULANCE_OVERSEER"],
+        "noro.michel159@gmail.com": ["EMPLOYEE", "LEADER", "AMBULANCE_OVERSEER", "ANALYST"],
         "a14325999@gmail.com": ["EMPLOYEE", "LEADER"],
-        "noro.michel@gmail.com": ["HOSPITAL_ADMIN", "LEADER", "AMBULANCE_OVERSEER"],
-        "gsemanisin@gmail.com": ["EMPLOYEE", "LEADER", "AMBULANCE_OVERSEER", "HOSPITAL_ADMIN"],
+        "noro.michel@gmail.com": ["ANALYST", "LEADER", "AMBULANCE_OVERSEER"],
+        "gsemanisin@gmail.com": ["EMPLOYEE", "LEADER", "AMBULANCE_OVERSEER", "ANALYST"],
         **IKAIM_ROLE_ASSIGNMENTS,
     },
     "ambulance_assignments": {

@@ -17,6 +17,7 @@ import {
   RolesIcon,
   ScheduleOverviewIcon,
   SearchIcon,
+  StatisticsIcon,
   SettingsIcon,
   TeamLimitsIcon,
   TeamScheduleIcon,
@@ -70,6 +71,17 @@ const SECTIONS = [
       { to: '/roles', labelKey: 'sidebar.roles', Icon: RolesIcon },
     ],
   },
+  // Its own section rather than an item inside 'admin': level 4 is a separate
+  // tier, and a section is the only granularity this list filters by.
+  {
+    id: 'analyst',
+    flag: 'hasAnalyst',
+    titleKey: 'sidebar.section_analyst',
+    Icon: StatisticsIcon,
+    items: [
+      { to: '/statistics', labelKey: 'sidebar.statistics', Icon: StatisticsIcon },
+    ],
+  },
 ];
 
 const readStoredUser = () => {
@@ -95,7 +107,7 @@ const Sidebar = ({ open, onToggle, onClose }) => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { t } = useTranslation();
-  const { hasEmployee, hasManager, hasAdmin } = useRoles();
+  const { hasEmployee, hasManager, hasAdmin, hasAnalyst } = useRoles();
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
 
   /** Rail = zbalená lišta na desktope. Rozbalená lišta aj mobil vypisujú všetky položky. */
@@ -111,13 +123,13 @@ const Sidebar = ({ open, onToggle, onClose }) => {
   const user = useMemo(readStoredUser, []);
 
   const sections = useMemo(() => {
-    const allowed = { hasEmployee, hasManager, hasAdmin };
+    const allowed = { hasEmployee, hasManager, hasAdmin, hasAnalyst };
     return SECTIONS.filter((section) => allowed[section.flag]).map((section) => ({
       ...section,
       title: t(section.titleKey),
       items: section.items.map((item) => ({ ...item, label: t(item.labelKey) })),
     }));
-  }, [hasEmployee, hasManager, hasAdmin, t]);
+  }, [hasEmployee, hasManager, hasAdmin, hasAnalyst, t]);
 
   /** Plochý zoznam pre rýchly skok — už prefiltrovaný podľa rolí. */
   const jumpItems = useMemo(

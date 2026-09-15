@@ -249,6 +249,15 @@
         "limit": 100
       },
       "expected_status": 200
+    },
+    {
+      "name": "yearly_statistics",
+      "method": "GET",
+      "path": "/statistics/yearly",
+      "params": {
+        "year": "${BENCHMARK_YEAR}"
+      },
+      "expected_status": 200
     }
   ]
 }

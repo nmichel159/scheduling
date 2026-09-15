@@ -45,7 +45,9 @@
     "quick_jump_placeholder": "Search screens…",
     "quick_jump_empty": "No matches.",
     "logout_confirm": "Do you really want to log out?",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "section_analyst": "Analyst",
+    "statistics": "Statistics"
   },
   "settings": {
     "title": "Settings",
@@ -155,7 +157,7 @@
     "manager_placeholder": "Search a scheduler by name or email...",
     "manager_no_results": "No scheduler matches your search.",
     "manager_clear": "Clear scheduler selection",
-    "manager_empty": "No user holds a scheduler role (LEADER / AMBULANCE_OVERSEER / HOSPITAL_ADMIN).",
+    "manager_empty": "No user holds a scheduler role (LEADER / AMBULANCE_OVERSEER / ANALYST).",
     "create": "Create",
     "created": "Workplace created",
     "cancel": "Cancel",
@@ -328,5 +330,38 @@
     "approve_error": "{{ambulance}}: the schedule could not be approved.",
     "approve_empty_error": "{{ambulance}}: the schedule could not be approved, no duties are saved for this month. The overview has been refreshed.",
     "cancel": "Cancel"
+  },
+  "statistics": {
+    "loading": "Loading the statistics…",
+    "load_error": "The statistics could not be loaded.",
+    "no_data": "No duties are recorded for this year.",
+    "previous_year": "Previous year",
+    "next_year": "Next year",
+    "current_year": "Current year",
+    "through": "Worked figures counted through {{date}}",
+    "kpi_worked": "Duties worked",
+    "kpi_worked_note": "of {{planned}} planned for the whole year",
+    "kpi_people": "People involved",
+    "kpi_people_note": "{{average}} duties per person on average",
+    "kpi_workplaces": "Workplaces scheduled",
+    "kpi_workplaces_note": "{{idle}} without a single duty",
+    "kpi_approved": "Duties approved",
+    "kpi_approved_note": "{{approved}} published to employees",
+    "by_month_title": "Duties per month",
+    "month_tooltip": "{{month}}: {{worked}} worked of {{planned}} planned",
+    "legend_worked": "Worked",
+    "legend_planned": "Planned",
+    "by_workplace_title": "By workplace",
+    "by_employee_title": "Busiest people",
+    "by_employee_hint": "Ordered by the number of duties planned for the year.",
+    "workplace": "Workplace",
+    "employee": "Employee",
+    "worked": "Worked",
+    "planned": "Planned",
+    "covered_days": "Days staffed",
+    "people": "People",
+    "workplaces": "Workplaces",
+    "load": "Share",
+    "hours_note": "The system records a duty as a day, not as a number of hours — a schedule row has no shift-length field, so duties and staffed days are what is counted here. Hours become computable once a competence carries a duty length."
   }
 }

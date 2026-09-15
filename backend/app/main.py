@@ -13,6 +13,7 @@ from app.api import roles, ambulances
 from app.api import codebooks
 from app.api import employee_competences
 from app.api import schedules
+from app.api import statistics
 from app.core.config import settings
 import app.models  # Import all models so they are registered in Base.metadata
 from app.services.audit_service import install_audit_hooks
@@ -64,6 +65,7 @@ app.include_router(ambulances.router, prefix="/ambulances", tags=["Ambulances"])
 app.include_router(codebooks.router, prefix="/competences", tags=["Competences"])
 app.include_router(employee_competences.router, prefix="/employees/competences", tags=["Employee Competences"])
 app.include_router(schedules.router, prefix="/schedules", tags=["Schedules"])
+app.include_router(statistics.router, prefix="/statistics", tags=["Statistics"])
 app.include_router(schedules.ambulance_router, prefix="/ambulances", tags=["Schedules"])
 
 @app.get("/")
