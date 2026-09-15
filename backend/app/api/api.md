@@ -244,10 +244,11 @@ GET vracia položky rozdelené podľa používateľa: `user_id`, `user_full_name
 <details>
 <summary><strong>Statistiky</strong></summary>
 
-### `GET /statistics/yearly?year={year}`
+### `GET /statistics/yearly?year={year}&ambulance_id={ambulance_id}`
 
 - Oprávnenie: rola 4 (`ANALYST`)
-- Parametre: nepovinný `year`; bez neho sa použije bežiaci kalendárny rok
+- Parametre: nepovinný `year` (bez neho bežiaci kalendárny rok) a nepovinný `ambulance_id`
+- `ambulance_id` zúži **každý** údaj na jedno pracovisko — súčty, mesačný rad aj rebríček ľudí — takže odpoveď hovorí „koľko sa odpracovalo tu“, nie „aký má toto pracovisko podiel“. Bez neho ide o celú nemocnicu.
 - Úspech: `200` — `year`, `through_date`, celkové počty, `by_month`, `workplaces` a `employees`
 - `total_shift_count` je všetko naplánované v roku, `worked_shift_count` len to, čo je datované k `through_date` vrátane. `through_date` je orezaný do vykazovaného roka, takže uzavretý rok vracia svoj posledný deň a jeho čísla sa už nemenia.
 - `by_month` má vždy dvanásť položiek vrátane prázdnych mesiacov, aby volajúci nemusel dopĺňať medzery
@@ -255,7 +256,7 @@ GET vracia položky rozdelené podľa používateľa: `user_id`, `user_full_name
 - `employee_count` je počet ľudí so službou v danom roku; vykazuje sa ako menovateľ priemeru služieb na človeka
 - Endpoint počíta **služby, nie hodiny**: záznam rozvrhu má dátum, ale nie dĺžku, takže hodiny z dátového modelu odvodiť nejde. Vyžadovalo by to pole s dĺžkou služby na kompetencii.
 - Všetko sú zoskupené SQL agregáty, endpoint nevracia jednotlivé služby
-- Chyby: `401` bez prihlásenia, `403` pri nižšej role, `422` pri neplatnom roku
+- Chyby: `401` bez prihlásenia, `403` pri nižšej role, `404` pri neexistujúcom alebo neaktívnom `ambulance_id`, `422` pri neplatnom roku
 
 </details>
 

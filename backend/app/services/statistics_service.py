@@ -59,8 +59,9 @@ def get_yearly_statistics(
     db: Session,
     year: int,
     today: date | None = None,
+    ambulance_id: int | None = None,
 ) -> YearlyStatistics:
-    """Report one calendar year across every active ambulance.
+    """Report one calendar year, hospital-wide or for a single ambulance.
 
     Counts duties and people -- not hours. A schedule row has a date but no
     duration, so hours are not derivable from the data model; see the note in
@@ -71,10 +72,15 @@ def get_yearly_statistics(
         year: Calendar year to report.
         today: Reference day for the "worked so far" figures; defaults to the
             current date. Injectable so tests are not time-dependent.
+        ambulance_id: Restrict every figure to this ambulance. `None` reports
+            the whole hospital. Scoping narrows the totals, the monthly series
+            and the employee ranking alike, so a scoped report answers "how
+            much was worked here" rather than "here's this workplace's share".
 
     Returns:
-        Hospital totals, a twelve-entry monthly series, one row per active
-        ambulance ordered by name, and the TOP_EMPLOYEE_LIMIT busiest people.
+        Totals for the scope, a twelve-entry monthly series, one row per
+        ambulance in scope ordered by name, and the TOP_EMPLOYEE_LIMIT busiest
+        people in it.
     """
     reference_day = today or date.today()
     start, end = year_range(year)
@@ -83,6 +89,8 @@ def get_yearly_statistics(
         Schedule.work_date.between(start, end),
         Schedule.is_active.is_(True),
     )
+    if ambulance_id is not None:
+        in_year += (Schedule.ambulance_id == ambulance_id,)
     worked = _worked_count(through)
 
     per_ambulance = {
@@ -98,12 +106,10 @@ def get_yearly_statistics(
         .all()
     }
 
-    ambulances = (
-        db.query(Ambulance)
-        .filter(Ambulance.is_active.is_(True))
-        .order_by(Ambulance.name)
-        .all()
-    )
+    ambulance_query = db.query(Ambulance).filter(Ambulance.is_active.is_(True))
+    if ambulance_id is not None:
+        ambulance_query = ambulance_query.filter(Ambulance.id == ambulance_id)
+    ambulances = ambulance_query.order_by(Ambulance.name).all()
     workplaces = []
     for ambulance in ambulances:
         row = per_ambulance.get(ambulance.id)

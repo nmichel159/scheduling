@@ -153,6 +153,30 @@ class YearlyStatisticsTests(unittest.TestCase):
         self.db.commit()
         self.assertEqual(len(self._report().employees), TOP_EMPLOYEE_LIMIT)
 
+    def test_scoping_to_one_workplace_narrows_every_figure(self) -> None:
+        """A scoped report answers "how much was worked here", not a share."""
+        report = get_yearly_statistics(
+            self.db, 2026, today=date(2026, 5, 1), ambulance_id=self.first.id
+        )
+        self.assertEqual(report.total_shift_count, 3)
+        self.assertEqual(report.worked_shift_count, 3)
+        self.assertEqual(report.employee_count, 2)
+        self.assertEqual(
+            [item.ambulance_name for item in report.workplaces], ["Anaesthesia"]
+        )
+        counts = {item.month: item.shift_count for item in report.by_month}
+        # The July duty belongs to the other workplace and must not appear.
+        self.assertEqual(counts[3], 3)
+        self.assertEqual(counts[7], 0)
+
+    def test_scoped_employee_ranking_counts_only_that_workplace(self) -> None:
+        report = get_yearly_statistics(
+            self.db, 2026, today=date(2026, 5, 1), ambulance_id=self.second.id
+        )
+        self.assertEqual([item.full_name for item in report.employees], ["Anna"])
+        self.assertEqual(report.employees[0].shift_count, 1)
+        self.assertEqual(report.employees[0].ambulance_count, 1)
+
     def test_inactive_rows_are_excluded(self) -> None:
         self.idle.is_active = False
         for entry in self.db.query(Schedule).filter(

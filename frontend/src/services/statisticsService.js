@@ -8,8 +8,15 @@ import client from '../api/client';
  * small no matter how large the schedules are.
  */
 
-/** Hospital-wide duty statistics for one calendar year. */
-export async function fetchYearlyStatistics(year) {
-  const { data } = await client.get('/statistics/yearly', { params: { year } });
+/**
+ * Duty statistics for one calendar year.
+ *
+ * `ambulanceId` narrows every figure — totals, the monthly series and the
+ * employee ranking — to that one workplace; omit it for the whole hospital.
+ */
+export async function fetchYearlyStatistics(year, ambulanceId = null) {
+  const { data } = await client.get('/statistics/yearly', {
+    params: { year, ambulance_id: ambulanceId ?? undefined },
+  });
   return data;
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchYearlyStatistics } from '../services/statisticsService';
+import { fetchAllAmbulances } from '../services/ambulanceService';
 import { formatShortName } from '../utils/formatEmployeeName';
 import './StatisticsView.css';
 
@@ -17,6 +18,12 @@ import './StatisticsView.css';
  * - *planned* — every duty dated in the year, future ones included.
  * - *worked*  — the subset dated on or before the report's `through_date`,
  *   which the backend clamps to the year, so a finished year stops moving.
+ *
+ * The same screen serves the whole hospital and one workplace: picking a
+ * workplace re-scopes every panel server-side, so the monthly chart and the
+ * people ranking then describe that workplace alone rather than its share of
+ * the hospital. The comparison table only makes sense unscoped, and the
+ * workplace-count tile means nothing for a single workplace, so both drop out.
  */
 
 /** Bar height floor, so a month with duties never renders as nothing. */
@@ -29,22 +36,41 @@ const StatisticsView = () => {
   const currentYear = useMemo(() => new Date().getFullYear(), []);
 
   const [year, setYear] = useState(currentYear);
+  // null = the whole hospital; otherwise the ambulance every figure is scoped to.
+  const [ambulanceId, setAmbulanceId] = useState(null);
+  const [ambulances, setAmbulances] = useState([]);
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // The switcher's options come from the ambulance list, not from the report:
+  // a scoped report only describes the one workplace it was asked about, so it
+  // cannot offer the others to switch to.
+  useEffect(() => {
+    let cancelled = false;
+    fetchAllAmbulances()
+      .then((list) => {
+        if (!cancelled) setAmbulances(list);
+      })
+      // A failed list only costs the switcher; the report itself still loads.
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const loadStatistics = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setReport(await fetchYearlyStatistics(year));
+      setReport(await fetchYearlyStatistics(year, ambulanceId));
     } catch {
       setReport(null);
       setError(t('statistics.load_error'));
     } finally {
       setLoading(false);
     }
-  }, [t, year]);
+  }, [ambulanceId, t, year]);
 
   useEffect(() => {
     loadStatistics();
@@ -64,7 +90,7 @@ const StatisticsView = () => {
     if (!report?.through_date) return '';
     const formatter = new Intl.DateTimeFormat(
       i18n.language === 'en' ? 'en-GB' : 'sk-SK',
-      { day: 'numeric', month: 'long', year: 'numeric' }
+      { day: 'numeric', month: 'numeric', year: 'numeric' }
     );
     return formatter.format(new Date(`${report.through_date}T00:00:00`));
   }, [report, i18n.language]);
@@ -132,6 +158,27 @@ const StatisticsView = () => {
             </button>
           )}
         </div>
+        {ambulances.length > 0 && (
+          <label className="stats-scope">
+            <span className="stats-sr-only">{t('statistics.scope')}</span>
+            <select
+              className="stats-scope-select"
+              value={ambulanceId ?? ''}
+              onChange={(e) =>
+                setAmbulanceId(e.target.value === '' ? null : Number(e.target.value))
+              }
+              disabled={loading}
+            >
+              <option value="">{t('statistics.scope_all')}</option>
+              {ambulances.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
         {report && (
           <span className="stats-through">
             {t('statistics.through', { date: throughLabel })}
@@ -150,33 +197,22 @@ const StatisticsView = () => {
             <article className="stats-kpi">
               <span className="stats-kpi-value">{report.worked_shift_count}</span>
               <span className="stats-kpi-label">{t('statistics.kpi_worked')}</span>
-              <span className="stats-kpi-note">
-                {t('statistics.kpi_worked_note', {
-                  planned: report.total_shift_count,
-                })}
-              </span>
             </article>
             <article className="stats-kpi">
               <span className="stats-kpi-value">{averagePerPerson}</span>
               <span className="stats-kpi-label">{t('statistics.kpi_average')}</span>
-              <span className="stats-kpi-note">
-                {t('statistics.kpi_average_note')}
-              </span>
             </article>
-            <article className="stats-kpi">
-              <span className="stats-kpi-value">
-                {report.staffed_workplace_count}
-                <span className="stats-kpi-of">/{report.workplace_count}</span>
-              </span>
-              <span className="stats-kpi-label">
-                {t('statistics.kpi_workplaces')}
-              </span>
-              <span className="stats-kpi-note">
-                {t('statistics.kpi_workplaces_note', {
-                  idle: report.workplace_count - report.staffed_workplace_count,
-                })}
-              </span>
-            </article>
+            {ambulanceId === null && (
+              <article className="stats-kpi">
+                <span className="stats-kpi-value">
+                  {report.staffed_workplace_count}
+                  <span className="stats-kpi-of">/{report.workplace_count}</span>
+                </span>
+                <span className="stats-kpi-label">
+                  {t('statistics.kpi_workplaces')}
+                </span>
+              </article>
+            )}
           </section>
 
           {/* --- duties per month --- */}
@@ -242,58 +278,60 @@ const StatisticsView = () => {
             </p>
           </section>
 
-          {/* --- per workplace --- */}
-          <section className="stats-card">
-            <h2 className="stats-card-title">
-              {t('statistics.by_workplace_title')}
-            </h2>
-            <div className="stats-scroll">
-              <table className="stats-table">
-                <thead>
-                  <tr>
-                    <th scope="col">{t('statistics.workplace')}</th>
-                    <th scope="col" className="stats-num">
-                      {t('statistics.worked')}
-                    </th>
-                    <th scope="col" className="stats-num">
-                      {t('statistics.planned')}
-                    </th>
-                    <th scope="col" className="stats-num">
-                      {t('statistics.people')}
-                    </th>
-                    <th scope="col" className="stats-load">
-                      {t('statistics.load')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {workplaces.map((item) => (
-                    <tr
-                      key={item.ambulance_id}
-                      className={item.shift_count === 0 ? 'is-idle' : ''}
-                    >
-                      <th scope="row" className="stats-name">
-                        {item.ambulance_name}
+          {/* --- per workplace: a comparison, so only when unscoped --- */}
+          {ambulanceId === null && (
+            <section className="stats-card">
+              <h2 className="stats-card-title">
+                {t('statistics.by_workplace_title')}
+              </h2>
+              <div className="stats-scroll">
+                <table className="stats-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">{t('statistics.workplace')}</th>
+                      <th scope="col" className="stats-num">
+                        {t('statistics.worked')}
                       </th>
-                      <td className="stats-num">{item.worked_shift_count}</td>
-                      <td className="stats-num">{item.shift_count}</td>
-                      <td className="stats-num">{item.employee_count}</td>
-                      <td className="stats-load">
-                        <div className="stats-load-track">
-                          <div
-                            className="stats-load-bar"
-                            style={{
-                              width: `${percent(item.shift_count, peakWorkplace)}%`,
-                            }}
-                          />
-                        </div>
-                      </td>
+                      <th scope="col" className="stats-num">
+                        {t('statistics.planned')}
+                      </th>
+                      <th scope="col" className="stats-num">
+                        {t('statistics.people')}
+                      </th>
+                      <th scope="col" className="stats-load">
+                        {t('statistics.load')}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                  </thead>
+                  <tbody>
+                    {workplaces.map((item) => (
+                      <tr
+                        key={item.ambulance_id}
+                        className={item.shift_count === 0 ? 'is-idle' : ''}
+                      >
+                        <th scope="row" className="stats-name">
+                          {item.ambulance_name}
+                        </th>
+                        <td className="stats-num">{item.worked_shift_count}</td>
+                        <td className="stats-num">{item.shift_count}</td>
+                        <td className="stats-num">{item.employee_count}</td>
+                        <td className="stats-load">
+                          <div className="stats-load-track">
+                            <div
+                              className="stats-load-bar"
+                              style={{
+                                width: `${percent(item.shift_count, peakWorkplace)}%`,
+                              }}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
 
           {/* --- busiest people --- */}
           {report.employees.length > 0 && (
@@ -301,7 +339,6 @@ const StatisticsView = () => {
               <h2 className="stats-card-title">
                 {t('statistics.by_employee_title')}
               </h2>
-              <p className="stats-card-hint">{t('statistics.by_employee_hint')}</p>
               <div className="stats-scroll">
                 <table className="stats-table">
                   <thead>
@@ -335,7 +372,6 @@ const StatisticsView = () => {
             </section>
           )}
 
-          <p className="stats-footnote">{t('statistics.hours_note')}</p>
         </div>
       )}
     </div>
