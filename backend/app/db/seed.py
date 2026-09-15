@@ -552,6 +552,44 @@ def _apply_seed(db: Session, seed_config: dict) -> None:
         )
 
 
+SEED_ADVISORY_LOCK_ID = 73644301
+
+
+def lock_seed_writes(db: Session) -> None:
+    """Serialize seed writes so two startups cannot apply a profile at once.
+
+    The lock is transaction scoped, so the caller's commit or rollback
+    releases it and no explicit unlock is ever needed.
+    """
+    if engine.dialect.name == "postgresql":
+        db.execute(text(f"SELECT pg_advisory_xact_lock({SEED_ADVISORY_LOCK_ID})"))
+
+
+def _record_seed_version(db: Session, profile: str, version: str) -> None:
+    """Upsert the applied-version marker inside the caller's transaction."""
+    current = db.get(SeedVersion, profile)
+    if current is None:
+        db.add(SeedVersion(profile=profile, version=version))
+    else:
+        current.version = version
+        current.applied_at = datetime.now(timezone.utc)
+
+
+def apply_seed_profile(db: Session, config_name: str) -> str:
+    """Validate one profile and write it into the caller's open transaction.
+
+    Returns the applied version. Leaving the transaction to the caller is what
+    lets a reset truncate and reseed atomically, instead of leaving an empty
+    database behind when a profile turns out to be infeasible.
+    """
+    seed_config = _get_seed_config(config_name)
+    _validate_seed_config(seed_config)
+    version = str(seed_config["version"])
+    _apply_seed(db, seed_config)
+    _record_seed_version(db, config_name, version)
+    return version
+
+
 def seed_db(config_name: str | None = None, *, only_if_outdated: bool = False) -> bool:
     selected_config_name = config_name or os.getenv("SEED_CONFIG", "config_1")
     seed_config = _get_seed_config(selected_config_name)
@@ -564,8 +602,7 @@ def seed_db(config_name: str | None = None, *, only_if_outdated: bool = False) -
 
     db: Session = SessionLocal()
     try:
-        if engine.dialect.name == "postgresql":
-            db.execute(text("SELECT pg_advisory_xact_lock(73644301)"))
+        lock_seed_writes(db)
 
         current = db.get(SeedVersion, selected_config_name)
         if only_if_outdated and current and current.version == target_version:
@@ -575,12 +612,7 @@ def seed_db(config_name: str | None = None, *, only_if_outdated: bool = False) -
 
         print(f"Applying database seed {selected_config_name}:{target_version}...")
         _apply_seed(db, seed_config)
-        if current is None:
-            current = SeedVersion(profile=selected_config_name, version=target_version)
-            db.add(current)
-        else:
-            current.version = target_version
-            current.applied_at = datetime.now(timezone.utc)
+        _record_seed_version(db, selected_config_name, target_version)
         db.commit()
         print("Database seeding completed successfully.")
         return True

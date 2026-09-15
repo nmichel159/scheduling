@@ -125,6 +125,7 @@ If you are modifying this project or using an AI developer agent (like Antigravi
 * **`global.md`**: Enforces strict English code, docstrings, type hinting, and structural modularity.
 * **`backend.md`**: Mandates a strict 1:1:1 domain decoupling (SQLAlchemy Models ↔ Pydantic Schemas ↔ FastAPI Routers).
 * **`database.md`**: Outlines transaction safety boundaries and Alembic migration protocols.
+* **`database-schema.md`**: Defines the exact relational database layout.
 
 ### Automatic test/demo data
 
@@ -142,4 +143,29 @@ Each seed profile declares a version. The backend stores applied versions in
 `version` whenever its data changes. Keep `AUTO_SEED=false` (the default) for
 production databases; enable it only for CI, preview, test, or controlled demo
 environments.
-* **`database-schema.md`**: Defines the exact relational database layout.
+
+### Rebuilding a database from scratch
+
+Seeding upserts by natural key and only deletes inside the narrow scopes a
+profile declares, so switching profiles never produces a clean database: rows
+from an earlier profile stay. To rebuild an environment from nothing, clear it
+explicitly first:
+
+```bash
+docker compose exec backend python -m app.db.reset <profile> --yes
+```
+
+This deletes every row of every mapped table and reapplies the profile in a
+single transaction, so an infeasible profile rolls back instead of leaving the
+database empty. The table list is read from the ORM metadata, which does not
+describe Alembic's `alembic_version` table -- the schema and its migration
+history therefore survive a reset, and only rows are removed.
+
+The command refuses to run without `--yes` and prints the connection target
+first, because nothing distinguishes a local database from a production one at
+the point of use. Two consequences are worth planning for:
+
+* Every session token lives in `users`, so a reset logs everybody out.
+* A user absent from the profile is recreated on next login with the `EMPLOYEE`
+  role only. Put the accounts you demo with in the profile, with the roles they
+  need, and seed before logging back in.
