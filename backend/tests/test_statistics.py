@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.db.session import Base
 from app.models import Ambulance, Competence, Schedule, User
-from app.services.statistics_service import get_yearly_statistics
+from app.services.statistics_service import TOP_EMPLOYEE_LIMIT, get_yearly_statistics
 
 
 class YearlyStatisticsTests(unittest.TestCase):
@@ -46,12 +46,13 @@ class YearlyStatisticsTests(unittest.TestCase):
         self.db.add_all(
             [
                 # Two March days at the first workplace, one of them shared by
-                # both employees, so shifts (3) and covered days (2) differ.
+                # both employees, so the duty count (3) and the head count (2)
+                # must not be confused for each other.
                 self._shift(self.anna, self.first, date(2026, 3, 2)),
                 self._shift(self.boris, self.first, date(2026, 3, 2)),
                 self._shift(self.anna, self.first, date(2026, 3, 3)),
                 # One in July, after the reference day used below.
-                self._shift(self.anna, self.second, date(2026, 7, 9), approved=True),
+                self._shift(self.anna, self.second, date(2026, 7, 9)),
                 # Neighbouring years must not leak into the report.
                 self._shift(self.anna, self.first, date(2025, 12, 31)),
                 self._shift(self.anna, self.first, date(2027, 1, 1)),
@@ -63,21 +64,13 @@ class YearlyStatisticsTests(unittest.TestCase):
         self.db.close()
         self.engine.dispose()
 
-    def _shift(
-        self,
-        user: User,
-        ambulance: Ambulance,
-        work_date: date,
-        *,
-        approved: bool = False,
-    ) -> Schedule:
+    def _shift(self, user: User, ambulance: Ambulance, work_date: date) -> Schedule:
         return Schedule(
             user_id=user.id,
             ambulance_id=ambulance.id,
             competence_id=self.competences[ambulance.id].id,
             work_date=work_date,
             is_active=True,
-            is_approved=approved,
         )
 
     def _report(self, today: date = date(2026, 5, 1)):
@@ -111,10 +104,10 @@ class YearlyStatisticsTests(unittest.TestCase):
         self.assertEqual(report.worked_shift_count, 0)
         self.assertEqual(report.total_shift_count, 4)
 
-    def test_workplace_row_separates_shifts_from_covered_days(self) -> None:
+    def test_workplace_row_separates_shifts_from_people(self) -> None:
+        """Three duties over two days held by two people must not collapse."""
         row = self._workplaces()["Anaesthesia"]
         self.assertEqual(row.shift_count, 3)
-        self.assertEqual(row.covered_day_count, 2)
         self.assertEqual(row.employee_count, 2)
         self.assertEqual(row.worked_shift_count, 3)
 
@@ -126,12 +119,6 @@ class YearlyStatisticsTests(unittest.TestCase):
         report = self._report()
         self.assertEqual(report.workplace_count, 3)
         self.assertEqual(report.staffed_workplace_count, 2)
-
-    def test_approved_counts_are_tracked_separately(self) -> None:
-        report = self._report()
-        self.assertEqual(report.approved_shift_count, 1)
-        self.assertEqual(self._workplaces()["Cardiology"].approved_shift_count, 1)
-        self.assertEqual(self._workplaces()["Anaesthesia"].approved_shift_count, 0)
 
     def test_monthly_series_always_has_twelve_entries(self) -> None:
         """The caller charts the year directly, so empty months must be there."""
@@ -151,6 +138,20 @@ class YearlyStatisticsTests(unittest.TestCase):
         self.assertEqual(anna.shift_count, 3)
         self.assertEqual(anna.ambulance_count, 2)
         self.assertEqual(employees[1].shift_count, 1)
+
+    def test_employee_ranking_is_capped(self) -> None:
+        """The report shows a short leaderboard, not every employee."""
+        for index in range(TOP_EMPLOYEE_LIMIT + 3):
+            extra = User(
+                email=f"extra{index}@example.com",
+                full_name=f"Extra {index}",
+                is_active=True,
+            )
+            self.db.add(extra)
+            self.db.flush()
+            self.db.add(self._shift(extra, self.first, date(2026, 4, 1)))
+        self.db.commit()
+        self.assertEqual(len(self._report().employees), TOP_EMPLOYEE_LIMIT)
 
     def test_inactive_rows_are_excluded(self) -> None:
         self.idle.is_active = False

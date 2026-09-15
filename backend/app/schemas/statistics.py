@@ -23,10 +23,6 @@ class WorkplaceYearStatistics(BaseModel):
     shift_count: int
     # The subset dated today or earlier -- what was actually worked so far.
     worked_shift_count: int
-    approved_shift_count: int
-    # Distinct dates that carry at least one duty: how many days of the year
-    # the workplace is actually staffed.
-    covered_day_count: int
     # Distinct people who hold at least one duty here this year.
     employee_count: int
 
@@ -60,14 +56,15 @@ class YearlyStatistics(BaseModel):
     through_date: str
     total_shift_count: int
     worked_shift_count: int
-    approved_shift_count: int
     # Active ambulances, and how many of them have at least one duty planned.
     workplace_count: int
     staffed_workplace_count: int
+    # Reported although no tile shows it on its own: it is the denominator of
+    # the duties-per-person average.
     employee_count: int
     # Always twelve entries, months without duties included, so the caller can
     # chart the year without filling gaps itself.
     by_month: list[MonthShiftCount]
     workplaces: list[WorkplaceYearStatistics]
-    # Busiest employees first; the caller decides how many to show.
+    # Busiest employees first, already capped by the service.
     employees: list[EmployeeYearStatistics]

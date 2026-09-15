@@ -23,7 +23,7 @@ from app.schemas.statistics import (
 MONTHS_IN_YEAR = 12
 
 #: How many employees the yearly report ranks by duty count.
-TOP_EMPLOYEE_LIMIT = 15
+TOP_EMPLOYEE_LIMIT = 5
 
 
 def year_range(year: int) -> tuple[date, date]:
@@ -62,9 +62,9 @@ def get_yearly_statistics(
 ) -> YearlyStatistics:
     """Report one calendar year across every active ambulance.
 
-    Counts duties, staffed days and people -- not hours. A schedule row has a
-    date but no duration, so hours are not derivable from the data model; see
-    the note in app/schemas/statistics.py.
+    Counts duties and people -- not hours. A schedule row has a date but no
+    duration, so hours are not derivable from the data model; see the note in
+    app/schemas/statistics.py.
 
     Args:
         db: Active database session.
@@ -74,7 +74,7 @@ def get_yearly_statistics(
 
     Returns:
         Hospital totals, a twelve-entry monthly series, one row per active
-        ambulance ordered by name, and the busiest employees.
+        ambulance ordered by name, and the TOP_EMPLOYEE_LIMIT busiest people.
     """
     reference_day = today or date.today()
     start, end = year_range(year)
@@ -91,8 +91,6 @@ def get_yearly_statistics(
             Schedule.ambulance_id,
             func.count(Schedule.id),
             worked,
-            func.count(case((Schedule.is_approved.is_(True), 1))),
-            func.count(func.distinct(Schedule.work_date)),
             func.count(func.distinct(Schedule.user_id)),
         )
         .filter(*in_year)
@@ -115,9 +113,7 @@ def get_yearly_statistics(
                 ambulance_name=ambulance.name,
                 shift_count=row[1] if row else 0,
                 worked_shift_count=row[2] if row else 0,
-                approved_shift_count=row[3] if row else 0,
-                covered_day_count=row[4] if row else 0,
-                employee_count=row[5] if row else 0,
+                employee_count=row[3] if row else 0,
             )
         )
 
@@ -173,7 +169,6 @@ def get_yearly_statistics(
     totals = db.query(
         func.count(Schedule.id),
         worked,
-        func.count(case((Schedule.is_approved.is_(True), 1))),
         func.count(func.distinct(Schedule.user_id)),
     ).filter(*in_year).one()
 
@@ -182,10 +177,9 @@ def get_yearly_statistics(
         through_date=through.isoformat(),
         total_shift_count=totals[0],
         worked_shift_count=totals[1],
-        approved_shift_count=totals[2],
         workplace_count=len(ambulances),
         staffed_workplace_count=sum(1 for item in workplaces if item.shift_count > 0),
-        employee_count=totals[3],
+        employee_count=totals[2],
         by_month=by_month,
         workplaces=workplaces,
         employees=employees,

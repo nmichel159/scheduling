@@ -7,11 +7,11 @@ import './StatisticsView.css';
 /**
  * Hospital-wide yearly statistics for the analyst role (level 4).
  *
- * Reports duties, staffed days and people — not hours. A schedule row carries
- * a date but no duration, so hours are not in the data model and cannot be
- * derived without inventing a shift length; competences whose *name* holds a
- * time range ("15:00-19:00") do not make that machine-readable either. Adding
- * a duration field to Competence is what would turn these counts into hours.
+ * Reports duties and people — not hours. A schedule row carries a date but no
+ * duration, so hours are not in the data model and cannot be derived without
+ * inventing a shift length; competences whose *name* holds a time range
+ * ("15:00-19:00") do not make that machine-readable either. Adding a duration
+ * field to Competence is what would turn these counts into hours.
  *
  * Two numbers run through the whole page and must not be confused:
  * - *planned* — every duty dated in the year, future ones included.
@@ -78,6 +78,13 @@ const StatisticsView = () => {
       ),
     [report]
   );
+
+  // One decimal: the average is a rough fairness signal, and more digits
+  // would suggest a precision the head count does not carry.
+  const averagePerPerson =
+    report && report.employee_count > 0
+      ? Math.round((report.total_shift_count / report.employee_count) * 10) / 10
+      : 0;
 
   const workplaces = report?.workplaces || [];
   // The busiest workplace sets the width of every load bar, so the rows are
@@ -150,17 +157,10 @@ const StatisticsView = () => {
               </span>
             </article>
             <article className="stats-kpi">
-              <span className="stats-kpi-value">{report.employee_count}</span>
-              <span className="stats-kpi-label">{t('statistics.kpi_people')}</span>
+              <span className="stats-kpi-value">{averagePerPerson}</span>
+              <span className="stats-kpi-label">{t('statistics.kpi_average')}</span>
               <span className="stats-kpi-note">
-                {t('statistics.kpi_people_note', {
-                  average:
-                    report.employee_count > 0
-                      ? Math.round(
-                          (report.total_shift_count / report.employee_count) * 10
-                        ) / 10
-                      : 0,
-                })}
+                {t('statistics.kpi_average_note')}
               </span>
             </article>
             <article className="stats-kpi">
@@ -174,20 +174,6 @@ const StatisticsView = () => {
               <span className="stats-kpi-note">
                 {t('statistics.kpi_workplaces_note', {
                   idle: report.workplace_count - report.staffed_workplace_count,
-                })}
-              </span>
-            </article>
-            <article className="stats-kpi">
-              <span className="stats-kpi-value">
-                {percent(report.approved_shift_count, report.total_shift_count)}
-                <span className="stats-kpi-of">%</span>
-              </span>
-              <span className="stats-kpi-label">
-                {t('statistics.kpi_approved')}
-              </span>
-              <span className="stats-kpi-note">
-                {t('statistics.kpi_approved_note', {
-                  approved: report.approved_shift_count,
                 })}
               </span>
             </article>
@@ -273,9 +259,6 @@ const StatisticsView = () => {
                       {t('statistics.planned')}
                     </th>
                     <th scope="col" className="stats-num">
-                      {t('statistics.covered_days')}
-                    </th>
-                    <th scope="col" className="stats-num">
                       {t('statistics.people')}
                     </th>
                     <th scope="col" className="stats-load">
@@ -294,7 +277,6 @@ const StatisticsView = () => {
                       </th>
                       <td className="stats-num">{item.worked_shift_count}</td>
                       <td className="stats-num">{item.shift_count}</td>
-                      <td className="stats-num">{item.covered_day_count}</td>
                       <td className="stats-num">{item.employee_count}</td>
                       <td className="stats-load">
                         <div className="stats-load-track">

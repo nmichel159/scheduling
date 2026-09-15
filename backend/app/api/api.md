@@ -251,8 +251,9 @@ GET vracia položky rozdelené podľa používateľa: `user_id`, `user_full_name
 - Úspech: `200` — `year`, `through_date`, celkové počty, `by_month`, `workplaces` a `employees`
 - `total_shift_count` je všetko naplánované v roku, `worked_shift_count` len to, čo je datované k `through_date` vrátane. `through_date` je orezaný do vykazovaného roka, takže uzavretý rok vracia svoj posledný deň a jeho čísla sa už nemenia.
 - `by_month` má vždy dvanásť položiek vrátane prázdnych mesiacov, aby volajúci nemusel dopĺňať medzery
-- `workplaces` obsahuje každú aktívnu ambulanciu vrátane tých bez jedinej služby; `employees` je rebríček najvyťaženejších ľudí
-- Endpoint počíta **služby a obsadené dni, nie hodiny**: záznam rozvrhu má dátum, ale nie dĺžku, takže hodiny z dátového modelu odvodiť nejde. Vyžadovalo by to pole s dĺžkou služby na kompetencii.
+- `workplaces` obsahuje každú aktívnu ambulanciu vrátane tých bez jedinej služby; `employees` je rebríček piatich najvyťaženejších ľudí (`TOP_EMPLOYEE_LIMIT`)
+- `employee_count` je počet ľudí so službou v danom roku; vykazuje sa ako menovateľ priemeru služieb na človeka
+- Endpoint počíta **služby, nie hodiny**: záznam rozvrhu má dátum, ale nie dĺžku, takže hodiny z dátového modelu odvodiť nejde. Vyžadovalo by to pole s dĺžkou služby na kompetencii.
 - Všetko sú zoskupené SQL agregáty, endpoint nevracia jednotlivé služby
 - Chyby: `401` bez prihlásenia, `403` pri nižšej role, `422` pri neplatnom roku
 
