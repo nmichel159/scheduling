@@ -17,6 +17,15 @@ const isoDate = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 /** ISO weekday index: 0=Monday ... 6=Sunday. */
 const isoWeekday = (dateObj) => (dateObj.getDay() + 6) % 7;
 
+/** Months since year zero, so two calendar months can be compared as numbers. */
+const monthIndex = (year, month) => year * 12 + month;
+
+/* Browsing is open in both directions, but not unbounded: the API rejects a
+ * year outside this range (month_range in schedule_service), so the arrows stop
+ * where they do rather than asking for a month that could never load. */
+const EARLIEST_MONTH_INDEX = monthIndex(2000, 0);
+const LATEST_MONTH_INDEX = monthIndex(2100, 11);
+
 /** Flat array of day numbers for a month grid (null = filler cell). */
 function buildMonthCells(year, month) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -31,8 +40,10 @@ function buildMonthCells(year, month) {
 /**
  * Read-only monthly schedule for the logged-in employee (role 1).
  *
- * Employees can browse the previous, current, and next month. The backend
- * returns only manager-approved schedule packages.
+ * Any month the API accepts can be browsed, back through the duties already
+ * worked and forward into the ones already planned. The backend returns only
+ * manager-approved schedule packages, so a month whose schedule is still a
+ * draft shows up as empty rather than as a promise.
  */
 const ScheduleView = () => {
   const { t, i18n } = useTranslation();
@@ -46,8 +57,9 @@ const ScheduleView = () => {
     y: today.getFullYear(),
     m: today.getMonth(),
   });
-  const currentMonthIndex = today.getFullYear() * 12 + today.getMonth();
-  const viewMonthIndex = view.y * 12 + view.m;
+  const viewMonthIndex = monthIndex(view.y, view.m);
+  const isCurrentMonth =
+    view.y === today.getFullYear() && view.m === today.getMonth();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -110,7 +122,12 @@ const ScheduleView = () => {
   const labelFor = (shift) =>
     ambulanceNames[shift.ambulance_id] || t('schedule.ambulance_fallback', { id: shift.ambulance_id });
 
+  /** Step by `offset` months, or jump back to the running month when null. */
   const changeMonth = (offset) => {
+    if (offset === null) {
+      setView({ y: today.getFullYear(), m: today.getMonth() });
+      return;
+    }
     const next = new Date(view.y, view.m + offset, 1);
     setView({ y: next.getFullYear(), m: next.getMonth() });
   };
@@ -124,7 +141,7 @@ const ScheduleView = () => {
             type="button"
             className="schedule-month-button"
             onClick={() => changeMonth(-1)}
-            disabled={viewMonthIndex <= currentMonthIndex - 1}
+            disabled={viewMonthIndex <= EARLIEST_MONTH_INDEX}
             aria-label={t('schedule.previous_month')}
           >
             ‹
@@ -134,11 +151,22 @@ const ScheduleView = () => {
             type="button"
             className="schedule-month-button"
             onClick={() => changeMonth(1)}
-            disabled={viewMonthIndex >= currentMonthIndex + 1}
+            disabled={viewMonthIndex >= LATEST_MONTH_INDEX}
             aria-label={t('schedule.next_month')}
           >
             ›
           </button>
+          {/* Months run far in both directions now, so after browsing half a
+              year back there is no cheap way home without this. */}
+          {!isCurrentMonth && (
+            <button
+              type="button"
+              className="schedule-month-today"
+              onClick={() => changeMonth(null)}
+            >
+              {t('schedule.current_month')}
+            </button>
+          )}
         </div>
       </header>
 

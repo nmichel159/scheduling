@@ -129,10 +129,19 @@ def _validate_seed_config(seed_config: dict) -> None:
         )
 
     for request in seed_config.get("generated_schedules", []):
-        if request["ambulance_name"] not in configured_ambulances:
+        ambulance_name = request["ambulance_name"]
+        if ambulance_name not in configured_ambulances:
             raise ValueError(
                 "Generated schedule references unknown ambulance: "
-                f"{request['ambulance_name']}"
+                f"{ambulance_name}"
+            )
+        unknown_requirements = set(request.get("required_counts", {})) - (
+            competence_names_by_ambulance.get(ambulance_name, set())
+        )
+        if unknown_requirements:
+            raise ValueError(
+                f"Generated schedule for {ambulance_name} sets unknown "
+                f"competences: {sorted(unknown_requirements)}"
             )
 
 
@@ -425,40 +434,95 @@ def _sync_unavailabilities(
     entries: list[dict],
     users_by_email: dict[str, User],
 ) -> None:
-    desired_by_user_reason: dict[tuple[int, str], dict[date, dict]] = {}
+    """Synchronize the absences and day requests a profile declares.
+
+    A profile owns a day only through the reasons it writes. A day already
+    taken under any other reason belongs to the person who entered it through
+    the application: the profile leaves it alone and drops its own entry for
+    that day, because the database allows one active entry per person and day
+    and a second one would be rejected rather than merged. The day a profile
+    does own is matched on its date alone, so a day that turns from an absence
+    into a request is rewritten in place, and rows that really are obsolete are
+    deleted before any new day is inserted, so neither can collide with the
+    other inside one flush.
+
+    The one reason a profile cannot tell apart from a person's own entry is
+    ``PREFERRED``, which the application writes too. A re-seed therefore
+    rewrites the requested days of the people it lists, which is another reason
+    to keep seeding out of a database real people depend on.
+    """
+    desired_by_user: dict[int, dict[date, str]] = {}
+    managed_reasons: set[str] = set()
     for entry in entries:
         user = users_by_email.get(entry["user_email"])
         if not user:
             continue
         reason = entry.get("reason") or "UNAVAILABLE"
-        desired_by_user_reason.setdefault((user.id, reason), {})[
-            entry["date_absent"]
-        ] = entry
+        managed_reasons.add(reason)
+        desired_by_user.setdefault(user.id, {})[entry["date_absent"]] = reason
 
-    for (user_id, reason), desired_by_date in desired_by_user_reason.items():
-        existing_rows = (
-            db.query(Unavailability)
-            .filter(
-                Unavailability.user_id == user_id,
-                Unavailability.reason == reason,
+    if not desired_by_user:
+        return
+
+    existing_rows = (
+        db.query(Unavailability)
+        .filter(Unavailability.user_id.in_(list(desired_by_user)))
+        # Active rows first, so that when a day somehow carries both an active
+        # and an inactive row it is the active one that is kept and the spare
+        # that is dropped; reviving the spare instead would collide with it.
+        .order_by(Unavailability.is_active.desc(), Unavailability.id)
+        .all()
+    )
+    for row in existing_rows:
+        if row.is_active and row.reason not in managed_reasons:
+            desired_by_user[row.user_id].pop(row.date_absent, None)
+
+    kept_days: set[tuple[int, date]] = set()
+    for row in existing_rows:
+        if row.reason not in managed_reasons:
+            continue
+        day = (row.user_id, row.date_absent)
+        reason = desired_by_user[row.user_id].get(row.date_absent)
+        if reason is None or day in kept_days:
+            db.delete(row)
+            continue
+        kept_days.add(day)
+        del desired_by_user[row.user_id][row.date_absent]
+        row.reason = reason
+        row.is_active = True
+    db.flush()
+
+    db.add_all(
+        [
+            Unavailability(
+                user_id=user_id,
+                date_absent=unavailable_date,
+                reason=reason,
+                is_active=True,
             )
-            .all()
-        )
-        existing_by_date = {row.date_absent: row for row in existing_rows}
-        for unavailable_date, row in existing_by_date.items():
-            if unavailable_date not in desired_by_date:
-                db.delete(row)
-            else:
-                row.is_active = True
-        for unavailable_date in desired_by_date.keys() - existing_by_date.keys():
-            db.add(
-                Unavailability(
-                    user_id=user_id,
-                    date_absent=unavailable_date,
-                    reason=reason,
-                    is_active=True,
-                )
-            )
+            for user_id, remaining in desired_by_user.items()
+            for unavailable_date, reason in remaining.items()
+        ]
+    )
+    db.flush()
+
+
+def _apply_monthly_requirements(
+    db: Session,
+    ambulance_id: int,
+    required_counts: dict[str, int],
+) -> None:
+    """Set an ambulance's staffing levels for the month about to be solved.
+
+    A competence the month leaves out is not staffed at all, which is how a
+    workplace comes to need three roles in one month and seven in another. The
+    last month's levels stay in the database once generation finishes, so the
+    configuration a manager opens is the newest one a schedule was built from.
+    """
+    for competence in (
+        db.query(Competence).filter(Competence.ambulance_id == ambulance_id).all()
+    ):
+        competence.required_count = required_counts.get(competence.name, 0)
     db.flush()
 
 
@@ -474,6 +538,10 @@ def _generate_and_seed_schedules(
         ambulance = ambulances_by_name.get(ambulance_name)
         if not ambulance:
             continue
+        if "required_counts" in request:
+            _apply_monthly_requirements(
+                db, ambulance.id, request["required_counts"]
+            )
         try:
             generated = generate_ambulance_monthly_schedule(
                 db,
@@ -489,6 +557,10 @@ def _generate_and_seed_schedules(
                 exc,
             ) from exc
 
+        # A month the profile does not mark as approved is seeded as a draft:
+        # generated and visible, but still waiting for its manager, which is
+        # the state the months ahead of today are actually in.
+        approved = request.get("approved", True)
         start = date(year, month, 1)
         end = date(year, month, monthrange(year, month)[1])
         db.query(Schedule).filter(
@@ -503,14 +575,15 @@ def _generate_and_seed_schedules(
                     competence_id=entry.competence_id,
                     work_date=entry.work_date,
                     is_active=True,
-                    is_approved=True,
+                    is_approved=approved,
                 )
                 for entry in generated.entries
             ]
         )
         db.flush()
         print(
-            f"Generated and seeded {generated.assignment_count} assignments for "
+            f"Generated and seeded {generated.assignment_count} "
+            f"{'approved' if approved else 'unapproved'} assignments for "
             f"{ambulance_name} ({year}-{month:02d})."
         )
 

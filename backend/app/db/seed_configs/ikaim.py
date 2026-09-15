@@ -1,23 +1,108 @@
-"""Deterministic I.KAIM demo staff, qualifications, and August absences."""
+"""I.KAIM: the demo profile's main workplace, staffed from the real roster.
 
-from datetime import date
-import hashlib
-import random
+This is the clinic every other mock workplace is arranged around. Its core
+roster, qualifications and daily demand come from the department's own staffing
+table; what the seed adds is a full year of self-reported absences and day
+requests and an approved schedule for every month of that year, so the
+calendar, the workload views and the yearly statistics all have something real
+to show immediately after a database reset.
+
+Two things here are deliberately invented on top of that table. The clinic runs
+seven roles rather than the four the table lists, and how many of them are
+staffed changes from month to month -- three in a quiet month, all seven in a
+busy one -- because a workplace whose demand never moves makes the generator
+look like a calendar filler rather than a planner. The department's own roster
+is far too small to absorb the busy months at that demand, so it is reinforced
+with invented colleagues, who carry most of the qualifications the three new
+roles need.
+"""
+
+from app.db.seed_configs.accounts import (
+    IKAIM_EMPLOYEE_EMAIL,
+    IKAIM_SCHEDULER_EMAIL,
+    OVERSEER_EMAIL,
+)
+from app.db.seed_configs.availability import monthly_calendar
+from app.db.seed_configs.qualifications import draw_qualifications, ensure_holders
 
 
 AMBULANCE_NAME = "I.KAIM"
-MANAGER_EMAIL = "noro.michel159@gmail.com"
+MANAGER_EMAIL = IKAIM_SCHEDULER_EMAIL
 
 LOZKO = "Lôžko"
 ANESTEZIA = "Anestézia"
 REPLANTACIE = "Replantácie"
 AFTERNOON = "15:00–19:00"
+KONZILIUM = "Konzíliá"
+DETSKA = "Detská anestézia"
+BOLEST = "Ambulancia bolesti"
 
+#: Roles the department's own staffing table covers.
+CORE_COMPETENCE_NAMES = [LOZKO, ANESTEZIA, REPLANTACIE, AFTERNOON]
+#: Roles invented for the demo, drawn across the whole roster.
+EXTRA_COMPETENCE_NAMES = [KONZILIUM, DETSKA, BOLEST]
+COMPETENCE_NAMES = CORE_COMPETENCE_NAMES + EXTRA_COMPETENCE_NAMES
+
+#: The demo year every mock workplace is scheduled for.
+YEAR = 2026
+#: Months scheduled up front, starting on the first of January.
+MONTHS = tuple(range(1, 11))
+#: Months whose schedule is already signed off. The months after it are drafts:
+#: generated, visible, and still waiting for their manager, which is the state
+#: a planner is actually in partway through a year.
+APPROVED_THROUGH_MONTH = 9
+UNAVAILABLE_REASON = "MOCK_IKAIM_UNAVAILABLE"
+
+
+def is_approved(month: int) -> bool:
+    """Whether the schedule generated for `month` is seeded as approved."""
+    return month <= APPROVED_THROUGH_MONTH
+
+#: The clinic's settled staffing: the four roles it has always run, at the
+#: headcount its manager asked to keep. The last months of the year use it, so
+#: it is also what stays in the database as the current configuration.
+BASELINE_REQUIREMENTS = {LOZKO: 2, ANESTEZIA: 2, REPLANTACIE: 1, AFTERNOON: 1}
+
+# How many people each role needs every day, month by month. A role a month
+# leaves out is not staffed at all that month, so the number of roles in play
+# swings between three and seven and the daily headcount between four and nine.
+# The generator is given one of these profiles per month, and the last month's
+# stays behind as the clinic's current configuration -- which is why the year
+# ends on the baseline rather than on one of the experiments.
+MONTHLY_REQUIREMENTS = {
+    1: {LOZKO: 2, ANESTEZIA: 2, REPLANTACIE: 1},
+    2: {LOZKO: 2, ANESTEZIA: 2, REPLANTACIE: 1, AFTERNOON: 1},
+    3: {LOZKO: 2, ANESTEZIA: 2, REPLANTACIE: 1, AFTERNOON: 1, KONZILIUM: 1},
+    4: {LOZKO: 2, ANESTEZIA: 1, AFTERNOON: 1},
+    5: {
+        LOZKO: 2,
+        ANESTEZIA: 2,
+        REPLANTACIE: 1,
+        AFTERNOON: 1,
+        KONZILIUM: 1,
+        DETSKA: 1,
+    },
+    6: {LOZKO: 2, ANESTEZIA: 1, REPLANTACIE: 1, BOLEST: 1},
+    7: {
+        LOZKO: 2,
+        ANESTEZIA: 2,
+        REPLANTACIE: 1,
+        AFTERNOON: 1,
+        KONZILIUM: 1,
+        DETSKA: 1,
+        BOLEST: 1,
+    },
+    8: {LOZKO: 2, ANESTEZIA: 2, REPLANTACIE: 1, AFTERNOON: 1},
+    9: dict(BASELINE_REQUIREMENTS),
+    10: dict(BASELINE_REQUIREMENTS),
+}
+
+# The competence list starts from the profile of the last generated month,
+# which the generator also leaves behind, so what a manager opens matches the
+# newest schedule that was built from it.
 COMPETENCES = [
-    {"name": LOZKO, "required_count": 2},
-    {"name": ANESTEZIA, "required_count": 2},
-    {"name": REPLANTACIE, "required_count": 1},
-    {"name": AFTERNOON, "required_count": 1},
+    {"name": name, "required_count": MONTHLY_REQUIREMENTS[MONTHS[-1]].get(name, 0)}
+    for name in COMPETENCE_NAMES
 ]
 
 # Grey rows marked as inactive in the source screenshot are intentionally omitted.
@@ -57,39 +142,116 @@ STAFF = [
     ("ema.varga-koscova@ikaim.test", "MUDr. Ema Varga-Košťová", [ANESTEZIA, AFTERNOON, REPLANTACIE]),
 ]
 
+#: Invented colleagues who make the busy months coverable. They carry the two
+#: ward roles outright and draw the rest, so the reinforcement lands where the
+#: real roster is thinnest.
+REINFORCEMENTS = [
+    ("adela.bencurova@ikaim.test", "MUDr. Adela Benčurová"),
+    ("andrea.polakova@ikaim.test", "MUDr. Andrea Poláková"),
+    ("bohus.kramar@ikaim.test", "MUDr. Bohuš Kramár"),
+    ("dusan.jancik@ikaim.test", "MUDr. Dušan Jančík"),
+    ("emil.rovny@ikaim.test", "MUDr. Emil Rovný"),
+    ("hana.olejnikova@ikaim.test", "MUDr. Hana Olejníková"),
+    ("ivan.sokol@ikaim.test", "MUDr. Ivan Sokol"),
+    ("iveta.bilska@ikaim.test", "MUDr. Iveta Bílská"),
+    ("jozef.kmec@ikaim.test", "MUDr. Jozef Kmec"),
+    ("katarina.rybarova@ikaim.test", "MUDr. Katarína Rybárová"),
+    ("lubos.hric@ikaim.test", "MUDr. Ľuboš Hric"),
+    ("marcela.jastrabova@ikaim.test", "MUDr. Marcela Jastrabová"),
+    ("marian.zubaj@ikaim.test", "MUDr. Marián Zubaj"),
+    ("nora.slavikova@ikaim.test", "MUDr. Nora Slavíková"),
+    ("ondrej.bystricky@ikaim.test", "MUDr. Ondrej Bystrický"),
+    ("pavlina.gerova@ikaim.test", "MUDr. Pavlína Gerová"),
+    ("peter.hrusovsky@ikaim.test", "MUDr. Peter Hrušovský"),
+    ("rastislav.demko@ikaim.test", "MUDr. Rastislav Demko"),
+    ("sona.matejkova@ikaim.test", "MUDr. Soňa Matejková"),
+    ("tibor.kolesar@ikaim.test", "MUDr. Tibor Kolesár"),
+    ("viera.hlavacova@ikaim.test", "MUDr. Viera Hlaváčová"),
+    ("zuzana.pavlikova@ikaim.test", "MUDr. Zuzana Pavlíková"),
+]
 
-def _unavailable_dates(email: str, position: int) -> list[date]:
-    """Return four or five stable pseudo-random August 2026 dates."""
-    seed = int.from_bytes(
-        hashlib.sha256(f"I.KAIM|2026-08|{email}".encode("utf-8")).digest()[:8],
-        "big",
-    )
-    day_count = 4 + position % 2
-    return [date(2026, 8, day) for day in sorted(random.Random(seed).sample(range(1, 32), day_count))]
+#: Qualified holders each role needs across the roster. Several times the daily
+#: demand, so a role still has candidates on the days its people are away.
+MINIMUM_HOLDERS = {
+    LOZKO: 30,
+    ANESTEZIA: 30,
+    REPLANTACIE: 22,
+    AFTERNOON: 18,
+    KONZILIUM: 18,
+    DETSKA: 18,
+    BOLEST: 18,
+}
 
+_reinforcement_qualifications = draw_qualifications(
+    AMBULANCE_NAME,
+    COMPETENCE_NAMES,
+    [email for email, _ in REINFORCEMENTS],
+    probability=0.5,
+    always=(LOZKO, ANESTEZIA),
+)
 
-USERS = [{"email": email, "full_name": full_name} for email, full_name, _ in STAFF]
+# Two real accounts work this rota so that signing in as either shows one's own
+# duties and not only somebody else's: the overseer, who is on two other
+# rosters as well, and an account that is an employee of this clinic and of
+# nothing else. Their user rows come from the shared list of sign-in accounts,
+# which is why neither is repeated in USERS below.
+SIGN_IN_MEMBERS = [
+    (OVERSEER_EMAIL, "Noro Micheľ", [LOZKO, ANESTEZIA, REPLANTACIE, KONZILIUM]),
+    (IKAIM_EMPLOYEE_EMAIL, "Zamestnanec UNLP", [LOZKO, ANESTEZIA, DETSKA]),
+]
+MEMBERS = (
+    STAFF
+    + [
+        (email, full_name, _reinforcement_qualifications[email])
+        for email, full_name in REINFORCEMENTS
+    ]
+    + SIGN_IN_MEMBERS
+)
+MEMBER_EMAILS = [email for email, _, _ in MEMBERS]
+
+# The reinforcements are drawn first and cover most of the shortfall, so the
+# top-up below mostly hands out the three invented roles. It is free to add a
+# real role to a real person as well when one is still short -- a role the
+# roster cannot cover on some day would make that month infeasible, and a
+# missing qualification is the cheaper inaccuracy of the two.
+QUALIFICATIONS = ensure_holders(
+    AMBULANCE_NAME,
+    {email: names for email, _, names in MEMBERS},
+    COMPETENCE_NAMES,
+    MINIMUM_HOLDERS,
+)
+
+USERS = [
+    {"email": email, "full_name": full_name} for email, full_name, _ in STAFF
+] + [{"email": email, "full_name": full_name} for email, full_name in REINFORCEMENTS]
 AMBULANCE = {
     "name": AMBULANCE_NAME,
     "description": "I. klinika anestéziológie a intenzívnej medicíny",
     "manager_email": MANAGER_EMAIL,
     "isurgent": False,
 }
-AMBULANCE_ASSIGNMENTS = {email: [AMBULANCE_NAME] for email, _, _ in STAFF}
-ROLE_ASSIGNMENTS = {email: ["EMPLOYEE"] for email, _, _ in STAFF}
-USER_COMPETENCE_ASSIGNMENTS = {
-    email: {AMBULANCE_NAME: competence_names}
-    for email, _, competence_names in STAFF
+AMBULANCE_ASSIGNMENTS = {email: [AMBULANCE_NAME] for email in MEMBER_EMAILS}
+#: Mock staff only: the roles of the real sign-in accounts are set centrally.
+_SIGN_IN_EMAILS = {email for email, _, _ in SIGN_IN_MEMBERS}
+ROLE_ASSIGNMENTS = {
+    email: ["EMPLOYEE"] for email in MEMBER_EMAILS if email not in _SIGN_IN_EMAILS
 }
-UNAVAILABILITIES = [
-    {
-        "user_email": email,
-        "date_absent": unavailable_date,
-        "reason": "MOCK_IKAIM_UNAVAILABLE",
-    }
-    for position, (email, _, _) in enumerate(STAFF)
-    for unavailable_date in _unavailable_dates(email, position)
-]
+USER_COMPETENCE_ASSIGNMENTS = {
+    email: {AMBULANCE_NAME: names} for email, names in QUALIFICATIONS.items()
+}
+UNAVAILABILITIES = monthly_calendar(
+    MEMBER_EMAILS,
+    YEAR,
+    MONTHS,
+    unavailable_reason=UNAVAILABLE_REASON,
+)
 GENERATED_SCHEDULES = [
-    {"ambulance_name": AMBULANCE_NAME, "month": 8, "year": 2026}
+    {
+        "ambulance_name": AMBULANCE_NAME,
+        "month": month,
+        "year": YEAR,
+        "required_counts": MONTHLY_REQUIREMENTS[month],
+        "approved": is_approved(month),
+    }
+    for month in MONTHS
 ]

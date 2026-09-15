@@ -144,6 +144,50 @@ Each seed profile declares a version. The backend stores applied versions in
 production databases; enable it only for CI, preview, test, or controlled demo
 environments.
 
+#### What `config_1` contains
+
+`config_1` is the demo world. Every schedule in it is produced by the same MILP
+generator the application uses, so a freshly seeded database opens on ten
+months of 2026 rather than on empty calendars. The departments are named after
+real ones; only the people on their rosters are invented.
+
+| Department | Urgent | People | Roles | Where the people come from |
+| --- | --- | --- | --- | --- |
+| `I.KAIM` | no | 57 | 7, of which 3 to 7 are staffed in any given month | the department's own roster, reinforced with invented colleagues |
+| `II.KAIM` | no | 23 | 3 | invented people, shuffled into the roster at random |
+| `KDAIM` | no | 19 | 2 | invented people, shuffled into the roster at random |
+| `KUM` | yes | 35 | 2 | borrowed from `I.KAIM` and from `II.KAIM` |
+
+January to September are seeded as approved schedules and October as a
+generated draft that is still waiting for its manager, which is the state a
+planner is actually in partway through a year.
+
+Four properties of the profile are worth knowing before you change it:
+
+* **Demand moves from month to month in I.KAIM.** Each month is generated from
+  its own entry in `MONTHLY_REQUIREMENTS`, so a quiet month staffs three roles
+  and a busy one all seven, and the daily headcount ranges from four to nine. A
+  role a month leaves out is simply not staffed that month. The levels of the
+  **last** generated month stay in `competences` afterwards, so the
+  configuration a manager opens is the newest one a schedule was built from.
+* **Everybody has opinions about the calendar.** Every person gets 8 to 12
+  blocked days and 2 to 4 requested days per month, drawn from a hash of the
+  person and the month rather than from the clock. Blocked days are hard
+  constraints; requested days only order schedules that are already equally
+  balanced.
+* **The urgent department is scheduled last, on purpose.** Its roster is already
+  committed elsewhere by then, so it exercises the rule that a duty in one
+  department blocks the same and the neighbouring day in every other one. That
+  is also why all of its people are qualified for both of its roles: the few
+  days each of them has left have to be usable for whichever role is open.
+* **The year ends on the settled configuration.** September and October run the
+  four roles the clinic has always run, so the staffing levels left behind in
+  `competences` are the ones a manager would recognise rather than one of the
+  experiments in the middle of the year.
+
+`config_2` is the older, smaller profile (`ambulancia1`..`ambulancia4` and four
+urgent workplaces) and is kept for tests and for comparison.
+
 ### Rebuilding a database from scratch
 
 Seeding upserts by natural key and only deletes inside the narrow scopes a
@@ -152,7 +196,7 @@ from an earlier profile stay. To rebuild an environment from nothing, clear it
 explicitly first:
 
 ```bash
-docker compose exec backend python -m app.db.reset <profile> --yes
+docker compose exec backend python -m app.db.reset config_1 --yes
 ```
 
 This deletes every row of every mapped table and reapplies the profile in a
@@ -160,6 +204,10 @@ single transaction, so an infeasible profile rolls back instead of leaving the
 database empty. The table list is read from the ORM metadata, which does not
 describe Alembic's `alembic_version` table -- the schema and its migration
 history therefore survive a reset, and only rows are removed.
+
+A reset of `config_1` solves 40 monthly schedules -- ten months in each of the
+four departments -- and takes well under a minute; the progress of each one is
+printed as it is generated, together with whether it was seeded approved.
 
 The command refuses to run without `--yes` and prints the connection target
 first, because nothing distinguishes a local database from a production one at

@@ -225,7 +225,8 @@
     "shift_count": "Shifts this month: {{count}}",
     "ambulance_fallback": "Workplace #{{id}}",
     "previous_month": "Previous month",
-    "next_month": "Next month"
+    "next_month": "Next month",
+    "current_month": "Current month"
   },
   "schedule_edit": {
     "title": "Workplace schedule",

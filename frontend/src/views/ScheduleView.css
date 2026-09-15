@@ -158,3 +158,22 @@
   cursor: default;
   opacity: 0.4;
 }
+
+/* Shown only while the view has wandered off the running month. */
+.schedule-month-today {
+  margin-left: 2px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--background);
+  color: var(--text-h);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.schedule-month-today:hover {
+  border-color: var(--primary);
+}

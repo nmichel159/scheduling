@@ -12,12 +12,30 @@ from sqlalchemy.orm import sessionmaker
 from app.db import seed
 from app.db import bootstrap
 from app.db.session import Base
+from app.db.seed_configs.accounts import (
+    IKAIM_EMPLOYEE_EMAIL,
+    IKAIM_SCHEDULER_EMAIL,
+    OVERSEER_EMAIL,
+)
+from app.db.seed_configs.availability import PREFERRED_REASON
+from app.db.seed_configs.extra_clinics import (
+    SECOND_KAIM_NAME,
+    KDAIM_NAME,
+    URGENT_NAME,
+)
 from app.db.seed_configs.ikaim import (
     AMBULANCE_NAME,
+    APPROVED_THROUGH_MONTH,
+    COMPETENCE_NAMES,
+    MEMBERS,
+    MONTHLY_REQUIREMENTS,
+    MONTHS,
     STAFF,
     UNAVAILABILITIES,
+    YEAR,
 )
 from app.models import Ambulance, Competence, Schedule, SeedVersion, Unavailability, User
+from app.models.associations import UserAmbulance
 from app.services.schedule_generation_service import ScheduleGenerationError
 
 
@@ -44,7 +62,7 @@ class SeedVersioningTests(unittest.TestCase):
             self.assertEqual(applied.version, seed.SEED_CONFIGS["config_1"]["version"])
 
             ambulance = db.query(Ambulance).filter_by(name=AMBULANCE_NAME).one()
-            self.assertEqual(ambulance.manager.email, "noro.michel159@gmail.com")
+            self.assertEqual(ambulance.manager.email, IKAIM_SCHEDULER_EMAIL)
             self.assertEqual(len(STAFF), 33)
 
             competences = {
@@ -53,13 +71,14 @@ class SeedVersioningTests(unittest.TestCase):
                 .filter_by(ambulance_id=ambulance.id)
                 .all()
             }
+            # Generation leaves the last month's staffing levels behind, so
+            # what the database holds is that month's profile -- with a zero on
+            # every role the month does not staff.
             self.assertEqual(
                 {name: row.required_count for name, row in competences.items()},
                 {
-                    "Lôžko": 2,
-                    "Anestézia": 2,
-                    "Replantácie": 1,
-                    "15:00–19:00": 1,
+                    name: MONTHLY_REQUIREMENTS[MONTHS[-1]].get(name, 0)
+                    for name in COMPETENCE_NAMES
                 },
             )
             august_schedule = (
@@ -102,12 +121,27 @@ class SeedVersioningTests(unittest.TestCase):
                 all((entry.user_id, entry.work_date) not in unavailable for entry in august_schedule)
             )
 
-            absence_counts = {}
-            for entry in UNAVAILABILITIES:
-                absence_counts[entry["user_email"]] = (
-                    absence_counts.get(entry["user_email"], 0) + 1
+            entries_per_person_month = Counter(
+                (
+                    entry["user_email"],
+                    entry["date_absent"].month,
+                    entry["reason"] == PREFERRED_REASON,
                 )
-            self.assertTrue(all(count in (4, 5) for count in absence_counts.values()))
+                for entry in UNAVAILABILITIES
+            )
+            absences = [
+                count
+                for (_, _, is_preferred), count in entries_per_person_month.items()
+                if not is_preferred
+            ]
+            requests = [
+                count
+                for (_, _, is_preferred), count in entries_per_person_month.items()
+                if is_preferred
+            ]
+            self.assertEqual(len(absences), len(MEMBERS) * len(MONTHS))
+            self.assertTrue(all(8 <= count <= 12 for count in absences))
+            self.assertTrue(all(2 <= count <= 4 for count in requests))
 
         with patch.object(seed, "_apply_seed") as apply_seed:
             self.assertFalse(seed.seed_db("config_1", only_if_outdated=True))
@@ -115,6 +149,116 @@ class SeedVersioningTests(unittest.TestCase):
 
         with self.session_factory() as db:
             self.assertEqual(db.query(User).count(), user_count)
+
+    def test_demo_profile_approves_a_full_year_in_every_workplace(self) -> None:
+        seed.seed_db("config_1", only_if_outdated=True)
+
+        with self.session_factory() as db:
+            ambulances = {
+                ambulance.name: ambulance for ambulance in db.query(Ambulance).all()
+            }
+            self.assertEqual(
+                set(ambulances),
+                {AMBULANCE_NAME, SECOND_KAIM_NAME, KDAIM_NAME, URGENT_NAME},
+            )
+            self.assertEqual(
+                [name for name, row in ambulances.items() if row.isurgent],
+                [URGENT_NAME],
+            )
+
+            for name, ambulance in ambulances.items():
+                months = {
+                    (row.work_date.year, row.work_date.month)
+                    for row in db.query(Schedule).filter_by(ambulance_id=ambulance.id)
+                }
+                self.assertEqual(
+                    months,
+                    {(YEAR, month) for month in MONTHS},
+                    f"{name} is not scheduled for the whole demo year",
+                )
+            # Months up to the cutoff are signed off; the ones after it are
+            # generated drafts still waiting for their manager.
+            approval_by_month = defaultdict(set)
+            for row in db.query(Schedule).all():
+                approval_by_month[row.work_date.month].add(row.is_approved)
+            self.assertEqual(
+                {month: sorted(flags) for month, flags in approval_by_month.items()},
+                {month: [month <= APPROVED_THROUGH_MONTH] for month in MONTHS},
+            )
+
+            # The clinic the demo account manages changes how many roles it
+            # staffs from month to month, and each month's duties have to match
+            # the profile that month was generated from.
+            staffed_per_month = defaultdict(Counter)
+            for row in db.query(Schedule).filter_by(
+                ambulance_id=ambulances[AMBULANCE_NAME].id
+            ):
+                staffed_per_month[row.work_date.month][
+                    (row.work_date, row.competence.name)
+                ] += 1
+            for month, staffed in staffed_per_month.items():
+                required = MONTHLY_REQUIREMENTS[month]
+                self.assertEqual(
+                    {name for _, name in staffed}, set(required), f"month {month}"
+                )
+                for (_, name), count in staffed.items():
+                    self.assertEqual(count, required[name], f"month {month}, {name}")
+            role_counts = {len(MONTHLY_REQUIREMENTS[month]) for month in MONTHS}
+            self.assertEqual(min(role_counts), 3)
+            self.assertEqual(max(role_counts), 7)
+
+            # The rest day between duties has to hold across workplaces too,
+            # which is the whole point of staffing the urgent one from rosters
+            # that are already busy.
+            duty_dates = defaultdict(set)
+            for row in db.query(Schedule).all():
+                self.assertNotIn(row.work_date, duty_dates[row.user_id])
+                duty_dates[row.user_id].add(row.work_date)
+            for work_dates in duty_dates.values():
+                for work_date in work_dates:
+                    self.assertNotIn(work_date + timedelta(days=1), work_dates)
+
+            blocked = {
+                (row.user_id, row.date_absent)
+                for row in db.query(Unavailability).filter(
+                    Unavailability.reason != PREFERRED_REASON
+                )
+            }
+            self.assertFalse(
+                blocked & {
+                    (user_id, work_date)
+                    for user_id, work_dates in duty_dates.items()
+                    for work_date in work_dates
+                }
+            )
+
+            # The account that builds I.KAIM's schedule, the account that
+            # oversees the clinics, and the account that is an employee of
+            # I.KAIM and of nothing else are three different people.
+            scheduler = db.query(User).filter_by(email=IKAIM_SCHEDULER_EMAIL).one()
+            self.assertEqual({row.role.code for row in scheduler.user_roles}, {"LEADER"})
+            self.assertEqual(ambulances[AMBULANCE_NAME].managed_by_user_id, scheduler.id)
+
+            overseer = db.query(User).filter_by(email=OVERSEER_EMAIL).one()
+            self.assertEqual(
+                {row.role.code for row in overseer.user_roles},
+                {"EMPLOYEE", "AMBULANCE_OVERSEER"},
+            )
+            self.assertEqual(
+                db.query(UserAmbulance).filter_by(user_id=overseer.id).count(), 3
+            )
+            self.assertTrue(duty_dates[overseer.id])
+
+            employee = db.query(User).filter_by(email=IKAIM_EMPLOYEE_EMAIL).one()
+            self.assertEqual({row.role.code for row in employee.user_roles}, {"EMPLOYEE"})
+            self.assertEqual(
+                [
+                    db.get(Ambulance, row.ambulance_id).name
+                    for row in db.query(UserAmbulance).filter_by(user_id=employee.id)
+                ],
+                [AMBULANCE_NAME],
+            )
+            self.assertTrue(duty_dates[employee.id])
 
     def test_new_profile_version_is_applied_and_recorded(self) -> None:
         self.assertTrue(seed.seed_db("config_1", only_if_outdated=True))
