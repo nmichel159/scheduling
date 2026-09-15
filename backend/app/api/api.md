@@ -218,6 +218,16 @@ POST body: `{"ambulance_id":1,"competence_id":2,"work_date":"2026-07-20"}`. PUT 
 
 GET vracia položky rozdelené podľa používateľa: `user_id`, `user_full_name`, `month`, `year`, `entries`. PUT je kompatibilný endpoint s body `{"entries":[{"user_id":1,"competence_id":2,"work_date":"2026-07-20"}]}`. Oprávnenie: rola 2 pre danú ambulanciu alebo rola 3.
 
+### `GET /ambulances/schedule-overview?month={month}&year={year}`
+
+- Oprávnenie: rola 3
+- Parametre: nepovinné `month` a `year`; bez nich sa použije bežiaci kalendárny mesiac
+- Úspech: `200` — `month`, `year` a `ambulances`
+- Každá položka `ambulances` obsahuje `ambulance_id`, `ambulance_name`, `manager_full_name`, `manager_email`, `shift_count`, `approved_shift_count` a `is_approved`
+- Vracia každú aktívnu ambulanciu, aj tú bez jedinej služby — práve tá je dôvod, prečo prehľad existuje. `is_approved` je `true` len vtedy, keď mesiac obsahuje služby a všetky sú schválené; prázdny mesiac schválený nikdy nie je.
+- Počty vznikajú jedným zoskupeným dotazom nad `schedules`, endpoint nevracia samotné služby
+- Chyby: `401` bez prihlásenia, `403` pri nižšej role, `422` pri neplatnom mesiaci alebo roku
+
 ### `POST /ambulances/{ambulance_id}/schedule/generate?month={month}&year={year}`
 
 - Oprávnenie: rola 2 pre spravovanú ambulanciu alebo rola 3 pre ľubovoľnú aktívnu ambulanciu

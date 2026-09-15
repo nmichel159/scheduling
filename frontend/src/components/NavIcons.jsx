@@ -78,6 +78,15 @@ export const AdminIcon = (props) => (
   </Icon>
 );
 
+/** Prehlad rozvrhov — kalendar s odskrtnutym mesiacom. */
+export const ScheduleOverviewIcon = (props) => (
+  <Icon {...props}>
+    <rect x="3.6" y="5.2" width="16.8" height="15.2" rx="2.2" />
+    <path d="M3.6 9.8h16.8M8 3.2v3.6M16 3.2v3.6" />
+    <path d="M8.4 15.2l2.4 2.4 4.8-4.8" />
+  </Icon>
+);
+
 export const RolesIcon = (props) => (
   <Icon {...props}>
     <path d="M12 3.2 5.2 5.8v5.6c0 4.2 2.7 7.6 6.8 9.4 4.1-1.8 6.8-5.2 6.8-9.4V5.8z" />

@@ -20,6 +20,7 @@ import {
   displayedGenerationSeconds,
   formatDurationSeconds,
 } from '../utils/generationEstimate';
+import { generationErrorMessage } from '../utils/generationIssues';
 import { formatShortName } from '../utils/formatEmployeeName';
 import './AmbulanceScheduleEditView.css';
 
@@ -429,48 +430,6 @@ const AmbulanceScheduleEditView = () => {
     });
   };
 
-  const formatGenerationIssue = (issue) => {
-    if (issue.code === 'insufficient_qualified_staff') {
-      return t('schedule_edit.generate_shortage', {
-        date: issue.work_date,
-        competence: issue.competence_name,
-        available: issue.available_count,
-        required: issue.required_count,
-      });
-    }
-    if (issue.code === 'insufficient_daily_capacity') {
-      return t('schedule_edit.generate_daily_capacity', {
-        date: issue.work_date,
-        available: issue.available_count,
-        required: issue.required_count,
-      });
-    }
-    if (issue.code === 'insufficient_consecutive_day_rotation') {
-      return t('schedule_edit.generate_rotation_shortage', {
-        firstDate: issue.work_date,
-        secondDate: issue.next_work_date,
-        competence: issue.competence_name,
-        available: issue.available_count,
-        required: issue.required_count,
-      });
-    }
-    if (issue.code === 'insufficient_consecutive_day_capacity') {
-      return t('schedule_edit.generate_rest_shortage', {
-        firstDate: issue.work_date,
-        secondDate: issue.next_work_date,
-        available: issue.available_count,
-        required: issue.required_count,
-      });
-    }
-    if (issue.code === 'no_active_competences') {
-      return t('schedule_edit.generate_no_competences');
-    }
-    if (issue.code === 'no_active_employees') {
-      return t('schedule_edit.generate_no_employees');
-    }
-    return t('schedule_edit.generate_constraint_conflict');
-  };
-
   const generateSchedule = async () => {
     setGenerating(true);
     setError(null);
@@ -491,20 +450,7 @@ const AmbulanceScheduleEditView = () => {
         t('schedule_edit.generate_success', { count: result.assignment_count })
       );
     } catch (err) {
-      const detail = err?.response?.data?.detail;
-      const issues = Array.isArray(detail?.issues) ? detail.issues : [];
-      if (issues.length > 0) {
-        const visibleIssues = issues.slice(0, 3).map(formatGenerationIssue);
-        const remainingCount = issues.length - visibleIssues.length;
-        if (remainingCount > 0) {
-          visibleIssues.push(
-            t('schedule_edit.generate_more_issues', { count: remainingCount })
-          );
-        }
-        setError(visibleIssues.join(' '));
-      } else {
-        setError(t('schedule_edit.generate_error'));
-      }
+      setError(generationErrorMessage(err, t));
     } finally {
       setGenerating(false);
     }

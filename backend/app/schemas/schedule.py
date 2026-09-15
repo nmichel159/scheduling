@@ -55,6 +55,31 @@ class ScheduleApprovalResponse(BaseModel):
     approved_entry_count: int
 
 
+class AmbulanceScheduleStatus(BaseModel):
+    """Publication state of one ambulance's schedule for one calendar month.
+
+    `shift_count` of 0 means the month was never generated or saved.
+    `is_approved` is true only when the package holds shifts and every one of
+    them is published, which is the same rule the editor applies locally.
+    """
+
+    ambulance_id: int
+    ambulance_name: str
+    manager_full_name: str | None = None
+    manager_email: str | None = None
+    shift_count: int
+    approved_shift_count: int
+    is_approved: bool
+
+
+class MonthlyScheduleOverview(BaseModel):
+    """Every active ambulance and where its schedule stands in one month."""
+
+    month: int
+    year: int
+    ambulances: list[AmbulanceScheduleStatus]
+
+
 class NextScheduleResponse(BaseModel):
     """The authenticated user's nearest scheduled duty, if one exists."""
     next_shift: ScheduleResponse | None = None

@@ -1,0 +1,325 @@
+/* Hospital-wide schedule overview for administrators.
+   A month switcher above one table: which workplaces have their schedule
+   planned, which only have a draft, and which have nothing at all.
+
+   Uses this app's real design tokens (see src/index.css):
+     --background         page / input background
+     --border             hairline border
+     --text / --text-h    body text / high-emphasis text (mute with opacity)
+     --primary            accent (primary buttons, focus)
+*/
+
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.overview-banner {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--text-h);
+}
+
+.overview-banner.is-error {
+  background: rgba(239, 83, 80, 0.15);
+  border: 1px solid rgba(239, 83, 80, 0.5);
+}
+
+.overview-banner.is-success {
+  background: rgba(76, 175, 80, 0.12);
+  border: 1px solid rgba(76, 175, 80, 0.5);
+}
+
+/* --- Month switcher + summary --- */
+
+.overview-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.overview-month-navigation {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.overview-month-button {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--background);
+  color: var(--text-h);
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.3rem;
+  line-height: 1;
+  padding-bottom: 2px; /* optically centre the chevron glyph in the square */
+}
+
+.overview-month-button:not(:disabled):hover {
+  border-color: var(--primary);
+}
+
+.overview-month-button:disabled,
+.overview-month-today:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.overview-month {
+  min-width: 9.5em;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-h);
+  text-transform: capitalize;
+}
+
+.overview-month-today {
+  margin-left: 2px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--background);
+  color: var(--text-h);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.overview-month-today:not(:disabled):hover {
+  border-color: var(--primary);
+}
+
+.overview-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  color: var(--text-h);
+  opacity: 0.75;
+}
+
+.overview-summary-item.is-warn {
+  color: #e07a2f;
+  opacity: 1;
+  font-weight: 600;
+}
+
+/* --- The table --- */
+
+.overview-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  /* The status column must never be pushed off-screen on a narrow window, and
+     the action buttons must stay reachable — so the table scrolls sideways
+     inside the card rather than the page scrolling. */
+  overflow-x: auto;
+}
+
+.overview-card.is-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.overview-empty {
+  margin: 0;
+  padding: 18px;
+  font-size: 0.9rem;
+  color: var(--text-h);
+  opacity: 0.6;
+}
+
+.overview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.overview-table th,
+.overview-table td {
+  padding: 10px 14px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.overview-table thead th {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-h);
+  opacity: 0.55;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.overview-table tbody tr + tr th,
+.overview-table tbody tr + tr td {
+  border-top: 1px solid var(--border);
+}
+
+.overview-name {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.overview-manager {
+  color: var(--text-h);
+  opacity: 0.8;
+}
+
+.overview-none {
+  opacity: 0.45;
+}
+
+/* Qualified with the table so these beat `.overview-table th/td`, which sets
+   text-align on every cell and would otherwise silently win on specificity
+   and leave the header out of line with the numbers it labels. */
+.overview-table th.overview-num,
+.overview-table td.overview-num {
+  text-align: center;
+}
+
+.overview-num {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-h);
+  white-space: nowrap;
+}
+
+/* --- Status pill --- */
+
+.overview-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.overview-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* Colour and a dot alone would not distinguish these for a colour-blind
+   reader, so every pill also carries its own word. */
+.overview-status.is-approved {
+  color: #2e7d32;
+  background: rgba(76, 175, 80, 0.14);
+}
+
+.overview-status.is-draft {
+  color: #b26a00;
+  background: rgba(255, 167, 38, 0.16);
+}
+
+.overview-status.is-missing {
+  color: #c62828;
+  background: rgba(239, 83, 80, 0.14);
+}
+
+:root[data-theme='dark'] .overview-status.is-approved {
+  color: #81c784;
+}
+
+:root[data-theme='dark'] .overview-status.is-draft {
+  color: #ffb74d;
+}
+
+:root[data-theme='dark'] .overview-status.is-missing {
+  color: #ef9a9a;
+}
+
+/* --- Row actions --- */
+
+/* Same specificity problem as .overview-num. */
+.overview-table th.overview-actions-head {
+  text-align: right;
+}
+
+.overview-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.overview-btn {
+  padding: 5px 11px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--background);
+  color: var(--text-h);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.overview-btn:not(:disabled):hover {
+  border-color: var(--primary);
+}
+
+.overview-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.overview-btn-generate {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.overview-btn-generate:not(:disabled):hover {
+  filter: brightness(1.1);
+}
+
+.overview-btn-approve {
+  border-color: rgba(76, 175, 80, 0.6);
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+:root[data-theme='dark'] .overview-btn-approve {
+  color: #81c784;
+}
+
+.overview-btn-approve:not(:disabled):hover {
+  border-color: #2e7d32;
+}
+
+@media (max-width: 720px) {
+  .overview-table th,
+  .overview-table td {
+    padding: 9px 10px;
+  }
+  .overview-topbar {
+    padding: 9px 10px;
+  }
+}

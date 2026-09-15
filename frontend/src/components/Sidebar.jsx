@@ -15,6 +15,7 @@ import {
   MoreIcon,
   MyScheduleIcon,
   RolesIcon,
+  ScheduleOverviewIcon,
   SearchIcon,
   SettingsIcon,
   TeamLimitsIcon,
@@ -60,6 +61,11 @@ const SECTIONS = [
     titleKey: 'sidebar.section_admin',
     Icon: AdminIcon,
     items: [
+      {
+        to: '/schedules/overview',
+        labelKey: 'sidebar.schedule_overview',
+        Icon: ScheduleOverviewIcon,
+      },
       { to: '/admin', labelKey: 'sidebar.admin', Icon: AdminIcon },
       { to: '/roles', labelKey: 'sidebar.roles', Icon: RolesIcon },
     ],

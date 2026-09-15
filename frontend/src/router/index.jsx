@@ -7,6 +7,7 @@ import AmbulanceScheduleEditView from '../views/AmbulanceScheduleEditView';
 import ManagerWorkloadView from '../views/ManagerWorkloadView';
 import DepartmentsView from '../views/DepartmentsView';
 import AdminView from '../views/AdminView';
+import ScheduleOverviewView from '../views/ScheduleOverviewView';
 import RoleManagementView from '../views/RoleManagementView';
 import MainLayout from '../layouts/MainLayout';
 import RequireRole from '../components/RequireRole';
@@ -69,6 +70,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole flag="hasManager">
             <ManagerWorkloadView />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "/schedules/overview",
+        element: (
+          <RequireRole flag="hasAdmin">
+            <ScheduleOverviewView />
           </RequireRole>
         ),
       },

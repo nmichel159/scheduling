@@ -64,6 +64,17 @@ export async function updateAmbulanceSchedule(ambulanceId, entries, params = {})
   return data;
 }
 
+/**
+ * Schedule state of every active ambulance for one month (admin only).
+ * Returns { month, year, ambulances: [{ ambulance_id, ambulance_name,
+ * manager_full_name, manager_email, shift_count, approved_shift_count,
+ * is_approved }] } — counts only, never the shifts themselves.
+ */
+export async function fetchMonthlyScheduleOverview(params) {
+  const { data } = await client.get('/ambulances/schedule-overview', { params });
+  return data;
+}
+
 /** Generate an optimized, unsaved monthly schedule draft for one ambulance. */
 export async function generateAmbulanceSchedule(ambulanceId, params) {
   const { data } = await client.post(

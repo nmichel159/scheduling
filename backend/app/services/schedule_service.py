@@ -2,7 +2,7 @@ from calendar import monthrange
 from datetime import date
 
 from fastapi import HTTPException, status
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, case, func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.ambulance import Ambulance
@@ -12,6 +12,8 @@ from app.models.schedule import Schedule
 from app.models.unavailability import Unavailability
 from app.models.user import User
 from app.schemas.schedule import (
+    AmbulanceScheduleStatus,
+    MonthlyScheduleOverview,
     ScheduleApprovalResponse,
     ScheduleCreate,
     ScheduleEdit,
@@ -534,3 +536,67 @@ def approve_ambulance_monthly_schedule(
         is_approved=True,
         approved_entry_count=len(entries),
     )
+
+
+def get_monthly_schedule_overview(
+    db: Session,
+    month: int,
+    year: int,
+) -> MonthlyScheduleOverview:
+    """Report where every active ambulance's schedule stands in one month.
+
+    Answers "which workplaces have a schedule and which do not" without
+    reading the shifts themselves: the counts come from a single grouped
+    query, so the cost does not grow with the size of the schedules. Every
+    active ambulance appears, including those with no shifts at all -- those
+    are the ones the overview exists to surface.
+
+    Args:
+        db: Active database session.
+        month: Calendar month, 1-12.
+        year: Calendar year.
+
+    Returns:
+        The month, the year, and one status row per active ambulance,
+        ordered by ambulance name.
+    """
+    start, end = month_range(month, year)
+    counts_by_ambulance = {
+        ambulance_id: (shift_count, approved_count)
+        for ambulance_id, shift_count, approved_count in db.query(
+            Schedule.ambulance_id,
+            func.count(Schedule.id),
+            # count() ignores NULLs, so an else-less CASE counts only the
+            # approved rows -- no second query and no Python-side filtering.
+            func.count(case((Schedule.is_approved.is_(True), 1))),
+        )
+        .filter(
+            Schedule.work_date.between(start, end),
+            Schedule.is_active.is_(True),
+        )
+        .group_by(Schedule.ambulance_id)
+        .all()
+    }
+    ambulances = (
+        db.query(Ambulance)
+        .options(joinedload(Ambulance.manager))
+        .filter(Ambulance.is_active.is_(True))
+        .order_by(Ambulance.name)
+        .all()
+    )
+    statuses = []
+    for ambulance in ambulances:
+        shift_count, approved_count = counts_by_ambulance.get(ambulance.id, (0, 0))
+        statuses.append(
+            AmbulanceScheduleStatus(
+                ambulance_id=ambulance.id,
+                ambulance_name=ambulance.name,
+                manager_full_name=ambulance.manager.full_name if ambulance.manager else None,
+                manager_email=ambulance.manager.email if ambulance.manager else None,
+                shift_count=shift_count,
+                approved_shift_count=approved_count,
+                # An empty month is not "approved"; approval requires shifts.
+                is_approved=shift_count > 0 and approved_count == shift_count,
+            )
+        )
+    return MonthlyScheduleOverview(month=month, year=year, ambulances=statuses)

@@ -6,15 +6,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, contains_eager
 
 from app.core.config import settings
-from app.core.dependencies import get_current_user, get_manager_ambulance, require_manager_role
+from app.core.dependencies import get_current_user, get_manager_ambulance, require_admin_role, require_manager_role
 from app.db.session import get_db
 from app.models.ambulance import Ambulance
 from app.models.associations import UserAmbulance
 from app.models.schedule import Schedule
 from app.models.user import User
-from app.schemas.schedule import MonthlyScheduleSave, MonthlyScheduleStatistics, NextScheduleResponse, ScheduleApprovalResponse, ScheduleCreate, ScheduleEdit, ScheduleGenerationResponse, ScheduleResponse, ScheduleUpdate, UserMonthlySchedule, WorkedScheduleStatistics
+from app.schemas.schedule import MonthlyScheduleOverview, MonthlyScheduleSave, MonthlyScheduleStatistics, NextScheduleResponse, ScheduleApprovalResponse, ScheduleCreate, ScheduleEdit, ScheduleGenerationResponse, ScheduleResponse, ScheduleUpdate, UserMonthlySchedule, WorkedScheduleStatistics
 from app.services.schedule_generation_service import ScheduleGenerationError, generate_ambulance_monthly_schedule
-from app.services.schedule_service import approve_ambulance_monthly_schedule, create_schedule, deactivate_schedule, get_ambulance_schedule, get_manageable_user_ambulance_ids, get_next_user_schedule, get_user_monthly_statistics, get_user_schedule, get_user_worked_statistics, save_ambulance_monthly_schedule, save_monthly_schedule, update_schedule
+from app.services.schedule_service import approve_ambulance_monthly_schedule, create_schedule, deactivate_schedule, get_ambulance_schedule, get_manageable_user_ambulance_ids, get_monthly_schedule_overview, get_next_user_schedule, get_user_monthly_statistics, get_user_schedule, get_user_worked_statistics, save_ambulance_monthly_schedule, save_monthly_schedule, update_schedule
 
 router = APIRouter()
 ambulance_router = APIRouter()
@@ -158,6 +158,22 @@ def save_monthly_schedule_endpoint(data: MonthlyScheduleSave, current_user: User
     }
     _can_manage_schedule_pairs(current_user, db, schedule_pairs)
     return save_monthly_schedule(db, data.user_id, data.month, data.year, data.entries)
+
+
+@ambulance_router.get(
+    "/schedule-overview",
+    response_model=MonthlyScheduleOverview,
+    summary="Schedule state of every ambulance for one month",
+)
+def get_monthly_schedule_overview_endpoint(
+    month: int | None = None,
+    year: int | None = None,
+    _: User = Depends(require_admin_role),
+    db: Session = Depends(get_db),
+) -> MonthlyScheduleOverview:
+    """Report which ambulances already have a schedule for the month."""
+    selected_month, selected_year = _bounded_schedule_period(month, year)
+    return get_monthly_schedule_overview(db, selected_month, selected_year)
 
 
 @ambulance_router.get("/{ambulance_id}/schedule", response_model=list[UserMonthlySchedule])
