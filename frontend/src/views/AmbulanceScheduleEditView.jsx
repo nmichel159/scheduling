@@ -314,9 +314,6 @@ const AmbulanceScheduleEditView = () => {
     return formatDurationSeconds(seconds, t);
   }, [employees, competences, view.y, view.m, t]);
 
-  const isCurrentMonth =
-    view.y === today.getFullYear() && view.m === today.getMonth();
-
   const dayLabels = useMemo(
     () => [0, 1, 2, 3, 4, 5, 6].map((i) => t(`workload.days.${i}`)),
     [t]
@@ -779,20 +776,6 @@ const AmbulanceScheduleEditView = () => {
                 >
                   ›
                 </button>
-                {/* Months are unbounded in both directions, so after browsing a
-                    year back there is no cheap way home without this. */}
-                {!isCurrentMonth && (
-                  <button
-                    type="button"
-                    className="schedule-edit-month-today"
-                    onClick={() => changeMonth(null)}
-                    disabled={loading || generating || saving || approving}
-                    title={t('schedule_edit.current_month')}
-                    aria-label={t('schedule_edit.current_month')}
-                  >
-                    {t('schedule_edit.jump_today')}
-                  </button>
-                )}
               </div>
 
               <div className="schedule-edit-topbar-actions">
