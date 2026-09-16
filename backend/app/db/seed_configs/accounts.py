@@ -27,10 +27,13 @@ IKAIM_EMPLOYEE_EMAIL = "zamestnanecunlp@gmail.com"
 #: Kept so that a reset does not delete it; no workplace of its own yet.
 GUEST_EMAIL = "office@3x3sport.com"
 
-#: Schedulers of the three departments around I.KAIM.
+#: Schedulers of the four departments around I.KAIM.
 SECOND_KAIM_MANAGER_EMAIL = "a14325999@gmail.com"
 KDAIM_MANAGER_EMAIL = "alexthesecond0000@gmail.com"
 URGENT_MANAGER_EMAIL = "gsemanisin@gmail.com"
+
+#: Schedules the empty department; it has no roster to build one from yet.
+EMPTY_MANAGER_EMAIL = "rasto.burda@gmail.com"
 
 USERS = [
     {"email": IKAIM_SCHEDULER_EMAIL, "full_name": "Norbert Michel"},
@@ -41,6 +44,7 @@ USERS = [
     {"email": SECOND_KAIM_MANAGER_EMAIL, "full_name": "Leader A"},
     {"email": KDAIM_MANAGER_EMAIL, "full_name": "Alex the Second"},
     {"email": URGENT_MANAGER_EMAIL, "full_name": "Gabriel Semanisin"},
+    {"email": EMPTY_MANAGER_EMAIL, "full_name": "Rastislav Burda"},
 ]
 
 ROLE_ASSIGNMENTS = {
@@ -52,4 +56,5 @@ ROLE_ASSIGNMENTS = {
     SECOND_KAIM_MANAGER_EMAIL: ["EMPLOYEE", "LEADER"],
     KDAIM_MANAGER_EMAIL: ["EMPLOYEE", "LEADER"],
     URGENT_MANAGER_EMAIL: ["EMPLOYEE", "LEADER", "ANALYST"],
+    EMPTY_MANAGER_EMAIL: ["LEADER"],
 }

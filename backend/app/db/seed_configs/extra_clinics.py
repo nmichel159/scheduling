@@ -1,4 +1,4 @@
-"""Three more departments of the hospital, arranged around I.KAIM.
+"""Four more departments of the hospital, arranged around I.KAIM.
 
 They are named after departments the hospital really runs, so that a demo
 reads as a hospital rather than as a test fixture, but only the names are
@@ -17,6 +17,10 @@ qualified for both of its roles. Its people are already committed elsewhere by
 the time it is scheduled, so the few days each of them has left have to be
 usable for whichever role is still open on them; splitting the roster by role
 would leave single-candidate days that no solver can rescue.
+
+The fourth, the neurosurgical department, is empty: it has a scheduler and
+nothing else -- no staff, no roles, no schedules -- so the demo also covers the
+state a department is in on the day it is created.
 """
 
 from app.db.seed_configs.accounts import (
@@ -25,6 +29,7 @@ from app.db.seed_configs.accounts import (
     OVERSEER_EMAIL,
     KDAIM_MANAGER_EMAIL,
     URGENT_MANAGER_EMAIL,
+    EMPTY_MANAGER_EMAIL,
 )
 from app.db.seed_configs.availability import monthly_calendar, stable_random
 from app.db.seed_configs.qualifications import draw_qualifications, ensure_holders
@@ -40,6 +45,10 @@ from app.db.seed_configs.ikaim import (
 SECOND_KAIM_NAME = "II.KAIM"
 KDAIM_NAME = "KDAIM"
 URGENT_NAME = "KUM"
+#: A fourth department kept deliberately empty: it has a scheduler and nothing
+#: else, so the demo also shows what a workplace looks like before anybody is
+#: assigned to it and before its roles are defined.
+EMPTY_NAME = "KNCH"
 
 UNAVAILABLE_REASON = "MOCK_DEMO_UNAVAILABLE"
 
@@ -198,8 +207,15 @@ AMBULANCES = [
         "manager_email": URGENT_MANAGER_EMAIL,
         "isurgent": True,
     },
+    {
+        "name": EMPTY_NAME,
+        "description": "Klinika neurochirurgie, zatiaľ bez personálu a kompetencií",
+        "manager_email": EMPTY_MANAGER_EMAIL,
+        "isurgent": False,
+    },
 ]
 
+# The empty department is absent on purpose: it has no roles yet.
 COMPETENCES = {
     SECOND_KAIM_NAME: SECOND_KAIM_COMPETENCES,
     KDAIM_NAME: KDAIM_COMPETENCES,

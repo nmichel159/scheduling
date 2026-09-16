@@ -22,6 +22,7 @@ from app.db.seed_configs.extra_clinics import (
     SECOND_KAIM_NAME,
     KDAIM_NAME,
     URGENT_NAME,
+    EMPTY_NAME,
 )
 from app.db.seed_configs.ikaim import (
     AMBULANCE_NAME,
@@ -159,14 +160,28 @@ class SeedVersioningTests(unittest.TestCase):
             }
             self.assertEqual(
                 set(ambulances),
-                {AMBULANCE_NAME, SECOND_KAIM_NAME, KDAIM_NAME, URGENT_NAME},
+                {AMBULANCE_NAME, SECOND_KAIM_NAME, KDAIM_NAME, URGENT_NAME, EMPTY_NAME},
             )
             self.assertEqual(
                 [name for name, row in ambulances.items() if row.isurgent],
                 [URGENT_NAME],
             )
 
+            # The empty department has no roster, so it has nothing to schedule.
+            empty = ambulances[EMPTY_NAME]
+            self.assertEqual(
+                db.query(Schedule).filter_by(ambulance_id=empty.id).count(), 0
+            )
+            self.assertEqual(
+                db.query(UserAmbulance).filter_by(ambulance_id=empty.id).count(), 0
+            )
+            self.assertEqual(
+                db.query(Competence).filter_by(ambulance_id=empty.id).count(), 0
+            )
+
             for name, ambulance in ambulances.items():
+                if name == EMPTY_NAME:
+                    continue
                 months = {
                     (row.work_date.year, row.work_date.month)
                     for row in db.query(Schedule).filter_by(ambulance_id=ambulance.id)

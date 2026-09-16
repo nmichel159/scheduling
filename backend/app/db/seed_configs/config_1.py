@@ -54,7 +54,7 @@ def _merge_competence_assignments(
 
 
 SEED_CONFIG = {
-    "version": "6",
+    "version": "7",
     "users": ACCOUNT_USERS + IKAIM_USERS + EXTRA_USERS,
     "ambulances": [IKAIM_AMBULANCE] + EXTRA_AMBULANCES,
     "competences": {IKAIM_NAME: IKAIM_COMPETENCES, **EXTRA_COMPETENCES},
