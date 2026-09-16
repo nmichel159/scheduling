@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { storeRoles } from '../hooks/useRoles';
+import { landingPathFor, storeRoles } from '../hooks/useRoles';
 import {
   fetchMyRoles,
   fetchRoleAssignments,
@@ -96,7 +96,7 @@ const RoleManagementView = () => {
         const stillAdmin = myRoles.some((role) => (
           role.name === 'AMBULANCE_OVERSEER' || role.name === 'ANALYST'
         ));
-        if (!stillAdmin) navigate('/dashboard', { replace: true });
+        if (!stillAdmin) navigate(landingPathFor(myRoles), { replace: true });
       }
     } catch (error) {
       setMessage({

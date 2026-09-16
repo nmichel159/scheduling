@@ -4,7 +4,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
 import client from '../api/client';
 import { fetchMyRoles } from '../services/roleService';
-import { storeRoles } from '../hooks/useRoles';
+import { getStoredRoles, landingPathFor, storeRoles } from '../hooks/useRoles';
 import './LoginView.css';
 
 const LoginView = () => {
@@ -16,11 +16,16 @@ const LoginView = () => {
       // Doplnenie rolí pre staršie sessions, ktoré ich ešte nemajú uložené.
       if (!localStorage.getItem('roles')) {
         fetchMyRoles()
-          .then(storeRoles)
-          .catch(() => storeRoles([]))
-          .finally(() => navigate('/dashboard'));
+          .then((roles) => {
+            storeRoles(roles);
+            navigate(landingPathFor(roles));
+          })
+          .catch(() => {
+            storeRoles([]);
+            navigate(landingPathFor([]));
+          });
       } else {
-        navigate('/dashboard');
+        navigate(landingPathFor(getStoredRoles()));
       }
     }
   }, [navigate]);
@@ -34,14 +39,15 @@ const LoginView = () => {
         localStorage.setItem('user', JSON.stringify(response.data));
 
         // Role rozhodujú o tom, čo sa v UI zobrazí (pokyn: podľa GET /roles/me).
+        let roles = [];
         try {
-          const roles = await fetchMyRoles();
-          storeRoles(roles);
+          roles = await fetchMyRoles();
         } catch {
-          storeRoles([]);
+          roles = [];
         }
+        storeRoles(roles);
 
-        navigate('/dashboard');
+        navigate(landingPathFor(roles));
       } catch (error) {
         console.error('Chyba pri prihlasovaní na backend:', error);
         alert('Backend je offline alebo nastala chyba pri overovaní.');

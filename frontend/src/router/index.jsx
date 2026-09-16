@@ -24,7 +24,11 @@ export const router = createBrowserRouter([
     children: [
       {
         path: "/dashboard",
-        element: <DashboardView />,
+        element: (
+          <RequireRole flag="hasEmployee">
+            <DashboardView />
+          </RequireRole>
+        ),
       },
       {
         path: "/workload",

@@ -42,3 +42,23 @@ export function useRoles() {
     hasAnalyst: codes.has('ANALYST'),
   };
 }
+
+
+/**
+ * Prvá obrazovka, ktorú daná kombinácia rolí smie vidieť. Domov je zamestnanecká
+ * stránka ("moje" endpointy), takže vedúci/admin/analytik bez EMPLOYEE tam
+ * nepatrí — dostane prvú položku svojej sekcie.
+ */
+export function landingPathFor(roles) {
+  const codes = new Set((roles || []).map((r) => r.name));
+  if (codes.has('EMPLOYEE')) return '/dashboard';
+  if (codes.has('LEADER')) return '/ambulances/schedule';
+  if (codes.has('AMBULANCE_OVERSEER') || codes.has('ANALYST')) return '/schedules/overview';
+  return '/';
+}
+
+
+export function useLandingPath() {
+  const { roles } = useRoles();
+  return landingPathFor(roles);
+}

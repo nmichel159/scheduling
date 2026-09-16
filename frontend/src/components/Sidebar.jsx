@@ -134,7 +134,9 @@ const Sidebar = ({ open, onToggle, onClose }) => {
   /** Plochý zoznam pre rýchly skok — už prefiltrovaný podľa rolí. */
   const jumpItems = useMemo(
     () => [
-      { to: '/dashboard', label: t('sidebar.dashboard'), section: '', Icon: HomeIcon },
+      ...(hasEmployee
+        ? [{ to: '/dashboard', label: t('sidebar.dashboard'), section: '', Icon: HomeIcon }]
+        : []),
       ...sections.flatMap((section) =>
         section.items.map((item) => ({
           to: item.to,
@@ -144,7 +146,7 @@ const Sidebar = ({ open, onToggle, onClose }) => {
         })),
       ),
     ],
-    [sections, t],
+    [sections, hasEmployee, t],
   );
 
   const closeMenus = useCallback(() => {
@@ -291,9 +293,12 @@ const Sidebar = ({ open, onToggle, onClose }) => {
             <kbd className="nav-kbd label">Ctrl K</kbd>
           </button>
 
-          <div className="nav-section">
-            {renderNavLink({ to: '/dashboard', label: t('sidebar.dashboard'), Icon: HomeIcon })}
-          </div>
+          {/* Domov beží na "moje" endpointoch — je to zamestnanecká obrazovka. */}
+          {hasEmployee && (
+            <div className="nav-section">
+              {renderNavLink({ to: '/dashboard', label: t('sidebar.dashboard'), Icon: HomeIcon })}
+            </div>
+          )}
 
           {sections.map((section) => {
             const sectionActive = section.items.some((item) => isItemActive(pathname, item.to));
