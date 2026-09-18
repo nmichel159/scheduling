@@ -37,38 +37,6 @@
 
 .manager-workload-layout.is-single { grid-template-columns: minmax(0, 1fr); }
 
-.manager-workload-ambulances {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.manager-workload-ambulance {
-  border: 1px solid var(--border);
-  background: var(--code-background);
-  border-radius: 8px;
-  padding: 10px 12px;
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.manager-workload-ambulance:hover { border-color: var(--primary); }
-.manager-workload-ambulance.is-selected {
-  border-color: var(--primary);
-  background: var(--primary-background);
-}
-.manager-workload-ambulance-name { font-weight: 600; color: var(--text-h); }
-.manager-workload-ambulance-description {
-  font-size: 0.75rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .manager-workload-detail {
   min-width: 0;
   border: 1px solid var(--border);
@@ -123,8 +91,6 @@
 
 @media (max-width: 768px) {
   .manager-workload-layout { grid-template-columns: 1fr; }
-  .manager-workload-ambulances { flex-direction: row; flex-wrap: wrap; }
-  .manager-workload-ambulance { flex: 1 1 45%; }
   .manager-workload-detail { padding: 12px; }
   .manager-workload-employee-select { width: 100%; }
 }

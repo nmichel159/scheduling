@@ -1,0 +1,200 @@
+/* Sedí v strednom stĺpci hlavičky. Nikde žiadna pevná šírka: prepínač sa
+   zmestí do toho, čo mu stĺpec dá, a dlhý názov sa skráti trojbodkou --
+   inak by lišta pretlačila stránku a objavil by sa vodorovný posuvník. */
+.workplace-switcher {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+  justify-self: center;
+}
+
+.workplace-switcher.is-static,
+.workplace-switcher-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 7px 12px;
+  border: 1px solid var(--primary);
+  border-radius: 999px;
+  background: var(--primary-background);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 15px;
+}
+
+.workplace-switcher.is-static {
+  border-color: transparent;
+}
+
+.workplace-switcher-trigger {
+  cursor: pointer;
+  transition: box-shadow 0.12s ease, background-color 0.12s ease;
+}
+
+.workplace-switcher-trigger:hover,
+.workplace-switcher-trigger[aria-expanded='true'] {
+  background: var(--background);
+  box-shadow: 0 0 0 3px var(--primary-background);
+}
+
+.workplace-switcher-badge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--background);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.workplace-switcher-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.workplace-switcher-caret {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--primary);
+  transition: transform 0.15s ease;
+}
+
+.workplace-switcher-caret.is-open {
+  transform: rotate(180deg);
+}
+
+.workplace-switcher-status {
+  justify-self: center;
+  color: var(--text);
+  font-size: 13px;
+}
+
+/* --- popover --- */
+
+.workplace-switcher-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  width: max-content;
+  min-width: 100%;
+  max-width: min(360px, calc(100vw - 24px));
+  padding: 6px;
+  border: 1px solid var(--primary-border);
+  border-radius: 12px;
+  background: var(--nav-menu-bg, var(--background));
+  box-shadow: var(--shadow);
+}
+
+.workplace-switcher-filter {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--primary-border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 13px;
+}
+
+.workplace-switcher-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(320px, 60vh);
+  overflow-y: auto;
+}
+
+.workplace-switcher-group + .workplace-switcher-group {
+  margin-top: 6px;
+}
+
+.workplace-switcher-group-title {
+  margin: 0 0 2px;
+  padding: 0 8px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.workplace-switcher-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* Tlačidlo sa v prehliadači zmršťuje na svoj obsah aj ako flex kontajner,
+     takže krátky názov dostal podsvietenie len na pár pixelov. */
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workplace-switcher-option:hover {
+  background: var(--nav-hover);
+}
+
+.workplace-switcher-option.is-selected {
+  background: var(--primary-background);
+}
+
+.workplace-switcher-option .workplace-switcher-badge {
+  background: var(--primary-background);
+  color: var(--primary);
+}
+
+.workplace-switcher-option.is-selected .workplace-switcher-badge {
+  background: var(--primary);
+  color: var(--background);
+}
+
+.workplace-switcher-option-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.workplace-switcher-option-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.workplace-switcher-option-desc {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.workplace-switcher-empty {
+  margin: 0;
+  padding: 10px 8px;
+  color: var(--text);
+  font-size: 13px;
+}

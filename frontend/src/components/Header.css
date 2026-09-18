@@ -7,7 +7,28 @@
   background: var(--background);
 }
 
+/* S prepínačom pracoviska sú to tri stĺpce: názov vľavo, prepínač presne
+   v strede lišty, prázdny stĺpec vpravo. Krajné stĺpce sú rovnaké, takže
+   stred je naozaj stred nech je názov aplikácie akokoľvek dlhý.
+   Všetky tri sú pomerové (minmax(0, ...fr)), nie pevné ani `auto`: dlhý
+   názov pracoviska tak skončí v ellipse namiesto toho, aby roztlačil lištu
+   a vyrobil vodorovný posuvník cez celú stránku. */
+.header.has-workplace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .header-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-weight: 600;
   color: var(--text-h);
 }
@@ -24,4 +45,19 @@
 
 @media (max-width: 768px) {
   .menu-btn { display: block; }
+}
+
+/* Na úzkom displeji je dôležitejšie, ktoré pracovisko upravujem, než ako sa
+   volá aplikácia -- názov ustúpi a prepínač dostane celý zvyšok lišty. */
+@media (max-width: 560px) {
+  .header.has-workplace {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .header.has-workplace .workplace-switcher {
+    justify-self: stretch;
+  }
+  .header.has-workplace .header-title,
+  .header-right {
+    display: none;
+  }
 }

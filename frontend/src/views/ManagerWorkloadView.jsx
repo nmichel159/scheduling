@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import WorkloadCalendar from '../components/WorkloadCalendar';
-import { fetchMyManagedAmbulances } from '../services/competenceService';
+import { useWorkplace } from '../hooks/workplaceContext';
 import { fetchEmployees } from '../services/ambulanceService';
 import {
   fetchEmployeeUnavailabilities,
@@ -14,39 +14,29 @@ import './ManagerWorkloadView.css';
 /** Manager view for editing one employee's restriction calendar. */
 const ManagerWorkloadView = () => {
   const { t } = useTranslation();
-  const [ambulances, setAmbulances] = useState([]);
-  const [selectedAmbulanceId, setSelectedAmbulanceId] = useState(null);
+  // Which workplace is being managed comes from the header switcher.
+  const {
+    workplaces: ambulances,
+    activeId: selectedAmbulanceId,
+    active: selectedAmbulance,
+    loading,
+    error: workplacesError,
+  } = useWorkplace();
+
   const [employees, setEmployees] = useState([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // The workplace `employees` actually describes. Switching workplaces would
+  // otherwise leave one render pairing the new workplace with the previous
+  // employee, and WorkloadCalendar would ask for a combination that isn't one.
+  const [loadedAmbulanceId, setLoadedAmbulanceId] = useState(null);
   const [employeesLoading, setEmployeesLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const list = await fetchMyManagedAmbulances();
-        if (cancelled) return;
-        setAmbulances(list);
-        setSelectedAmbulanceId(list[0]?.id ?? null);
-      } catch {
-        if (!cancelled) setError(t('manager_workload.load_ambulances_error'));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [t]);
 
   useEffect(() => {
     if (selectedAmbulanceId == null) {
       setEmployees([]);
       setSelectedEmployeeId(null);
+      setLoadedAmbulanceId(null);
       return undefined;
     }
 
@@ -61,6 +51,7 @@ const ManagerWorkloadView = () => {
         if (cancelled) return;
         setEmployees(list);
         setSelectedEmployeeId(list[0]?.user_id ?? null);
+        setLoadedAmbulanceId(selectedAmbulanceId);
       } catch {
         if (!cancelled) setError(t('manager_workload.load_employees_error'));
       } finally {
@@ -72,24 +63,10 @@ const ManagerWorkloadView = () => {
     };
   }, [selectedAmbulanceId, t]);
 
-  const selectedAmbulance = useMemo(
-    () => ambulances.find((item) => item.id === selectedAmbulanceId) || null,
-    [ambulances, selectedAmbulanceId]
-  );
   const selectedEmployee = useMemo(
     () => employees.find((item) => item.user_id === selectedEmployeeId) || null,
     [employees, selectedEmployeeId]
   );
-
-  const selectAmbulance = useCallback((ambulanceId) => {
-    if (ambulanceId === selectedAmbulanceId) return;
-    // Clear the old employee in the click event itself. Waiting for the
-    // selected-ambulance effect leaves one render where WorkloadCalendar can
-    // request the previous employee under the newly selected ambulance.
-    setSelectedEmployeeId(null);
-    setEmployees([]);
-    setSelectedAmbulanceId(ambulanceId);
-  }, [selectedAmbulanceId]);
 
   const fetchEntries = useCallback(
     (dateFrom, dateTo) =>
@@ -135,13 +112,17 @@ const ManagerWorkloadView = () => {
       <div className="manager-workload">
         <h1 className="manager-workload-title">{t('manager_workload.title')}</h1>
         <div className="manager-workload-banner">
-          {error || t('manager_workload.no_ambulances')}
+          {workplacesError
+            ? t('manager_workload.load_ambulances_error')
+            : t('manager_workload.no_ambulances')}
         </div>
       </div>
     );
   }
 
-  const showAmbulanceList = ambulances.length > 1;
+  // The workplace list is now the header switcher's job; the page is always
+  // the single-column detail of whatever it points at.
+  const staleEmployees = loadedAmbulanceId !== selectedAmbulanceId;
 
   return (
     <div className="manager-workload">
@@ -150,46 +131,19 @@ const ManagerWorkloadView = () => {
 
       {error && <div className="manager-workload-banner is-error">{error}</div>}
 
-      <div className={`manager-workload-layout ${showAmbulanceList ? '' : 'is-single'}`}>
-        {showAmbulanceList && (
-          <nav
-            className="manager-workload-ambulances"
-            aria-label={t('manager_workload.ambulances')}
-          >
-            {ambulances.map((ambulance) => (
-              <button
-                type="button"
-                key={ambulance.id}
-                className={`manager-workload-ambulance ${
-                  ambulance.id === selectedAmbulanceId ? 'is-selected' : ''
-                }`}
-                onClick={() => selectAmbulance(ambulance.id)}
-              >
-                <span className="manager-workload-ambulance-name">{ambulance.name}</span>
-                {ambulance.description && (
-                  <span className="manager-workload-ambulance-description">
-                    {ambulance.description}
-                  </span>
-                )}
-              </button>
-            ))}
-          </nav>
-        )}
-
+      <div className="manager-workload-layout is-single">
         <section className="manager-workload-detail">
           <header className="manager-workload-detail-head">
             <div>
               <h2>{selectedAmbulance?.name}</h2>
-              {!showAmbulanceList && selectedAmbulance?.description && (
-                <p>{selectedAmbulance.description}</p>
-              )}
+              {selectedAmbulance?.description && <p>{selectedAmbulance.description}</p>}
             </div>
             <label className="manager-workload-employee-select">
               <span>{t('manager_workload.employee')}</span>
               <select
                 value={selectedEmployeeId ?? ''}
                 onChange={(event) => setSelectedEmployeeId(Number(event.target.value))}
-                disabled={employeesLoading || employees.length === 0}
+                disabled={employeesLoading || staleEmployees || employees.length === 0}
               >
                 {employees.length === 0 && (
                   <option value="">{t('manager_workload.pick_employee')}</option>
@@ -203,11 +157,13 @@ const ManagerWorkloadView = () => {
             </label>
           </header>
 
-          {employeesLoading && <p>{t('manager_workload.loading_employees')}</p>}
-          {!employeesLoading && employees.length === 0 && (
+          {(employeesLoading || staleEmployees) && (
+            <p>{t('manager_workload.loading_employees')}</p>
+          )}
+          {!employeesLoading && !staleEmployees && employees.length === 0 && (
             <div className="manager-workload-empty">{t('manager_workload.no_employees')}</div>
           )}
-          {!employeesLoading && selectedEmployee && (
+          {!employeesLoading && !staleEmployees && selectedEmployee && (
             <WorkloadCalendar
               key={`${selectedAmbulanceId}:${selectedEmployeeId}`}
               title={selectedEmployee.full_name || selectedEmployee.email}

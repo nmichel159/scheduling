@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useBlocker } from 'react-router-dom';
 import {
-  fetchMyManagedAmbulances,
   fetchEmployeeCompetenceTable,
   saveEmployeeCompetenceTable,
   fetchCompetences,
@@ -13,6 +12,7 @@ import {
   removeEmployeeFromAmbulance,
   fetchAllUsers,
 } from '../services/competenceService';
+import { useWorkplace, useWorkplaceSwitchGuard } from '../hooks/workplaceContext';
 import CompetenceMatrix from '../components/CompetenceMatrix';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
@@ -63,7 +63,7 @@ const fingerprintRows = (list) =>
 /**
  * Department (ambulance) management view for managers.
  *
- * Shows all ambulances the current user manages; selecting one loads the
+ * Works on the ambulance the header switcher points at; each one loads the
  * whole employee x competence table ONCE (bulk GET). Every edit — adding
  * or removing an employee, toggling a competence cell, changing a required
  * count — only touches local state. Nothing reaches the backend until
@@ -74,20 +74,15 @@ const fingerprintRows = (list) =>
 const DepartmentsView = () => {
   const { t } = useTranslation();
 
-  const currentUser = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem('user')) || null;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const [ambulances, setAmbulances] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
-
-  const [loading, setLoading] = useState(true);
-  const [forbidden, setForbidden] = useState(false);
-  const [error, setError] = useState(null);
+  // Which workplace is being managed comes from the header switcher.
+  const {
+    workplaces: ambulances,
+    activeId: selectedId,
+    active: selected,
+    loading,
+    error: workplacesError,
+    forbidden,
+  } = useWorkplace();
   const [toast, setToast] = useState(null);
 
   const [rows, setRows] = useState([]);
@@ -113,33 +108,8 @@ const DepartmentsView = () => {
     [rows, originalRows, columns, originalColumns]
   );
 
-  /* ---------- initial load: ambulances I manage ---------- */
-
-  useEffect(() => {
-    if (!currentUser?.id) return;
-    let cancelled = false;
-
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const myAmbulances = await fetchMyManagedAmbulances();
-        if (cancelled) return;
-        setAmbulances(myAmbulances);
-        if (myAmbulances.length > 0) setSelectedId(myAmbulances[0].id);
-      } catch (err) {
-        if (cancelled) return;
-        if (err?.response?.status === 403) setForbidden(true);
-        else setError(t('departments.load_error'));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentUser, t]);
+  // Let the switcher warn before it pulls another workplace under the table.
+  useWorkplaceSwitchGuard(isDirty);
 
   /* ---------- table for the selected ambulance (bulk load, once) ---------- */
 
@@ -229,22 +199,6 @@ const DepartmentsView = () => {
       },
     });
   }, [blocker, t]);
-
-  const selectAmbulance = (id) => {
-    if (id === selectedId) return;
-    if (!isDirty) {
-      setSelectedId(id);
-      return;
-    }
-    setConfirmState({
-      message: t('departments.unsaved_warning'),
-      onConfirm: () => {
-        setConfirmState(null);
-        setSelectedId(id);
-      },
-      onCancel: () => setConfirmState(null),
-    });
-  };
 
   /* ---------- draft edits (local only) ---------- */
 
@@ -460,25 +414,6 @@ const DepartmentsView = () => {
 
   /* ---------- render ---------- */
 
-  const selected = ambulances.find((a) => a.id === selectedId) || null;
-  const showList = ambulances.length > 1;
-
-  const regularAmbulances = ambulances.filter((a) => !a.isurgent);
-  const urgentAmbulances = ambulances.filter((a) => a.isurgent);
-  const showGroupTitles = regularAmbulances.length > 0 && urgentAmbulances.length > 0;
-
-  const renderAmbulanceItem = (a) => (
-    <button
-      type="button"
-      key={a.id}
-      className={`departments-item ${a.id === selectedId ? 'is-selected' : ''}`}
-      onClick={() => selectAmbulance(a.id)}
-    >
-      <span className="departments-item-name">{a.name}</span>
-      {a.description && <span className="departments-item-desc">{a.description}</span>}
-    </button>
-  );
-
   if (loading) {
     return <div className="departments"><p>{t('departments.loading')}</p></div>;
   }
@@ -498,39 +433,17 @@ const DepartmentsView = () => {
     <div className="departments">
       <h1 className="departments-title">{t('departments.title')}</h1>
 
-      {error && <div className="departments-banner">{error}</div>}
+      {workplacesError && (
+        <div className="departments-banner">{t('departments.load_error')}</div>
+      )}
 
-      <div className={`departments-layout ${showList ? '' : 'is-single'}`}>
-        {showList && (
-          <div className="departments-list">
-            {regularAmbulances.length > 0 && (
-              <nav className="departments-group" aria-label={t('departments.my_ambulances')}>
-                {showGroupTitles && (
-                  <h2 className="departments-group-title">{t('departments.group_regular')}</h2>
-                )}
-                <div className="departments-group-items">
-                  {regularAmbulances.map(renderAmbulanceItem)}
-                </div>
-              </nav>
-            )}
-
-            {urgentAmbulances.length > 0 && (
-              <nav className="departments-group" aria-label={t('departments.group_urgent')}>
-                <h2 className="departments-group-title">{t('departments.group_urgent')}</h2>
-                <div className="departments-group-items">
-                  {urgentAmbulances.map(renderAmbulanceItem)}
-                </div>
-              </nav>
-            )}
-          </div>
-        )}
-
+      <div className="departments-layout is-single">
         <section className="departments-detail">
           {selected && (
             <>
               <header className="departments-detail-head">
                 <h2 className="departments-detail-title">{selected.name}</h2>
-                {!showList && selected.description && (
+                {selected.description && (
                   <p className="departments-detail-desc">{selected.description}</p>
                 )}
                 <button

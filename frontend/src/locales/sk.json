@@ -49,6 +49,19 @@
     "section_analyst": "Analytik",
     "statistics": "Štatistiky"
   },
+  "workplace": {
+    "loading": "Načítavam pracoviská...",
+    "load_error": "Pracoviská sa nepodarilo načítať.",
+    "switch_label": "Prepnúť pracovisko",
+    "none_selected": "Vyberte pracovisko",
+    "filter_placeholder": "Hľadať pracovisko...",
+    "no_match": "Žiadne pracovisko nezodpovedá hľadaniu.",
+    "unsaved_warning": "Máte neuložené zmeny, naozaj chcete prepnúť pracovisko?",
+    "switch_anyway": "Prepnúť bez uloženia",
+    "stay": "Zostať",
+    "group_regular": "Pracoviská",
+    "group_urgent": "Urgentný príjem"
+  },
   "settings": {
     "title": "Nastavenia",
     "close": "Zavrieť",

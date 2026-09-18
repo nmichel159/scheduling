@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useBlocker } from 'react-router-dom';
 import {
-  fetchMyManagedAmbulances,
   fetchCompetences,
   fetchEmployeeCompetenceTable,
 } from '../services/competenceService';
@@ -12,6 +11,7 @@ import {
   generateAmbulanceSchedule,
   updateAmbulanceSchedule,
 } from '../services/scheduleService';
+import { useWorkplace, useWorkplaceSwitchGuard } from '../hooks/workplaceContext';
 import ScheduleListView from '../components/ScheduleListView';
 import CompetenceCoverage from '../components/CompetenceCoverage';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -88,8 +88,14 @@ const AmbulanceScheduleEditView = () => {
   const { t, i18n } = useTranslation();
   const today = useMemo(() => new Date(), []);
 
-  const [ambulances, setAmbulances] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
+  // Which workplace is being scheduled comes from the header switcher.
+  const {
+    activeId: selectedId,
+    active: selected,
+    loading: workplacesLoading,
+    error: workplacesError,
+  } = useWorkplace();
+
   const [competences, setCompetences] = useState([]);
   const [employees, setEmployees] = useState([]); // [{user_id, email, full_name, competences:[{id,name}]}]
   const [shifts, setShifts] = useState([]); // Mutable during editing
@@ -117,23 +123,6 @@ const AmbulanceScheduleEditView = () => {
     y: today.getFullYear(),
     m: today.getMonth(),
   });
-
-  const loadAmbulances = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    setGenerationMessage(null);
-    try {
-      const list = await fetchMyManagedAmbulances();
-      setAmbulances(list);
-      if (list.length > 0 && !selectedId) {
-        setSelectedId(list[0].id);
-      }
-    } catch {
-      setError(t('schedule_edit.load_ambulances_error'));
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedId, t]);
 
   // Only the newest load may publish its result. Switching ambulance or month
   // leaves the previous request in flight; without this guard a slower earlier
@@ -171,10 +160,6 @@ const AmbulanceScheduleEditView = () => {
       if (loadRequestId.current === requestId) setLoading(false);
     }
   }, [selectedId, t, view.m, view.y]);
-
-  useEffect(() => {
-    loadAmbulances();
-  }, [loadAmbulances]);
 
   useEffect(() => {
     loadSchedule();
@@ -216,6 +201,9 @@ const AmbulanceScheduleEditView = () => {
     () => JSON.stringify(shifts) !== JSON.stringify(originalShifts),
     [shifts, originalShifts]
   );
+  // Let the switcher warn before it pulls another workplace under the editor.
+  useWorkplaceSwitchGuard(isDirty);
+
   const isApproved = useMemo(
     () =>
       !isDirty &&
@@ -260,23 +248,6 @@ const AmbulanceScheduleEditView = () => {
       },
     });
   }, [blocker, t]);
-
-  // In-view guard: switching to another workplace in the left list.
-  const selectAmbulance = (id) => {
-    if (id === selectedId) return;
-    if (!isDirty) {
-      setSelectedId(id);
-      return;
-    }
-    setConfirmState({
-      message: t('schedule_edit.unsaved_warning'),
-      onConfirm: () => {
-        setConfirmState(null);
-        setSelectedId(id);
-      },
-      onCancel: () => setConfirmState(null),
-    });
-  };
 
   const shiftsByDate = useMemo(() => {
     const map = {};
@@ -323,8 +294,6 @@ const AmbulanceScheduleEditView = () => {
       ? { calendar: 'Calendar', list: 'Daily rows', switcher: 'Schedule view' }
       : { calendar: 'Kalendár', list: 'Denné riadky', switcher: 'Zobrazenie rozvrhu' };
 
-  const selected = ambulances.find((a) => a.id === selectedId) || null;
-  const showList = ambulances.length > 1;
 
   /* --- Shift editor: derived selection state --- */
 
@@ -646,7 +615,7 @@ const AmbulanceScheduleEditView = () => {
     });
   };
 
-  if (loading && !selected) {
+  if (workplacesLoading) {
     return (
       <div className="schedule-edit">
         <p>{t('schedule_edit.loading')}</p>
@@ -657,7 +626,11 @@ const AmbulanceScheduleEditView = () => {
   if (!selected) {
     return (
       <div className="schedule-edit">
-        <p>{t('schedule_edit.no_ambulances')}</p>
+        <p>
+          {workplacesError
+            ? t('schedule_edit.load_ambulances_error')
+            : t('schedule_edit.no_ambulances')}
+        </p>
       </div>
     );
   }
@@ -681,26 +654,8 @@ const AmbulanceScheduleEditView = () => {
         </div>
       )}
 
-      <div className={`schedule-edit-layout ${showList ? '' : 'is-single'}`}>
+      <div className="schedule-edit-layout is-single">
         <nav className="schedule-edit-side">
-          {showList && (
-            <div className="schedule-edit-list">
-              {ambulances.map((a) => (
-                <button
-                  type="button"
-                  key={a.id}
-                  className={`schedule-edit-item ${a.id === selectedId ? 'is-selected' : ''}`}
-                  onClick={() => selectAmbulance(a.id)}
-                >
-                  <span className="schedule-edit-item-name">{a.name}</span>
-                  {a.description && (
-                    <span className="schedule-edit-item-desc">{a.description}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-
           <div className="schedule-edit-generate-panel">
             <button
               type="button"

@@ -49,6 +49,19 @@
     "section_analyst": "Analyst",
     "statistics": "Statistics"
   },
+  "workplace": {
+    "loading": "Loading workplaces...",
+    "load_error": "Workplaces could not be loaded.",
+    "switch_label": "Switch workplace",
+    "none_selected": "Select a workplace",
+    "filter_placeholder": "Search workplace...",
+    "no_match": "No workplace matches the search.",
+    "unsaved_warning": "You have unsaved changes, switch workplace anyway?",
+    "switch_anyway": "Switch without saving",
+    "stay": "Stay",
+    "group_regular": "Workplaces",
+    "group_urgent": "Emergency"
+  },
   "settings": {
     "title": "Settings",
     "close": "Close",
