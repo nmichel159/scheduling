@@ -202,3 +202,13 @@ export const MonitorIcon = (props) => (
     <path d="M8.6 20h6.8M12 16.4V20" />
   </Icon>
 );
+
+/** Obsadenosť — stĺpce záťaže, teda "koľko kto má". */
+export const CoverageIcon = (props) => (
+  <Icon {...props}>
+    <path d="M3.6 20.4h16.8" />
+    <rect x="5.6" y="12.4" width="3.4" height="6" rx="1" />
+    <rect x="10.8" y="8.4" width="3.4" height="10" rx="1" />
+    <rect x="16" y="4.4" width="3.4" height="14" rx="1" />
+  </Icon>
+);

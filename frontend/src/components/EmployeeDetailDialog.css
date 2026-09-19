@@ -116,3 +116,70 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* --- edit form ---
+ * Only rendered when the opening screen passes `settings`; the matrix
+ * still gets the plain read-only card. */
+.empdlg-form {
+  margin: 14px 0 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.empdlg-field {
+  display: grid;
+  gap: 6px;
+}
+
+.empdlg-label {
+  color: var(--text);
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+
+.empdlg-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: var(--background);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.88rem;
+}
+.empdlg-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.empdlg-input:disabled { opacity: 0.6; }
+
+.empdlg-choice {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+}
+
+.empdlg-choice-button {
+  flex: 1;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: transparent;
+  color: var(--text-h);
+  opacity: 0.65;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.empdlg-choice-button:hover { opacity: 1; }
+.empdlg-choice-button.is-active {
+  background: var(--primary);
+  color: #fff;
+  opacity: 1;
+}
+.empdlg-choice-button:disabled { cursor: not-allowed; }

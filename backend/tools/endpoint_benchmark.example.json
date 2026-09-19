@@ -225,6 +225,18 @@
       "expected_status": 200
     },
     {
+      "name": "employee_monthly_load",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/employees/load",
+      "expected_status": 200
+    },
+    {
+      "name": "employee_settings",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/employees/${BENCHMARK_TARGET_USER_ID}/settings",
+      "expected_status": 200
+    },
+    {
       "name": "personal_schedule_month",
       "method": "GET",
       "path": "/schedules/me",

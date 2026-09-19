@@ -455,10 +455,23 @@
   },
   "employees": {
     "title": "Zamestnanci",
-    "subtitle": "Prehľad ľudí na pracovisku a kompetencií, ktoré majú pridelené. Priraďovanie kompetencií sa robí v tabuľke na obrazovke Pracoviská.",
     "filter_placeholder": "Hľadať meno, e-mail alebo kompetenciu...",
     "no_competences": "Bez kompetencie",
-    "competence_count": "Pracovisko má definovaných kompetencií: {{count}}"
+    "competence_count": "Pracovisko má definovaných kompetencií: {{count}}",
+    "view_switcher": "Zobrazenie zamestnancov",
+    "view_schedule": "Rozvrh",
+    "view_coverage": "Obsadenosť",
+    "no_shifts": "Bez služby",
+    "stat_shifts": "Služby",
+    "stat_surcharge": "Príplatkové",
+    "stat_hours": "Hodiny",
+    "max_shifts": "Max. počet služieb za mesiac",
+    "preference": "Preferuje služby",
+    "preference_surcharge": "Príplatkové",
+    "preference_standard": "Štandardné",
+    "preference_any": "Je mu to jedno",
+    "save": "Uložiť",
+    "saving": "Ukladám..."
   },
   "special_days": {
     "title": "Špeciálne dni",

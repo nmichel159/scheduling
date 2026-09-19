@@ -26,6 +26,12 @@ class User(Base):
     # How many duties a month the employee wants at most. NULL means no
     # opinion, which is not the same as wishing for zero duties.
     max_shifts_per_month = Column(Integer, nullable=True)
+    # Which kind of duty the employee would rather be given: "surcharge",
+    # "standard" or "any". It is a preference and not a filter -- the
+    # solver may still hand out the other kind when a day needs staffing.
+    shift_preference = Column(
+        String(16), nullable=False, default="any", server_default="any"
+    )
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())

@@ -19,7 +19,9 @@ from app.schemas.ambulance_employee import (
     AmbulanceListResponse,
     AmbulanceEmployeeAdd,
     AmbulanceEmployeeResponse,
+    AmbulanceMonthlyLoad,
     EmployeeListResponse,
+    EmployeeSchedulingSettings,
 )
 from app.schemas.ambulance_competences import (
     AmbulanceEmployeeCompetenceRow,
@@ -38,6 +40,11 @@ from app.services.ambulance_employee_service import (
     list_employees,
     list_manager_ambulances,
     remove_employee,
+)
+from app.services.employee_load_service import (
+    get_monthly_employee_load,
+    get_scheduling_settings,
+    set_scheduling_settings,
 )
 from app.services.ambulance_competence_service import (
     get_employee_competence_table,
@@ -113,6 +120,54 @@ def update_employee_competence_table_endpoint(
     db: Session = Depends(get_db),
 ):
     return update_employee_competence_table(db, ambulance.id, data)
+
+
+@router.get(
+    "/{ambulance_id}/employees/load",
+    response_model=AmbulanceMonthlyLoad,
+    summary="Duty load of every employee of an ambulance in one month",
+)
+def get_employee_monthly_load_endpoint(
+    month: int | None = Query(None, ge=1, le=12, description="Calendar month; defaults to the running one"),
+    year: int | None = Query(None, ge=2000, le=2100, description="Calendar year; defaults to the running one"),
+    ambulance: Ambulance = Depends(get_manager_ambulance),
+    db: Session = Depends(get_db),
+) -> AmbulanceMonthlyLoad:
+    """Report how many duties -- and how many surcharged ones -- each employee has."""
+    today = date.today()
+    return get_monthly_employee_load(
+        db,
+        ambulance.id,
+        month if month is not None else today.month,
+        year if year is not None else today.year,
+    )
+
+
+@router.get(
+    "/{ambulance_id}/employees/{user_id}/settings",
+    response_model=EmployeeSchedulingSettings,
+    summary="Get an employee's scheduling preferences",
+)
+def get_employee_settings_endpoint(
+    employee: User = Depends(get_managed_employee),
+    db: Session = Depends(get_db),
+) -> EmployeeSchedulingSettings:
+    """Return the duty wish and duty-kind preference of a managed employee."""
+    return get_scheduling_settings(db, employee)
+
+
+@router.put(
+    "/{ambulance_id}/employees/{user_id}/settings",
+    response_model=EmployeeSchedulingSettings,
+    summary="Set an employee's scheduling preferences",
+)
+def set_employee_settings_endpoint(
+    data: EmployeeSchedulingSettings,
+    employee: User = Depends(get_managed_employee),
+    db: Session = Depends(get_db),
+) -> EmployeeSchedulingSettings:
+    """Store the duty wish and duty-kind preference of a managed employee."""
+    return set_scheduling_settings(db, employee, data)
 
 
 @router.get(

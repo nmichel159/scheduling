@@ -232,3 +232,168 @@
     padding-left: 46px;
   }
 }
+
+/* --- month switch: rozvrh vs. obsadenosť ---
+ * Same segmented control as the schedule editor, with the icon in front
+ * of the label so the two tabs are told apart at a glance. */
+.employees-switch {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+}
+
+.employees-switch-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--text-h);
+  opacity: 0.65;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+}
+.employees-switch-button:hover { opacity: 1; }
+.employees-switch-button.is-active {
+  background: var(--primary);
+  color: #fff;
+  opacity: 1;
+}
+
+.employees-switch-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.employees-month {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.employees-month-button {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--text-h);
+  font: inherit;
+  line-height: 1;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+.employees-month-button:hover:not(:disabled) { border-color: var(--primary); }
+.employees-month-button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.employees-monthlabel {
+  min-width: 120px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.employees-month-today {
+  border: none;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+
+/* --- rozvrh tab: the days one person got --- */
+.employees-days {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  min-width: 0;
+  max-width: 55%;
+  margin-left: auto;
+}
+
+.employees-day {
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--text-h);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+/* The surcharged days are the ones the scheduler counts twice, so they
+ * are the only thing coloured in the strip. */
+.employees-day.is-surcharge {
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+  background: var(--primary-background);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* --- obsadenosť tab: the month in numbers --- */
+.employees-stats {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.employees-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+}
+
+.employees-stat-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-h);
+}
+.employees-stat.is-surcharge .employees-stat-value { color: var(--primary); }
+
+.employees-stat-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+
+.employees-pref {
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.employees-pref.is-surcharge {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  background: var(--primary-background);
+  color: var(--primary);
+}
+.employees-pref.is-any { opacity: 0.6; }
+
+@media (max-width: 640px) {
+  .employees-days,
+  .employees-stats {
+    max-width: 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+    padding-left: 46px;
+  }
+  .employees-stats { gap: 12px; flex-wrap: wrap; }
+}

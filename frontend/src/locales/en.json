@@ -454,10 +454,23 @@
   },
   "employees": {
     "title": "Employees",
-    "subtitle": "People of this workplace and the competences assigned to them. Assigning competences happens in the table on the Workplaces screen.",
     "filter_placeholder": "Search name, e-mail or competence...",
     "no_competences": "No competence",
-    "competence_count": "Competences defined for this workplace: {{count}}"
+    "competence_count": "Competences defined for this workplace: {{count}}",
+    "view_switcher": "Employee view",
+    "view_schedule": "Schedule",
+    "view_coverage": "Load",
+    "no_shifts": "No duty",
+    "stat_shifts": "Duties",
+    "stat_surcharge": "Surcharged",
+    "stat_hours": "Hours",
+    "max_shifts": "Max duties per month",
+    "preference": "Prefers duties",
+    "preference_surcharge": "Surcharged",
+    "preference_standard": "Standard",
+    "preference_any": "No preference",
+    "save": "Save",
+    "saving": "Saving..."
   },
   "special_days": {
     "title": "Special days",
