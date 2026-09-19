@@ -5,9 +5,7 @@ import {
   fetchEmployeeCompetenceTable,
   saveEmployeeCompetenceTable,
   fetchCompetences,
-  createCompetence,
   updateCompetence,
-  deleteCompetence,
   addEmployeeToAmbulance,
   removeEmployeeFromAmbulance,
   fetchAllUsers,
@@ -19,7 +17,6 @@ import {
   ISO_WEEKDAYS,
   fingerprintCompetenceRequirements,
   groupWeekdaysByRequirements,
-  mergeEquivalentDayGroups,
   normalizeCompetenceRequirements,
   normalizeWeekdayRequirements,
 } from '../utils/competenceRequirements';
@@ -244,55 +241,6 @@ const DepartmentsView = () => {
     setRows((prev) => prev.filter((r) => r.user_id !== userId));
   };
 
-  /* ---------- codebook actions (immediate — registry, not draft) ---------- */
-
-  const handleAddCompetence = async (name) => {
-    try {
-      const created = normalizeCompetenceRequirements(
-        await createCompetence(selectedId, name)
-      );
-      setColumns((prev) => {
-        const next = [...prev, created];
-        setDayGroups((groups) =>
-          groups.length > 0
-            ? mergeEquivalentDayGroups(groups, next)
-            : groupWeekdaysByRequirements(next)
-        );
-        return next;
-      });
-      setOriginalColumns((prev) => [...prev, cloneColumns([created])[0]]);
-      notify(t('competences.added'));
-    } catch {
-      notify(t('competences.action_error'));
-    }
-  };
-
-  const handleDeleteCompetence = async (competenceId) => {
-    try {
-      await deleteCompetence(selectedId, competenceId);
-      setColumns((prev) => {
-        const next = prev.filter((c) => c.id !== competenceId);
-        setDayGroups((groups) =>
-          next.length > 0 ? mergeEquivalentDayGroups(groups, next) : []
-        );
-        return next;
-      });
-      setOriginalColumns((prev) => prev.filter((c) => c.id !== competenceId));
-      const stripCompetence = (list) =>
-        list.map((r) => {
-          if (!(competenceId in r.competenceDays)) return r;
-          const nextCompetenceDays = { ...r.competenceDays };
-          delete nextCompetenceDays[competenceId];
-          return { ...r, competenceDays: nextCompetenceDays };
-        });
-      setRows(stripCompetence);
-      setOriginalRows(stripCompetence);
-      notify(t('competences.deleted'));
-    } catch {
-      notify(t('competences.action_error'));
-    }
-  };
-
   /* ---------- save: membership diff + bulk competence PUT + required_count patches ---------- */
 
   const handleSave = async () => {
@@ -430,8 +378,6 @@ const DepartmentsView = () => {
                 onToggleWeek={toggleWeek}
                 onAddRow={addRow}
                 onRemoveRow={removeRow}
-                onAddCompetence={handleAddCompetence}
-                onDeleteCompetence={handleDeleteCompetence}
               />
             </>
           )}

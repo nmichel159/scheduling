@@ -11,41 +11,9 @@
   background: var(--primary-background);
 }
 
-/* 1fr | auto | 1fr grid: the title sits in the middle track so it's
- * optically centered over the whole competence column group, while the
- * add button (or the inline add form) stays pinned to the right track. */
-.cmatrix-group-inner {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 8px;
-}
-.cmatrix-group-title { grid-column: 2; }
-.cmatrix-group-inner > .cmatrix-add,
-.cmatrix-group-inner > .cmatrix-addbtn {
-  grid-column: 3;
-  justify-self: end;
-}
-
 .cmatrix-group-header {
   color: var(--text-h);
   font-weight: 700;
-}
-
-.cmatrix-add {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.cmatrix-add input {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
-  font: inherit;
-  font-size: 0.85rem;
-  background: var(--background);
-  color: var(--text-h);
-  min-width: 0;
 }
 
 /* --- header tools: filter (left) + add employee (right) ---
@@ -353,20 +321,9 @@
   font-weight: 600;
   white-space: nowrap;
 }
-.cmatrix-col-inner {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 8px;
-}
 .cmatrix-colname {
-  grid-column: 2;
   min-width: 0;
   text-align: center;
-}
-.cmatrix-col-inner > .cmatrix-remove-btn {
-  grid-column: 3;
-  justify-self: end;
 }
 
 .cmatrix-row {
@@ -523,11 +480,8 @@ tbody tr:hover > td.cmatrix-cell-td {
   padding: 2px 4px;
   border-radius: 4px;
 }
-/* Body rows reveal their ✕ on row hover; competence headers reveal theirs
- * on hover of that single header cell (not the whole header row, which
- * would light up every column at once). */
+/* Body rows reveal their ✕ on row hover. */
 .cmatrix-table tbody tr:hover .cmatrix-remove-btn,
-.cmatrix-col:hover .cmatrix-remove-btn,
 .cmatrix-remove-btn.is-active {
   opacity: 1;
 }

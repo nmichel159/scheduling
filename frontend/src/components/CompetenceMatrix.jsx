@@ -42,8 +42,10 @@ import './CompetenceMatrix.css';
  * - onToggleWeek(userId, competenceId) — assign/clear the competence for the whole week
  * - onAddRow(user)
  * - onRemoveRow(userId)
- * - onAddCompetence(name): Promise
- * - onDeleteCompetence(competenceId): Promise
+ *
+ * The competence list itself (adding/removing a competence of the
+ * ambulance) is NOT editable here — it belongs to the competence-scenario
+ * screen. This table only says who can do which of them.
  */
 const CompetenceMatrix = ({
   columns,
@@ -54,17 +56,12 @@ const CompetenceMatrix = ({
   onToggleWeek,
   onAddRow,
   onRemoveRow,
-  onAddCompetence,
-  onDeleteCompetence,
 }) => {
   const { t } = useTranslation();
 
   const [filter, setFilter] = useState('');
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
-  const [addingCompetence, setAddingCompetence] = useState(false);
-  const [newCompetenceName, setNewCompetenceName] = useState('');
-  const [deletingId, setDeletingId] = useState(null);
   const [removingRowId, setRemovingRowId] = useState(null);
   const [detailRowId, setDetailRowId] = useState(null);
 
@@ -191,41 +188,6 @@ const CompetenceMatrix = ({
     };
   }, [removingRowId]);
 
-  /* Competence-deletion confirm popover — same portal pattern. */
-  const deleteAnchorRef = useRef(null);
-  const deleteElRef = useRef(null);
-  const [deleteRect, setDeleteRect] = useState(null);
-
-  useLayoutEffect(() => {
-    if (!deletingId || !deleteAnchorRef.current) return;
-    const anchor = deleteAnchorRef.current;
-    const update = () => setDeleteRect(anchor.getBoundingClientRect());
-    update();
-    window.addEventListener('scroll', update, true);
-    window.addEventListener('resize', update);
-
-    const handleMouseDown = (e) => {
-      if (
-        !anchor.contains(e.target) &&
-        !(deleteElRef.current && deleteElRef.current.contains(e.target))
-      ) {
-        setDeletingId(null);
-      }
-    };
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setDeletingId(null);
-    };
-    document.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('scroll', update, true);
-      window.removeEventListener('resize', update);
-      document.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [deletingId]);
-
   /* Employee detail modal — read-only for now; this is the place where
    * editing the person (name, e-mail, …) will live later. */
   useLayoutEffect(() => {
@@ -236,21 +198,6 @@ const CompetenceMatrix = ({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [detailRowId]);
-
-  /* ---------- codebook actions (immediate) ---------- */
-
-  const handleAddCompetence = async () => {
-    const name = newCompetenceName.trim();
-    if (!name) return;
-    await onAddCompetence(name);
-    setNewCompetenceName('');
-    setAddingCompetence(false);
-  };
-
-  const handleDeleteCompetence = async (competenceId) => {
-    await onDeleteCompetence(competenceId);
-    setDeletingId(null);
-  };
 
   /* ---------- row removal (confirm) ---------- */
 
@@ -282,50 +229,7 @@ const CompetenceMatrix = ({
             <tr className="cmatrix-group-row">
               <th className="cmatrix-corner">{t('competences.employee')}</th>
               <th className="cmatrix-group-header" colSpan={competenceColSpan}>
-                <div className="cmatrix-group-inner">
-                  <span className="cmatrix-group-title">{t('competences.title')}</span>
-                  {addingCompetence ? (
-                    <span className="cmatrix-add">
-                      <input
-                        type="text"
-                        autoFocus
-                        value={newCompetenceName}
-                        onChange={(e) => setNewCompetenceName(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddCompetence()}
-                        placeholder={t('competences.new_placeholder')}
-                        aria-label={t('competences.new_placeholder')}
-                      />
-                      <button
-                        type="button"
-                        className="departments-btn departments-btn-primary"
-                        disabled={!newCompetenceName.trim()}
-                        onClick={handleAddCompetence}
-                      >
-                        {t('departments.add')}
-                      </button>
-                      <button
-                        type="button"
-                        className="departments-btn"
-                        onClick={() => {
-                          setAddingCompetence(false);
-                          setNewCompetenceName('');
-                        }}
-                      >
-                        {t('departments.no')}
-                      </button>
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="cmatrix-addbtn"
-                      onClick={() => setAddingCompetence(true)}
-                      title={t('competences.add_competence')}
-                    >
-                      <span className="cmatrix-addbtn-plus" aria-hidden="true">+</span>
-                      {t('competences.add_competence')}
-                    </button>
-                  )}
-                </div>
+                <span className="cmatrix-group-title">{t('competences.title')}</span>
               </th>
             </tr>
             <tr>
@@ -382,21 +286,7 @@ const CompetenceMatrix = ({
               </th>
               {columns.map((c) => (
                 <th key={c.id} className="cmatrix-col" title={c.description || c.name}>
-                  <div className="cmatrix-col-inner">
-                    <span className="cmatrix-colname">{c.name}</span>
-                    <button
-                      type="button"
-                      className={`cmatrix-remove-btn ${deletingId === c.id ? 'is-active' : ''}`}
-                      onClick={(e) => {
-                        deleteAnchorRef.current = e.currentTarget;
-                        setDeletingId(c.id);
-                      }}
-                      title={t('competences.delete_hint')}
-                      aria-label={t('competences.delete_hint')}
-                    >
-                      ✕
-                    </button>
-                  </div>
+                  <span className="cmatrix-colname">{c.name}</span>
                 </th>
               ))}
             </tr>
@@ -542,46 +432,6 @@ const CompetenceMatrix = ({
           </ul>,
           document.body
         )}
-
-      {deletingId &&
-        deleteRect &&
-        (() => {
-          const col = columns.find((c) => c.id === deletingId);
-          if (!col) return null;
-          return createPortal(
-            <div
-              ref={deleteElRef}
-              className="cmatrix-popover"
-              role="dialog"
-              aria-modal="true"
-              style={{
-                top: deleteRect.bottom + 6,
-                left: Math.max(8, Math.min(deleteRect.left, window.innerWidth - 296)),
-              }}
-            >
-              <p className="cmatrix-popover-text">
-                {t('competences.confirm_delete_named', { name: col.name })}
-              </p>
-              <div className="cmatrix-popover-actions">
-                <button
-                  type="button"
-                  className="departments-btn"
-                  onClick={() => setDeletingId(null)}
-                >
-                  {t('departments.cancel')}
-                </button>
-                <button
-                  type="button"
-                  className="departments-btn departments-btn-danger"
-                  onClick={() => handleDeleteCompetence(deletingId)}
-                >
-                  {t('competences.delete')}
-                </button>
-              </div>
-            </div>,
-            document.body
-          );
-        })()}
 
       {removingRow &&
         popoverRect &&
