@@ -8,6 +8,9 @@ The core principles of the data model are:
 
 * A user can work in multiple ambulances.
 * Each ambulance owns its own set of competences.
+* Each ambulance owns its own set of competence scenarios, one of which is
+  selected; a scenario parameterizes the ambulance's competences without
+  changing which competences exist.
 * A user can possess multiple competences.
 * Every competence belongs to exactly one ambulance.
 * A user can have multiple roles.
@@ -90,6 +93,63 @@ This means that two ambulances may have competences with the same name, but they
 * N:1 → Ambulance
 * M:N → Users
 * 1:N → Schedules
+* 1:N → competence_weekday_requirements (one complete week per scenario)
+
+---
+
+## competence_scenarios
+
+A named parameter set over an ambulance's competences -- one model case of
+how the workplace is staffed.
+
+**The competence list is shared by every scenario of the workplace.** A
+scenario does not own competences; it owns their numbers. Creating a
+competence therefore adds it to all of them, and deleting one removes it
+from all of them.
+
+**Exactly one scenario per ambulance carries `is_selected`.** That is the
+one the rest of the application reads: the competence matrix, the
+statistics, and the schedule generator. The others sit beside it as
+alternatives.
+
+### Main Attributes
+
+* id
+* name
+* ambulance_id
+* is_selected
+* created_at
+* updated_at
+* is_active
+
+### Relationships
+
+* N:1 → Ambulance
+* 1:N → competence_weekday_requirements
+
+---
+
+## competence_weekday_requirements
+
+The parameters of one competence, on one ISO weekday, in one scenario.
+Monday is 0 and Sunday is 6.
+
+### Main Attributes
+
+* id
+* competence_id
+* scenario_id
+* weekday
+* required_count -- people needed that day; 0 means the day is not staffed
+* recovery_days -- days off a duty on that weekday costs its holder before
+  the same competence may be assigned to them again
+
+### Relationships
+
+* N:1 → Competence
+* N:1 → competence_scenarios
+
+The natural key is (`scenario_id`, `competence_id`, `weekday`).
 
 ---
 
@@ -287,9 +347,14 @@ Users
  ├──< AuditLogs
  ├──< Schedules >── Ambulances
  │                   │
- │                   └──< Competences
- │                          │
- │                          └──< Schedules
+ │                   ├──< Competences
+ │                   │      │
+ │                   │      ├──< Schedules
+ │                   │      │
+ │                   │      └──< competence_weekday_requirements
+ │                   │                  (also keyed by scenario)
+ │                   │
+ │                   └──< competence_scenarios
  │
  ├──< Unavailabilities
  │
@@ -308,19 +373,21 @@ When designing new functionality, always follow these rules:
 
 1. Never create global competences. Every competence must belong to a specific ambulance.
 
-2. Never assume that a user has only one role. Users may have multiple roles.
+2. Never read a competence's weekday parameters without saying which scenario they come from. A competence carries one complete week per scenario, so an unscoped read sums the alternatives together. Code that has no scenario of its own must use the ambulance's selected one.
 
-3. Never assume that a user belongs to only one ambulance. Users may work across multiple ambulances.
+3. Never assume that a user has only one role. Users may have multiple roles.
 
-4. Before creating a schedule, always validate the relationship between the user, ambulance, and competence.
+4. Never assume that a user belongs to only one ambulance. Users may work across multiple ambulances.
 
-5. Preserve the existing many-to-many relationships. Do not duplicate information already represented by junction tables.
+5. Before creating a schedule, always validate the relationship between the user, ambulance, and competence.
 
-6. Any new tables should follow the existing database architecture and maintain referential integrity.
+6. Preserve the existing many-to-many relationships. Do not duplicate information already represented by junction tables.
 
-7. Every newly introduced entity should clearly define its relationships (1:1, 1:N, or M:N) together with the appropriate foreign keys.
+7. Any new tables should follow the existing database architecture and maintain referential integrity.
 
-8. New entity tables should follow the existing naming conventions and structure:
+8. Every newly introduced entity should clearly define its relationships (1:1, 1:N, or M:N) together with the appropriate foreign keys.
+
+9. New entity tables should follow the existing naming conventions and structure:
 
    * `id` as an identity primary key (except for junction tables),
    * `created_at`,

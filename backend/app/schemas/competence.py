@@ -13,12 +13,25 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.models.competence_weekday_requirement import DEFAULT_RECOVERY_DAYS
+
 
 class CompetenceWeekdayRequirementData(BaseModel):
-    """Required staffing for one ISO weekday (Monday=0, Sunday=6)."""
+    """Parameters of one competence on one ISO weekday (Monday=0, Sunday=6).
+
+    ``recovery_days`` is how many days off a duty started on this weekday
+    costs its holder; it defaults so that clients written against the
+    staffing-only contract keep working unchanged.
+    """
 
     weekday: int = Field(..., ge=0, le=6)
     required_count: int = Field(..., ge=0, le=1000)
+    recovery_days: int = Field(
+        DEFAULT_RECOVERY_DAYS,
+        ge=0,
+        le=6,
+        description="Days off owed after a duty on this weekday.",
+    )
 
     class Config:
         from_attributes = True
@@ -85,6 +98,9 @@ class CompetenceResponse(CompetenceBase):
     weekday_requirements: Optional[list[CompetenceWeekdayRequirementData]] = None
     id: int
     ambulance_id: int
+    scenario_id: Optional[int] = Field(
+        None, description="Scenario the returned weekday parameters belong to."
+    )
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     is_active: Optional[bool] = None

@@ -104,3 +104,87 @@ export async function fetchAllUsers() {
     (user) => user.id
   );
 }
+
+/* ---------- competence scenarios ---------- */
+
+/**
+ * The competence codebook of a workplace is shared by all of its
+ * scenarios; a scenario only carries the parameters — how many people each
+ * competence needs on each weekday, and how much recovery a duty costs.
+ * Exactly one scenario is selected, and that is the one the schedule
+ * generator and every other screen read.
+ */
+
+/** List the workplace's scenarios. The backend guarantees at least one. */
+export async function fetchScenarios(ambulanceId) {
+  const { data } = await client.get(`/ambulances/${ambulanceId}/competence-scenarios`);
+  return data;
+}
+
+/** Create a scenario, optionally starting from another one's parameters. */
+export async function createScenario(ambulanceId, name, copyFromScenarioId = null) {
+  const { data } = await client.post(`/ambulances/${ambulanceId}/competence-scenarios`, {
+    name,
+    copy_from_scenario_id: copyFromScenarioId,
+  });
+  return data;
+}
+
+/** Rename a scenario and/or make it the selected one (e.g. { is_selected: true }). */
+export async function updateScenario(ambulanceId, scenarioId, payload) {
+  const { data } = await client.put(
+    `/ambulances/${ambulanceId}/competence-scenarios/${scenarioId}`,
+    payload
+  );
+  return data;
+}
+
+/** Delete a scenario. The backend refuses to remove the workplace's last one. */
+export async function deleteScenario(ambulanceId, scenarioId) {
+  await client.delete(`/ambulances/${ambulanceId}/competence-scenarios/${scenarioId}`);
+}
+
+/** List every competence of the workplace, valued through one scenario. */
+export async function fetchScenarioCompetences(ambulanceId, scenarioId) {
+  const { data } = await client.get(
+    `/ambulances/${ambulanceId}/competence-scenarios/${scenarioId}/competences`
+  );
+  return data;
+}
+
+/**
+ * Create a competence from inside a scenario. The competence itself is
+ * workplace-wide, so it appears in every scenario; `weekday_requirements`
+ * is what this scenario starts it at.
+ */
+export async function createScenarioCompetence(ambulanceId, scenarioId, payload) {
+  const { data } = await client.post(
+    `/ambulances/${ambulanceId}/competence-scenarios/${scenarioId}/competences`,
+    payload
+  );
+  return data;
+}
+
+/**
+ * Save the competence editor. Name and description are workplace-wide;
+ * the weekly counts and recovery days only touch this scenario.
+ */
+export async function updateScenarioCompetence(
+  ambulanceId,
+  scenarioId,
+  competenceId,
+  payload
+) {
+  const { data } = await client.put(
+    `/ambulances/${ambulanceId}/competence-scenarios/${scenarioId}/competences/${competenceId}`,
+    payload
+  );
+  return data;
+}
+
+/** Delete a competence — it leaves every scenario of the workplace at once. */
+export async function deleteScenarioCompetence(ambulanceId, scenarioId, competenceId) {
+  await client.delete(
+    `/ambulances/${ambulanceId}/competence-scenarios/${scenarioId}/competences/${competenceId}`
+  );
+}

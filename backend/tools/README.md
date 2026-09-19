@@ -12,6 +12,7 @@ Required environment variables:
 - `BENCHMARK_TARGET_USER_ID`: active employee managed by the session user;
 - `BENCHMARK_AMBULANCE_ID`: active ambulance accessible to the session user;
 - `BENCHMARK_COMPETENCE_ID`: active competence in that ambulance;
+- `BENCHMARK_SCENARIO_ID`: active competence scenario in that ambulance;
 - `BENCHMARK_UNAVAILABILITY_ID`: active record owned by the current user;
 - `BENCHMARK_ROLE_ID`, `BENCHMARK_MONTH`, and `BENCHMARK_YEAR`.
 

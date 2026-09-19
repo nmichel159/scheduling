@@ -42,7 +42,7 @@ class FreshDatabaseMigrationTests(unittest.TestCase):
             with engine.connect() as connection:
                 self.assertEqual(
                     connection.scalar(sa.text("SELECT version_num FROM alembic_version")),
-                    "20260813_03",
+                    "20260919_01",
                 )
         finally:
             engine.dispose()
@@ -144,19 +144,31 @@ class CompetenceWeekdayMigrationTests(unittest.TestCase):
         self.engine = sa.create_engine(self.database_url)
 
         metadata = sa.MetaData()
+        ambulances = sa.Table(
+            "ambulances",
+            metadata,
+            sa.Column("id", sa.Integer(), primary_key=True),
+            sa.Column("name", sa.String(), nullable=False),
+            sa.Column("is_active", sa.Boolean(), nullable=True),
+        )
         competences = sa.Table(
             "competences",
             metadata,
             sa.Column("id", sa.Integer(), primary_key=True),
+            sa.Column("ambulance_id", sa.Integer(), nullable=False),
             sa.Column("required_count", sa.Integer(), nullable=False),
         )
         metadata.create_all(self.engine)
         with self.engine.begin() as connection:
             connection.execute(
+                ambulances.insert(),
+                {"id": 1, "name": "Legacy clinic", "is_active": True},
+            )
+            connection.execute(
                 competences.insert(),
                 [
-                    {"id": 1, "required_count": 2},
-                    {"id": 2, "required_count": 4},
+                    {"id": 1, "ambulance_id": 1, "required_count": 2},
+                    {"id": 2, "ambulance_id": 1, "required_count": 4},
                 ],
             )
 

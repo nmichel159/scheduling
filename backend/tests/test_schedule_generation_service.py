@@ -12,6 +12,7 @@ from app.db.session import Base
 from app.models import (
     Ambulance,
     Competence,
+    CompetenceScenario,
     CompetenceWeekdayRequirement,
     Schedule,
     Unavailability,
@@ -524,9 +525,21 @@ class ScheduleGenerationLoadingTests(unittest.TestCase):
             ambulance_id=ambulance.id,
             is_active=True,
         )
+        scenario = CompetenceScenario(
+            name="Scenario 1",
+            ambulance_id=ambulance.id,
+            is_selected=True,
+            is_active=True,
+        )
+        self.db.add(scenario)
+        self.db.flush()
         competence.weekday_requirements = [
-            CompetenceWeekdayRequirement(weekday=0, required_count=1),
-            CompetenceWeekdayRequirement(weekday=6, required_count=2),
+            CompetenceWeekdayRequirement(
+                weekday=0, required_count=1, scenario_id=scenario.id
+            ),
+            CompetenceWeekdayRequirement(
+                weekday=6, required_count=2, scenario_id=scenario.id
+            ),
         ]
         self.db.add(competence)
         self.db.flush()

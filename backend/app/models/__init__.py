@@ -3,6 +3,7 @@ from app.models.user import User
 from app.models.role import Role
 from app.models.ambulance import Ambulance
 from app.models.competence import Competence
+from app.models.competence_scenario import CompetenceScenario
 from app.models.competence_weekday_requirement import CompetenceWeekdayRequirement
 from app.models.unavailability import Unavailability
 from app.models.schedule import Schedule
@@ -15,6 +16,7 @@ __all__ = [
     "Role",
     "Ambulance",
     "Competence",
+    "CompetenceScenario",
     "CompetenceWeekdayRequirement",
     "Unavailability",
     "Schedule",

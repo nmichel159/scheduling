@@ -6,13 +6,19 @@ from app.core.dependencies import get_manager_ambulance
 from app.db.session import get_db
 from app.models.ambulance import Ambulance
 from app.schemas.competence import CompetenceCreate, CompetenceResponse, CompetenceUpdate
-from app.services.competence_service import create_competence, delete_competence, list_competences, update_competence
+from app.services.competence_service import (
+    create_competence,
+    delete_competence,
+    list_competence_responses,
+    update_competence,
+)
 
 router = APIRouter()
 
 @router.get("", response_model=list[CompetenceResponse])
 def list_competences_alias(ambulance: Ambulance = Depends(get_manager_ambulance), db: Session = Depends(get_db)):
-    return list_competences(db, ambulance.id)
+    """Competences valued through the workplace's selected scenario."""
+    return list_competence_responses(db, ambulance.id)
 
 @router.post("", response_model=CompetenceResponse, status_code=201)
 def create_competence_alias(data: CompetenceCreate, ambulance: Ambulance = Depends(get_manager_ambulance), db: Session = Depends(get_db)):

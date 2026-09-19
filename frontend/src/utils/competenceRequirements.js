@@ -3,18 +3,46 @@ export const ISO_WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
 export const legacyRequiredCount = (column) =>
   Math.max(0, Number(column.required_count ?? column.count ?? 1));
 
+/** Days of rest a duty costs when the record does not say. One day off means
+ *  a Monday duty frees its holder again on Wednesday. */
+export const DEFAULT_RECOVERY_DAYS = 1;
+
+/** Largest rest a duty may cost — a full week minus the duty day itself. */
+export const MAX_RECOVERY_DAYS = 6;
+
+export const clampRecoveryDays = (value) => {
+  const days = Math.round(Number(value));
+  if (!Number.isFinite(days)) return DEFAULT_RECOVERY_DAYS;
+  return Math.min(MAX_RECOVERY_DAYS, Math.max(0, days));
+};
+
+/** The weekday a duty started on `weekday` frees its holder again. */
+export const recoveryTargetWeekday = (weekday, recoveryDays) =>
+  (weekday + clampRecoveryDays(recoveryDays) + 1) % 7;
+
+/** Inverse of `recoveryTargetWeekday`: rest implied by clicking a day. */
+export const recoveryDaysForTarget = (weekday, targetWeekday) =>
+  (targetWeekday - weekday + 6) % 7;
+
 /** Return a complete, sorted weekly definition for old and new API records. */
 export const normalizeWeekdayRequirements = (column) => {
   const configured = new Map(
     (column.weekday_requirements || []).map((item) => [
       Number(item.weekday),
-      Math.max(0, Number(item.required_count)),
+      {
+        required_count: Math.max(0, Number(item.required_count)),
+        recovery_days: clampRecoveryDays(
+          item.recovery_days ?? DEFAULT_RECOVERY_DAYS
+        ),
+      },
     ])
   );
   const fallback = legacyRequiredCount(column);
   return ISO_WEEKDAYS.map((weekday) => ({
     weekday,
-    required_count: configured.get(weekday) ?? fallback,
+    required_count: configured.get(weekday)?.required_count ?? fallback,
+    recovery_days:
+      configured.get(weekday)?.recovery_days ?? DEFAULT_RECOVERY_DAYS,
   }));
 };
 

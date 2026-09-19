@@ -18,10 +18,12 @@ from app.schemas.competence import (
     CompetenceUpdate,
     AmbulanceCompetenceGroup,
 )
+from app.services.competence_scenario_service import selected_scenario_ids
 from app.services.competence_service import (
     create_competence,
     delete_competence,
-    list_competences,
+    list_competence_responses,
+    to_response,
     update_competence,
 )
 from app.models.user import User
@@ -52,15 +54,27 @@ def my_ambulance_competences(
         .order_by(Ambulance.name)
         .all()
     )
-    return [AmbulanceCompetenceGroup(
-        ambulance_id=ambulance.id,
-        ambulance_name=ambulance.name,
-        ambulance_description=ambulance.description,
-        competences=sorted(
-            ambulance.competences,
-            key=lambda competence: competence.name,
-        ),
-    ) for ambulance in ambulances]
+    # Read-only listing: workplaces without a scenario yet are reported
+    # through the legacy all-days count instead of being healed here.
+    scenario_ids = selected_scenario_ids(db, [ambulance.id for ambulance in ambulances])
+    groups = []
+    for ambulance in ambulances:
+        scenario_id = scenario_ids.get(ambulance.id, 0)
+        groups.append(
+            AmbulanceCompetenceGroup(
+                ambulance_id=ambulance.id,
+                ambulance_name=ambulance.name,
+                ambulance_description=ambulance.description,
+                competences=[
+                    to_response(competence, scenario_id)
+                    for competence in sorted(
+                        ambulance.competences,
+                        key=lambda competence: competence.name,
+                    )
+                ],
+            )
+        )
+    return groups
 
 
 @router.get(
@@ -72,8 +86,12 @@ def list_competences_endpoint(
     ambulance: Ambulance = Depends(get_manager_ambulance),
     db: Session = Depends(get_db),
 ) -> list[CompetenceResponse]:
-    """Retrieve all active competences defined for the manager's ambulance."""
-    return list_competences(db, ambulance.id)
+    """Retrieve the competences of the manager's ambulance.
+
+    The per-weekday counts and recovery days are those of the workplace's
+    selected scenario, which is what every other screen schedules from.
+    """
+    return list_competence_responses(db, ambulance.id)
 
 
 @router.post(

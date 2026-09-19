@@ -7,6 +7,7 @@ from app.api import auth  # Ak si vytvoríš router v api
 from app.api import unavailability
 from app.api import ambulance_employee
 from app.api import competence
+from app.api import competence_scenario
 from app.api import user_competence
 from app.api import users
 from app.api import roles, ambulances
@@ -58,6 +59,7 @@ app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(unavailability.router, prefix="/unavailabilities", tags=["Unavailabilities"])
 app.include_router(ambulance_employee.router, prefix="/ambulances", tags=["Ambulance Employees"])
 app.include_router(competence.router, prefix="/ambulances", tags=["Competences"])
+app.include_router(competence_scenario.router, prefix="/ambulances", tags=["Competence Scenarios"])
 app.include_router(user_competence.router, prefix="/ambulances", tags=["User Competences"])
 app.include_router(users.router, prefix="/users", tags=["Users"])
 app.include_router(roles.router, prefix="/roles", tags=["Roles"])

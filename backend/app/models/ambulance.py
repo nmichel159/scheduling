@@ -35,6 +35,11 @@ class Ambulance(Base):
     # Core relationship mappings
     user_ambulances = relationship("UserAmbulance", back_populates="ambulance", cascade="all, delete-orphan")
     competences = relationship("Competence", back_populates="ambulance", cascade="all, delete-orphan")
+    competence_scenarios = relationship(
+        "CompetenceScenario",
+        back_populates="ambulance",
+        cascade="all, delete-orphan",
+    )
     schedules = relationship("Schedule", back_populates="ambulance")
     manager = relationship("User", back_populates="managed_ambulances")
 

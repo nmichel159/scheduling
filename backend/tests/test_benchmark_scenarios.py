@@ -14,6 +14,7 @@ from app.main import app  # noqa: E402
 PLACEHOLDER_TO_PATH_PARAMETER = {
     "${BENCHMARK_AMBULANCE_ID}": "{ambulance_id}",
     "${BENCHMARK_COMPETENCE_ID}": "{competence_id}",
+    "${BENCHMARK_SCENARIO_ID}": "{scenario_id}",
     "${BENCHMARK_CURRENT_USER_ID}": "{user_id}",
     "${BENCHMARK_TARGET_USER_ID}": "{user_id}",
     "${BENCHMARK_UNAVAILABILITY_ID}": "{unavailability_id}",
@@ -56,8 +57,8 @@ class BenchmarkScenarioCoverageTests(unittest.TestCase):
         }
 
         self.assertEqual(benchmarked_routes, application_get_routes)
-        self.assertEqual(len(benchmarked_routes), 34)
-        self.assertEqual(len(application_operations), 69)
+        self.assertEqual(len(benchmarked_routes), 36)
+        self.assertEqual(len(application_operations), 77)
 
 
 if __name__ == "__main__":

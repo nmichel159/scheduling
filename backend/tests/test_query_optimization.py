@@ -11,6 +11,7 @@ from app.db.session import Base
 from app.models import (
     Ambulance,
     Competence,
+    CompetenceScenario,
     CompetenceWeekdayRequirement,
     Role,
     Schedule,
@@ -81,6 +82,15 @@ class AmbulanceReadQueryTests(unittest.TestCase):
         self.session.add(competence)
         self.session.flush()
         self.competence_id = competence.id
+        scenario = CompetenceScenario(
+            name="Scenario 1",
+            ambulance_id=ambulance.id,
+            is_selected=True,
+            is_active=True,
+        )
+        self.session.add(scenario)
+        self.session.flush()
+        self.scenario_id = scenario.id
         external_ambulance = Ambulance(
             name="Neurology",
             managed_by_user_id=999,
@@ -97,16 +107,25 @@ class AmbulanceReadQueryTests(unittest.TestCase):
         self.session.add(external_competence)
         self.session.flush()
         self.external_competence_id = external_competence.id
+        external_scenario = CompetenceScenario(
+            name="Scenario 1",
+            ambulance_id=external_ambulance.id,
+            is_selected=True,
+            is_active=True,
+        )
+        self.session.add(external_scenario)
+        self.session.flush()
         self.session.add_all(
             [
                 CompetenceWeekdayRequirement(
                     competence_id=competence_id,
+                    scenario_id=scenario_id,
                     weekday=weekday,
                     required_count=1,
                 )
-                for competence_id in (
-                    self.competence_id,
-                    self.external_competence_id,
+                for competence_id, scenario_id in (
+                    (self.competence_id, self.scenario_id),
+                    (self.external_competence_id, external_scenario.id),
                 )
                 for weekday in range(7)
             ]
@@ -337,8 +356,10 @@ class AmbulanceReadQueryTests(unittest.TestCase):
             self.employee_ids,
         )
 
-    def test_managed_ambulance_competences_use_three_queries(self) -> None:
-        """All managed ambulances and weekly definitions load in three queries."""
+    def test_managed_ambulance_competences_use_four_queries(self) -> None:
+        """Ambulances, competences, weekly definitions and the scenarios that
+        select those definitions load in one query each, however many
+        workplaces the manager has."""
         manager = User(
             id=999,
             email="manager@example.com",
@@ -346,7 +367,7 @@ class AmbulanceReadQueryTests(unittest.TestCase):
             is_active=True,
         )
         result = self._assert_query_count(
-            3,
+            4,
             lambda: my_ambulance_competences(
                 current_user=manager,
                 db=self.session,

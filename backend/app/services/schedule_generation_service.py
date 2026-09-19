@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.config import settings
 from app.models.associations import UserAmbulance, UserCompetence
 from app.models.competence import Competence
+from app.services.competence_scenario_service import get_selected_scenario
 from app.models.schedule import Schedule
 from app.models.unavailability import Unavailability
 from app.models.user import User
@@ -529,6 +530,11 @@ def generate_ambulance_monthly_schedule(
         .order_by(Competence.id)
         .all()
     )
+    # A workplace's competences carry one set of weekday parameters per
+    # scenario. The solver reads the selected one; a workplace that has no
+    # scenario yet falls back to the competence's legacy all-days count.
+    selected_scenario = get_selected_scenario(db, ambulance_id)
+    selected_scenario_id = selected_scenario.id if selected_scenario else None
     user_ids = [user.id for user in user_rows]
     competence_ids = [competence.id for competence in competence_rows]
 
@@ -625,9 +631,13 @@ def generate_ambulance_monthly_schedule(
                 {
                     requirement.weekday: requirement.required_count
                     for requirement in competence.weekday_requirements
+                    if requirement.scenario_id == selected_scenario_id
                 }.get(weekday, competence.required_count)
                 for weekday in range(7)
             ),
+            # The scenario also configures recovery_days per weekday. The
+            # solver does not read it yet; its rest rule is still the fixed
+            # neighbouring-day block.
         )
         for competence in competence_rows
     ]

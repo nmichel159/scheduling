@@ -137,6 +137,78 @@
   color: var(--text-h);
 }
 
+/* ---------- scenario list / detail ---------- */
+
+.cmanager-col-radio {
+  width: 72px;
+  text-align: center;
+}
+
+.cmanager-table tr.is-selected .cmanager-link { font-weight: 700; }
+
+/* The scenario and competence names are the way into the next screen, so
+   they read as links rather than as another button in a row of them. */
+.cmanager-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text-h);
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--border);
+}
+
+.cmanager-link:hover { text-decoration-color: currentColor; }
+
+.cmanager-detail-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cmanager-detail-head h2 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cmanager-detail-workplace {
+  margin-left: auto;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.cmanager-back {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.cmanager-back:hover { border-color: var(--text-h); }
+
+.cmanager-badge {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
 /* ---------- buttons ---------- */
 
 .cmanager-btn {
@@ -198,4 +270,6 @@
   .cmanager-table td { border-top: 0; padding: 4px 0; }
   .cmanager-col-actions { text-align: left; }
   .cmanager-col-actions .cmanager-btn:first-child { margin-left: 0; }
+  .cmanager-col-radio { width: auto; text-align: left; }
+  .cmanager-detail-workplace { margin-left: 0; }
 }

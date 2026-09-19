@@ -22,6 +22,7 @@ from app.models.automatic_schedule_generation_run import (
     AutomaticScheduleGenerationRun,
 )
 from app.models.competence import Competence
+from app.services.competence_scenario_service import get_selected_scenario
 from app.services.schedule_generation_service import (
     ScheduleGenerationError,
     generate_ambulance_monthly_schedule,
@@ -65,8 +66,15 @@ def due_target_period(now: datetime) -> tuple[int, int] | None:
     return next_calendar_month(local_now.year, local_now.month)
 
 
-def _monthly_demand(ambulance: Ambulance, year: int, month: int) -> int:
-    """Measure workplace size by the target month's required duty slots."""
+def _monthly_demand(
+    ambulance: Ambulance, year: int, month: int, scenario_id: int | None
+) -> int:
+    """Measure workplace size by the target month's required duty slots.
+
+    Only ``scenario_id``'s parameters count: a workplace carries one weekly
+    definition per scenario, and summing all of them would size a workplace
+    by how many model cases its manager happens to have drafted.
+    """
     days = [
         date(year, month, day)
         for day in range(1, monthrange(year, month)[1] + 1)
@@ -78,6 +86,7 @@ def _monthly_demand(ambulance: Ambulance, year: int, month: int) -> int:
         weekday_counts = {
             item.weekday: item.required_count
             for item in competence.weekday_requirements
+            if item.scenario_id == scenario_id
         }
         demand += sum(
             weekday_counts.get(work_date.weekday(), competence.required_count)
@@ -116,11 +125,21 @@ def ordered_ambulances(
         .filter(Ambulance.is_active.is_(True))
         .all()
     )
+    selected_scenario_ids = {
+        ambulance.id: (
+            scenario.id
+            if (scenario := get_selected_scenario(db, ambulance.id))
+            else None
+        )
+        for ambulance in ambulances
+    }
     return sorted(
         ambulances,
         key=lambda ambulance: (
             bool(ambulance.isurgent),
-            -_monthly_demand(ambulance, year, month),
+            -_monthly_demand(
+                ambulance, year, month, selected_scenario_ids[ambulance.id]
+            ),
             -_active_employee_count(ambulance),
             ambulance.id,
         ),

@@ -94,6 +94,18 @@
       "expected_status": 200
     },
     {
+      "name": "competence_scenarios",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/competence-scenarios",
+      "expected_status": 200
+    },
+    {
+      "name": "competence_scenario_competences",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/competence-scenarios/${BENCHMARK_SCENARIO_ID}/competences",
+      "expected_status": 200
+    },
+    {
       "name": "competence_employees_page",
       "method": "GET",
       "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/competences/${BENCHMARK_COMPETENCE_ID}/employees",
