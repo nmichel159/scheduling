@@ -240,14 +240,15 @@
   min-width: var(--planner-cell);
 }
 
-/* Pinned to the exact middle of its own column, at the line where the header
-   meets the first day. `left: 50%` is half of what the column really measures,
-   which is the point: hanging the label off an assumed cell width left every
-   name and its leader line sitting a few pixels to the left of the column they
-   name. Out of flow, so however long a name is it never widens the column. */
+/* Pinned to the trailing edge of its own column, at the line where the header
+   meets the first day, so the leader line lands where the column ends instead
+   of stopping halfway across it. `left: 100%` is the column's real width, which
+   is the point: hanging the label off an assumed cell width left every name and
+   its leader line sitting a few pixels off the column they name. Out of flow,
+   so however long a name is it never widens the column. */
 .planner-matrix-colhead-label {
   position: absolute;
-  left: 50%;
+  left: 100%;
   bottom: 0;
   transform: rotate(-45deg);
   transform-origin: 0 100%;
