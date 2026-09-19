@@ -459,17 +459,9 @@ const CompetenceMatrix = ({
                   </th>
                   {columns.map((c) => {
                     const required = requiredOf(c, group);
-                    const assigned = rows.filter((r) =>
-                      (r.competenceDays[c.id] || []).includes(group.weekdays[0])
-                    ).length;
-                    const ok = assigned >= required;
                     return (
-                      <th
-                        key={c.id}
-                        className="cmatrix-required-cell"
-                        title={t('competences.staffing_status', { assigned, required })}
-                      >
-                        <div className={`cmatrix-required-fill ${ok ? 'is-ok' : 'is-off'}`}>
+                      <th key={c.id} className="cmatrix-required-cell">
+                        <div className="cmatrix-required-fill">
                           <button
                             type="button"
                             className="cmatrix-required-step cmatrix-required-step-minus"

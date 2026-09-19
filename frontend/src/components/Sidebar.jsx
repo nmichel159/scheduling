@@ -9,6 +9,7 @@ import SettingsDialog from './SettingsDialog';
 import {
   AdminIcon,
   ChevronLeftIcon,
+  CompetenceIcon,
   HomeIcon,
   LimitsIcon,
   LogoutIcon,
@@ -54,6 +55,7 @@ const SECTIONS = [
       { to: '/ambulances/schedule', labelKey: 'sidebar.ambulance_schedule', Icon: TeamScheduleIcon },
       { to: '/ambulances/workload', labelKey: 'sidebar.employee_workload', Icon: TeamLimitsIcon },
       { to: '/departments', labelKey: 'sidebar.departments', Icon: WorkplaceIcon },
+      { to: '/competences', labelKey: 'sidebar.competences', Icon: CompetenceIcon },
     ],
   },
   {

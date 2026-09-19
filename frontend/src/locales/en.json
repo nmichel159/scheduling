@@ -47,7 +47,8 @@
     "logout_confirm": "Do you really want to log out?",
     "cancel": "Cancel",
     "section_analyst": "Analyst",
-    "statistics": "Statistics"
+    "statistics": "Statistics",
+    "competences": "Competence manager"
   },
   "workplace": {
     "loading": "Loading workplaces...",
@@ -215,7 +216,6 @@
     "add_competence": "Add competence",
     "search_placeholder": "Search employee...",
     "required_count": "Required staff",
-    "staffing_status": "Qualified: {{assigned}} / required: {{required}}",
     "edit_required": "Edit required staff",
     "decrease_required": "Decrease count",
     "increase_required": "Increase count",
@@ -371,5 +371,15 @@
     "people": "People",
     "workplaces": "Workplaces",
     "load": "Share"
+  },
+  "competence_manager": {
+    "title": "Competence manager",
+    "subtitle": "Define the competences of this workplace — their names, descriptions, and how many people each one needs on each day of the week.",
+    "name": "Competence",
+    "description": "Description",
+    "description_placeholder": "Description (optional)",
+    "edit": "Edit",
+    "renamed": "Competence updated",
+    "assignment_hint": "Required counts and who holds a competence are edited in the matrix on the Workplaces screen."
   }
 }

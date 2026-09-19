@@ -70,6 +70,14 @@ export const WorkplaceIcon = (props) => (
   </Icon>
 );
 
+/** Správca kompetencií — odškrtávací zoznam schopností pracoviska. */
+export const CompetenceIcon = (props) => (
+  <Icon {...props}>
+    <rect x="3.8" y="4.2" width="16.4" height="15.6" rx="2.2" />
+    <path d="M7.2 9.2l1.6 1.6 2.6-2.8M7.2 15.2l1.6 1.6 2.6-2.8M14.4 9.6h3.2M14.4 15.6h3.2" />
+  </Icon>
+);
+
 export const AdminIcon = (props) => (
   <Icon {...props}>
     <path d="M6.8 3.6v5.2M6.8 14.4v6M17.2 3.6v8.4M17.2 17.6v2.8" />

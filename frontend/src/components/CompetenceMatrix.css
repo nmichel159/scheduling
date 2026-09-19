@@ -239,9 +239,9 @@
   padding: 6px;
 }
 
-/* Inner colored box, inset from the cell's own border — mirrors the
- * .cmatrix-daycell pattern below so each day-group's status reads as its
- * own rounded chip instead of one solid band of color across the row.
+/* Inner box, inset from the cell's own border — mirrors the
+ * .cmatrix-daycell pattern below so each day-group's count reads as its
+ * own rounded chip instead of one solid band across the row.
  * The number stays centered at all times; a minus/plus button fades in
  * on hover at the left/right edge and commits the change immediately —
  * no separate edit step. */
@@ -254,16 +254,9 @@
   min-height: 32px;
   border-radius: 8px;
   box-sizing: border-box;
-}
-.cmatrix-required-fill.is-ok {
-  background: rgba(46, 160, 67, 0.18);
-  border: 1px solid rgba(46, 160, 67, 0.45);
-  color: #2ea043;
-}
-.cmatrix-required-fill.is-off {
-  background: rgba(192, 70, 60, 0.18);
-  border: 1px solid rgba(192, 70, 60, 0.45);
-  color: #c0463c;
+  background: var(--primary-background);
+  border: 1px solid var(--border);
+  color: var(--text-h);
 }
 
 .cmatrix-required-number {

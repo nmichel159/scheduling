@@ -1,0 +1,201 @@
+.cmanager {
+  max-width: 1120px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.cmanager-title {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--text-h);
+}
+
+.cmanager-subtitle {
+  margin: 6px 0 20px;
+  font-size: 0.86rem;
+  opacity: 0.75;
+}
+
+.cmanager-banner {
+  border: 1px solid var(--border);
+  background: var(--primary-background);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+}
+
+.cmanager-panel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--code-background);
+  padding: 16px;
+}
+
+.cmanager-panel-head h2 {
+  margin: 0 0 14px;
+  font-size: 1.1rem;
+  color: var(--text-h);
+}
+
+/* ---------- new competence form ---------- */
+
+.cmanager-new {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.cmanager-input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--background);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.85rem;
+  min-width: 180px;
+}
+
+/* The description is optional prose — it gets the leftover width. */
+.cmanager-input-desc { flex: 1 1 260px; }
+
+/* ---------- table ---------- */
+
+.cmanager-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.cmanager-table th {
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.65;
+  padding: 0 10px 8px;
+  font-weight: 700;
+}
+
+.cmanager-table td {
+  padding: 10px;
+  border-top: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.cmanager-col-name { min-width: 200px; }
+
+.cmanager-col-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cmanager-desc {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  opacity: 0.7;
+}
+
+.cmanager-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ---------- weekly demand strip ---------- */
+
+.cmanager-week {
+  display: flex;
+  gap: 4px;
+}
+
+.cmanager-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 30px;
+  padding: 3px 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+}
+
+.cmanager-day.is-weekend { background: var(--primary-background); }
+
+.cmanager-day em {
+  font-style: normal;
+  font-size: 0.64rem;
+  opacity: 0.65;
+}
+
+.cmanager-day b {
+  font-size: 0.85rem;
+  color: var(--text-h);
+}
+
+/* ---------- buttons ---------- */
+
+.cmanager-btn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 7px 12px;
+  cursor: pointer;
+  margin-left: 6px;
+}
+
+.cmanager-btn:hover:not(:disabled) { border-color: var(--text-h); }
+.cmanager-btn:disabled { opacity: 0.5; cursor: default; }
+
+.cmanager-btn-primary {
+  background: var(--primary-background);
+  font-weight: 700;
+}
+
+.cmanager-btn-danger:hover:not(:disabled) { border-color: #c0463c; color: #c0463c; }
+
+.cmanager-new .cmanager-btn { margin-left: 0; }
+
+.cmanager-note,
+.cmanager-hint {
+  font-size: 0.82rem;
+  opacity: 0.7;
+}
+
+.cmanager-hint { margin: 16px 0 0; }
+
+.cmanager-toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-background);
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+@media (max-width: 768px) {
+  .cmanager-panel { padding: 12px; }
+  .cmanager-input { min-width: 0; width: 100%; }
+
+  /* The table would need a horizontal scroll otherwise — the weekly strip
+     alone is wider than a phone once the name column takes its share. */
+  .cmanager-table,
+  .cmanager-table tbody,
+  .cmanager-table tr,
+  .cmanager-table td { display: block; width: 100%; }
+  .cmanager-table thead { display: none; }
+  .cmanager-table tr { border-top: 1px solid var(--border); padding: 8px 0; }
+  .cmanager-table td { border-top: 0; padding: 4px 0; }
+  .cmanager-col-actions { text-align: left; }
+  .cmanager-col-actions .cmanager-btn:first-child { margin-left: 0; }
+}

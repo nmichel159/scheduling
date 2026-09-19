@@ -47,7 +47,8 @@
     "logout_confirm": "Naozaj sa chcete odhlásiť?",
     "cancel": "Zrušiť",
     "section_analyst": "Analytik",
-    "statistics": "Štatistiky"
+    "statistics": "Štatistiky",
+    "competences": "Správca kompetencií"
   },
   "workplace": {
     "loading": "Načítavam pracoviská...",
@@ -215,7 +216,6 @@
     "add_competence": "Pridať kompetenciu",
     "search_placeholder": "Vyhľadať zamestnanca...",
     "required_count": "Potrebný počet",
-    "staffing_status": "Kompetentní: {{assigned}} / potrební: {{required}}",
     "edit_required": "Upraviť potrebný počet",
     "decrease_required": "Znížiť počet",
     "increase_required": "Zvýšiť počet",
@@ -371,5 +371,15 @@
     "people": "Ľudia",
     "workplaces": "Pracoviská",
     "load": "Podiel"
+  },
+  "competence_manager": {
+    "title": "Správca kompetencií",
+    "subtitle": "Definujte kompetencie pracoviska — ich názvy, popisy a potrebné počty ľudí na jednotlivé dni v týždni.",
+    "name": "Kompetencia",
+    "description": "Popis",
+    "description_placeholder": "Popis (nepovinný)",
+    "edit": "Upraviť",
+    "renamed": "Kompetencia upravená",
+    "assignment_hint": "Potrebné počty a to, kto kompetenciu má, sa upravujú v matici na obrazovke Pracoviská."
   }
 }
