@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  COMPETENCE_TYPES,
+  DEFAULT_COMPETENCE_TYPE,
   DEFAULT_RECOVERY_DAYS,
+  DEFAULT_SHIFT_HOURS,
   ISO_WEEKDAYS,
   clampRecoveryDays,
+  clampShiftHours,
+  normalizeCompetenceType,
   normalizeWeekdayRequirements,
   recoveryDaysForTarget,
   recoveryTargetWeekday,
@@ -13,9 +18,16 @@ import './CompetenceEditorDialog.css';
 /**
  * Modal editor for one competence inside one scenario.
  *
- * Two of the fields are workplace-wide and two belong to the scenario, and
- * the dialog says so rather than hiding it: renaming a competence renames
- * it everywhere, while the weekly numbers only move this scenario.
+ * The name, description and type are workplace-wide and the weekly numbers
+ * belong to the scenario, and the dialog says so rather than hiding it:
+ * renaming a competence renames it everywhere, while the counts, hours and
+ * recovery only move this scenario.
+ *
+ * The people needed and the hours worked sit one under the other on the
+ * same Monday-to-Sunday grid, so a weekday is one column and reads top to
+ * bottom. Either row can be tied together with its "same every day" box:
+ * the seven fields stay on screen either way, and typing into any of them
+ * writes the whole row.
  *
  * The recovery section is one row per weekday. Each row is a full Monday-
  * to-Sunday track on which the figure marks the day the duty is worked and
@@ -25,6 +37,10 @@ import './CompetenceEditorDialog.css';
  * pointing at the day it ends. A break can wrap past Sunday, which is why
  * every row also spells the number of days out in words.
  *
+ * Enter walks to the next field instead of submitting: the form is a
+ * table of numbers to fill in, and losing it to a stray Enter on the
+ * second of fifteen fields would be the wrong trade. Saving is the button.
+ *
  * The parent must key this component by the row being edited, so that
  * opening another competence starts a fresh draft.
  *
@@ -32,16 +48,18 @@ import './CompetenceEditorDialog.css';
  * - open: whether to render
  * - competence: the record being edited, or null to create a new one
  * - saving: disables the form while the parent persists
- * - onSave({ name, description, weekday_requirements }): Promise
+ * - onSave({ name, description, competence_type, weekday_requirements }): Promise
  * - onCancel()
  */
 const emptyDraft = () => ({
   name: '',
   description: '',
+  competence_type: DEFAULT_COMPETENCE_TYPE,
   week: ISO_WEEKDAYS.map((weekday) => ({
     weekday,
     required_count: 1,
     recovery_days: DEFAULT_RECOVERY_DAYS,
+    shift_hours: DEFAULT_SHIFT_HOURS,
   })),
 });
 
@@ -50,15 +68,38 @@ const draftFrom = (competence) =>
     ? {
         name: competence.name || '',
         description: competence.description || '',
+        competence_type: normalizeCompetenceType(competence.competence_type),
         week: normalizeWeekdayRequirements(competence),
       }
     : emptyDraft();
+
+/** A week that already reads the same everywhere opens tied together. */
+const isUniform = (week, field) =>
+  week.every((item) => item[field] === week[0][field]);
+
+const clampRequiredCount = (value) =>
+  Math.max(0, Math.min(1000, Math.round(Number(value) || 0)));
+
+const CLAMP_BY_FIELD = {
+  required_count: clampRequiredCount,
+  shift_hours: clampShiftHours,
+};
+
+/* A field holds the raw text until it is left, and only then becomes a
+   number again. Clamping every keystroke would fight the user: clearing
+   the field would put a 0 back, and typing over that 0 would read "05". */
 
 const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) => {
   const { t } = useTranslation();
   // The parent keys this component by the row being edited, so opening a
   // different competence remounts it and the draft starts from that row.
   const [draft, setDraft] = useState(() => draftFrom(competence));
+  const [sameCounts, setSameCounts] = useState(() =>
+    isUniform(draftFrom(competence).week, 'required_count')
+  );
+  const [sameHours, setSameHours] = useState(() =>
+    isUniform(draftFrom(competence).week, 'shift_hours')
+  );
   const nameRef = useRef(null);
 
   useEffect(() => {
@@ -74,14 +115,26 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
   const trimmedName = draft.name.trim();
   const canSave = trimmedName.length > 0 && !saving;
 
-  const setCount = (weekday, value) => {
-    const count = Math.max(0, Math.min(1000, Math.round(Number(value) || 0)));
+  /** Write one field, on one weekday or on all seven when they are tied. */
+  const setField = (field, weekday, value, wholeWeek) => {
     setDraft((prev) => ({
       ...prev,
       week: prev.week.map((item) =>
-        item.weekday === weekday ? { ...item, required_count: count } : item
+        wholeWeek || item.weekday === weekday ? { ...item, [field]: value } : item
       ),
     }));
+  };
+
+  /** Turn what was typed into the number that will be saved. */
+  const commitField = (field, weekday, wholeWeek) =>
+    setField(field, weekday, CLAMP_BY_FIELD[field](draft.week[weekday][field]), wholeWeek);
+
+  // Tying a row together levels it on Monday rather than on the day the
+  // user happens to click next, so the result is visible immediately.
+  const tieRow = (field, next) => {
+    if (field === 'required_count') setSameCounts(next);
+    else setSameHours(next);
+    if (next) setField(field, null, CLAMP_BY_FIELD[field](draft.week[0][field]), true);
   };
 
   const setRecoveryTarget = (weekday, targetWeekday) => {
@@ -110,16 +163,32 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
     [draft.week]
   );
 
+  /** Enter moves on rather than submitting; the last field falls through
+   *  to the save button, which is the next thing in the form anyway. */
+  const handleFormKeyDown = (e) => {
+    if (e.key !== 'Enter' || e.target.tagName === 'TEXTAREA') return;
+    if (e.target.tagName === 'BUTTON') return;
+    e.preventDefault();
+    const fields = [...e.currentTarget.querySelectorAll('input, select, button')].filter(
+      (field) => !field.disabled && field.type !== 'hidden'
+    );
+    const next = fields[fields.indexOf(e.target) + 1];
+    next?.focus();
+    if (next?.select) next.select();
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!canSave) return;
     onSave({
       name: trimmedName,
       description: draft.description.trim() || null,
+      competence_type: draft.competence_type,
       weekday_requirements: draft.week.map((item) => ({
         weekday: item.weekday,
-        required_count: item.required_count,
+        required_count: clampRequiredCount(item.required_count),
         recovery_days: clampRecoveryDays(item.recovery_days),
+        shift_hours: clampShiftHours(item.shift_hours),
       })),
     });
   };
@@ -141,6 +210,7 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
           competence ? t('scenarios.edit_competence') : t('scenarios.new_competence')
         }
         onSubmit={handleSubmit}
+        onKeyDown={handleFormKeyDown}
       >
         <header className="ceditor-head">
           <h2>
@@ -181,31 +251,90 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
             />
           </label>
 
+          <label className="ceditor-field">
+            <span>{t('scenarios.type_column')}</span>
+            <select
+              className="ceditor-input"
+              value={draft.competence_type}
+              onChange={(e) =>
+                setDraft({ ...draft, competence_type: e.target.value })
+              }
+            >
+              {COMPETENCE_TYPES.map((value) => (
+                <option key={value} value={value}>
+                  {t(`scenarios.types.${value}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <section className="ceditor-section">
-            <h3>{t('scenarios.counts_title')}</h3>
-            <p className="ceditor-note">{t('scenarios.counts_hint')}</p>
-            <div className="ceditor-counts">
-              {draft.week.map((item) => (
-                <label
-                  key={item.weekday}
-                  className={`ceditor-count ${item.weekday >= 5 ? 'is-weekend' : ''}`}
-                >
-                  <span>{t(`workload.days.${item.weekday}`)}</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="1000"
-                    value={item.required_count}
-                    onChange={(e) => setCount(item.weekday, e.target.value)}
-                  />
-                </label>
+            <h3>{t('scenarios.week_title')}</h3>
+            <div className="ceditor-grid">
+              <div className="ceditor-grid-row ceditor-grid-head">
+                <span className="ceditor-grid-label" />
+                {ISO_WEEKDAYS.map((weekday) => (
+                  <span
+                    key={weekday}
+                    className={`ceditor-grid-day ${weekday >= 5 ? 'is-weekend' : ''}`}
+                  >
+                    {t(`workload.days.${weekday}`)}
+                  </span>
+                ))}
+                <span className="ceditor-grid-tie" />
+              </div>
+
+              {[
+                {
+                  field: 'required_count',
+                  label: t('competences.required_count'),
+                  tied: sameCounts,
+                  step: '1',
+                  max: '1000',
+                },
+                {
+                  field: 'shift_hours',
+                  label: t('scenarios.hours_column'),
+                  tied: sameHours,
+                  step: '0.25',
+                  max: '24',
+                },
+              ].map((row) => (
+                <div className="ceditor-grid-row" key={row.field}>
+                  <span className="ceditor-grid-label">{row.label}</span>
+                  {draft.week.map((item) => (
+                    <input
+                      key={item.weekday}
+                      className={`ceditor-grid-input ${item.weekday >= 5 ? 'is-weekend' : ''}`}
+                      type="number"
+                      min="0"
+                      max={row.max}
+                      step={row.step}
+                      value={item[row.field]}
+                      aria-label={`${row.label} — ${t(`workload.days.${item.weekday}`)}`}
+                      onChange={(e) =>
+                        setField(row.field, item.weekday, e.target.value, row.tied)
+                      }
+                      onBlur={() =>
+                        commitField(row.field, item.weekday, row.tied)
+                      }
+                    />
+                  ))}
+                  <label className="ceditor-grid-tie">
+                    <input
+                      type="checkbox"
+                      checked={row.tied}
+                      onChange={(e) => tieRow(row.field, e.target.checked)}
+                    />
+                    <span>{t('scenarios.same_every_day')}</span>
+                  </label>
+                </div>
               ))}
             </div>
           </section>
 
           <section className="ceditor-section">
             <h3>{t('scenarios.recovery_title')}</h3>
-            <p className="ceditor-note">{t('scenarios.recovery_hint')}</p>
             <div className="ceditor-recovery">
               {draft.week.map((item, index) => {
                 const target = recoveryTargetWeekday(

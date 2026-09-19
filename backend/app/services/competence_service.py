@@ -17,8 +17,10 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models.competence import Competence
 from app.models.competence_scenario import CompetenceScenario
+from app.models.competence import DEFAULT_COMPETENCE_TYPE
 from app.models.competence_weekday_requirement import (
     DEFAULT_RECOVERY_DAYS,
+    DEFAULT_SHIFT_HOURS,
     CompetenceWeekdayRequirement,
 )
 from app.schemas.competence import (
@@ -77,6 +79,11 @@ def weekly_parameters(
                 if weekday in configured
                 else DEFAULT_RECOVERY_DAYS
             ),
+            shift_hours=(
+                configured[weekday].shift_hours
+                if weekday in configured
+                else DEFAULT_SHIFT_HOURS
+            ),
         )
         for weekday in range(7)
     ]
@@ -91,6 +98,7 @@ def to_response(competence: Competence, scenario_id: int) -> CompetenceResponse:
         name=competence.name,
         description=competence.description,
         required_count=competence.required_count,
+        competence_type=competence.competence_type or DEFAULT_COMPETENCE_TYPE,
         count=competence.required_count,
         weekday_requirements=weekly_parameters(competence, scenario_id),
         created_at=competence.created_at,
@@ -117,6 +125,7 @@ def _replace_weekday_requirements(
             competence.weekday_requirements.append(row)
         row.required_count = item.required_count
         row.recovery_days = item.recovery_days
+        row.shift_hours = item.shift_hours
     # Weekdays the payload omitted would leave a partial week behind; a
     # complete definition is validated at the schema, so this only fires
     # when the caller deliberately cleared the week.
@@ -199,9 +208,11 @@ def create_competence(
     """Create a competence and give every scenario parameters for it.
 
     The submitted weekly definition lands in ``scenario_id`` (the selected
-    scenario when none is given); the workplace's other scenarios get the
-    same numbers as their starting point, which they are then free to
-    diverge from.
+    scenario when none is given). The workplace's other scenarios get the
+    competence with nobody needed on any day: a model case must not start
+    demanding staff because a competence was added somewhere else. Their
+    hours and recovery are the submitted ones, so raising a count there is
+    all it takes to put the competence to work.
     """
     scenario = resolve_scenario(db, ambulance_id, scenario_id)
     duplicate = db.query(Competence).filter(
@@ -217,6 +228,7 @@ def create_competence(
             weekday=weekday,
             required_count=data.required_count,
             recovery_days=DEFAULT_RECOVERY_DAYS,
+            shift_hours=DEFAULT_SHIFT_HOURS,
         )
         for weekday in range(7)
     ]
@@ -224,6 +236,7 @@ def create_competence(
         name=data.name,
         description=data.description,
         required_count=data.required_count,
+        competence_type=data.competence_type,
         ambulance_id=ambulance_id,
         is_active=True,
     )
@@ -235,8 +248,15 @@ def create_competence(
         )
     }
     scenario_ids.add(scenario.id)
+    unstaffed = [
+        item.model_copy(update={"required_count": 0}) for item in requirements
+    ]
     for target_id in sorted(scenario_ids):
-        _replace_weekday_requirements(competence, target_id, requirements)
+        _replace_weekday_requirements(
+            competence,
+            target_id,
+            requirements if target_id == scenario.id else unstaffed,
+        )
     db.add(competence)
     commit_or_conflict(db, DUPLICATE_NAME_DETAIL)
     db.refresh(competence)

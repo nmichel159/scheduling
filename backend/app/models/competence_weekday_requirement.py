@@ -1,6 +1,13 @@
 """Weekday-specific staffing parameters for ambulance competences."""
 
-from sqlalchemy import CheckConstraint, Column, ForeignKey, Integer, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    Float,
+    ForeignKey,
+    Integer,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 
 from app.db.session import Base
@@ -8,6 +15,13 @@ from app.db.session import Base
 #: Days of rest a duty costs when nothing else is configured. One day off
 #: means a Monday duty frees the holder again on Wednesday.
 DEFAULT_RECOVERY_DAYS = 1
+
+#: People a duty needs when a scenario is started from the defaults.
+DEFAULT_REQUIRED_COUNT = 1
+
+#: Hours a duty lasts when nothing else is configured. It is what the
+#: competence editor pre-fills a new competence with.
+DEFAULT_SHIFT_HOURS = 4.0
 
 
 class CompetenceWeekdayRequirement(Base):
@@ -21,6 +35,10 @@ class CompetenceWeekdayRequirement(Base):
     its holder before the same competence may be assigned to them again:
     0 allows the very next day, 1 (the default) skips one day. It is stored
     and edited but not yet enforced by the schedule solver.
+
+    ``shift_hours`` is how long a duty on this weekday lasts. Like the
+    counts it belongs to one scenario, so the same competence can be a
+    four-hour duty in one model case and a twelve-hour one in another.
     """
 
     __tablename__ = "competence_weekday_requirements"
@@ -43,6 +61,10 @@ class CompetenceWeekdayRequirement(Base):
             "recovery_days >= 0 AND recovery_days <= 6",
             name="ck_competence_weekday_requirement_recovery",
         ),
+        CheckConstraint(
+            "shift_hours >= 0 AND shift_hours <= 24",
+            name="ck_competence_weekday_requirement_shift_hours",
+        ),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -62,6 +84,9 @@ class CompetenceWeekdayRequirement(Base):
     required_count = Column(Integer, nullable=False, default=0)
     recovery_days = Column(
         Integer, nullable=False, default=DEFAULT_RECOVERY_DAYS, server_default="1"
+    )
+    shift_hours = Column(
+        Float, nullable=False, default=DEFAULT_SHIFT_HOURS, server_default="4"
     )
 
     competence = relationship("Competence", back_populates="weekday_requirements")

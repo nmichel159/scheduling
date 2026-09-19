@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   createScenario,
@@ -16,6 +16,8 @@ import CompetenceEditorDialog from '../components/CompetenceEditorDialog';
 import {
   ISO_WEEKDAYS,
   clampRecoveryDays,
+  clampShiftHours,
+  normalizeCompetenceType,
   normalizeCompetenceRequirements,
   normalizeWeekdayRequirements,
 } from '../utils/competenceRequirements';
@@ -25,8 +27,10 @@ import './CompetenceManagerView.css';
  * Competence scenarios of one workplace (scheduler screen).
  *
  * The screen has two modes and swaps between them in place, without a
- * route change: a list of the workplace's scenarios, and one scenario
- * opened for editing. Editing a single competence happens in a modal on
+ * route change: a list of the workplace's scenarios — with the active
+ * one's competences spelled out underneath, since that is the table the
+ * rest of the application is scheduled from — and one scenario opened for
+ * editing. Editing a single competence happens in a modal on
  * top of the second mode.
  *
  * The competence list itself is workplace-wide — the same three or four
@@ -36,10 +40,22 @@ import './CompetenceManagerView.css';
  * one the schedule generator and the other screens read; the rest are
  * model cases kept side by side.
  *
+ * Clicking a scenario row puts that scenario in the table on the right;
+ * which scenario is *active* -- the one the generator reads -- is the
+ * radio, and the two are deliberately separate, so a model case can be
+ * read and edited without scheduling anything from it. A double-click on
+ * the name renames instead, and that rename behaves the way renaming a
+ * file does: Enter or clicking away keeps the new name, Escape drops it.
+ *
  * Every action here hits the backend right away — these are registry
  * writes, not a draft — so the screen has no dirty state and no save
  * button outside the modal.
  */
+/** The per-scenario detail screen is hidden for now: the summary card on
+ *  the list does the same work without the extra hop. The screen itself is
+ *  kept intact behind this switch, so turning it back on is one line. */
+const SCENARIO_DETAIL_ENABLED = false;
+
 const CompetenceManagerView = () => {
   const { t } = useTranslation();
   const {
@@ -56,10 +72,12 @@ const CompetenceManagerView = () => {
   const [openScenarioId, setOpenScenarioId] = useState(null);
   const [competences, setCompetences] = useState([]);
   const [competencesLoading, setCompetencesLoading] = useState(false);
+  const [overview, setOverview] = useState([]);
+  const [viewedId, setViewedId] = useState(null);
 
   const [toast, setToast] = useState(null);
-  const [newScenarioName, setNewScenarioName] = useState('');
   const [creatingScenario, setCreatingScenario] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState(null);
   const [renaming, setRenaming] = useState(null); // { id, name }
   const [editorTarget, setEditorTarget] = useState(null); // competence | 'new'
   const [savingCompetence, setSavingCompetence] = useState(false);
@@ -96,7 +114,7 @@ const CompetenceManagerView = () => {
     setEditorTarget(null);
     setDeleteScenarioTarget(null);
     setDeleteCompetenceTarget(null);
-    setNewScenarioName('');
+    setViewedId(null);
   }, [selectedId]);
 
   const loadCompetences = useCallback(
@@ -115,6 +133,50 @@ const CompetenceManagerView = () => {
     },
     [selectedId, t]
   );
+
+  const activeScenario = useMemo(
+    () => scenarios.find((item) => item.is_selected) || null,
+    [scenarios]
+  );
+
+  // Nothing clicked yet, or a scenario that has since been deleted, falls
+  // back to the active one -- the table is never empty for want of a
+  // choice, and it opens on what the workplace is scheduled from.
+  const viewedScenario = useMemo(
+    () => scenarios.find((item) => item.id === viewedId) || activeScenario,
+    [scenarios, viewedId, activeScenario]
+  );
+
+  const viewedScenarioId = viewedScenario?.id ?? null;
+
+  const loadOverview = useCallback(async () => {
+    if (selectedId == null || viewedScenarioId == null) {
+      setOverview([]);
+      return;
+    }
+    try {
+      const rows = await fetchScenarioCompetences(selectedId, viewedScenarioId);
+      setOverview(rows.map(normalizeCompetenceRequirements));
+    } catch {
+      setOverview([]);
+    }
+  }, [selectedId, viewedScenarioId]);
+
+  useEffect(() => {
+    loadOverview();
+  }, [loadOverview, openScenarioId]);
+
+  // Held long enough that the second click of a double-click arrives
+  // first; a rename then cancels the pending open.
+  const OPEN_CLICK_DELAY_MS = 220;
+  const openTimer = useRef(null);
+
+  const cancelPendingOpen = () => {
+    clearTimeout(openTimer.current);
+    openTimer.current = null;
+  };
+
+  useEffect(() => cancelPendingOpen, []);
 
   const openScenario = (scenario) => {
     setOpenScenarioId(scenario.id);
@@ -148,26 +210,75 @@ const CompetenceManagerView = () => {
     return t('scenarios.default_name', { index });
   };
 
-  const handleCreateScenario = async (e) => {
-    e.preventDefault();
+  const handleCreateScenario = async () => {
     if (creatingScenario || selectedId == null) return;
-    const name = newScenarioName.trim() || nextScenarioName();
+    const name = nextScenarioName();
     setCreatingScenario(true);
     try {
-      // A new scenario starts from the selected one's numbers: the
-      // competences are the same either way, so copying is the difference
-      // between tweaking a model case and retyping every day of it.
-      const source = scenarios.find((item) => item.is_selected);
-      const created = await createScenario(selectedId, name, source?.id ?? null);
+      // A new scenario covers the same competences with the defaults --
+      // one person, four hours, one recovery day. Starting from the active
+      // one's numbers is what Duplicate is for.
+      const created = await createScenario(selectedId, name, null);
       setScenarios((prev) => [...prev, created]);
-      setNewScenarioName('');
+      setViewedId(created.id);
       notify(t('scenarios.added'));
-      openScenario(created);
     } catch {
       notify(t('competences.action_error'));
     } finally {
       setCreatingScenario(false);
     }
+  };
+
+  /** First free name of the form "X (copy)", "X (copy 2)", ... */
+  const copyName = (scenario) => {
+    const used = new Set(scenarios.map((item) => item.name));
+    const base = t('scenarios.copy_name', { name: scenario.name });
+    if (!used.has(base)) return base;
+    let index = 2;
+    while (used.has(`${base} ${index}`)) index += 1;
+    return `${base} ${index}`;
+  };
+
+  // A duplicate is an ordinary create seeded from the chosen scenario
+  // rather than from the active one, so the copy is exact and unselected.
+  const handleDuplicateScenario = async (scenario) => {
+    if (duplicatingId != null || selectedId == null) return;
+    setDuplicatingId(scenario.id);
+    try {
+      const created = await createScenario(
+        selectedId,
+        copyName(scenario),
+        scenario.id
+      );
+      setScenarios((prev) => [...prev, created]);
+      notify(t('scenarios.duplicated'));
+    } catch {
+      notify(t('competences.action_error'));
+    } finally {
+      setDuplicatingId(null);
+    }
+  };
+
+  const scheduleOpen = (scenario) => {
+    if (!SCENARIO_DETAIL_ENABLED) return;
+    cancelPendingOpen();
+    openTimer.current = setTimeout(() => {
+      openTimer.current = null;
+      openScenario(scenario);
+    }, OPEN_CLICK_DELAY_MS);
+  };
+
+  const handleRowClick = (event, scenario) => {
+    // The radio, the rename field and the buttons are their own controls.
+    if (event.target.closest('button, input, label')) return;
+    if (renaming?.id === scenario.id) return;
+    setViewedId(scenario.id);
+    scheduleOpen(scenario);
+  };
+
+  const handleRenameGesture = (scenario) => {
+    cancelPendingOpen();
+    setRenaming({ id: scenario.id, name: scenario.name });
   };
 
   const handleSelectScenario = async (scenario) => {
@@ -183,17 +294,38 @@ const CompetenceManagerView = () => {
     }
   };
 
+  // Escape has to beat the blur that follows it, or leaving the field
+  // would save the name the user just abandoned.
+  const abandonRename = useRef(false);
+
+  const cancelRename = () => {
+    abandonRename.current = true;
+    setRenaming(null);
+  };
+
+  /** Leaving the field keeps the new name; an empty or unchanged one is
+   *  simply the end of the rename, not an error to complain about. */
   const handleSaveRename = async () => {
+    if (!renaming) return;
+    const target = scenarios.find((item) => item.id === renaming.id);
     const name = renaming.name.trim();
-    if (!name) return;
+    setRenaming(null);
+    if (!name || name === target?.name) return;
     try {
       const updated = await updateScenario(selectedId, renaming.id, { name });
       setScenarios((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
-      setRenaming(null);
       notify(t('scenarios.renamed'));
     } catch {
       notify(t('competences.action_error'));
     }
+  };
+
+  const handleRenameBlur = () => {
+    if (abandonRename.current) {
+      abandonRename.current = false;
+      return;
+    }
+    handleSaveRename();
   };
 
   const handleDeleteScenario = async () => {
@@ -211,24 +343,26 @@ const CompetenceManagerView = () => {
     }
   };
 
+  // The editor is reachable from the open scenario and from the card, so
+  // the numbers land in whichever scenario the screen is showing.
+  const editedScenarioId = openScenarioId ?? viewedScenarioId;
+
   const handleSaveCompetence = async (payload) => {
-    if (savingCompetence || openScenarioId == null) return;
+    if (savingCompetence || editedScenarioId == null) return;
     setSavingCompetence(true);
     try {
       if (editorTarget === 'new') {
         const created = normalizeCompetenceRequirements(
-          await createScenarioCompetence(selectedId, openScenarioId, payload)
+          await createScenarioCompetence(selectedId, editedScenarioId, payload)
         );
-        setCompetences((prev) => [...prev, created]);
+        if (openScenarioId != null) setCompetences((prev) => [...prev, created]);
         notify(t('competences.added'));
-        // A new competence exists in every scenario, so the counts shown
-        // on the list mode are stale until they are read back.
         loadScenarios();
       } else {
         const updated = normalizeCompetenceRequirements(
           await updateScenarioCompetence(
             selectedId,
-            openScenarioId,
+            editedScenarioId,
             editorTarget.id,
             payload
           )
@@ -239,6 +373,7 @@ const CompetenceManagerView = () => {
         notify(t('scenarios.competence_saved'));
       }
       setEditorTarget(null);
+      loadOverview();
     } catch {
       notify(t('competences.action_error'));
     } finally {
@@ -250,10 +385,11 @@ const CompetenceManagerView = () => {
     const target = deleteCompetenceTarget;
     setDeleteCompetenceTarget(null);
     try {
-      await deleteScenarioCompetence(selectedId, openScenarioId, target.id);
+      await deleteScenarioCompetence(selectedId, editedScenarioId, target.id);
       setCompetences((prev) => prev.filter((item) => item.id !== target.id));
       notify(t('competences.deleted'));
       loadScenarios();
+      loadOverview();
     } catch {
       notify(t('competences.action_error'));
     }
@@ -267,6 +403,13 @@ const CompetenceManagerView = () => {
       })),
     [competences]
   );
+
+  const overviewRows = [...overview]
+    .map((competence) => ({
+      ...competence,
+      week: normalizeWeekdayRequirements(competence),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   if (loading) {
     return <div className="cmanager"><p>{t('departments.loading')}</p></div>;
@@ -288,11 +431,6 @@ const CompetenceManagerView = () => {
   return (
     <div className="cmanager">
       <h1 className="cmanager-title">{t('competence_manager.title')}</h1>
-      <p className="cmanager-subtitle">
-        {openScenarioRecord
-          ? t('scenarios.detail_subtitle')
-          : t('scenarios.list_subtitle')}
-      </p>
 
       {workplacesError && <div className="cmanager-banner">{t('competences.load_error')}</div>}
 
@@ -332,7 +470,9 @@ const CompetenceManagerView = () => {
               <thead>
                 <tr>
                   <th className="cmanager-col-name">{t('competence_manager.name')}</th>
+                  <th>{t('scenarios.type_column')}</th>
                   <th>{t('competences.required_count')}</th>
+                  <th>{t('scenarios.hours_column')}</th>
                   <th>{t('scenarios.recovery_column')}</th>
                   <th className="cmanager-col-actions" />
                 </tr>
@@ -354,6 +494,12 @@ const CompetenceManagerView = () => {
                     </td>
 
                     <td>
+                      <span className={`cmanager-type is-${normalizeCompetenceType(row.competence_type)}`}>
+                        {t(`scenarios.types.${normalizeCompetenceType(row.competence_type)}`)}
+                      </span>
+                    </td>
+
+                    <td>
                       <div className="cmanager-week" aria-label={t('competences.required_count')}>
                         {ISO_WEEKDAYS.map((weekday) => (
                           <span
@@ -362,6 +508,20 @@ const CompetenceManagerView = () => {
                           >
                             <em>{t(`workload.days.${weekday}`)}</em>
                             <b>{row.week[weekday].required_count}</b>
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+
+                    <td>
+                      <div className="cmanager-week" aria-label={t('scenarios.hours_column')}>
+                        {ISO_WEEKDAYS.map((weekday) => (
+                          <span
+                            key={weekday}
+                            className={`cmanager-day ${weekday >= 5 ? 'is-weekend' : ''}`}
+                          >
+                            <em>{t(`workload.days.${weekday}`)}</em>
+                            <b>{clampShiftHours(row.week[weekday].shift_hours)}</b>
                           </span>
                         ))}
                       </div>
@@ -403,31 +563,23 @@ const CompetenceManagerView = () => {
               </tbody>
             </table>
           )}
-
-          <p className="cmanager-hint">{t('scenarios.shared_competences_hint')}</p>
         </section>
       ) : (
-        <section className="cmanager-panel">
+        <div className="cmanager-columns">
+          <section className="cmanager-panel">
           <header className="cmanager-panel-head">
             <h2>{selected?.name}</h2>
-          </header>
-
-          <form className="cmanager-new" onSubmit={handleCreateScenario}>
-            <input
-              className="cmanager-input"
-              value={newScenarioName}
-              onChange={(e) => setNewScenarioName(e.target.value)}
-              placeholder={t('scenarios.new_placeholder')}
-              aria-label={t('scenarios.name')}
-            />
             <button
-              type="submit"
-              className="cmanager-btn cmanager-btn-primary"
+              type="button"
+              className="cmanager-btn cmanager-btn-primary cmanager-btn-icon"
               disabled={creatingScenario}
+              aria-label={t('scenarios.add')}
+              title={t('scenarios.add')}
+              onClick={handleCreateScenario}
             >
-              + {t('scenarios.add')}
+              +
             </button>
-          </form>
+          </header>
 
           {scenariosLoading && <p className="cmanager-note">{t('departments.loading')}</p>}
 
@@ -441,7 +593,6 @@ const CompetenceManagerView = () => {
                 <tr>
                   <th className="cmanager-col-radio">{t('scenarios.active_column')}</th>
                   <th className="cmanager-col-name">{t('scenarios.name')}</th>
-                  <th>{t('scenarios.competence_count')}</th>
                   <th className="cmanager-col-actions" />
                 </tr>
               </thead>
@@ -449,7 +600,18 @@ const CompetenceManagerView = () => {
                 {scenarios.map((scenario) => {
                   const isRenaming = renaming?.id === scenario.id;
                   return (
-                    <tr key={scenario.id} className={scenario.is_selected ? 'is-selected' : ''}>
+                    <tr
+                      key={scenario.id}
+                      className={[
+                        'cmanager-row',
+                        'is-openable',
+                        scenario.id === viewedScenario?.id ? 'is-viewed' : '',
+                        scenario.is_selected ? 'is-selected' : '',
+                      ]
+                        .join(' ')
+                        .trim()}
+                      onClick={(e) => handleRowClick(e, scenario)}
+                    >
                       <td className="cmanager-col-radio">
                         <input
                           type="radio"
@@ -467,73 +629,50 @@ const CompetenceManagerView = () => {
                             value={renaming.name}
                             autoFocus
                             onChange={(e) => setRenaming({ ...renaming, name: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') e.target.blur();
+                              if (e.key === 'Escape') cancelRename();
+                            }}
+                            onBlur={handleRenameBlur}
                             aria-label={t('scenarios.name')}
                           />
                         ) : (
                           <button
                             type="button"
                             className="cmanager-link"
-                            onClick={() => openScenario(scenario)}
+                            title={t('scenarios.rename_hint')}
+                            onClick={() => scheduleOpen(scenario)}
+                            onDoubleClick={() => handleRenameGesture(scenario)}
                           >
                             {scenario.name}
                           </button>
                         )}
                       </td>
 
-                      <td>{scenario.competence_count}</td>
-
                       <td className="cmanager-col-actions">
-                        {isRenaming ? (
-                          <>
-                            <button
-                              type="button"
-                              className="cmanager-btn cmanager-btn-primary"
-                              disabled={!renaming.name.trim()}
-                              onClick={handleSaveRename}
-                            >
-                              {t('departments.save')}
-                            </button>
-                            <button
-                              type="button"
-                              className="cmanager-btn"
-                              onClick={() => setRenaming(null)}
-                            >
-                              {t('departments.cancel')}
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              className="cmanager-btn"
-                              onClick={() => openScenario(scenario)}
-                            >
-                              {t('scenarios.open')}
-                            </button>
-                            <button
-                              type="button"
-                              className="cmanager-btn"
-                              onClick={() =>
-                                setRenaming({ id: scenario.id, name: scenario.name })
-                              }
-                            >
-                              {t('scenarios.rename')}
-                            </button>
-                            <button
-                              type="button"
-                              className="cmanager-btn cmanager-btn-danger"
-                              disabled={scenarios.length < 2}
-                              title={
-                                scenarios.length < 2
-                                  ? t('scenarios.delete_last_hint')
-                                  : t('scenarios.delete_hint')
-                              }
-                              onClick={() => setDeleteScenarioTarget(scenario)}
-                            >
-                              {t('competences.delete')}
-                            </button>
-                          </>
-                        )}
+                        <button
+                          type="button"
+                          className="cmanager-btn"
+                          disabled={duplicatingId != null}
+                          title={t('scenarios.duplicate_hint')}
+                          onClick={() => handleDuplicateScenario(scenario)}
+                        >
+                          {t('scenarios.duplicate')}
+                        </button>
+                        <button
+                          type="button"
+                          className="cmanager-btn cmanager-btn-danger cmanager-btn-icon"
+                          disabled={scenarios.length < 2}
+                          aria-label={t('scenarios.delete_hint')}
+                          title={
+                            scenarios.length < 2
+                              ? t('scenarios.delete_last_hint')
+                              : t('scenarios.delete_hint')
+                          }
+                          onClick={() => setDeleteScenarioTarget(scenario)}
+                        >
+                          ×
+                        </button>
                       </td>
                     </tr>
                   );
@@ -541,9 +680,94 @@ const CompetenceManagerView = () => {
               </tbody>
             </table>
           )}
-
-          <p className="cmanager-hint">{t('scenarios.list_hint')}</p>
         </section>
+
+        {overview.length > 0 && (
+          <aside className="cmanager-summary">
+            <h3>
+              {t('scenarios.overview_title')}
+              <span className="cmanager-badge">{viewedScenario?.name}</span>
+              <button
+                type="button"
+                className="cmanager-btn cmanager-btn-primary cmanager-btn-icon"
+                aria-label={t('competences.add_competence')}
+                title={t('competences.add_competence')}
+                onClick={() => setEditorTarget('new')}
+              >
+                +
+              </button>
+            </h3>
+            <table className="cmanager-table cmanager-summary-table">
+              <thead>
+                <tr>
+                  <th className="cmanager-col-name">
+                    {t('competence_manager.name')}
+                    <span className="cmanager-desc">
+                      {t('scenarios.overview_legend')}
+                    </span>
+                  </th>
+                  {ISO_WEEKDAYS.map((weekday) => (
+                    <th
+                      key={weekday}
+                      className={weekday >= 5 ? 'is-weekend' : ''}
+                    >
+                      {t(`workload.days.${weekday}`)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {overviewRows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="cmanager-row is-openable"
+                    title={t('competence_manager.edit')}
+                    onClick={(e) => {
+                      // The delete cross is the row's one other control.
+                      if (e.target.closest('button')) return;
+                      setEditorTarget(row);
+                    }}
+                  >
+                    <td className="cmanager-col-name">
+                      {row.name}
+                      <button
+                        type="button"
+                        className="cmanager-btn cmanager-btn-danger cmanager-btn-icon cmanager-summary-delete"
+                        aria-label={t('competences.delete_hint')}
+                        title={t('competences.delete_hint')}
+                        onClick={() => setDeleteCompetenceTarget(row)}
+                      >
+                        ×
+                      </button>
+                      <span className="cmanager-desc">
+                        {t(`scenarios.types.${normalizeCompetenceType(row.competence_type)}`)}
+                      </span>
+                    </td>
+                    {ISO_WEEKDAYS.map((weekday) => (
+                      <td
+                        key={weekday}
+                        className={`cmanager-summary-cell ${weekday >= 5 ? 'is-weekend' : ''}`}
+                      >
+                        <b>{row.week[weekday].required_count}</b>
+                        <em>
+                          {t('scenarios.hours_short', {
+                            hours: clampShiftHours(row.week[weekday].shift_hours),
+                          })}
+                        </em>
+                        <em>
+                          {t('scenarios.recovery_short', {
+                            days: clampRecoveryDays(row.week[weekday].recovery_days),
+                          })}
+                        </em>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </aside>
+        )}
+        </div>
       )}
 
       {toast && (

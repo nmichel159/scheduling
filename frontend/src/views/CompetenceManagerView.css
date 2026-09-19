@@ -5,15 +5,9 @@
 }
 
 .cmanager-title {
-  margin: 0;
+  margin: 0 0 16px;
   font-size: 1.5rem;
   color: var(--text-h);
-}
-
-.cmanager-subtitle {
-  margin: 6px 0 20px;
-  font-size: 0.86rem;
-  opacity: 0.75;
 }
 
 .cmanager-banner {
@@ -32,8 +26,17 @@
   padding: 16px;
 }
 
+.cmanager-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.cmanager-panel-head .cmanager-btn-icon { margin-left: auto; }
+
 .cmanager-panel-head h2 {
-  margin: 0 0 14px;
+  margin: 0;
   font-size: 1.1rem;
   color: var(--text-h);
 }
@@ -86,6 +89,23 @@
 }
 
 .cmanager-col-name { min-width: 200px; }
+
+/* Clicking a row shows that scenario in the table beside the list, so the
+   row has to look clickable and say which one is on screen. */
+.cmanager-row.is-openable { cursor: pointer; }
+.cmanager-row:hover { background: var(--primary-background); }
+
+.cmanager-row.is-viewed > td:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.cmanager-row.is-viewed { background: var(--primary-background); }
+
+.cmanager-btn-icon {
+  padding: 4px 10px;
+  font-size: 1rem;
+  line-height: 1.1;
+}
 
 .cmanager-col-actions {
   text-align: right;
@@ -235,13 +255,10 @@
 
 .cmanager-new .cmanager-btn { margin-left: 0; }
 
-.cmanager-note,
-.cmanager-hint {
+.cmanager-note {
   font-size: 0.82rem;
   opacity: 0.7;
 }
-
-.cmanager-hint { margin: 16px 0 0; }
 
 .cmanager-toast {
   position: fixed;
@@ -272,4 +289,119 @@
   .cmanager-col-actions .cmanager-btn:first-child { margin-left: 0; }
   .cmanager-col-radio { width: auto; text-align: left; }
   .cmanager-detail-workplace { margin-left: 0; }
+
+  .cmanager-columns { flex-direction: column; }
+  .cmanager-summary { width: 100%; }
+
+  /* The summary is a real grid — a competence against the seven days — so
+     stacking its cells would destroy it. It scrolls sideways instead. */
+  .cmanager-summary { overflow-x: auto; }
+  .cmanager-summary-table { display: table; min-width: 460px; }
+  .cmanager-summary-table thead { display: table-header-group; }
+  .cmanager-summary-table tbody { display: table-row-group; }
+  .cmanager-summary-table tr { display: table-row; padding: 0; }
+  .cmanager-summary-table td { display: table-cell; padding: 6px 4px; }
 }
+
+.cmanager-type {
+  display: inline-block;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.cmanager-type.is-surcharge {
+  background: var(--primary-background);
+  border-color: var(--primary);
+}
+
+/* ---------- active scenario summary ---------- */
+
+/* The summary stands beside the scenario list rather than under it, and
+   stays as narrow as its seven day columns need. */
+.cmanager-columns {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+/* The scenario table keeps its buttons on one line, so when the column is
+   narrower than that it scrolls inside its own panel instead of painting
+   over the card beside it. */
+.cmanager-columns > .cmanager-panel {
+  flex: 1 1 420px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.cmanager-summary {
+  flex: 0 1 auto;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 0.8rem;
+}
+
+.cmanager-summary h3 {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cmanager-summary-table { font-size: 0.78rem; }
+.cmanager-summary-table th,
+.cmanager-summary-table td { padding: 4px 6px; }
+.cmanager-summary-table .cmanager-col-name { min-width: 0; }
+
+/* One column per weekday, so the whole staffing week of the workplace is
+   one glance: the count on top, the hours it lasts beneath it. */
+.cmanager-summary-table th { text-align: center; }
+.cmanager-summary-table th.cmanager-col-name { text-align: left; }
+.cmanager-summary-table th.is-weekend { color: var(--primary); }
+
+.cmanager-summary-cell {
+  text-align: center;
+  line-height: 1.25;
+}
+
+.cmanager-summary-cell.is-weekend { background: var(--primary-background); }
+
+.cmanager-summary-cell b {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.cmanager-summary-cell em {
+  display: block;
+  font-style: normal;
+  font-size: 0.7rem;
+  opacity: 0.65;
+}
+
+/* The three figures of a cell are read top to bottom: people, hours,
+   recovery. The legend in the corner says so once for the whole table. */
+.cmanager-summary-cell em + em { opacity: 0.5; }
+
+.cmanager-summary h3 .cmanager-btn-icon { margin-left: auto; }
+
+@media (max-width: 1100px) {
+  .cmanager-columns { flex-direction: column; }
+  .cmanager-summary { align-self: stretch; }
+}
+
+/* The delete cross sits beside the competence name and only asserts itself
+   once the row is under the pointer. */
+.cmanager-summary-delete {
+  margin-left: 6px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.cmanager-summary-table tr:hover .cmanager-summary-delete,
+.cmanager-summary-delete:focus-visible { opacity: 1; }

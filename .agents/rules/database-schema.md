@@ -83,6 +83,8 @@ This means that two ambulances may have competences with the same name, but they
 * id
 * name
 * description
+* competence_type -- kind of duty the competence stands for
+  ("standard" or "surcharge"); workplace-wide, the same in every scenario
 * ambulance_id
 * created_at
 * updated_at
@@ -143,6 +145,8 @@ Monday is 0 and Sunday is 6.
 * required_count -- people needed that day; 0 means the day is not staffed
 * recovery_days -- days off a duty on that weekday costs its holder before
   the same competence may be assigned to them again
+* shift_hours -- how long a duty on that weekday lasts, in hours (4 by
+  default); like the counts it belongs to the scenario
 
 ### Relationships
 

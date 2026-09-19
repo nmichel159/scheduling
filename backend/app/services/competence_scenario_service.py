@@ -22,6 +22,8 @@ from app.models.competence import Competence
 from app.models.competence_scenario import CompetenceScenario
 from app.models.competence_weekday_requirement import (
     DEFAULT_RECOVERY_DAYS,
+    DEFAULT_REQUIRED_COUNT,
+    DEFAULT_SHIFT_HOURS,
     CompetenceWeekdayRequirement,
 )
 from app.schemas.competence_scenario import (
@@ -152,13 +154,17 @@ def materialize_scenario(
     db: Session,
     scenario: CompetenceScenario,
     source_scenario_id: int | None = None,
+    use_defaults: bool = False,
 ) -> None:
     """Give the scenario a complete weekly row for every active competence.
 
     Missing rows are filled from ``source_scenario_id`` when one is given and
-    has them, and otherwise from the competence's legacy all-days count with
-    the default recovery. Rows the scenario already has are left alone, so
-    this is safe to re-run after a competence is added.
+    has them. Otherwise they start from the defaults -- one person, four
+    hours, one recovery day -- when ``use_defaults`` says this is a fresh
+    model case, and from the competence's legacy all-days count when it is a
+    workplace being healed into its first scenario, whose numbers predate
+    scenarios and must not be thrown away. Rows the scenario already has are
+    left alone, so this is safe to re-run after a competence is added.
     """
     competences = (
         db.query(Competence)
@@ -183,7 +189,11 @@ def materialize_scenario(
 
     created = False
     for competence in competences:
-        fallback_count = max(0, competence.required_count or 0)
+        fallback_count = (
+            DEFAULT_REQUIRED_COUNT
+            if use_defaults
+            else max(0, competence.required_count or 0)
+        )
         for weekday in range(7):
             if (competence.id, weekday) in existing:
                 continue
@@ -198,6 +208,9 @@ def materialize_scenario(
                     ),
                     recovery_days=(
                         template.recovery_days if template else DEFAULT_RECOVERY_DAYS
+                    ),
+                    shift_hours=(
+                        template.shift_hours if template else DEFAULT_SHIFT_HOURS
                     ),
                 )
             )
@@ -259,7 +272,12 @@ def create_scenario(
     db.add(scenario)
     commit_or_conflict(db, DUPLICATE_NAME_DETAIL)
     db.refresh(scenario)
-    materialize_scenario(db, scenario, source_scenario_id=source_id)
+    materialize_scenario(
+        db,
+        scenario,
+        source_scenario_id=source_id,
+        use_defaults=source_id is None,
+    )
     return scenario
 
 

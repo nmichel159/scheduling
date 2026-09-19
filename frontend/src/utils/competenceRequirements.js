@@ -7,6 +7,27 @@ export const legacyRequiredCount = (column) =>
  *  a Monday duty frees its holder again on Wednesday. */
 export const DEFAULT_RECOVERY_DAYS = 1;
 
+/** Hours a duty lasts when the record does not say. */
+export const DEFAULT_SHIFT_HOURS = 4;
+
+/** Longest a single duty may last. */
+export const MAX_SHIFT_HOURS = 24;
+
+export const clampShiftHours = (value) => {
+  const hours = Math.round(Number(value) * 4) / 4;
+  if (!Number.isFinite(hours)) return DEFAULT_SHIFT_HOURS;
+  return Math.min(MAX_SHIFT_HOURS, Math.max(0, hours));
+};
+
+/** Kinds of duty a competence can stand for; the backend validates the same
+ *  list. A new kind needs a value here and a label in the locale files. */
+export const COMPETENCE_TYPES = ['standard', 'surcharge'];
+
+export const DEFAULT_COMPETENCE_TYPE = 'standard';
+
+export const normalizeCompetenceType = (value) =>
+  COMPETENCE_TYPES.includes(value) ? value : DEFAULT_COMPETENCE_TYPE;
+
 /** Largest rest a duty may cost — a full week minus the duty day itself. */
 export const MAX_RECOVERY_DAYS = 6;
 
@@ -34,6 +55,7 @@ export const normalizeWeekdayRequirements = (column) => {
         recovery_days: clampRecoveryDays(
           item.recovery_days ?? DEFAULT_RECOVERY_DAYS
         ),
+        shift_hours: clampShiftHours(item.shift_hours ?? DEFAULT_SHIFT_HOURS),
       },
     ])
   );
@@ -43,11 +65,13 @@ export const normalizeWeekdayRequirements = (column) => {
     required_count: configured.get(weekday)?.required_count ?? fallback,
     recovery_days:
       configured.get(weekday)?.recovery_days ?? DEFAULT_RECOVERY_DAYS,
+    shift_hours: configured.get(weekday)?.shift_hours ?? DEFAULT_SHIFT_HOURS,
   }));
 };
 
 export const normalizeCompetenceRequirements = (column) => ({
   ...column,
+  competence_type: normalizeCompetenceType(column.competence_type),
   weekday_requirements: normalizeWeekdayRequirements(column),
 });
 

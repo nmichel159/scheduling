@@ -106,54 +106,70 @@
   line-height: 1.4;
 }
 
-/* ---------- required counts ---------- */
+/* ---------- week grid ---------- */
 
-.ceditor-counts {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+/* One column per weekday, so "how many people" and "for how long" line up
+   under the same day. The label and the tie box are the outer columns. */
+.ceditor-grid {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
 }
 
-.ceditor-count {
-  display: flex;
-  flex-direction: column;
+.ceditor-grid-row {
+  display: grid;
+  grid-template-columns:
+    minmax(96px, 1.2fr) repeat(7, minmax(40px, 1fr)) minmax(88px, 1fr);
   align-items: center;
-  gap: 4px;
-  padding: 6px 2px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
+  gap: 6px;
 }
 
-.ceditor-count.is-weekend { background: var(--primary-background); }
-
-.ceditor-count > span {
+.ceditor-grid-head {
   font-size: 0.68rem;
   opacity: 0.7;
 }
 
-.ceditor-count input {
-  width: 100%;
+.ceditor-grid-day { text-align: center; }
+
+.ceditor-grid-day.is-weekend {
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+.ceditor-grid-label { font-size: 0.82rem; }
+
+.ceditor-grid-input {
   min-width: 0;
-  border: 0;
-  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
   color: var(--text-h);
   font: inherit;
   font-size: 0.9rem;
   font-weight: 700;
   text-align: center;
-  padding: 0;
+  padding: 7px 2px;
 }
+
+.ceditor-grid-input.is-weekend { background: var(--primary-background); }
 
 /* Spinners would not survive the narrow column; the field is still
    arrow-key and keyboard editable without them. */
-.ceditor-count input::-webkit-outer-spin-button,
-.ceditor-count input::-webkit-inner-spin-button {
+.ceditor-grid-input::-webkit-outer-spin-button,
+.ceditor-grid-input::-webkit-inner-spin-button {
   appearance: none;
   margin: 0;
 }
 
-.ceditor-count input { appearance: textfield; }
+.ceditor-grid-input { appearance: textfield; }
+
+.ceditor-grid-tie {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
 
 /* ---------- recovery ---------- */
 
@@ -255,8 +271,13 @@
 
 @media (max-width: 640px) {
   .ceditor-body { padding: 14px; }
-  .ceditor-counts { gap: 4px; }
-  .ceditor-count { padding: 4px 1px; }
+  .ceditor-grid-row {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .ceditor-grid-label,
+  .ceditor-grid-tie { grid-column: 1 / -1; }
+  .ceditor-grid-input { padding: 6px 1px; }
 
   /* At this width the label and the day count no longer fit beside the
      seven-slot track, so each row stacks instead of scrolling sideways. */
@@ -271,3 +292,4 @@
     padding-top: 8px;
   }
 }
+
