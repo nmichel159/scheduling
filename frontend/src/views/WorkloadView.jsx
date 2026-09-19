@@ -6,6 +6,8 @@ import {
   createUnavailability,
   updateUnavailability,
   deleteUnavailability,
+  fetchMonthlyWish,
+  saveMonthlyWish,
 } from '../services/unavailabilityService';
 import './WorkloadView.css';
 
@@ -22,6 +24,8 @@ const WorkloadView = () => {
   );
   const updateEntry = useCallback((id, reason) => updateUnavailability(id, reason), []);
   const deleteEntry = useCallback((id) => deleteUnavailability(id), []);
+  const loadWish = useCallback(() => fetchMonthlyWish(), []);
+  const storeWish = useCallback((value) => saveMonthlyWish(value), []);
 
   return (
     <div className="workload">
@@ -31,6 +35,8 @@ const WorkloadView = () => {
         createEntry={createEntry}
         updateEntry={updateEntry}
         deleteEntry={deleteEntry}
+        fetchMonthlyWish={loadWish}
+        saveMonthlyWish={storeWish}
       />
     </div>
   );

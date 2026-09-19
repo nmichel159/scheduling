@@ -23,6 +23,9 @@ class User(Base):
     auth_token = Column(String(64), nullable=True, index=True)
     auth_token_expires_at = Column(DateTime(timezone=True), nullable=True)
     login_count = Column(Integer, default=0)
+    # How many duties a month the employee wants at most. NULL means no
+    # opinion, which is not the same as wishing for zero duties.
+    max_shifts_per_month = Column(Integer, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())

@@ -111,21 +111,15 @@
   cursor: default;
   min-height: 0;
 }
-/* --- Three-state day cells -------------------------------------------------
-   is-none      neutral, grey (default look)
-   is-blocked   red   — the day does not suit the user
-   is-preferred green — the user would like to work that day
-   Colors are literals rather than tokens: the theme has no semantic
-   red/green pair, and these two must read the same in light and dark. */
-
-.workload-cell.is-blocked {
-  background: rgba(239, 83, 80, 0.18);
-  border-color: rgba(239, 83, 80, 0.75);
-}
-.workload-cell.is-blocked:hover:not(:disabled) {
-  border-color: #ef5350;
-  background: rgba(239, 83, 80, 0.26);
-}
+/* --- Day cells ------------------------------------------------------------
+   is-none           neutral, grey (default look)
+   is-preferred      green  - I want this day
+   is-soft-decline   amber  - I would rather not, but I can
+   is-unavailable    red    - I cannot
+   is-vacation       blue   - leave
+   is-business-trip  purple - business trip
+   Colors are literals rather than tokens: the theme has no semantic palette
+   for these, and they must read the same in light and dark. */
 
 .workload-cell.is-preferred {
   background: rgba(102, 187, 106, 0.18);
@@ -135,6 +129,47 @@
   border-color: #66bb6a;
   background: rgba(102, 187, 106, 0.26);
 }
+.workload-cell.is-preferred .workload-cell-mark { color: #66bb6a; }
+
+.workload-cell.is-soft-decline {
+  background: rgba(255, 167, 38, 0.18);
+  border-color: rgba(255, 167, 38, 0.75);
+}
+.workload-cell.is-soft-decline:hover:not(:disabled) {
+  border-color: #ffa726;
+  background: rgba(255, 167, 38, 0.26);
+}
+.workload-cell.is-soft-decline .workload-cell-mark { color: #ef8f00; }
+
+.workload-cell.is-unavailable {
+  background: rgba(239, 83, 80, 0.18);
+  border-color: rgba(239, 83, 80, 0.75);
+}
+.workload-cell.is-unavailable:hover:not(:disabled) {
+  border-color: #ef5350;
+  background: rgba(239, 83, 80, 0.26);
+}
+.workload-cell.is-unavailable .workload-cell-mark { color: #ef5350; }
+
+.workload-cell.is-vacation {
+  background: rgba(66, 165, 245, 0.18);
+  border-color: rgba(66, 165, 245, 0.75);
+}
+.workload-cell.is-vacation:hover:not(:disabled) {
+  border-color: #42a5f5;
+  background: rgba(66, 165, 245, 0.26);
+}
+.workload-cell.is-vacation .workload-cell-mark { color: #1e88e5; }
+
+.workload-cell.is-business-trip {
+  background: rgba(171, 71, 188, 0.18);
+  border-color: rgba(171, 71, 188, 0.75);
+}
+.workload-cell.is-business-trip:hover:not(:disabled) {
+  border-color: #ab47bc;
+  background: rgba(171, 71, 188, 0.26);
+}
+.workload-cell.is-business-trip .workload-cell-mark { color: #ab47bc; }
 
 .workload-cell.is-today { border-width: 2px; }
 
@@ -149,8 +184,6 @@
   font-weight: 700;
   line-height: 1;
 }
-.workload-cell.is-blocked .workload-cell-mark { color: #ef5350; }
-.workload-cell.is-preferred .workload-cell-mark { color: #66bb6a; }
 
 /* --- Legend --- */
 
@@ -176,13 +209,25 @@
   border: 1px solid var(--border);
   flex-shrink: 0;
 }
-.workload-legend-swatch.is-blocked {
-  background: rgba(239, 83, 80, 0.18);
-  border-color: rgba(239, 83, 80, 0.75);
-}
 .workload-legend-swatch.is-preferred {
   background: rgba(102, 187, 106, 0.18);
   border-color: rgba(102, 187, 106, 0.75);
+}
+.workload-legend-swatch.is-soft-decline {
+  background: rgba(255, 167, 38, 0.18);
+  border-color: rgba(255, 167, 38, 0.75);
+}
+.workload-legend-swatch.is-unavailable {
+  background: rgba(239, 83, 80, 0.18);
+  border-color: rgba(239, 83, 80, 0.75);
+}
+.workload-legend-swatch.is-vacation {
+  background: rgba(66, 165, 245, 0.18);
+  border-color: rgba(66, 165, 245, 0.75);
+}
+.workload-legend-swatch.is-business-trip {
+  background: rgba(171, 71, 188, 0.18);
+  border-color: rgba(171, 71, 188, 0.75);
 }
 .workload-legend-swatch.is-none {
   background: var(--code-background);
@@ -191,7 +236,35 @@
 .workload-footer {
   margin-top: 14px;
   font-size: 0.8rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
 }
+
+/* --- Monthly duty wish ---
+   Sits in the header next to the month navigation: it is set about as often
+   as the month is changed, and both belong to the calendar as a whole. */
+
+.workload-wish {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  font-size: 0.85rem;
+}
+
+.workload-wish-label { font-weight: 600; }
+
+.workload-wish-input {
+  width: 84px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-background);
+  color: inherit;
+  font: inherit;
+}
+
 
 .workload-toast {
   position: fixed;

@@ -26,6 +26,7 @@ from app.schemas.ambulance_competences import (
     AmbulanceEmployeeCompetenceTableUpdate,
 )
 from app.schemas.unavailability import (
+    MonthlyDutyWish,
     UnavailabilityCreate,
     UnavailabilityResponse,
     UnavailabilityUpdate,
@@ -45,7 +46,9 @@ from app.services.ambulance_competence_service import (
 from app.services.unavailability_service import (
     create_unavailability,
     delete_unavailability,
+    get_monthly_duty_wish,
     get_unavailabilities,
+    set_monthly_duty_wish,
     update_unavailability,
 )
 
@@ -191,6 +194,33 @@ def list_employee_unavailabilities_endpoint(
         after_date,
         after_id,
     )
+
+
+@router.get(
+    "/{ambulance_id}/employees/{user_id}/unavailabilities/monthly-wish",
+    response_model=MonthlyDutyWish,
+    summary="Get an employee's monthly duty wish",
+)
+def get_employee_monthly_duty_wish_endpoint(
+    employee: User = Depends(get_managed_employee),
+    db: Session = Depends(get_db),
+) -> MonthlyDutyWish:
+    """Return the monthly duty wish of an employee of the managed ambulance."""
+    return get_monthly_duty_wish(db, employee.id)
+
+
+@router.put(
+    "/{ambulance_id}/employees/{user_id}/unavailabilities/monthly-wish",
+    response_model=MonthlyDutyWish,
+    summary="Set an employee's monthly duty wish",
+)
+def set_employee_monthly_duty_wish_endpoint(
+    data: MonthlyDutyWish,
+    employee: User = Depends(get_managed_employee),
+    db: Session = Depends(get_db),
+) -> MonthlyDutyWish:
+    """Store the monthly duty wish of an employee of the managed ambulance."""
+    return set_monthly_duty_wish(db, employee.id, data)
 
 
 @router.post(

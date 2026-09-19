@@ -43,6 +43,21 @@ PREFERRED_UNAVAILABILITY_REASON = "PREFERRED"
 # buy an honored request with a less balanced roster.
 PREFERENCE_REWARD_BUDGET = 1.0
 
+#: Marked by an employee who would rather not work a day but still can.
+#: Unlike every other reason, it does not block an assignment.
+SOFT_DECLINE_UNAVAILABILITY_REASON = "SOFT_DECLINE"
+
+# The mirror image of PREFERRED_REWARD_BUDGET: one budget shared by every
+# reluctant day, so avoiding them orders equally balanced schedules and never
+# outweighs the balance itself.
+SOFT_DECLINE_PENALTY_BUDGET = 1.0
+
+# What one duty above an employee's monthly wish costs. The wish is a wish,
+# not a cap: exceeding it stays feasible, but at a price far above any
+# balance step, so the solver only does it when the month cannot be staffed
+# otherwise.
+OVER_WISH_DUTY_COST = 1000.0
+
 
 @dataclass(frozen=True)
 class SchedulingCompetence:
@@ -89,6 +104,10 @@ class SchedulingEmployee:
     unavailable_dates: frozenset[date]
     externally_scheduled_dates: frozenset[date]
     preferred_dates: frozenset[date] = frozenset()
+    #: Days the employee would rather not work, but can if needed.
+    soft_declined_dates: frozenset[date] = frozenset()
+    #: The most duties a month the employee wants; None means no opinion.
+    max_shifts_per_month: int | None = None
 
 
 @dataclass(frozen=True)
@@ -182,9 +201,14 @@ def _is_hard_unavailability(reason: str | None) -> bool:
 
     The UI stores preferred days in the unavailability table as a transitional
     representation. A preferred day is the opposite of an absence: it never
-    blocks an assignment, and it is rewarded by the objective instead.
+    blocks an assignment, and it is rewarded by the objective instead. A
+    reluctant day ("I would rather not") sits between the two: it is a wish
+    the objective pays for, not an absence.
     """
-    return reason != PREFERRED_UNAVAILABILITY_REASON
+    return reason not in (
+        PREFERRED_UNAVAILABILITY_REASON,
+        SOFT_DECLINE_UNAVAILABILITY_REASON,
+    )
 
 
 def _rest_blocked_dates(scheduled_dates: frozenset[date]) -> frozenset[date]:
@@ -401,6 +425,11 @@ def solve_monthly_schedule(
         for employee in employees
         if employee.preferred_dates
     }
+    soft_declined_dates_by_employee = {
+        employee.id: employee.soft_declined_dates
+        for employee in employees
+        if employee.soft_declined_dates
+    }
     capacity_issues = _detect_capacity_issues(
         variables,
         competences,
@@ -464,8 +493,19 @@ def solve_monthly_schedule(
         # Costs 1, 3, 5, ... linearize workload squared. The convex cost makes
         # every additional duty progressively less attractive for an already
         # busy employee and can later be generalized to hour-based segments.
+        # A duty past the employee's own monthly wish carries a flat extra
+        # charge on top of its marginal balance cost.
+        wished_maximum = employee.max_shifts_per_month
         marginal_workload_costs.extend(
-            (2 * level - 1) * workload_level
+            (
+                (2 * level - 1)
+                + (
+                    OVER_WISH_DUTY_COST
+                    if wished_maximum is not None and level > wished_maximum
+                    else 0.0
+                )
+            )
+            * workload_level
             for level, workload_level in enumerate(workload_levels, start=1)
         )
 
@@ -482,6 +522,17 @@ def solve_monthly_schedule(
         # balanced schedules.
         preference_reward = PREFERENCE_REWARD_BUDGET / (len(preferred_variables) + 1)
         objective -= preference_reward * lpSum(preferred_variables)
+
+    soft_declined_variables = [
+        variable
+        for (user_id, _competence_id, work_date), variable in variables.items()
+        if work_date in soft_declined_dates_by_employee.get(user_id, frozenset())
+    ]
+    if soft_declined_variables:
+        decline_penalty = SOFT_DECLINE_PENALTY_BUDGET / (
+            len(soft_declined_variables) + 1
+        )
+        objective += decline_penalty * lpSum(soft_declined_variables)
 
     problem += objective
     problem.solve(
@@ -587,6 +638,7 @@ def generate_ambulance_monthly_schedule(
 
     unavailable_dates: dict[int, set[date]] = {user_id: set() for user_id in user_ids}
     preferred_dates: dict[int, set[date]] = {user_id: set() for user_id in user_ids}
+    soft_declined_dates: dict[int, set[date]] = {user_id: set() for user_id in user_ids}
     if user_ids:
         unavailability_rows = (
             db.query(
@@ -604,6 +656,8 @@ def generate_ambulance_monthly_schedule(
         for user_id, unavailable_date, reason in unavailability_rows:
             if _is_hard_unavailability(reason):
                 unavailable_dates[user_id].add(unavailable_date)
+            elif reason == SOFT_DECLINE_UNAVAILABILITY_REASON:
+                soft_declined_dates[user_id].add(unavailable_date)
             else:
                 preferred_dates[user_id].add(unavailable_date)
 
@@ -652,6 +706,8 @@ def generate_ambulance_monthly_schedule(
             unavailable_dates=frozenset(unavailable_dates[user.id]),
             externally_scheduled_dates=frozenset(externally_scheduled_dates[user.id]),
             preferred_dates=frozenset(preferred_dates[user.id]),
+            soft_declined_dates=frozenset(soft_declined_dates[user.id]),
+            max_shifts_per_month=user.max_shifts_per_month,
         )
         for user in user_rows
     ]

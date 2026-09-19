@@ -285,7 +285,9 @@ def _validate_entries(
             Unavailability.is_active.is_(True),
         )
         .all()
-        if (reason or "").strip().upper() != "PREFERRED"
+        # "Preferred" and "would rather not" are wishes about a day, not
+        # absences: neither blocks a manual assignment.
+        if (reason or "").strip().upper() not in ("PREFERRED", "SOFT_DECLINE")
     }
     scheduled_ambulances: dict[tuple[int, date], set[int]] = {}
     schedule_rows = (

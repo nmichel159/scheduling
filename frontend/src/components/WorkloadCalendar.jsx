@@ -3,14 +3,26 @@ import { useTranslation } from 'react-i18next';
 import {
   stateOfRecord,
   DAY_STATE,
-  REASON_BLOCKED,
-  REASON_PREFERRED,
+  MARKABLE_STATES,
+  REASON_BY_STATE,
 } from '../services/unavailabilityService';
 import '../views/WorkloadView.css';
 
 const pad = (n) => String(n).padStart(2, '0');
 const isoDate = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const isoWeekday = (dateObj) => (dateObj.getDay() + 6) % 7;
+
+/** The glyph drawn in the corner of a marked day. */
+const MARK_BY_STATE = {
+  [DAY_STATE.PREFERRED]: '✓',
+  [DAY_STATE.SOFT_DECLINE]: '~',
+  [DAY_STATE.UNAVAILABLE]: '✕',
+  [DAY_STATE.VACATION]: '☀',
+  [DAY_STATE.BUSINESS_TRIP]: '✈',
+};
+
+/** The order one day walks through, one click at a time. */
+const STATE_CYCLE = [DAY_STATE.NONE, ...MARKABLE_STATES];
 
 function buildMonthCells(year, month) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -22,7 +34,7 @@ function buildMonthCells(year, month) {
   return cells;
 }
 
-/** Reusable three-state monthly restriction calendar. */
+/** Reusable monthly restriction calendar; a click walks a day through the states. */
 const WorkloadCalendar = ({
   title,
   titleLevel = 1,
@@ -30,6 +42,8 @@ const WorkloadCalendar = ({
   createEntry,
   updateEntry,
   deleteEntry,
+  fetchMonthlyWish,
+  saveMonthlyWish,
 }) => {
   const { t, i18n } = useTranslation();
   const TitleTag = `h${titleLevel}`;
@@ -39,6 +53,7 @@ const WorkloadCalendar = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [toast, setToast] = useState(null);
+  const [wish, setWish] = useState('');
   const pendingRef = useRef(new Set());
   const toastTimerRef = useRef(null);
 
@@ -59,13 +74,12 @@ const WorkloadCalendar = ({
     [t]
   );
   const counts = useMemo(() => {
-    let blocked = 0;
-    let preferred = 0;
+    const byState = {};
     Object.values(entries).forEach((record) => {
-      if (stateOfRecord(record) === DAY_STATE.PREFERRED) preferred += 1;
-      else blocked += 1;
+      const state = stateOfRecord(record);
+      byState[state] = (byState[state] || 0) + 1;
     });
-    return { blocked, preferred };
+    return byState;
   }, [entries]);
 
   useEffect(
@@ -107,6 +121,24 @@ const WorkloadCalendar = ({
     loadMonth();
   }, [loadMonth]);
 
+  // The wish belongs to the employee, not to the month on screen, so it is
+  // loaded once per calendar rather than again with every month change.
+  useEffect(() => {
+    if (!fetchMonthlyWish) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const value = await fetchMonthlyWish();
+        if (!cancelled) setWish(value == null ? '' : String(value));
+      } catch {
+        // A wish that cannot be read must not hide the calendar.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchMonthlyWish]);
+
   const shiftMonth = (delta) => {
     setView(({ y, m }) => {
       const date = new Date(y, m + delta, 1);
@@ -124,38 +156,44 @@ const WorkloadCalendar = ({
       return next;
     });
 
-  const cycleDay = async (day) => {
-    if (isPastMonth || day == null) return;
-    const dateStr = isoDate(view.y, view.m, day);
+  /** Advance one day to the next state in the cycle. */
+  const cycleDay = async (dateStr) => {
+    if (isPastMonth) return;
     if (pendingRef.current.has(dateStr)) return;
 
     const existing = entries[dateStr] || null;
     const current = stateOfRecord(existing);
+    const nextState =
+      STATE_CYCLE[(STATE_CYCLE.indexOf(current) + 1) % STATE_CYCLE.length];
     pendingRef.current.add(dateStr);
 
     try {
-      if (current === DAY_STATE.NONE) {
-        putEntry(dateStr, { id: null, date_absent: dateStr, reason: REASON_BLOCKED });
+      if (nextState === DAY_STATE.NONE) {
+        if (existing?.id == null) return;
+        dropEntry(dateStr);
         try {
-          putEntry(dateStr, await createEntry(dateStr, REASON_BLOCKED));
-        } catch {
-          dropEntry(dateStr);
-          notify(t('workload.save_error'));
-        }
-      } else if (current === DAY_STATE.BLOCKED) {
-        if (existing.id == null) return;
-        putEntry(dateStr, { ...existing, reason: REASON_PREFERRED });
-        try {
-          putEntry(dateStr, await updateEntry(existing.id, REASON_PREFERRED));
+          await deleteEntry(existing.id);
         } catch {
           putEntry(dateStr, existing);
           notify(t('workload.save_error'));
         }
+        return;
+      }
+
+      const reason = REASON_BY_STATE[nextState];
+      if (existing == null) {
+        putEntry(dateStr, { id: null, date_absent: dateStr, reason });
+        try {
+          putEntry(dateStr, await createEntry(dateStr, reason));
+        } catch {
+          dropEntry(dateStr);
+          notify(t('workload.save_error'));
+        }
       } else {
         if (existing.id == null) return;
-        dropEntry(dateStr);
+        putEntry(dateStr, { ...existing, reason });
         try {
-          await deleteEntry(existing.id);
+          putEntry(dateStr, await updateEntry(existing.id, reason));
         } catch {
           putEntry(dateStr, existing);
           notify(t('workload.save_error'));
@@ -166,10 +204,48 @@ const WorkloadCalendar = ({
     }
   };
 
+  const commitWish = async (raw) => {
+    if (!saveMonthlyWish) return;
+    const trimmed = raw.trim();
+    const value = trimmed === '' ? null : Number(trimmed);
+    if (value != null && (!Number.isInteger(value) || value < 0 || value > 31)) {
+      notify(t('workload.wish_invalid'));
+      return;
+    }
+    try {
+      const saved = await saveMonthlyWish(value);
+      setWish(saved == null ? '' : String(saved));
+    } catch {
+      notify(t('workload.save_error'));
+    }
+  };
+
   return (
     <>
       <header className="workload-head">
         {title && <TitleTag className="workload-title">{title}</TitleTag>}
+        {saveMonthlyWish && (
+          <div className="workload-wish">
+            <label className="workload-wish-label" htmlFor="workload-wish-input">
+              {t('workload.wish_label')}
+            </label>
+            <input
+              id="workload-wish-input"
+              className="workload-wish-input"
+              type="number"
+              min="0"
+              max="31"
+              inputMode="numeric"
+              placeholder={t('workload.wish_placeholder')}
+              value={wish}
+              onChange={(event) => setWish(event.target.value)}
+              onBlur={(event) => commitWish(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.currentTarget.blur();
+              }}
+            />
+          </div>
+        )}
         <div className="workload-monthnav" role="group" aria-label={t('workload.month_nav')}>
           <button type="button" className="workload-navbtn" onClick={() => shiftMonth(-1)} aria-label={t('workload.prev_month')}>
             ‹
@@ -182,17 +258,15 @@ const WorkloadCalendar = ({
       </header>
 
       <div className="workload-legend">
-        <span className="workload-legend-item">
-          <span className="workload-legend-swatch is-blocked" />
-          {t('workload.legend_blocked')}
-        </span>
-        <span className="workload-legend-item">
-          <span className="workload-legend-swatch is-preferred" />
-          {t('workload.legend_preferred')}
-        </span>
+        {MARKABLE_STATES.map((state) => (
+          <span key={state} className="workload-legend-item">
+            <span className={`workload-legend-swatch is-${state}`} />
+            {t(`workload.states.${state}`)}
+          </span>
+        ))}
         <span className="workload-legend-item">
           <span className="workload-legend-swatch is-none" />
-          {t('workload.legend_none')}
+          {t('workload.states.none')}
         </span>
       </div>
 
@@ -218,34 +292,32 @@ const WorkloadCalendar = ({
           const state = stateOfRecord(entries[dateStr]);
           const isToday =
             day === today.getDate() && view.m === today.getMonth() && view.y === today.getFullYear();
-          const stateLabel =
-            state === DAY_STATE.BLOCKED
-              ? t('workload.marked')
-              : state === DAY_STATE.PREFERRED
-                ? t('workload.preferred')
-                : '';
+          const stateLabel = state === DAY_STATE.NONE ? '' : t(`workload.states.${state}`);
           return (
             <button
               type="button"
               key={dateStr}
               className={`workload-cell is-${state} ${isToday ? 'is-today' : ''}`}
-              onClick={() => cycleDay(day)}
+              onClick={() => cycleDay(dateStr)}
               disabled={isPastMonth}
               aria-label={`${day}. ${monthLabel}${stateLabel ? `, ${stateLabel}` : ''}`}
               title={stateLabel || undefined}
             >
               <span className="workload-cell-daynum">{day}</span>
-              {state === DAY_STATE.BLOCKED && <span className="workload-cell-mark">✕</span>}
-              {state === DAY_STATE.PREFERRED && <span className="workload-cell-mark">✓</span>}
+              {MARK_BY_STATE[state] && (
+                <span className="workload-cell-mark">{MARK_BY_STATE[state]}</span>
+              )}
             </button>
           );
         })}
       </div>
 
       <p className="workload-footer">
-        {t('workload.marked_count', { count: counts.blocked })}
-        {' · '}
-        {t('workload.preferred_count', { count: counts.preferred })}
+        {MARKABLE_STATES.filter((state) => counts[state]).map((state) => (
+          <span key={state} className="workload-footer-count">
+            {t(`workload.states.${state}`)}: {counts[state]}
+          </span>
+        ))}
       </p>
 
       {toast && <div className="workload-toast" role="status">{toast}</div>}

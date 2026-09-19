@@ -16,6 +16,7 @@ from app.core.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.unavailability import (
+    MonthlyDutyWish,
     UnavailabilityCreate,
     UnavailabilityResponse,
     UnavailabilityUpdate,
@@ -23,8 +24,10 @@ from app.schemas.unavailability import (
 from app.services.unavailability_service import (
     create_unavailability,
     delete_unavailability,
+    get_monthly_duty_wish,
     get_unavailabilities,
     get_unavailability,
+    set_monthly_duty_wish,
     update_unavailability,
 )
 
@@ -87,6 +90,35 @@ def list_unavailabilities_endpoint(
         after_date,
         after_id,
     )
+
+
+# Declared before the ``/{unavailability_id}`` routes so the literal path is
+# matched first instead of being parsed as a record ID.
+@router.get(
+    "/monthly-wish",
+    response_model=MonthlyDutyWish,
+    summary="Get the monthly duty wish",
+)
+def get_monthly_duty_wish_endpoint(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> MonthlyDutyWish:
+    """Return how many duties a month the authenticated user wants at most."""
+    return get_monthly_duty_wish(db, current_user.id)
+
+
+@router.put(
+    "/monthly-wish",
+    response_model=MonthlyDutyWish,
+    summary="Set the monthly duty wish",
+)
+def set_monthly_duty_wish_endpoint(
+    data: MonthlyDutyWish,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> MonthlyDutyWish:
+    """Store the authenticated user's monthly duty wish (null clears it)."""
+    return set_monthly_duty_wish(db, current_user.id, data)
 
 
 @router.get(

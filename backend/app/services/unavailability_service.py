@@ -16,7 +16,12 @@ from sqlalchemy import tuple_
 from sqlalchemy.orm import Session
 
 from app.models.unavailability import Unavailability
-from app.schemas.unavailability import UnavailabilityCreate, UnavailabilityUpdate
+from app.models.user import User
+from app.schemas.unavailability import (
+    MonthlyDutyWish,
+    UnavailabilityCreate,
+    UnavailabilityUpdate,
+)
 from app.services.database_conflict import commit_or_conflict
 
 
@@ -244,3 +249,30 @@ def delete_unavailability(db: Session, unavailability_id: int, user_id: int) -> 
     _ensure_editable_date(record.date_absent)
     db.delete(record)
     db.commit()
+
+
+def get_monthly_duty_wish(db: Session, user_id: int) -> MonthlyDutyWish:
+    """Return how many duties a month the user wants at most."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+    return MonthlyDutyWish(max_shifts_per_month=user.max_shifts_per_month)
+
+
+def set_monthly_duty_wish(
+    db: Session, user_id: int, data: MonthlyDutyWish
+) -> MonthlyDutyWish:
+    """Store the user's monthly duty wish; ``None`` clears it."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+    user.max_shifts_per_month = data.max_shifts_per_month
+    commit_or_conflict(db, "Could not save the monthly duty wish.")
+    db.refresh(user)
+    return MonthlyDutyWish(max_shifts_per_month=user.max_shifts_per_month)

@@ -6,36 +6,66 @@ import client from '../api/client';
  * A record marks a whole day the user has an opinion about for
  * emergency-duty scheduling. Dates are ISO strings (YYYY-MM-DD).
  *
- * THREE-STATE MARKING
- * -------------------
- * The backend table currently stores only `date_absent` + a free-text
- * `reason`, so the meaning of a day is encoded into `reason`:
+ * DAY STATES
+ * ----------
+ * The backend table stores only `date_absent` + a free-text `reason`, so the
+ * meaning of a day is encoded into `reason`:
  *
- *   no record             -> DAY_STATE.NONE       (neutral, grey)
- *   reason != PREFERRED   -> DAY_STATE.BLOCKED    (does not suit me, red)
- *   reason === PREFERRED  -> DAY_STATE.PREFERRED  (I'd like this day, green)
+ *   no record        -> NONE           neutral, grey
+ *   PREFERRED        -> PREFERRED      "I want this day"      (soft, rewarded)
+ *   SOFT_DECLINE     -> SOFT_DECLINE   "I would rather not"   (soft, penalized)
+ *   UNAVAILABLE      -> UNAVAILABLE    "I cannot"             (hard block)
+ *   VACATION         -> VACATION       leave                  (hard block)
+ *   BUSINESS_TRIP    -> BUSINESS_TRIP  business trip          (hard block)
  *
- * A dedicated enum/boolean column on the backend would be cleaner — worth
- * flagging with the backend owner. Until then this keeps the feature
- * frontend-only and stays backward compatible: records written before this
- * change have a null reason and therefore read back as BLOCKED, which is
- * exactly what they meant.
+ * Only the two soft states are wishes; the rest stop the solver from
+ * scheduling the day at all. Anything unrecognized — including the null
+ * reason older records were written with — reads back as UNAVAILABLE, which
+ * is exactly what those records meant.
+ *
+ * A dedicated enum column on the backend would be cleaner — worth flagging
+ * with the backend owner. Until then this keeps the mapping in one place.
  */
 
 export const DAY_STATE = {
   NONE: 'none',
-  BLOCKED: 'blocked',
   PREFERRED: 'preferred',
+  SOFT_DECLINE: 'soft-decline',
+  UNAVAILABLE: 'unavailable',
+  VACATION: 'vacation',
+  BUSINESS_TRIP: 'business-trip',
 };
 
-/** Sentinel values written into the `reason` column. */
-export const REASON_BLOCKED = 'UNAVAILABLE';
-export const REASON_PREFERRED = 'PREFERRED';
+/** Sentinel values written into the `reason` column, keyed by day state. */
+export const REASON_BY_STATE = {
+  [DAY_STATE.PREFERRED]: 'PREFERRED',
+  [DAY_STATE.SOFT_DECLINE]: 'SOFT_DECLINE',
+  [DAY_STATE.UNAVAILABLE]: 'UNAVAILABLE',
+  [DAY_STATE.VACATION]: 'VACATION',
+  [DAY_STATE.BUSINESS_TRIP]: 'BUSINESS_TRIP',
+};
 
-/** Map a server record onto one of the three UI states. */
+const STATE_BY_REASON = Object.fromEntries(
+  Object.entries(REASON_BY_STATE).map(([state, reason]) => [reason, state])
+);
+
+/** The states a day can be set to, in the order the picker offers them. */
+export const MARKABLE_STATES = [
+  DAY_STATE.PREFERRED,
+  DAY_STATE.SOFT_DECLINE,
+  DAY_STATE.UNAVAILABLE,
+  DAY_STATE.VACATION,
+  DAY_STATE.BUSINESS_TRIP,
+];
+
+/** What an unmarked day becomes when a caller names no reason. */
+const REASON_BLOCKED = REASON_BY_STATE[DAY_STATE.UNAVAILABLE];
+
+/** Map a server record onto one of the day states. */
 export function stateOfRecord(record) {
   if (!record) return DAY_STATE.NONE;
-  return record.reason === REASON_PREFERRED ? DAY_STATE.PREFERRED : DAY_STATE.BLOCKED;
+  const reason = (record.reason || '').trim().toUpperCase();
+  return STATE_BY_REASON[reason] || DAY_STATE.UNAVAILABLE;
 }
 
 /** Fetch records for the authenticated user within an inclusive date range. */
@@ -111,4 +141,34 @@ export async function deleteEmployeeUnavailability(ambulanceId, userId, id) {
   await client.delete(
     `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities/${id}`
   );
+}
+
+/* ---------- monthly duty wish ---------- */
+
+/** How many duties a month the user wants at most (null = no opinion). */
+export async function fetchMonthlyWish() {
+  const { data } = await client.get('/unavailabilities/monthly-wish');
+  return data.max_shifts_per_month ?? null;
+}
+
+export async function saveMonthlyWish(maxShiftsPerMonth) {
+  const { data } = await client.put('/unavailabilities/monthly-wish', {
+    max_shifts_per_month: maxShiftsPerMonth,
+  });
+  return data.max_shifts_per_month ?? null;
+}
+
+export async function fetchEmployeeMonthlyWish(ambulanceId, userId) {
+  const { data } = await client.get(
+    `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities/monthly-wish`
+  );
+  return data.max_shifts_per_month ?? null;
+}
+
+export async function saveEmployeeMonthlyWish(ambulanceId, userId, maxShiftsPerMonth) {
+  const { data } = await client.put(
+    `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities/monthly-wish`,
+    { max_shifts_per_month: maxShiftsPerMonth }
+  );
+  return data.max_shifts_per_month ?? null;
 }

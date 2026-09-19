@@ -296,6 +296,12 @@ GET vracia položky rozdelené podľa používateľa: `user_id`, `user_full_name
 - `GET /unavailabilities/{unavailability_id}`
 - `PUT /unavailabilities/{unavailability_id}`
 - `DELETE /unavailabilities/{unavailability_id}`
+- `GET /unavailabilities/monthly-wish`
+- `PUT /unavailabilities/monthly-wish`
 
 Všetky endpointy vyžadujú prihlásenie a povoľujú prácu len nad vlastnými záznamami. POST/PUT prijímajú schému nedostupnosti s dátumom, časom a dôvodom. Úspech: `200`, `201` alebo `204`; chyby `400`, `401`, `403`, `404`, `422`.
+
+Pole `reason` nesie stav dňa: `PREFERRED` (chcem) a `SOFT_DECLINE` (nechcem) sú len želania a službu neblokujú, `UNAVAILABLE` (nemôžem), `VACATION` (dovolenka) a `BUSINESS_TRIP` (služobná cesta) deň zo generovania vylučujú úplne. Neznámy alebo prázdny dôvod sa číta ako `UNAVAILABLE`.
+
+`monthly-wish` drží želaný maximálny počet služieb za mesiac (`max_shifts_per_month`, `null` = bez limitu). Je to želanie, nie tvrdý strop: generátor ho prekročí len vtedy, ak sa mesiac inak nedá pokryť. Manažér vie to isté nastaviť zamestnancovi cez `GET`/`PUT /ambulances/{ambulance_id}/employees/{user_id}/unavailabilities/monthly-wish`.
 </details>

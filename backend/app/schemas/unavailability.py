@@ -51,3 +51,18 @@ class UnavailabilityResponse(UnavailabilityBase):
 
     class Config:
         from_attributes = True
+
+
+class MonthlyDutyWish(BaseModel):
+    """The most duties a month an employee wants to be given.
+
+    ``None`` means the employee has no opinion, which the solver reads very
+    differently from a wish for zero duties.
+    """
+
+    max_shifts_per_month: Optional[int] = Field(
+        None,
+        ge=0,
+        le=31,
+        description="Preferred maximum number of duties per month.",
+    )

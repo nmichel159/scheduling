@@ -8,6 +8,8 @@ import {
   createEmployeeUnavailability,
   updateEmployeeUnavailability,
   deleteEmployeeUnavailability,
+  fetchEmployeeMonthlyWish,
+  saveEmployeeMonthlyWish,
 } from '../services/unavailabilityService';
 import './ManagerWorkloadView.css';
 
@@ -102,6 +104,14 @@ const ManagerWorkloadView = () => {
     (id) => deleteEmployeeUnavailability(selectedAmbulanceId, selectedEmployeeId, id),
     [selectedAmbulanceId, selectedEmployeeId]
   );
+  const loadWish = useCallback(
+    () => fetchEmployeeMonthlyWish(selectedAmbulanceId, selectedEmployeeId),
+    [selectedAmbulanceId, selectedEmployeeId]
+  );
+  const storeWish = useCallback(
+    (value) => saveEmployeeMonthlyWish(selectedAmbulanceId, selectedEmployeeId, value),
+    [selectedAmbulanceId, selectedEmployeeId]
+  );
 
   if (loading) {
     return <div className="manager-workload"><p>{t('manager_workload.loading')}</p></div>;
@@ -172,6 +182,8 @@ const ManagerWorkloadView = () => {
               createEntry={createEntry}
               updateEntry={updateEntry}
               deleteEntry={deleteEntry}
+              fetchMonthlyWish={loadWish}
+              saveMonthlyWish={storeWish}
             />
           )}
         </section>

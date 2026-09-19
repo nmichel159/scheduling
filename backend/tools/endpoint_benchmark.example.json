@@ -25,6 +25,12 @@
       "expected_status": 200
     },
     {
+      "name": "unavailability_monthly_wish",
+      "method": "GET",
+      "path": "/unavailabilities/monthly-wish",
+      "expected_status": 200
+    },
+    {
       "name": "unavailability_detail",
       "method": "GET",
       "path": "/unavailabilities/${BENCHMARK_UNAVAILABILITY_ID}",
@@ -79,6 +85,12 @@
       "params": {
         "limit": 100
       },
+      "expected_status": 200
+    },
+    {
+      "name": "employee_monthly_wish",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/employees/${BENCHMARK_TARGET_USER_ID}/unavailabilities/monthly-wish",
       "expected_status": 200
     },
     {

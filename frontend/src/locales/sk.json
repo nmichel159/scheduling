@@ -77,20 +77,13 @@
   },
   "workload": {
     "title": "Obmedzenia",
-    "subtitle": "Kliknite na deň: 1× = nevyhovuje (červená), 2× = preferujem (zelená), 3× = späť na neutrálny stav.",
+    "subtitle": "Kliknutím na deň prepínate stav: 1× Chcem, 2× Nechcem, 3× Nemôžem, 4× Dovolenka, 5× Služobná cesta, 6× späť na neutrálny stav.",
     "month_nav": "Výber mesiaca",
     "prev_month": "Predchádzajúci mesiac",
     "next_month": "Nasledujúci mesiac",
     "past_month": "Uplynulý mesiac — záznamy sú len na čítanie.",
     "load_error": "Nepodarilo sa načítať záznamy.",
     "retry": "Skúsiť znova",
-    "marked": "nevyhovuje",
-    "preferred": "preferujem",
-    "marked_count": "Nevyhovujúce dni: {{count}}",
-    "preferred_count": "Preferované dni: {{count}}",
-    "legend_blocked": "Nevyhovuje",
-    "legend_preferred": "Preferujem",
-    "legend_none": "Bez označenia",
     "save_error": "Uloženie zlyhalo, skús to znova.",
     "days": {
       "0": "Po",
@@ -100,6 +93,17 @@
       "4": "Pi",
       "5": "So",
       "6": "Ne"
+    },
+    "wish_label": "Max. služieb za mesiac",
+    "wish_placeholder": "bez limitu",
+    "wish_invalid": "Zadajte celé číslo od 0 do 31.",
+    "states": {
+      "preferred": "Chcem",
+      "soft-decline": "Nechcem",
+      "unavailable": "Nemôžem",
+      "vacation": "Dovolenka",
+      "business-trip": "Služobná cesta",
+      "none": "Bez označenia"
     }
   },
   "manager_workload": {

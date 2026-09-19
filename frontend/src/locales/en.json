@@ -77,20 +77,13 @@
   },
   "workload": {
     "title": "Restrictions",
-    "subtitle": "Click a day: 1× = does not suit me (red), 2× = preferred (green), 3× = back to neutral.",
+    "subtitle": "Each click moves the day on: 1× I want to, 2× I would rather not, 3× I cannot, 4× Vacation, 5× Business trip, 6× back to neutral.",
     "month_nav": "Month selection",
     "prev_month": "Previous month",
     "next_month": "Next month",
     "past_month": "Past month — records are read-only.",
     "load_error": "Failed to load records.",
     "retry": "Retry",
-    "marked": "unavailable",
-    "preferred": "preferred",
-    "marked_count": "Unsuitable days: {{count}}",
-    "preferred_count": "Preferred days: {{count}}",
-    "legend_blocked": "Does not suit me",
-    "legend_preferred": "Preferred",
-    "legend_none": "Unmarked",
     "save_error": "Saving failed, please try again.",
     "days": {
       "0": "Mo",
@@ -100,6 +93,17 @@
       "4": "Fr",
       "5": "Sa",
       "6": "Su"
+    },
+    "wish_label": "Max duties per month",
+    "wish_placeholder": "no limit",
+    "wish_invalid": "Enter a whole number between 0 and 31.",
+    "states": {
+      "preferred": "I want to",
+      "soft-decline": "I would rather not",
+      "unavailable": "I cannot",
+      "vacation": "Vacation",
+      "business-trip": "Business trip",
+      "none": "Unmarked"
     }
   },
   "manager_workload": {

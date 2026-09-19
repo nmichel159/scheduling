@@ -282,6 +282,7 @@ CREATE TABLE public.users (
     auth_token character varying,
     auth_token_expires_at timestamp with time zone,
     login_count integer,
+    max_shifts_per_month integer,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     is_active boolean

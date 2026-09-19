@@ -37,6 +37,8 @@ def _employee(
     unavailable_dates: frozenset[date] = frozenset(),
     externally_scheduled_dates: frozenset[date] = frozenset(),
     preferred_dates: frozenset[date] = frozenset(),
+    soft_declined_dates: frozenset[date] = frozenset(),
+    max_shifts_per_month: int | None = None,
 ) -> SchedulingEmployee:
     """Build a concise employee fixture for solver tests."""
     return SchedulingEmployee(
@@ -47,6 +49,8 @@ def _employee(
         unavailable_dates=unavailable_dates,
         externally_scheduled_dates=externally_scheduled_dates,
         preferred_dates=preferred_dates,
+        soft_declined_dates=soft_declined_dates,
+        max_shifts_per_month=max_shifts_per_month,
     )
 
 
@@ -381,11 +385,97 @@ class ScheduleGenerationSolverTests(unittest.TestCase):
         )
 
     def test_only_true_unavailability_is_a_hard_block(self) -> None:
-        """A preferred day is rewarded by the objective, never a hard block."""
+        """Wishes are paid for by the objective; everything else blocks."""
         self.assertTrue(_is_hard_unavailability(None))
         self.assertTrue(_is_hard_unavailability("UNAVAILABLE"))
-        self.assertTrue(_is_hard_unavailability("Vacation"))
+        self.assertTrue(_is_hard_unavailability("VACATION"))
+        self.assertTrue(_is_hard_unavailability("BUSINESS_TRIP"))
         self.assertFalse(_is_hard_unavailability("PREFERRED"))
+        self.assertFalse(_is_hard_unavailability("SOFT_DECLINE"))
+
+    def test_avoids_reluctant_days_while_the_roster_stays_balanced(self) -> None:
+        """A day the employee would rather not work is left to someone else."""
+        reluctant = frozenset(date(2026, 8, day) for day in range(1, 16, 2))
+        employees = [
+            _employee(1, competence_ids=frozenset({1})),
+            _employee(2, competence_ids=frozenset({1})),
+            _employee(3, competence_ids=frozenset({1})),
+            _employee(4, competence_ids=frozenset({1}), soft_declined_dates=reluctant),
+        ]
+        assignments = solve_monthly_schedule(
+            employees,
+            [SchedulingCompetence(id=1, name="Triage", required_count=1)],
+            month=8,
+            year=2026,
+        )
+
+        workload = Counter(item.user_id for item in assignments)
+        self.assertEqual(sorted(workload.values()), [7, 8, 8, 8])
+        self.assertFalse(
+            {item.work_date for item in assignments if item.user_id == 4} & reluctant
+        )
+
+    def test_reluctant_days_are_taken_when_nobody_else_can(self) -> None:
+        """Reluctance is a wish: it never leaves a day unstaffed."""
+        reluctant = frozenset({date(2026, 8, 4)})
+        employees = [
+            _employee(1, competence_ids=frozenset({1}), soft_declined_dates=reluctant),
+        ]
+        assignments = solve_monthly_schedule(
+            employees,
+            [
+                SchedulingCompetence(
+                    id=1,
+                    name="Triage",
+                    required_count=1,
+                    weekday_required_counts=(0, 1, 0, 0, 0, 0, 0),
+                )
+            ],
+            month=8,
+            year=2026,
+        )
+
+        self.assertIn(
+            date(2026, 8, 4),
+            {item.work_date for item in assignments if item.user_id == 1},
+        )
+
+    def test_monthly_wish_shifts_duties_onto_colleagues(self) -> None:
+        """An employee wanting few duties gets them, the rest take the slack."""
+        employees = [
+            _employee(1, competence_ids=frozenset({1})),
+            _employee(2, competence_ids=frozenset({1})),
+            _employee(3, competence_ids=frozenset({1}), max_shifts_per_month=2),
+        ]
+        assignments = solve_monthly_schedule(
+            employees,
+            [SchedulingCompetence(id=1, name="Triage", required_count=1)],
+            month=8,
+            year=2026,
+        )
+
+        workload = Counter(item.user_id for item in assignments)
+        self.assertEqual(workload[3], 2)
+        self.assertEqual(sum(workload.values()), 31)
+
+    def test_monthly_wish_is_exceeded_rather_than_leaving_a_day_unstaffed(self) -> None:
+        """The wish is a wish: an unstaffable month outranks it."""
+        employees = [_employee(1, competence_ids=frozenset({1}), max_shifts_per_month=1)]
+        assignments = solve_monthly_schedule(
+            employees,
+            [
+                SchedulingCompetence(
+                    id=1,
+                    name="Triage",
+                    required_count=1,
+                    weekday_required_counts=(0, 1, 0, 0, 0, 0, 0),
+                )
+            ],
+            month=8,
+            year=2026,
+        )
+
+        self.assertEqual(len(assignments), 4)
 
 
 class ScheduleGenerationLoadingTests(unittest.TestCase):

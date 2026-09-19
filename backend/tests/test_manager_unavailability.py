@@ -14,12 +14,18 @@ from app.models.associations import UserAmbulance, UserRole
 from app.models.role import Role
 from app.models.unavailability import Unavailability
 from app.models.user import User
-from app.schemas.unavailability import UnavailabilityCreate, UnavailabilityUpdate
+from app.schemas.unavailability import (
+    MonthlyDutyWish,
+    UnavailabilityCreate,
+    UnavailabilityUpdate,
+)
 from app.services.ambulance_employee_service import get_active_employee
 from app.services.unavailability_service import (
     create_unavailability,
     delete_unavailability,
+    get_monthly_duty_wish,
     get_unavailabilities,
+    set_monthly_duty_wish,
     update_unavailability,
 )
 
@@ -125,6 +131,34 @@ class ManagerUnavailabilityTests(unittest.TestCase):
 
         delete_unavailability(self.session, record.id, selected.id)
         self.assertEqual(get_unavailabilities(self.session, selected.id), [])
+
+    def test_monthly_duty_wish_round_trips_and_clears(self) -> None:
+        """A wish starts unset, survives a write, and can be removed again."""
+        self.assertIsNone(
+            get_monthly_duty_wish(self.session, self.employee.id).max_shifts_per_month
+        )
+
+        stored = set_monthly_duty_wish(
+            self.session,
+            self.employee.id,
+            MonthlyDutyWish(max_shifts_per_month=6),
+        )
+        self.assertEqual(stored.max_shifts_per_month, 6)
+        self.assertEqual(
+            get_monthly_duty_wish(self.session, self.employee.id).max_shifts_per_month,
+            6,
+        )
+        # Nobody else's wish is touched.
+        self.assertIsNone(
+            get_monthly_duty_wish(self.session, self.outsider.id).max_shifts_per_month
+        )
+
+        cleared = set_monthly_duty_wish(
+            self.session,
+            self.employee.id,
+            MonthlyDutyWish(max_shifts_per_month=None),
+        )
+        self.assertIsNone(cleared.max_shifts_per_month)
 
     def test_unavailability_keyset_cursor_has_no_gaps(self) -> None:
         """A date-and-ID cursor neither repeats nor skips ordered rows."""
