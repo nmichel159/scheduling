@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { ISO_WEEKDAYS, requiredCountForGroup } from '../utils/competenceRequirements';
+import EmployeeDetailDialog from './EmployeeDetailDialog';
 import './CompetenceMatrix.css';
 
 /**
@@ -198,17 +199,6 @@ const CompetenceMatrix = ({
     setPopoverHeight(popoverElRef.current.offsetHeight);
   }, [removingRowId, popoverRect]);
 
-  /* Employee detail modal — read-only for now; this is the place where
-   * editing the person (name, e-mail, …) will live later. */
-  useLayoutEffect(() => {
-    if (!detailRowId) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setDetailRowId(null);
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [detailRowId]);
-
   /* ---------- row removal (confirm) ---------- */
 
   const handleRemoveRow = (userId) => {
@@ -221,15 +211,6 @@ const CompetenceMatrix = ({
   const competenceColSpan = Math.max(columns.length, 1);
   const removingRow = rows.find((r) => r.user_id === removingRowId) || null;
   const detailRow = rows.find((r) => r.user_id === detailRowId) || null;
-
-  /* The backend keeps a single `full_name`; the dialog shows it split into
-   * given/family name the way a future edit form will collect it. */
-  const splitName = (fullName) => {
-    const parts = (fullName || '').trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return { first: '', last: '' };
-    return { first: parts[0], last: parts.slice(1).join(' ') };
-  };
-  const detailName = detailRow ? splitName(detailRow.full_name) : null;
 
   /* Below the anchor when it fits, above it when it doesn't, always inside
    * the viewport. `height` is 0 on the very first paint (nothing measured
@@ -486,77 +467,15 @@ const CompetenceMatrix = ({
           document.body
         )}
 
-      {detailRow &&
-        createPortal(
-          <div
-            className="cmatrix-modal-backdrop"
-            onMouseDown={(e) => {
-              if (e.target === e.currentTarget) setDetailRowId(null);
-            }}
-          >
-            <div className="cmatrix-modal" role="dialog" aria-modal="true">
-              <header className="cmatrix-modal-head">
-                <div className="cmatrix-modal-avatar" aria-hidden="true">
-                  {(detailRow.full_name || detailRow.email).trim().charAt(0).toUpperCase()}
-                </div>
-                <div className="cmatrix-modal-heading">
-                  <h3 className="cmatrix-modal-title">
-                    {detailRow.full_name || detailRow.email}
-                  </h3>
-                  <p className="cmatrix-modal-subtitle">
-                    {t('competences.employee_detail')}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="cmatrix-modal-close"
-                  onClick={() => setDetailRowId(null)}
-                  title={t('departments.cancel')}
-                  aria-label={t('departments.cancel')}
-                >
-                  ✕
-                </button>
-              </header>
-
-              <dl className="cmatrix-modal-fields">
-                <div>
-                  <dt>{t('competences.first_name')}</dt>
-                  <dd>{detailName.first || '—'}</dd>
-                </div>
-                <div>
-                  <dt>{t('competences.last_name')}</dt>
-                  <dd>{detailName.last || '—'}</dd>
-                </div>
-                <div>
-                  <dt>{t('competences.email')}</dt>
-                  <dd>{detailRow.email}</dd>
-                </div>
-                <div>
-                  <dt>{t('competences.title')}</dt>
-                  <dd>
-                    {columns
-                      .filter((c) => (detailRow.competenceDays[c.id] || []).length > 0)
-                      .map((c) => c.name)
-                      .join(', ') || '—'}
-                  </dd>
-                </div>
-              </dl>
-
-              <p className="cmatrix-modal-note">{t('competences.detail_readonly')}</p>
-
-              <div className="cmatrix-popover-actions">
-                <button
-                  type="button"
-                  className="departments-btn"
-                  onClick={() => setDetailRowId(null)}
-                >
-                  {t('competences.close_detail')}
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+      <EmployeeDetailDialog
+        employee={detailRow}
+        competences={
+          detailRow
+            ? columns.filter((c) => (detailRow.competenceDays[c.id] || []).length > 0)
+            : []
+        }
+        onClose={() => setDetailRowId(null)}
+      />
     </section>
   );
 };

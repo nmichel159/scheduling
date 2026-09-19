@@ -70,6 +70,15 @@ export const WorkplaceIcon = (props) => (
   </Icon>
 );
 
+/** Zamestnanci pracoviska — zoznam ľudí s kartičkou osoby. */
+export const EmployeesIcon = (props) => (
+  <Icon {...props}>
+    <circle cx="8.6" cy="8.2" r="3.4" />
+    <path d="M2.8 19.8c.4-3.4 2.8-5.4 5.8-5.4s5.4 2 5.8 5.4" />
+    <path d="M17.4 6.4h3.8M17.4 10.2h3.8M17.4 14h3.8" />
+  </Icon>
+);
+
 /** Správca kompetencií — odškrtávací zoznam schopností pracoviska. */
 export const CompetenceIcon = (props) => (
   <Icon {...props}>

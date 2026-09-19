@@ -48,7 +48,8 @@
     "cancel": "Cancel",
     "section_analyst": "Analyst",
     "statistics": "Statistics",
-    "competences": "Competence manager"
+    "competences": "Competence manager",
+    "employees": "Employees"
   },
   "workplace": {
     "loading": "Loading workplaces...",
@@ -425,5 +426,12 @@
     "rename_hint": "Double-click to rename",
     "recovery_short": "{{days}} d",
     "overview_legend": "people / hours / recovery"
+  },
+  "employees": {
+    "title": "Employees",
+    "subtitle": "People of this workplace and the competences assigned to them. Assigning competences happens in the table on the Workplaces screen.",
+    "filter_placeholder": "Search name, e-mail or competence...",
+    "no_competences": "No competence",
+    "competence_count": "Competences defined for this workplace: {{count}}"
   }
 }

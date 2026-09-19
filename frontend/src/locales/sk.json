@@ -48,7 +48,8 @@
     "cancel": "Zrušiť",
     "section_analyst": "Analytik",
     "statistics": "Štatistiky",
-    "competences": "Správca kompetencií"
+    "competences": "Správca kompetencií",
+    "employees": "Zamestnanci"
   },
   "workplace": {
     "loading": "Načítavam pracoviská...",
@@ -426,5 +427,12 @@
     "rename_hint": "Dvojklikom premenujete scenár",
     "recovery_short": "{{days}} d",
     "overview_legend": "počet / hodiny / regenerácia"
+  },
+  "employees": {
+    "title": "Zamestnanci",
+    "subtitle": "Prehľad ľudí na pracovisku a kompetencií, ktoré majú pridelené. Priraďovanie kompetencií sa robí v tabuľke na obrazovke Pracoviská.",
+    "filter_placeholder": "Hľadať meno, e-mail alebo kompetenciu...",
+    "no_competences": "Bez kompetencie",
+    "competence_count": "Pracovisko má definovaných kompetencií: {{count}}"
   }
 }

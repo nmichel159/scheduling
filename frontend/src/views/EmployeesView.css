@@ -1,0 +1,234 @@
+/* --- Employees roster (read-only list of one workplace's people) --- */
+
+.employees {
+  max-width: 960px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.employees-title {
+  margin: 0 0 6px;
+  font-size: 1.5rem;
+  color: var(--text-h);
+}
+
+.employees-subtitle {
+  margin: 0 0 20px;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.employees-banner {
+  border: 1px solid var(--border);
+  background: var(--primary-background);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+}
+
+.employees-panel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--code-background);
+  padding: 16px;
+}
+
+.employees-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.employees-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.employees-workplace {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-h);
+}
+
+.employees-count {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+/* Same filter control as the competence matrix header, so the two screens
+ * feel like one feature. */
+.employees-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 6px;
+  background: var(--background);
+  min-width: 220px;
+}
+.employees-filter:focus-within,
+.employees-filter.is-active {
+  border-color: var(--primary);
+}
+.employees-filter-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+  opacity: 0.6;
+  color: var(--text-h);
+}
+.employees-filter input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 6px 0;
+}
+.employees-filter-clear {
+  border: none;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.6;
+}
+.employees-filter-clear:hover { opacity: 1; }
+
+.employees-list { transition: opacity 0.15s ease; }
+.employees-list.is-loading { opacity: 0.5; pointer-events: none; }
+
+.employees-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.employees-rows li + li { border-top: 1px solid var(--border); }
+
+/* The row itself is the button, edge to edge: clicking anywhere in it —
+ * including the empty space between the name and the competence tags —
+ * opens the detail. */
+.employees-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  background: none;
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--text-h);
+  text-align: left;
+  cursor: pointer;
+}
+.employees-row:hover {
+  background: color-mix(in srgb, var(--primary-background) 70%, transparent);
+}
+.employees-row:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.employees-avatar {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--primary-background);
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.employees-identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.employees-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.employees-email {
+  font-size: 0.78rem;
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* `min-width: 0` matters: a flex item defaults to min-width:auto, so a row
+ * with several long competence names would push itself wider than the list
+ * and spill over its right edge instead of wrapping. */
+.employees-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  min-width: 0;
+  max-width: 50%;
+}
+
+.employees-tag {
+  padding: 4px 9px;
+  border: 1px solid color-mix(in srgb, var(--primary) 45%, var(--border));
+  border-radius: 999px;
+  background: var(--primary-background);
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.employees-tag.is-empty {
+  border-color: var(--border);
+  background: none;
+  color: var(--text);
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.employees-empty {
+  margin: 0;
+  padding: 14px 4px;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.employees-foot {
+  margin-top: 12px;
+  font-size: 0.78rem;
+  opacity: 0.7;
+}
+
+@media (max-width: 640px) {
+  .employees-row { flex-wrap: wrap; }
+  .employees-tags {
+    max-width: 100%;
+    justify-content: flex-start;
+    padding-left: 46px;
+  }
+}
