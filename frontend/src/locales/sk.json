@@ -34,7 +34,6 @@
     "admin": "Administrácia pracovísk",
     "schedule_overview": "Prehľad rozvrhov",
     "ambulance_schedule": "Rozpis pracoviska",
-    "employee_workload": "Obmedzenia zamestnancov",
     "roles": "Správa rolí",
     "section_employee": "Zamestnanec",
     "section_manager": "Rozvrhár",
@@ -50,7 +49,8 @@
     "statistics": "Štatistiky",
     "competences": "Správca kompetencií",
     "employees": "Zamestnanci",
-    "special_days": "Špeciálne dni"
+    "special_days": "Špeciálne dni",
+    "schedule_mail": "Rozposlanie rozpisu"
   },
   "workplace": {
     "loading": "Načítavam pracoviská...",
@@ -105,19 +105,6 @@
       "business-trip": "Služobná cesta",
       "none": "Bez označenia"
     }
-  },
-  "manager_workload": {
-    "title": "Obmedzenia zamestnancov",
-    "subtitle": "Vyberte pracovisko a zamestnanca, ktorého obmedzenia chcete zobraziť alebo upraviť.",
-    "ambulances": "Moje pracoviská",
-    "employee": "Zamestnanec",
-    "pick_employee": "Vyberte zamestnanca...",
-    "loading": "Načítavam...",
-    "loading_employees": "Načítavam zamestnancov...",
-    "load_ambulances_error": "Nepodarilo sa načítať pracoviská.",
-    "load_employees_error": "Nepodarilo sa načítať zamestnancov.",
-    "no_ambulances": "Nemáte priradenú úlohu rozvrhára na nijakom pracovisku.",
-    "no_employees": "Toto pracovisko nemá žiadnych aktívnych zamestnancov."
   },
   "departments": {
     "title": "Moje pracoviská",
@@ -522,6 +509,44 @@
       "9": "Október",
       "10": "November",
       "11": "December"
+    }
+  },
+  "schedule_mail": {
+    "title": "Rozposlanie rozpisu",
+    "month": "Mesiac",
+    "year": "Rok",
+    "recipients": "Príjemcovia",
+    "no_recipients": "Zatiaľ žiadni príjemcovia.",
+    "email": "E-mail",
+    "label": "Označenie",
+    "add": "Pridať",
+    "remove": "Odobrať",
+    "preview": "Náhľad",
+    "entry_count": "Počet služieb: {{count}}",
+    "note": "Sprievodný text",
+    "send": "Odoslať",
+    "send_confirm": "Naozaj odoslať rozpis týmto príjemcom?",
+    "sent": "Rozpis bol odoslaný.",
+    "send_failed": "Odoslanie zlyhalo.",
+    "not_configured": "Odosielanie e-mailov nie je nastavené.",
+    "invalid_email": "Zadajte platnú e-mailovú adresu.",
+    "duplicate_error": "Táto adresa už rozpis dostáva.",
+    "save_error": "Akcia zlyhala, skús to znova.",
+    "load_error": "Nepodarilo sa načítať dáta.",
+    "log": "Odoslané rozpisy",
+    "log_empty": "Zatiaľ nebol odoslaný žiadny rozpis.",
+    "sent_at": "Odoslané",
+    "period": "Obdobie",
+    "status": "Stav",
+    "statuses": {
+      "sent": "Odoslané",
+      "dry-run": "Skúšobný režim",
+      "failed": "Zlyhalo"
+    },
+    "refusal": {
+      "empty_schedule": "Pre tento mesiac nie je vytvorený rozpis.",
+      "not_approved": "Rozpis tohto mesiaca nie je schválený.",
+      "no_recipients": "Nie je vybraný žiadny príjemca."
     }
   }
 }

@@ -14,6 +14,7 @@ from app.api import roles, ambulances
 from app.api import codebooks
 from app.api import employee_competences
 from app.api import schedules
+from app.api import schedule_mail
 from app.api import special_days
 from app.api import statistics
 from app.core.config import settings
@@ -71,6 +72,7 @@ app.include_router(schedules.router, prefix="/schedules", tags=["Schedules"])
 app.include_router(statistics.router, prefix="/statistics", tags=["Statistics"])
 app.include_router(schedules.ambulance_router, prefix="/ambulances", tags=["Schedules"])
 app.include_router(special_days.router, prefix="/ambulances", tags=["Special Days"])
+app.include_router(schedule_mail.router, prefix="/ambulances", tags=["Schedule Mail"])
 
 @app.get("/")
 def health_check():

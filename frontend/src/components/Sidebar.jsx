@@ -14,6 +14,7 @@ import {
   HomeIcon,
   LimitsIcon,
   LogoutIcon,
+  MailIcon,
   MoreIcon,
   MyScheduleIcon,
   RolesIcon,
@@ -22,7 +23,6 @@ import {
   SpecialDaysIcon,
   StatisticsIcon,
   SettingsIcon,
-  TeamLimitsIcon,
   TeamScheduleIcon,
   WorkplaceIcon,
 } from './NavIcons';
@@ -55,11 +55,11 @@ const SECTIONS = [
     Icon: WorkplaceIcon,
     items: [
       { to: '/ambulances/schedule', labelKey: 'sidebar.ambulance_schedule', Icon: TeamScheduleIcon },
-      { to: '/ambulances/workload', labelKey: 'sidebar.employee_workload', Icon: TeamLimitsIcon },
       { to: '/departments', labelKey: 'sidebar.departments', Icon: WorkplaceIcon },
       { to: '/employees', labelKey: 'sidebar.employees', Icon: EmployeesIcon },
       { to: '/competences', labelKey: 'sidebar.competences', Icon: CompetenceIcon },
       { to: '/special-days', labelKey: 'sidebar.special_days', Icon: SpecialDaysIcon },
+      { to: '/ambulances/mail', labelKey: 'sidebar.schedule_mail', Icon: MailIcon },
     ],
   },
   {

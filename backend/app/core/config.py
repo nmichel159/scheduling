@@ -43,6 +43,21 @@ class Settings(BaseSettings):
         int(os.getenv("AUTOMATIC_SCHEDULE_GENERATION_POLL_SECONDS", "60")),
     )
 
+    # --- Outgoing mail -------------------------------------------------
+    # An unset SMTP_HOST is not a misconfiguration: local and test runs are
+    # expected to have no mail server, and MAIL_DRY_RUN keeps the whole send
+    # path exercised while the message only reaches the log.
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    SMTP_USE_TLS: bool = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+    SMTP_USE_SSL: bool = os.getenv("SMTP_USE_SSL", "false").lower() == "true"
+    SMTP_TIMEOUT_SECONDS: int = max(1, int(os.getenv("SMTP_TIMEOUT_SECONDS", "20")))
+    MAIL_FROM: str = os.getenv("MAIL_FROM", "")
+    MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "Rozpisy")
+    MAIL_DRY_RUN: bool = os.getenv("MAIL_DRY_RUN", "false").lower() == "true"
+
     class Config:
         case_sensitive = True
 

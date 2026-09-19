@@ -1,9 +1,8 @@
 /**
  * Ikony bočnej lišty ako inline SVG.
  *
- * Emoji sa na každom systéme vykreslia inak, nedajú sa zafarbiť podľa stavu
- * a dve rôzne položky ("Obmedzenia" a "Obmedzenia zamestnancov") mali doteraz
- * rovnaký klipboard. SVG kreslí currentColor, takže ikona zdedí farbu položky
+ * Emoji sa na každom systéme vykreslia inak a nedajú sa zafarbiť podľa
+ * stavu. SVG kreslí currentColor, takže ikona zdedí farbu položky
  * — vrátane aktívneho a hover stavu.
  */
 
@@ -55,12 +54,11 @@ export const TeamScheduleIcon = (props) => (
   </Icon>
 );
 
-/** Obmedzenia zamestnancov — ľudia, nie posuvníky. */
-export const TeamLimitsIcon = (props) => (
+/** Rozposlanie rozpisu — obálka. */
+export const MailIcon = (props) => (
   <Icon {...props}>
-    <circle cx="9.2" cy="8.4" r="3.3" />
-    <path d="M3.4 19.8c.5-3.3 2.9-5.2 5.8-5.2s5.3 1.9 5.8 5.2" />
-    <path d="M16.2 6.4a3.2 3.2 0 0 1 0 6M17.8 14.9c1.8.8 2.9 2.4 3.2 4.6" />
+    <rect x="3.2" y="5.4" width="17.6" height="13.2" rx="2.2" />
+    <path d="m3.8 7.4 8.2 6 8.2-6" />
   </Icon>
 );
 

@@ -4,11 +4,11 @@ import DashboardView from '../views/DashboardView';
 import WorkloadView from '../views/WorkloadView';
 import ScheduleView from '../views/ScheduleView';
 import AmbulanceScheduleEditView from '../views/AmbulanceScheduleEditView';
-import ManagerWorkloadView from '../views/ManagerWorkloadView';
 import DepartmentsView from '../views/DepartmentsView';
 import EmployeesView from '../views/EmployeesView';
 import CompetenceManagerView from '../views/CompetenceManagerView';
 import SpecialDaysView from '../views/SpecialDaysView';
+import ScheduleMailView from '../views/ScheduleMailView';
 import AdminView from '../views/AdminView';
 import ScheduleOverviewView from '../views/ScheduleOverviewView';
 import StatisticsView from '../views/StatisticsView';
@@ -82,6 +82,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "/ambulances/mail",
+        element: (
+          <RequireRole flag="hasManager">
+            <ScheduleMailView />
+          </RequireRole>
+        ),
+      },
+      {
         path: "/special-days",
         element: (
           <RequireRole flag="hasManager">
@@ -94,14 +102,6 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole flag="hasAdmin">
             <AdminView />
-          </RequireRole>
-        ),
-      },
-      {
-        path: "/ambulances/workload",
-        element: (
-          <RequireRole flag="hasManager">
-            <ManagerWorkloadView />
           </RequireRole>
         ),
       },

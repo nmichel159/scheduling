@@ -96,53 +96,6 @@ export async function deleteUnavailability(id) {
   await client.delete(`/unavailabilities/${id}`);
 }
 
-/* ---------- manager: records of an employee in a managed ambulance ---------- */
-
-export async function fetchEmployeeUnavailabilities(
-  ambulanceId,
-  userId,
-  dateFrom,
-  dateTo
-) {
-  const { data } = await client.get(
-    `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities`,
-    { params: { date_from: dateFrom, date_to: dateTo, limit: 500 } }
-  );
-  return data;
-}
-
-export async function createEmployeeUnavailability(
-  ambulanceId,
-  userId,
-  dateAbsent,
-  reason = REASON_BLOCKED
-) {
-  const { data } = await client.post(
-    `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities`,
-    { date_absent: dateAbsent, reason }
-  );
-  return data;
-}
-
-export async function updateEmployeeUnavailability(
-  ambulanceId,
-  userId,
-  id,
-  reason
-) {
-  const { data } = await client.put(
-    `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities/${id}`,
-    { reason }
-  );
-  return data;
-}
-
-export async function deleteEmployeeUnavailability(ambulanceId, userId, id) {
-  await client.delete(
-    `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities/${id}`
-  );
-}
-
 /* ---------- monthly duty wish ---------- */
 
 /** How many duties a month the user wants at most (null = no opinion). */
@@ -155,20 +108,5 @@ export async function saveMonthlyWish(maxShiftsPerMonth) {
   const { data } = await client.put('/unavailabilities/monthly-wish', {
     max_shifts_per_month: maxShiftsPerMonth,
   });
-  return data.max_shifts_per_month ?? null;
-}
-
-export async function fetchEmployeeMonthlyWish(ambulanceId, userId) {
-  const { data } = await client.get(
-    `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities/monthly-wish`
-  );
-  return data.max_shifts_per_month ?? null;
-}
-
-export async function saveEmployeeMonthlyWish(ambulanceId, userId, maxShiftsPerMonth) {
-  const { data } = await client.put(
-    `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities/monthly-wish`,
-    { max_shifts_per_month: maxShiftsPerMonth }
-  );
   return data.max_shifts_per_month ?? null;
 }

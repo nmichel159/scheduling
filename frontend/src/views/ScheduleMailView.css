@@ -1,0 +1,231 @@
+/* --- Schedule mail: addresses, the month as it would arrive, what was sent --- */
+
+.smail {
+  max-width: 980px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.smail-title {
+  margin: 0 0 14px;
+  font-size: 1.5rem;
+  color: var(--text-h);
+}
+
+.smail-banner {
+  border: 1px solid var(--border);
+  background: var(--primary-background);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+}
+
+.smail-note {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  margin: 0 0 10px;
+}
+
+.smail-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.smail-workplace {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.smail-select,
+.smail-input,
+.smail-textarea,
+.smail-btn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: inherit;
+  font: inherit;
+  padding: 6px 10px;
+}
+
+.smail-btn {
+  cursor: pointer;
+}
+
+.smail-btn:hover:not(:disabled) {
+  background: var(--primary-background);
+}
+
+.smail-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.smail-btn-primary {
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.smail-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.smail-card h2 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  color: var(--text-h);
+}
+
+/* ---------- recipients ---------- */
+
+.smail-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.smail-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.smail-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.smail-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.smail-label {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.smail-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.smail-add .smail-input {
+  flex: 1;
+  min-width: 180px;
+}
+
+/* ---------- preview ---------- */
+
+.smail-subject {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.smail-body {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--primary-background);
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+}
+
+.smail-textarea {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+  resize: vertical;
+}
+
+/* ---------- log ---------- */
+
+.smail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.smail-table th,
+.smail-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.smail-recipients {
+  max-width: 320px;
+  overflow-wrap: anywhere;
+}
+
+.smail-status {
+  font-weight: 600;
+}
+
+.smail-status.is-failed {
+  color: #ef5350;
+}
+
+.smail-error {
+  display: block;
+  font-size: 0.78rem;
+  opacity: 0.7;
+}
+
+/* ---------- toast ---------- */
+
+.smail-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  z-index: 40;
+}
+
+@media (max-width: 640px) {
+  .smail-table thead {
+    display: none;
+  }
+
+  .smail-table tr {
+    display: block;
+    border-bottom: 1px solid var(--border);
+    padding: 6px 0;
+  }
+
+  .smail-table td {
+    display: block;
+    border: none;
+    padding: 2px 0;
+  }
+}

@@ -6,7 +6,7 @@
  */
 export const WORKPLACE_SCOPED_PATHS = [
   '/ambulances/schedule',
-  '/ambulances/workload',
+  '/ambulances/mail',
   '/departments',
   '/employees',
   '/competences',

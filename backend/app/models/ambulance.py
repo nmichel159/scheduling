@@ -47,6 +47,17 @@ class Ambulance(Base):
         cascade="all, delete-orphan",
         order_by="SpecialDay.day",
     )
+    mail_recipients = relationship(
+        "ScheduleMailRecipient",
+        back_populates="ambulance",
+        cascade="all, delete-orphan",
+        order_by="ScheduleMailRecipient.email",
+    )
+    mail_dispatches = relationship(
+        "ScheduleMailDispatch",
+        back_populates="ambulance",
+        cascade="all, delete-orphan",
+    )
     manager = relationship("User", back_populates="managed_ambulances")
 
     # Proxies for direct collection manipulation

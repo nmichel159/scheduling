@@ -202,6 +202,24 @@ Four properties of the profile are worth knowing before you change it:
 `config_2` is the older, smaller profile (`ambulancia1`..`ambulancia4` and four
 urgent workplaces) and is kept for tests and for comparison.
 
+### Mailing schedules to the clinics
+
+A clinic does not log in: the people who need the finished month read it in a
+mailbox. Each workplace therefore keeps its own list of addresses, maintained
+by the scheduler who manages it, on **Rozposlanie rozpisu**
+(`/ambulances/mail`).
+
+Only an approved month can be sent — an unapproved package is a draft the
+employees themselves cannot see yet. The message carries the month as a
+day-by-day list and the same rows as a CSV attachment, and every attempt is
+recorded, failures included, so "when did they get it, and which version" has
+an answer.
+
+Configure the mail server through the `SMTP_*` / `MAIL_*` variables in
+`.env.example`. With no mail server at hand, set `MAIL_DRY_RUN=true`: the whole
+path runs, the message goes to the backend log, and the attempt is recorded as
+a dry run.
+
 ### Rebuilding a database from scratch
 
 Seeding upserts by natural key and only deletes inside the narrow scopes a
