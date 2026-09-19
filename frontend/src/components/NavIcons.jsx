@@ -210,3 +210,12 @@ export const CoverageIcon = (props) => (
     <rect x="16" y="4.4" width="3.4" height="14" rx="1" />
   </Icon>
 );
+
+/** Tlac rozvrhu — tlaciaren s vysunutym listom. */
+export const PrintIcon = (props) => (
+  <Icon {...props}>
+    <path d="M7.2 8.4V3.6h9.6v4.8" />
+    <path d="M7.2 17.2H5.4A1.8 1.8 0 0 1 3.6 15.4v-4.2a2.8 2.8 0 0 1 2.8-2.8h11.2a2.8 2.8 0 0 1 2.8 2.8v4.2a1.8 1.8 0 0 1-1.8 1.8h-1.8" />
+    <rect x="7.2" y="13.6" width="9.6" height="6.8" rx="1.2" />
+  </Icon>
+);

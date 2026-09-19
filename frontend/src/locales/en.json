@@ -50,7 +50,8 @@
     "competences": "Competence manager",
     "employees": "Employees",
     "special_days": "Special days",
-    "schedule_mail": "Schedule mailing"
+    "schedule_mail": "Schedule mailing",
+    "schedule_print": "Print schedule"
   },
   "workplace": {
     "loading": "Loading workplaces...",
@@ -551,5 +552,26 @@
       "not_approved": "This month's schedule is not approved.",
       "no_recipients": "No recipient is selected."
     }
+  },
+  "schedule_print": {
+    "title": "Print schedule",
+    "loading": "Loading...",
+    "load_error": "Could not load the schedule.",
+    "month": "Month",
+    "year": "Year",
+    "layout": "Layout",
+    "layout_competences": "Competences",
+    "layout_employees": "Employees",
+    "orientation": "Orientation",
+    "portrait": "Portrait",
+    "landscape": "Landscape",
+    "names": "Names",
+    "names_short": "Short",
+    "names_full": "Full",
+    "print": "Print / PDF",
+    "xlsx": "Excel",
+    "csv": "CSV",
+    "date": "Date",
+    "employee": "Employee"
   }
 }

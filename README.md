@@ -220,6 +220,30 @@ Configure the mail server through the `SMTP_*` / `MAIL_*` variables in
 path runs, the message goes to the backend log, and the attempt is recorded as
 a dry run.
 
+### Printing the month
+
+The schedule is worked out on screen and lived with on paper, so **Tlac rozvrhu**
+(`/ambulances/print`) exists to produce the wall copy: a row per day, a column
+per competence, names in the squares. It never runs onto a second sheet. The
+type size is not configured but measured -- the table is laid out against the
+printable area of an A4 and the size halved in on until the largest one that
+still fits is found -- so a month with three competences and a month with
+fifteen both come out as one page.
+
+The same month leaves in three ways. **Tlacit / PDF** hands the sheet to the
+browser's own print dialog, which is also where "save as PDF" lives. **Excel**
+writes a real `.xlsx`, and **CSV** a semicolon-separated file with a byte-order
+mark, which is what makes Excel open it with the columns already split. Both
+files are written in the browser -- `frontend/src/utils/tableExport.js` assembles
+the workbook's XML parts and zips them, rather than carrying a spreadsheet
+library in the bundle for six short files.
+
+The second layout turns the month on its side, a row per person and a column per
+day, which is the sheet somebody reads to find their own name rather than the
+day's cover. Its printed squares carry the competence's number from the legend,
+since a name will not fit in a column a month wide; the exported files, which
+have no such limit, carry the competence name itself.
+
 ### Rebuilding a database from scratch
 
 Seeding upserts by natural key and only deletes inside the narrow scopes a

@@ -50,7 +50,8 @@
     "competences": "Správca kompetencií",
     "employees": "Zamestnanci",
     "special_days": "Špeciálne dni",
-    "schedule_mail": "Rozposlanie rozpisu"
+    "schedule_mail": "Rozposlanie rozpisu",
+    "schedule_print": "Tlač rozvrhu"
   },
   "workplace": {
     "loading": "Načítavam pracoviská...",
@@ -553,5 +554,26 @@
       "not_approved": "Rozpis tohto mesiaca nie je schválený.",
       "no_recipients": "Nie je vybraný žiadny príjemca."
     }
+  },
+  "schedule_print": {
+    "title": "Tlač rozvrhu",
+    "loading": "Načítavam...",
+    "load_error": "Nepodarilo sa načítať rozvrh.",
+    "month": "Mesiac",
+    "year": "Rok",
+    "layout": "Rozloženie",
+    "layout_competences": "Kompetencie",
+    "layout_employees": "Zamestnanci",
+    "orientation": "Orientácia",
+    "portrait": "Na výšku",
+    "landscape": "Na šírku",
+    "names": "Mená",
+    "names_short": "Skrátené",
+    "names_full": "Celé",
+    "print": "Tlačiť / PDF",
+    "xlsx": "Excel",
+    "csv": "CSV",
+    "date": "Dátum",
+    "employee": "Zamestnanec"
   }
 }

@@ -4,6 +4,7 @@ import DashboardView from '../views/DashboardView';
 import WorkloadView from '../views/WorkloadView';
 import ScheduleView from '../views/ScheduleView';
 import AmbulanceScheduleEditView from '../views/AmbulanceScheduleEditView';
+import SchedulePrintView from '../views/SchedulePrintView';
 import DepartmentsView from '../views/DepartmentsView';
 import EmployeesView from '../views/EmployeesView';
 import CompetenceManagerView from '../views/CompetenceManagerView';
@@ -54,6 +55,17 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole flag="hasManager">
             <AmbulanceScheduleEditView />
+          </RequireRole>
+        ),
+      },
+      {
+        // A sibling of /ambulances/schedule rather than a child of it: the
+        // sidebar marks a link active for its whole subtree, and a nested path
+        // would light up the editor's entry as well as this one.
+        path: "/ambulances/print",
+        element: (
+          <RequireRole flag="hasManager">
+            <SchedulePrintView />
           </RequireRole>
         ),
       },

@@ -17,6 +17,7 @@ import {
   MailIcon,
   MoreIcon,
   MyScheduleIcon,
+  PrintIcon,
   RolesIcon,
   ScheduleOverviewIcon,
   SearchIcon,
@@ -55,6 +56,7 @@ const SECTIONS = [
     Icon: WorkplaceIcon,
     items: [
       { to: '/ambulances/schedule', labelKey: 'sidebar.ambulance_schedule', Icon: TeamScheduleIcon },
+      { to: '/ambulances/print', labelKey: 'sidebar.schedule_print', Icon: PrintIcon },
       { to: '/departments', labelKey: 'sidebar.departments', Icon: WorkplaceIcon },
       { to: '/employees', labelKey: 'sidebar.employees', Icon: EmployeesIcon },
       { to: '/competences', labelKey: 'sidebar.competences', Icon: CompetenceIcon },
