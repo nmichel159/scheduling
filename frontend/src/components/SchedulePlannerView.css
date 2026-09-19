@@ -190,6 +190,18 @@
   flex: none;
 }
 
+/* Only while a list is open: the pane holds at least as much as the list
+   needs, and the matrix stops being centred so the list starts at the pane's
+   own left edge instead of at the table's. Centred, a narrow matrix would
+   push the list off the right-hand side. */
+.planner-pane-demand.has-detail {
+  min-width: 20.5rem;
+}
+
+.planner-pane-demand.has-detail .planner-scroll-demand {
+  justify-content: safe flex-start;
+}
+
 .planner-scroll-people {
   max-height: calc(100svh - 250px);
   min-height: 180px;
@@ -533,21 +545,37 @@
   box-shadow: inset 0 0 0 1px #ef5350;
 }
 
+/* The whole square is the control, empty or not: a duty is added from the
+   person's side by clicking the day, not by hunting for an 11px dot. */
+.planner-people-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: box-shadow 90ms ease;
+}
+
+.planner-people-slot:hover {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.planner-people-slot.is-open {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
 .planner-people-dot {
   display: inline-block;
   width: 11px;
   height: 11px;
-  margin: 0 1px;
-  padding: 0;
-  border: 0;
   border-radius: 50%;
-  cursor: pointer;
   vertical-align: middle;
-  transition: transform 90ms ease;
-}
-
-.planner-people-dot:hover {
-  transform: scale(1.3);
+  pointer-events: none;
 }
 
 .planner-people-total-head,
@@ -568,6 +596,150 @@
 .planner-people-total {
   font-weight: 600;
   opacity: 0.75;
+}
+
+/* --- who can fill this square: a row of the demand table itself --- */
+
+.planner-detail-row {
+  height: auto;
+}
+
+.planner-detail-cell {
+  padding: 0;
+}
+
+/* The list is laid over its own row rather than inside it. A cell spanning
+   every column contributes its content's width to the table, so a long name
+   would stretch the competence squares above it; taken out of flow, it
+   cannot. The frame keeps the height the row still needs. */
+.planner-detail-frame {
+  position: relative;
+}
+
+.planner-detail {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  /* A workplace with three competences makes a matrix narrower than a list of
+     names, and being out of flow the list cannot widen it — so it claims the
+     room it needs and the pane below makes sure the room is there. */
+  min-width: 19rem;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  scrollbar-width: thin;
+  /* The panel carries its own surface rather than the cell it sits in: it
+     reaches past that cell, and a background on the cell would stop at the
+     column's edge with the names hanging off the end of it. */
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-background);
+  text-align: left;
+}
+
+.planner-detail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 6px 8px 4px;
+  background: var(--code-background);
+}
+
+.planner-detail-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 7px;
+  min-width: 0;
+}
+
+.planner-detail-competence {
+  color: var(--text-h);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.planner-detail-meta {
+  color: var(--text-h);
+  opacity: 0.6;
+  font-size: 0.7rem;
+}
+
+.planner-detail-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.planner-detail-table thead th {
+  position: sticky;
+  top: 26px;
+  z-index: 1;
+  padding: 0 6px 3px;
+  background: var(--code-background);
+  color: var(--text-h);
+  opacity: 0.6;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.planner-detail-table th.planner-detail-number {
+  text-align: right;
+}
+
+.planner-detail-person {
+  cursor: pointer;
+}
+
+.planner-detail-person:hover {
+  background: var(--primary-background);
+}
+
+.planner-detail-person.is-assigned {
+  font-weight: 600;
+}
+
+.planner-detail-person.is-busy {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.planner-detail-person td {
+  height: 24px;
+  padding: 0 6px;
+  color: var(--text-h);
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.planner-detail-mark {
+  width: 14px;
+  padding-right: 0 !important;
+  color: var(--primary);
+  font-size: 0.74rem;
+}
+
+.planner-detail-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planner-detail-number {
+  width: 4.3rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 /* --- who can fill this square --- */

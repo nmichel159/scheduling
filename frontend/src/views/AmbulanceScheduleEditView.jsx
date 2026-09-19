@@ -11,6 +11,7 @@ import {
   generateAmbulanceSchedule,
   updateAmbulanceSchedule,
 } from '../services/scheduleService';
+import { fetchSpecialDays } from '../services/specialDayService';
 import { useWorkplace, useWorkplaceSwitchGuard } from '../hooks/workplaceContext';
 import ScheduleListView from '../components/ScheduleListView';
 import SchedulePlannerView from '../components/SchedulePlannerView';
@@ -112,6 +113,11 @@ const AmbulanceScheduleEditView = () => {
   const [draggedShift, setDraggedShift] = useState(null);
   const [dragOverDate, setDragOverDate] = useState(null);
   const [scheduleView, setScheduleView] = useState('calendar');
+  // ISO dates this workplace rests on, for the year on screen. A duty on one
+  // of them is staffed and paid from the competence's day-of-rest column
+  // rather than from the weekday it lands on, which is how the generator
+  // reads it -- so the planner has to know them to agree with the solver.
+  const [restDays, setRestDays] = useState(() => new Set());
 
   // Shift editor state.
   //   editingShift: the shift being edited (or a fresh one when isNew=true).
@@ -165,6 +171,35 @@ const AmbulanceScheduleEditView = () => {
   useEffect(() => {
     loadSchedule();
   }, [loadSchedule]);
+
+  /* The special-day calendar is a year at a time and changes far less often
+     than the month does, so it loads on its own. A failure is left silent:
+     the schedule is still fully editable without it, only the day-of-rest
+     columns fall back to the weekday ones. */
+  useEffect(() => {
+    if (!selectedId) {
+      setRestDays(new Set());
+      return undefined;
+    }
+    let active = true;
+    fetchSpecialDays(selectedId, view.y)
+      .then((data) => {
+        if (!active) return;
+        setRestDays(
+          new Set(
+            (data.entries || [])
+              .filter((entry) => entry.is_rest_day)
+              .map((entry) => entry.day)
+          )
+        );
+      })
+      .catch(() => {
+        if (active) setRestDays(new Set());
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedId, view.y]);
 
   /* --- Competence map: order + colors by competence id --- */
 
@@ -1057,11 +1092,11 @@ const AmbulanceScheduleEditView = () => {
               competences={legend}
               employees={employees}
               shiftsByDate={shiftsByDate}
+              restDays={restDays}
               competenceColor={competenceColor}
               loading={loading}
               onAssign={handleAssignShift}
               onRemoveShift={handleRemoveShift}
-              onShiftClick={openEditorForShift}
               onGenerate={handleGenerate}
               generateLabel={
                 generating

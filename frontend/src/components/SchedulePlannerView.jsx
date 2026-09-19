@@ -1,6 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { normalizeWeekdayRequirements } from '../utils/competenceRequirements';
+import {
+  SPECIAL_DAY_SLOT,
+  defaultIsSurcharge,
+  normalizeWeekdayRequirements,
+} from '../utils/competenceRequirements';
 import { formatShortName } from '../utils/formatEmployeeName';
 import './SchedulePlannerView.css';
 
@@ -8,11 +12,19 @@ const pad = (n) => String(n).padStart(2, '0');
 const isoDate = (year, month, day) => `${year}-${pad(month + 1)}-${pad(day)}`;
 const isoWeekday = (dateObj) => (dateObj.getDay() + 6) % 7;
 
-/* The people picker is a fixed-position panel anchored next to the square that
-   opened it, so these have to be known here to keep it inside the viewport. */
-const PICKER_WIDTH = 292;
-const PICKER_MAX_HEIGHT = 380;
+/* The competence picker is a fixed-position panel anchored next to the cell
+   that opened it, so these have to be known here to keep it inside the
+   viewport. */
+const PICKER_WIDTH = 268;
+const PICKER_MAX_HEIGHT = 320;
 const PICKER_MARGIN = 12;
+
+/* The people list opens inside the demand table, between two days, and the
+   rows above and below it must not move more than they have to — so it is
+   given a height rather than allowed to take one. */
+const DETAIL_ROW_HEIGHT = 24;
+const DETAIL_HEAD_HEIGHT = 44;
+const DETAIL_MAX_HEIGHT = 240;
 
 /* Every day of the month has to be on screen at once, so the row height is not
    a fixed number but whatever divides the space actually left under the matrix.
@@ -48,13 +60,17 @@ const LABEL_PADDING = 8;
  *   into a narrow pane. Each square says how far that day/competence pair is
  *   from what the workplace needs — a filled dot when a single required duty
  *   is covered, a plain number once more than one person is needed. Clicking a
- *   square offers exactly the people of this workplace who hold that
- *   competence, and filling the square is one click on a name.
+ *   square opens the people who hold that competence as a row of the table
+ *   itself, each with the duties they already carry split into the surcharged
+ *   and the ordinary ones — which is the number the choice is actually made
+ *   on. Filling the square is one click on a name.
  *
  * - Right: people. One row per employee, one column per day, a coloured dot
  *   where they serve. This is the half that answers "who is overloaded", "who
  *   has not been used" and "is anyone on two duties in one day" — none of
- *   which the demand matrix can show.
+ *   which the demand matrix can show. Clicking a person's day offers exactly
+ *   the competences that person holds, so the same month can be filled from
+ *   the person's side as well as from the day's.
  *
  * Both halves read from and write to the same unsaved `shifts` state as the
  * calendar and the daily-rows modes, so switching between them mid-edit keeps
@@ -65,9 +81,11 @@ const LABEL_PADDING = 8;
  * - competences: the caller's ordered + coloured competence map (legend).
  * - employees: [{ user_id, full_name, email, competences: [{id, name}] }].
  * - shiftsByDate: { 'YYYY-MM-DD': [shift, ...] } — already sorted by the caller.
+ * - restDays: Set of ISO dates the workplace rests on. A duty there is staffed
+ *   and paid from the competence's day-of-rest slot rather than from the
+ *   weekday it happens to fall on, exactly as the solver reads it.
  * - onAssign(dateStr, competenceId, userId) / onRemoveShift(shiftId) —
  *   local-state edits; nothing here talks to the API.
- * - onShiftClick(shift) — hands a dot over to the full shift editor.
  * - onGenerate + generate* — the solver button, repeated here because the
  *   planner replaces the left rail that normally carries it.
  * - onClear + clear* — the same for the button that empties the still
@@ -87,11 +105,11 @@ const SchedulePlannerView = ({
   competences,
   employees,
   shiftsByDate,
+  restDays,
   competenceColor,
   loading,
   onAssign,
   onRemoveShift,
-  onShiftClick,
   onGenerate,
   generateLabel,
   generateHint,
@@ -102,9 +120,12 @@ const SchedulePlannerView = ({
 }) => {
   const { t } = useTranslation();
 
-  // { dateStr, competenceId, anchor: DOMRect } — the square whose people list
-  // is open. Null while nothing is being filled.
-  const [picker, setPicker] = useState(null);
+  // { dateStr, competenceId } — the square whose people are listed in the
+  // table. Null while nothing is being filled.
+  const [demandCell, setDemandCell] = useState(null);
+  // { dateStr, userId, anchor: DOMRect } — the person's day whose competence
+  // list is open.
+  const [personCell, setPersonCell] = useState(null);
   const pickerRef = useRef(null);
   const demandRef = useRef(null);
   const [metrics, setMetrics] = useState({
@@ -120,53 +141,73 @@ const SchedulePlannerView = ({
         const day = index + 1;
         const date = new Date(year, month, day);
         const weekday = isoWeekday(date);
+        const dateStr = isoDate(year, month, day);
+        const isRestDay = restDays?.has(dateStr) ?? false;
         return {
           day,
           weekday,
           date,
-          dateStr: isoDate(year, month, day),
+          dateStr,
+          /* Which column of the competence definition staffs and pays this
+             date. A public holiday on a Tuesday is a day of rest, not a
+             Tuesday, and the generator reads it that way too. */
+          slot: isRestDay ? SPECIAL_DAY_SLOT : weekday,
           isWeekend: weekday >= 5,
+          isRestDay,
           isToday:
             day === today.getDate() &&
             month === today.getMonth() &&
             year === today.getFullYear(),
         };
       }),
-    [daysInMonth, year, month, today]
+    [daysInMonth, year, month, today, restDays]
   );
 
-  /* Required head-count per competence, indexed by ISO weekday.
-     normalizeWeekdayRequirements always returns all seven days in order, so
-     position === weekday. */
-  const requiredByCompetence = useMemo(() => {
+  /* Complete slot definitions per competence. normalizeWeekdayRequirements
+     always returns all eight slots in order, so position === slot. */
+  const slotsByCompetence = useMemo(() => {
     const map = new Map();
     competences.forEach((competence) => {
-      map.set(
-        competence.id,
-        normalizeWeekdayRequirements(competence).map((item) => item.required_count)
-      );
+      map.set(competence.id, normalizeWeekdayRequirements(competence));
     });
     return map;
   }, [competences]);
 
-  const requiredFor = (competenceId, weekday) =>
-    requiredByCompetence.get(competenceId)?.[weekday] ?? 0;
+  const requiredFor = (competenceId, slot) =>
+    slotsByCompetence.get(competenceId)?.[slot]?.required_count ?? 0;
+
+  const isSurchargeFor = (competenceId, slot) =>
+    slotsByCompetence.get(competenceId)?.[slot]?.is_surcharge ??
+    defaultIsSurcharge(slot);
 
   /** Everyone assigned to one competence on one day. */
   const assignedOn = (dateStr, competenceId) =>
     (shiftsByDate[dateStr] || []).filter((s) => s.competence_id === competenceId);
 
-  /* Duties per employee for the whole month — shown next to each name and used
-     to offer the least-loaded people first in the picker. */
-  const loadByUser = useMemo(() => {
-    const counts = new Map();
-    Object.values(shiftsByDate).forEach((dayShifts) =>
-      dayShifts.forEach((shift) => {
-        counts.set(shift.user_id, (counts.get(shift.user_id) || 0) + 1);
-      })
-    );
-    return counts;
-  }, [shiftsByDate]);
+  /* Duties per employee for the whole month, split the way the payroll splits
+     them. The surcharged count is what the choice between two equally able
+     people is actually made on, so it is carried next to every name the
+     planner offers. */
+  const dutyStats = useMemo(() => {
+    const map = new Map();
+    days.forEach((dayInfo) => {
+      (shiftsByDate[dayInfo.dateStr] || []).forEach((shift) => {
+        const stats = map.get(shift.user_id) || {
+          total: 0,
+          surcharge: 0,
+          standard: 0,
+        };
+        stats.total += 1;
+        if (isSurchargeFor(shift.competence_id, dayInfo.slot)) stats.surcharge += 1;
+        else stats.standard += 1;
+        map.set(shift.user_id, stats);
+      });
+    });
+    return map;
+  }, [days, shiftsByDate, slotsByCompetence]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const statsFor = (userId) =>
+    dutyStats.get(userId) || { total: 0, surcharge: 0, standard: 0 };
 
   /* Shifts of one employee on one day, for the right-hand grid. */
   const shiftsByUserDate = useMemo(() => {
@@ -194,6 +235,12 @@ const SchedulePlannerView = ({
     [employees]
   );
 
+  const employeeById = useMemo(() => {
+    const map = new Map();
+    employees.forEach((employee) => map.set(employee.user_id, employee));
+    return map;
+  }, [employees]);
+
   /** Duties the month is still short of, summed over every day/competence. */
   const missingTotal = useMemo(
     () =>
@@ -201,40 +248,52 @@ const SchedulePlannerView = ({
         (sum, dayInfo) =>
           sum +
           competences.reduce((daySum, competence) => {
-            const required = requiredFor(competence.id, dayInfo.weekday);
+            const required = requiredFor(competence.id, dayInfo.slot);
             const filled = assignedOn(dayInfo.dateStr, competence.id).length;
             return daySum + Math.max(0, required - filled);
           }, 0),
         0
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [days, competences, requiredByCompetence, shiftsByDate]
+    [days, competences, slotsByCompetence, shiftsByDate]
   );
 
-  /* The open square, resolved against the month and the competences currently
-     on screen. Worked out during render rather than cleared by an effect: a
-     picker cannot outlive the square it points at, and after a month or a
-     workplace change that square is simply no longer there. It has to be
-     declared before the effect below, which lists it as a dependency. */
-  const open = useMemo(() => {
-    if (!picker) return null;
-    const day = days.find((d) => d.dateStr === picker.dateStr);
-    const competence = competences.find((c) => c.id === picker.competenceId);
-    return day && competence ? { ...picker, day, competence } : null;
-  }, [picker, days, competences]);
+  /* The open square and the open person-day, resolved against the month, the
+     competences and the roster currently on screen. Worked out during render
+     rather than cleared by an effect: neither can outlive the cell it points
+     at, and after a month or a workplace change that cell is simply no longer
+     there. They have to be declared before the effect below, which lists the
+     person picker as a dependency. */
+  const openDemand = useMemo(() => {
+    if (!demandCell) return null;
+    const day = days.find((d) => d.dateStr === demandCell.dateStr);
+    const competence = competences.find((c) => c.id === demandCell.competenceId);
+    return day && competence ? { ...demandCell, day, competence } : null;
+  }, [demandCell, days, competences]);
 
-  /* Escape, or a press anywhere outside the panel. Deliberately a listener
-   * rather than a full-screen backdrop: filling a month means clicking one
-   * square after another, and a backdrop would eat the press that opens the
-   * next one, making every square after the first cost two clicks. Closing on
-   * mousedown lets the click that follows land on the new square. */
+  const openPerson = useMemo(() => {
+    if (!personCell) return null;
+    const day = days.find((d) => d.dateStr === personCell.dateStr);
+    const employee = employeeById.get(personCell.userId);
+    return day && employee ? { ...personCell, day, employee } : null;
+  }, [personCell, days, employeeById]);
+
+  /* Escape closes whichever list is open; a press outside closes the floating
+   * one. Deliberately a listener rather than a full-screen backdrop: filling a
+   * month means clicking one cell after another, and a backdrop would eat the
+   * press that opens the next one, making every cell after the first cost two
+   * clicks. Closing on mousedown lets the click that follows land on the new
+   * cell. The list inside the table needs none of this — it is part of the
+   * table, and clicking another square already moves it. */
   useEffect(() => {
-    if (!open) return undefined;
+    if (!openDemand && !openPerson) return undefined;
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setPicker(null);
+      if (e.key !== 'Escape') return;
+      setDemandCell(null);
+      setPersonCell(null);
     };
     const handlePointerDown = (e) => {
-      if (!pickerRef.current?.contains(e.target)) setPicker(null);
+      if (!pickerRef.current?.contains(e.target)) setPersonCell(null);
     };
     window.addEventListener('keydown', handleKeyDown);
     document.addEventListener('mousedown', handlePointerDown);
@@ -242,7 +301,7 @@ const SchedulePlannerView = ({
       window.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('mousedown', handlePointerDown);
     };
-  }, [open]);
+  }, [openDemand, openPerson]);
 
   /* Size the header to the names it actually carries, then fit all of the
      month's days into whatever is left between the table's top edge and the
@@ -293,34 +352,49 @@ const SchedulePlannerView = ({
     [locale]
   );
 
-  const openPicker = (event, dateStr, competenceId) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    setPicker((current) =>
+  const toggleDemandCell = (dateStr, competenceId) => {
+    setPersonCell(null);
+    setDemandCell((current) =>
       current && current.dateStr === dateStr && current.competenceId === competenceId
         ? null
-        : { dateStr, competenceId, anchor: rect }
+        : { dateStr, competenceId }
     );
   };
 
-  /* ---------- the open people list ---------- */
+  const togglePersonCell = (event, dateStr, userId) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setPersonCell((current) =>
+      current && current.dateStr === dateStr && current.userId === userId
+        ? null
+        : { dateStr, userId, anchor: rect }
+    );
+  };
 
-  const pickerRows = useMemo(() => {
-    if (!open) return [];
-    const dayShifts = shiftsByDate[open.dateStr] || [];
+  /* ---------- who can fill the open square ---------- */
+
+  const demandRows = useMemo(() => {
+    if (!openDemand) return [];
+    const dayShifts = shiftsByDate[openDemand.dateStr] || [];
     return employees
-      .filter((e) => (e.competences || []).some((c) => c.id === open.competenceId))
+      .filter((e) =>
+        (e.competences || []).some((c) => c.id === openDemand.competenceId)
+      )
       .map((employee) => {
         const mine = dayShifts.find(
-          (s) => s.user_id === employee.user_id && s.competence_id === open.competenceId
+          (s) =>
+            s.user_id === employee.user_id &&
+            s.competence_id === openDemand.competenceId
         );
         const elsewhere = dayShifts.find(
-          (s) => s.user_id === employee.user_id && s.competence_id !== open.competenceId
+          (s) =>
+            s.user_id === employee.user_id &&
+            s.competence_id !== openDemand.competenceId
         );
         return {
           employee,
           shift: mine || null,
           busyWith: mine ? null : elsewhere || null,
-          load: loadByUser.get(employee.user_id) || 0,
+          stats: statsFor(employee.user_id),
         };
       })
       .sort((a, b) => {
@@ -329,15 +403,70 @@ const SchedulePlannerView = ({
         const rank = (row) => (row.shift ? 0 : row.busyWith ? 2 : 1);
         return (
           rank(a) - rank(b) ||
-          a.load - b.load ||
+          a.stats.total - b.stats.total ||
           (a.employee.full_name || '').localeCompare(b.employee.full_name || '')
         );
       });
-  }, [open, employees, shiftsByDate, loadByUser]);
+  }, [openDemand, employees, shiftsByDate, dutyStats]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleAssignment = (dateStr, competenceId, row) => {
+    if (row.busyWith) return; // one duty per person per day
+    if (row.shift) onRemoveShift(row.shift.id);
+    else onAssign(dateStr, competenceId, row.employee.user_id);
+  };
+
+  /* Given rather than taken, so the days above and below the open list keep
+     their places instead of the whole month jumping by however many people
+     hold the competence. */
+  const detailHeight = Math.min(
+    DETAIL_MAX_HEIGHT,
+    DETAIL_HEAD_HEIGHT + Math.max(1, demandRows.length) * DETAIL_ROW_HEIGHT
+  );
+
+  /* ---------- what the open person can do that day ---------- */
+
+  const personRows = useMemo(() => {
+    if (!openPerson) return [];
+    const dayShifts = shiftsByDate[openPerson.dateStr] || [];
+    const held = new Set(
+      (openPerson.employee.competences || []).map((c) => c.id)
+    );
+    const elsewhere = dayShifts.find(
+      (s) => s.user_id === openPerson.employee.user_id
+    );
+    return competences
+      .filter(
+        (competence) =>
+          held.has(competence.id) ||
+          /* A duty placed before the person lost the competence, or by the
+             solver on an older roster, still has to be removable from here —
+             so what is already theirs is listed whether they hold it or not. */
+          dayShifts.some(
+            (s) =>
+              s.user_id === openPerson.employee.user_id &&
+              s.competence_id === competence.id
+          )
+      )
+      .map((competence) => {
+        const mine = dayShifts.find(
+          (s) =>
+            s.user_id === openPerson.employee.user_id &&
+            s.competence_id === competence.id
+        );
+        return {
+          competence,
+          shift: mine || null,
+          busyWith: mine ? null : elsewhere || null,
+          filled: dayShifts.filter((s) => s.competence_id === competence.id)
+            .length,
+          required: requiredFor(competence.id, openPerson.day.slot),
+        };
+      });
+  }, [openPerson, competences, shiftsByDate, slotsByCompetence]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pickerStyle = useMemo(() => {
-    if (!open) return null;
-    const { anchor } = open;
+    if (!openPerson) return null;
+    const { anchor } = openPerson;
     const left = Math.max(
       PICKER_MARGIN,
       Math.min(anchor.right + 8, window.innerWidth - PICKER_WIDTH - PICKER_MARGIN)
@@ -347,12 +476,17 @@ const SchedulePlannerView = ({
       Math.min(anchor.top - 6, window.innerHeight - PICKER_MAX_HEIGHT - PICKER_MARGIN)
     );
     return { left, top, width: PICKER_WIDTH, maxHeight: PICKER_MAX_HEIGHT };
-  }, [open]);
+  }, [openPerson]);
 
-  const togglePerson = (row) => {
+  const togglePersonDuty = (row) => {
     if (row.busyWith) return; // one duty per person per day
     if (row.shift) onRemoveShift(row.shift.id);
-    else onAssign(open.dateStr, open.competenceId, row.employee.user_id);
+    else
+      onAssign(
+        openPerson.dateStr,
+        row.competence.id,
+        openPerson.employee.user_id
+      );
   };
 
   /* ---------- render ---------- */
@@ -368,7 +502,11 @@ const SchedulePlannerView = ({
             row height that has to carry all 31 days. Everything else — the
             generate button, the legend, the shortfall — moved across to the
             right column for the same reason. */}
-        <section className="planner-pane planner-pane-demand">
+        <section
+          className={`planner-pane planner-pane-demand ${
+            openDemand ? 'has-detail' : ''
+          }`}
+        >
           <h2 className="planner-pane-title">
             {t('schedule_edit.planner_demand_title')}
           </h2>
@@ -417,73 +555,230 @@ const SchedulePlannerView = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {days.map((dayInfo) => (
-                    <tr
-                      key={dayInfo.dateStr}
-                      className={`planner-matrix-row ${
-                        dayInfo.isWeekend ? 'is-weekend' : ''
-                      } ${dayInfo.isToday ? 'is-today' : ''}`}
-                    >
-                      <th scope="row" className="planner-matrix-dayhead">
-                        <span className="planner-matrix-daynum">{dayInfo.day}</span>
-                        <span className="planner-matrix-dayname">
-                          {weekdayLabels[dayInfo.weekday]}
-                        </span>
-                      </th>
-                      {competences.map((competence) => {
-                        const required = requiredFor(competence.id, dayInfo.weekday);
-                        const filled = assignedOn(dayInfo.dateStr, competence.id).length;
-                        const isOpen =
-                          open?.dateStr === dayInfo.dateStr &&
-                          open?.competenceId === competence.id;
+                  {days.map((dayInfo) => {
+                    const isOpenDay = openDemand?.dateStr === dayInfo.dateStr;
+                    return (
+                      <Fragment key={dayInfo.dateStr}>
+                        <tr
+                          className={`planner-matrix-row ${
+                            dayInfo.isWeekend ? 'is-weekend' : ''
+                          } ${dayInfo.isToday ? 'is-today' : ''}`}
+                        >
+                          <th scope="row" className="planner-matrix-dayhead">
+                            <span className="planner-matrix-daynum">{dayInfo.day}</span>
+                            <span className="planner-matrix-dayname">
+                              {weekdayLabels[dayInfo.weekday]}
+                            </span>
+                          </th>
+                          {competences.map((competence) => {
+                            const required = requiredFor(competence.id, dayInfo.slot);
+                            const filled = assignedOn(
+                              dayInfo.dateStr,
+                              competence.id
+                            ).length;
+                            const isOpen =
+                              isOpenDay && openDemand?.competenceId === competence.id;
 
-                        let state = 'idle';
-                        if (filled === 0 && required > 0) state = 'needed';
-                        else if (filled > 0 && filled < required) state = 'partial';
-                        else if (filled > required) state = 'over';
-                        else if (filled > 0) state = 'complete';
+                            let state = 'idle';
+                            if (filled === 0 && required > 0) state = 'needed';
+                            else if (filled > 0 && filled < required) state = 'partial';
+                            else if (filled > required) state = 'over';
+                            else if (filled > 0) state = 'complete';
 
-                        // A single required duty reads best as a dot: the square
-                        // is either filled or it is not. From two people up a dot
-                        // cannot say how many, so the count takes over.
-                        const showDot = filled === 1 && required <= 1;
+                            // A single required duty reads best as a dot: the square
+                            // is either filled or it is not. From two people up a dot
+                            // cannot say how many, so the count takes over.
+                            const showDot = filled === 1 && required <= 1;
 
-                        return (
-                          <td key={competence.id} className="planner-matrix-cell">
-                            <button
-                              type="button"
-                              className={`planner-square is-${state} ${
-                                isOpen ? 'is-open' : ''
-                              }`}
-                              style={{
-                                '--square-color': competenceColor(competence.id),
-                                '--square-fill': required
-                                  ? `${Math.round((filled / required) * 100)}%`
-                                  : '100%',
-                              }}
-                              onClick={(e) =>
-                                openPicker(e, dayInfo.dateStr, competence.id)
-                              }
-                              title={t('schedule_edit.planner_cell_title', {
-                                date: dateFormatter.format(dayInfo.date),
-                                competence: competence.name,
-                                filled,
-                                required,
-                              })}
+                            return (
+                              <td key={competence.id} className="planner-matrix-cell">
+                                <button
+                                  type="button"
+                                  className={`planner-square is-${state} ${
+                                    isOpen ? 'is-open' : ''
+                                  }`}
+                                  style={{
+                                    '--square-color': competenceColor(competence.id),
+                                    '--square-fill': required
+                                      ? `${Math.round((filled / required) * 100)}%`
+                                      : '100%',
+                                  }}
+                                  onClick={() =>
+                                    toggleDemandCell(dayInfo.dateStr, competence.id)
+                                  }
+                                  title={t('schedule_edit.planner_cell_title', {
+                                    date: dateFormatter.format(dayInfo.date),
+                                    competence: competence.name,
+                                    filled,
+                                    required,
+                                  })}
+                                >
+                                  {showDot ? (
+                                    <span
+                                      className="planner-square-dot"
+                                      aria-hidden="true"
+                                    />
+                                  ) : (
+                                    <span className="planner-square-count">
+                                      {filled > 0 ? filled : required || ''}
+                                    </span>
+                                  )}
+                                </button>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                        {/* The people who hold the clicked competence, opened as a
+                           row of the same table rather than as a panel over it:
+                           the answer belongs next to the day it is about, and a
+                           floating list covered the very columns being compared.
+                           The contents sit in an absolutely positioned layer so
+                           that however long a name is, it cannot stretch the
+                           squares above it. */
+                        isOpenDay && openDemand && (
+                          <tr className="planner-detail-row">
+                            <td
+                              className="planner-detail-cell"
+                              colSpan={competences.length + 1}
                             >
-                              {showDot ? (
-                                <span className="planner-square-dot" aria-hidden="true" />
-                              ) : (
-                                <span className="planner-square-count">
-                                  {filled > 0 ? filled : required || ''}
-                                </span>
-                              )}
-                            </button>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
+                              <div
+                                className="planner-detail-frame"
+                                style={{ height: `${detailHeight}px` }}
+                              >
+                                <div
+                                  className="planner-detail"
+                                  role="group"
+                                  aria-label={t('schedule_edit.planner_picker_title', {
+                                    competence: openDemand.competence.name,
+                                  })}
+                                >
+                                  <div className="planner-detail-head">
+                                    <span className="planner-detail-heading">
+                                      <span
+                                        className="planner-legend-swatch"
+                                        style={{
+                                          backgroundColor: competenceColor(
+                                            openDemand.competenceId
+                                          ),
+                                        }}
+                                        aria-hidden="true"
+                                      />
+                                      <span className="planner-detail-competence">
+                                        {openDemand.competence.name}
+                                      </span>
+                                      <span className="planner-detail-meta">
+                                        {dateFormatter.format(openDemand.day.date)} ·{' '}
+                                        {t('schedule_edit.planner_picker_filled', {
+                                          filled: assignedOn(
+                                            openDemand.dateStr,
+                                            openDemand.competenceId
+                                          ).length,
+                                          required: requiredFor(
+                                            openDemand.competenceId,
+                                            openDemand.day.slot
+                                          ),
+                                        })}
+                                      </span>
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className="planner-picker-close"
+                                      onClick={() => setDemandCell(null)}
+                                      title={t('schedule_edit.close')}
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+
+                                  {demandRows.length === 0 ? (
+                                    <p className="planner-picker-empty">
+                                      {t('schedule_edit.no_eligible_users')}
+                                    </p>
+                                  ) : (
+                                    <table className="planner-detail-table">
+                                      <thead>
+                                        <tr>
+                                          <th scope="col" className="planner-detail-mark">
+                                            <span className="planner-sr-only">
+                                              {t('schedule_edit.planner_assigned')}
+                                            </span>
+                                          </th>
+                                          <th scope="col">
+                                            {t('schedule_edit.planner_person')}
+                                          </th>
+                                          <th
+                                            scope="col"
+                                            className="planner-detail-number"
+                                          >
+                                            {t('schedule_edit.planner_surcharge')}
+                                          </th>
+                                          <th
+                                            scope="col"
+                                            className="planner-detail-number"
+                                          >
+                                            {t('schedule_edit.planner_standard')}
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {demandRows.map((row) => {
+                                          const fullLabel =
+                                            row.employee.full_name ||
+                                            row.employee.email;
+                                          return (
+                                            <tr
+                                              key={row.employee.user_id}
+                                              className={`planner-detail-person ${
+                                                row.shift ? 'is-assigned' : ''
+                                              } ${row.busyWith ? 'is-busy' : ''}`}
+                                              onClick={() =>
+                                                toggleAssignment(
+                                                  openDemand.dateStr,
+                                                  openDemand.competenceId,
+                                                  row
+                                                )
+                                              }
+                                            >
+                                              <td className="planner-detail-mark">
+                                                {row.shift ? '✓' : ''}
+                                              </td>
+                                              <td
+                                                className="planner-detail-name"
+                                                title={
+                                                  row.busyWith
+                                                    ? `${fullLabel} — ${t(
+                                                        'schedule_edit.planner_picker_busy',
+                                                        {
+                                                          competence:
+                                                            row.busyWith
+                                                              .competence_name,
+                                                        }
+                                                      )}`
+                                                    : fullLabel
+                                                }
+                                              >
+                                                {fullLabel}
+                                              </td>
+                                              <td className="planner-detail-number">
+                                                {row.stats.surcharge}
+                                              </td>
+                                              <td className="planner-detail-number">
+                                                {row.stats.standard}
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -580,7 +875,7 @@ const SchedulePlannerView = ({
                   <tbody>
                     {people.map((employee) => {
                       const byDate = shiftsByUserDate.get(employee.user_id);
-                      const total = loadByUser.get(employee.user_id) || 0;
+                      const total = statsFor(employee.user_id).total;
                       const fullLabel = employee.full_name || employee.email;
                       return (
                         <tr key={employee.user_id}>
@@ -589,6 +884,9 @@ const SchedulePlannerView = ({
                           </th>
                           {days.map((dayInfo) => {
                             const dayShifts = byDate?.get(dayInfo.dateStr) || [];
+                            const isOpen =
+                              openPerson?.dateStr === dayInfo.dateStr &&
+                              openPerson?.userId === employee.user_id;
                             return (
                               <td
                                 key={dayInfo.dateStr}
@@ -598,28 +896,52 @@ const SchedulePlannerView = ({
                                   dayShifts.length > 1 ? 'is-clash' : ''
                                 }`}
                               >
-                                {dayShifts.map((shift) => {
-                                  const dotLabel = t('schedule_edit.planner_dot_title', {
-                                    name: fullLabel,
-                                    date: dateFormatter.format(dayInfo.date),
-                                    competence: shift.competence_name,
-                                  });
-                                  return (
-                                    <button
+                                {/* The whole square opens the list of what this
+                                    person may serve that day — an empty one as
+                                    readily as a taken one, which is what makes
+                                    the month fillable from the person's side. */}
+                                <button
+                                  type="button"
+                                  className={`planner-people-slot ${
+                                    isOpen ? 'is-open' : ''
+                                  }`}
+                                  onClick={(e) =>
+                                    togglePersonCell(
+                                      e,
+                                      dayInfo.dateStr,
+                                      employee.user_id
+                                    )
+                                  }
+                                  title={
+                                    dayShifts.length > 0
+                                      ? dayShifts
+                                          .map((shift) =>
+                                            t('schedule_edit.planner_dot_title', {
+                                              name: fullLabel,
+                                              date: dateFormatter.format(
+                                                dayInfo.date
+                                              ),
+                                              competence: shift.competence_name,
+                                            })
+                                          )
+                                          .join('\n')
+                                      : `${fullLabel} — ${dateFormatter.format(
+                                          dayInfo.date
+                                        )}`
+                                  }
+                                >
+                                  {dayShifts.map((shift) => (
+                                    <span
                                       key={shift.id}
-                                      type="button"
                                       className="planner-people-dot"
                                       style={{
                                         backgroundColor: competenceColor(
                                           shift.competence_id
                                         ),
                                       }}
-                                      onClick={() => onShiftClick(shift)}
-                                      title={dotLabel}
-                                      aria-label={dotLabel}
                                     />
-                                  );
-                                })}
+                                  ))}
+                                </button>
                               </td>
                             );
                           })}
@@ -635,66 +957,64 @@ const SchedulePlannerView = ({
         </div>
       </div>
 
-      {open && (
+      {openPerson && (
         <div
           ref={pickerRef}
           className="planner-picker"
           style={pickerStyle}
           role="dialog"
-          aria-label={t('schedule_edit.planner_picker_title', {
-            competence: open.competence.name,
+          aria-label={t('schedule_edit.planner_person_picker_title', {
+            name: openPerson.employee.full_name || openPerson.employee.email,
           })}
         >
           <div className="planner-picker-head">
             <div className="planner-picker-heading">
               <span className="planner-picker-competence">
-                <span
-                  className="planner-legend-swatch"
-                  style={{ backgroundColor: competenceColor(open.competenceId) }}
-                  aria-hidden="true"
-                />
-                {open.competence.name}
+                {openPerson.employee.full_name || openPerson.employee.email}
               </span>
               <span className="planner-picker-meta">
-                {dateFormatter.format(open.day.date)} ·{' '}
-                {t('schedule_edit.planner_picker_filled', {
-                  filled: assignedOn(open.dateStr, open.competenceId).length,
-                  required: requiredFor(open.competenceId, open.day.weekday),
-                })}
+                {dateFormatter.format(openPerson.day.date)}
               </span>
             </div>
             <button
               type="button"
               className="planner-picker-close"
-              onClick={() => setPicker(null)}
+              onClick={() => setPersonCell(null)}
               title={t('schedule_edit.close')}
             >
               ✕
             </button>
           </div>
 
-          {pickerRows.length === 0 ? (
+          {personRows.length === 0 ? (
             <p className="planner-picker-empty">
-              {t('schedule_edit.no_eligible_users')}
+              {t('schedule_edit.planner_person_no_competence')}
             </p>
           ) : (
             <ul className="planner-picker-list">
-              {pickerRows.map((row) => (
-                <li key={row.employee.user_id}>
+              {personRows.map((row) => (
+                <li key={row.competence.id}>
                   <button
                     type="button"
                     className={`planner-picker-person ${
                       row.shift ? 'is-assigned' : ''
                     } ${row.busyWith ? 'is-busy' : ''}`}
-                    onClick={() => togglePerson(row)}
+                    onClick={() => togglePersonDuty(row)}
                     disabled={!!row.busyWith}
                   >
                     <span className="planner-picker-check" aria-hidden="true">
                       {row.shift ? '✓' : ''}
                     </span>
+                    <span
+                      className="planner-legend-swatch"
+                      style={{
+                        backgroundColor: competenceColor(row.competence.id),
+                      }}
+                      aria-hidden="true"
+                    />
                     <span className="planner-picker-person-text">
                       <span className="planner-picker-person-name">
-                        {row.employee.full_name || row.employee.email}
+                        {row.competence.name}
                       </span>
                       {row.busyWith && (
                         <span className="planner-picker-person-note">
@@ -704,13 +1024,11 @@ const SchedulePlannerView = ({
                         </span>
                       )}
                     </span>
-                    <span
-                      className="planner-picker-load"
-                      title={t('schedule_edit.planner_picker_load', {
-                        shifts: row.load,
+                    <span className="planner-picker-load">
+                      {t('schedule_edit.planner_picker_filled_short', {
+                        filled: row.filled,
+                        required: row.required,
                       })}
-                    >
-                      {row.load}
                     </span>
                   </button>
                 </li>
