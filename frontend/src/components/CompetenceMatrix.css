@@ -349,12 +349,20 @@ tbody tr:hover > td.cmatrix-cell-td {
   background: color-mix(in srgb, var(--primary-background) 70%, transparent);
 }
 
+/* The name button must cover the WHOLE cell (see the README rule
+ * "clickable text = clickable field"), so the row's ✕ is lifted out of the
+ * flow and floated over its right end instead of taking a share of the
+ * width — otherwise the strip next to it would be dead space. */
 .cmatrix-row-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  padding-right: 10px;
+  position: relative;
+  display: block;
+}
+
+.cmatrix-row-inner .cmatrix-remove-btn {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
 }
 /* The name opens the employee detail dialog. Per the UI rule in README
  * ("clickable text = clickable field"), the button is the whole name cell,
@@ -364,14 +372,14 @@ tbody tr:hover > td.cmatrix-cell-td {
 .cmatrix-table th.cmatrix-row { padding: 0; }
 
 .cmatrix-row-name {
-  flex: 1;
-  align-self: stretch;
   display: flex;
   align-items: center;
-  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 48px;
   border: none;
   background: none;
-  padding: 11px 14px;
+  padding: 11px 30px 11px 14px;
   font: inherit;
   font-weight: 600;
   color: var(--text-h);
@@ -428,12 +436,20 @@ tbody tr:hover > td.cmatrix-cell-td {
   background: color-mix(in srgb, var(--primary-background) 70%, transparent);
 }
 
+/* The name button must cover the WHOLE cell (see the README rule
+ * "clickable text = clickable field"), so the row's ✕ is lifted out of the
+ * flow and floated over its right end instead of taking a share of the
+ * width — otherwise the strip next to it would be dead space. */
 .cmatrix-row-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  padding-right: 10px;
+  position: relative;
+  display: block;
+}
+
+.cmatrix-row-inner .cmatrix-remove-btn {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
 }
 /* The name opens the employee detail dialog — styled as text, but it is a
  * real button, so it gets an underline on hover to advertise that. */
