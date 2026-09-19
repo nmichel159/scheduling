@@ -127,6 +127,20 @@ If you are modifying this project or using an AI developer agent (like Antigravi
 * **`database.md`**: Outlines transaction safety boundaries and Alembic migration protocols.
 * **`database-schema.md`**: Defines the exact relational database layout.
 
+### UI rule: clickable text = clickable field
+
+When a piece of text acts as a button (a table cell, a list row, a name in a
+grid), the **whole field around it is the click target**, not just the glyphs
+of the text. The button element must fill its cell/row — `display: block` or
+`flex` with `width: 100%` and the cell's padding moved onto the button — so the
+user can click anywhere in the field and still hit it.
+
+Clicking exactly on the letters and nothing else is a miss target: it is
+invisible where it starts and ends, and it feels broken on a wide cell with a
+short name. Example: the employee name in the competence matrix
+(`.cmatrix-row-name`) opens the employee detail — the entire name cell is the
+button.
+
 ### Automatic test/demo data
 
 The backend startup runs the database bootstrap before Uvicorn. Schema creation is

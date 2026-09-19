@@ -476,7 +476,9 @@ const CompetenceMatrix = ({
                         onClick={() => setDetailRowId(r.user_id)}
                         title={t('competences.employee_detail')}
                       >
-                        {r.full_name || r.email}
+                        <span className="cmatrix-row-name-text">
+                          {r.full_name || r.email}
+                        </span>
                       </button>
                       <button
                         type="button"

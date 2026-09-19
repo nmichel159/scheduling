@@ -396,7 +396,87 @@ tbody tr:hover > td.cmatrix-cell-td {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 4px;
+  padding-right: 10px;
+}
+/* The name opens the employee detail dialog. Per the UI rule in README
+ * ("clickable text = clickable field"), the button is the whole name cell,
+ * not just the glyphs: the cell drops its own padding, the button takes it
+ * over and stretches across the row, so a click anywhere left of the ✕
+ * hits it. */
+.cmatrix-table th.cmatrix-row { padding: 0; }
+
+.cmatrix-row-name {
+  flex: 1;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: none;
+  background: none;
+  padding: 11px 14px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text-h);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The ellipsis needs a real inline box; a bare text node inside a flex
+ * button becomes an anonymous item and won't truncate. */
+.cmatrix-row-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmatrix-row-name:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.cmatrix-row-name:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+.cmatrix-remove-btn {
+  grid-column: 3;
+  justify-self: end;
+}
+
+.cmatrix-row {
+  position: relative;
+  background: var(--background);
+  color: var(--text-h);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* Zebra striping + hover highlight on employee rows, so a long list of
+ * competences stays easy to scan across. The hover tint sits behind the
+ * (mostly transparent) daycell buttons, so it still peeks through the
+ * 4px gap around an assigned cell's inner oval. */
+tbody tr:nth-child(even) > th.cmatrix-row,
+tbody tr:nth-child(even) > td.cmatrix-cell-td {
+  background: color-mix(in srgb, var(--background) 90%, var(--border) 10%);
+}
+
+tbody tr:hover > th.cmatrix-row,
+tbody tr:hover > td.cmatrix-cell-td {
+  background: color-mix(in srgb, var(--primary-background) 70%, transparent);
+}
+
+.cmatrix-row-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding-right: 10px;
 }
 /* The name opens the employee detail dialog — styled as text, but it is a
  * real button, so it gets an underline on hover to advertise that. */
@@ -413,6 +493,15 @@ tbody tr:hover > td.cmatrix-cell-td {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* The ellipsis needs a real inline box; a bare text node inside a flex
+ * button becomes an anonymous item and won't truncate. */
+.cmatrix-row-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cmatrix-row-name:hover {
   color: var(--primary);
   text-decoration: underline;
