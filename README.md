@@ -230,13 +230,27 @@ printable area of an A4 and the size halved in on until the largest one that
 still fits is found -- so a month with three competences and a month with
 fifteen both come out as one page.
 
-The same month leaves in three ways. **Tlacit / PDF** hands the sheet to the
-browser's own print dialog, which is also where "save as PDF" lives. **Excel**
-writes a real `.xlsx`, and **CSV** a semicolon-separated file with a byte-order
-mark, which is what makes Excel open it with the columns already split. Both
-files are written in the browser -- `frontend/src/utils/tableExport.js` assembles
-the workbook's XML parts and zips them, rather than carrying a spreadsheet
-library in the bundle for six short files.
+The same month leaves in three ways, and all three are files rather than
+dialogs. **Stiahnut PDF** writes the sheet with jsPDF; **Excel** writes a real
+`.xlsx`, and **CSV** a semicolon-separated file with a byte-order mark, which is
+what makes Excel open it with the columns already split. The spreadsheet and the
+CSV are assembled by hand in `frontend/src/utils/tableExport.js` -- an `.xlsx` is
+a zip of six short XML parts, and carrying a spreadsheet library in the bundle
+to write them is a poor trade.
+
+The PDF carries its own font. A PDF's built-in Helvetica is encoded for Western
+Europe and has no glyph at all for c-caron or t-caron, so half the surnames on a
+Slovak rota would come out broken; `frontend/src/assets/fonts/` therefore holds
+DejaVu Sans cut down to Latin and Latin Extended-A, 22 kB instead of the 750 kB
+the whole face weighs. The one-page rule is kept the same way it is on screen,
+only counted rather than measured: the table is laid out, its pages are counted,
+and the type size is halved in on until the largest one that still leaves a
+single page is found. The rows are then stretched to reach the foot of the page
+-- and if stretching costs a page after all, the unstretched sheet stands, since
+one page is the promise and filling it is only a courtesy.
+
+Ctrl+P still works on this screen and prints the same sheet and nothing else,
+but it is the fallback, not the way out.
 
 The second layout turns the month on its side, a row per person and a column per
 day, which is the sheet somebody reads to find their own name rather than the

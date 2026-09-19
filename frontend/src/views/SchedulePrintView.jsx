@@ -9,6 +9,7 @@ import { fetchSpecialDays } from '../services/specialDayService';
 import { useWorkplace } from '../hooks/workplaceContext';
 import { formatShortName } from '../utils/formatEmployeeName';
 import { downloadCsv, downloadXlsx } from '../utils/tableExport';
+import { downloadSchedulePdf } from '../utils/schedulePdf';
 import './SchedulePrintView.css';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -33,6 +34,12 @@ const A4_LONG_MM = 297;
 const MIN_FONT_PX = 3;
 const MAX_FONT_PX = 13;
 const FIT_STEPS = 8;
+
+/* Pixels of the page the fit search refuses to use. Browsers round a table's
+   rows and borders to whole device pixels, and a size that fills the sheet to
+   the last of them loses the bottom row's rule -- or the row -- to that
+   rounding. Two pixels of air cost nothing and the sheet always closes. */
+const FIT_SLACK_PX = 2;
 
 const slugify = (value) =>
   (value || 'rozvrh')
@@ -86,9 +93,12 @@ const SchedulePrintView = () => {
   const [restDays, setRestDays] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [buildingPdf, setBuildingPdf] = useState(false);
 
   const sheetRef = useRef(null);
   const bodyRef = useRef(null);
+  const tableRef = useRef(null);
+  const legendRef = useRef(null);
   const stageRef = useRef(null);
   const [preview, setPreview] = useState({ scale: 1, height: 0 });
 
@@ -300,6 +310,9 @@ const SchedulePrintView = () => {
         })),
         minFirstEm: 8,
         minColumnEm: 2.2,
+        /* Mirrors .sprint-table.is-employees .sprint-first in the stylesheet:
+           the file and the screen have to give the names the same share. */
+        firstColumnShare: 0.16,
         firstColumnWidth: 24,
         columnWidth: 16,
       };
@@ -332,6 +345,8 @@ const SchedulePrintView = () => {
       legend: [],
       minFirstEm: 4,
       minColumnEm: 5,
+      /* Mirrors .sprint-table.is-competences .sprint-first. */
+      firstColumnShare: 0.13,
       firstColumnWidth: 14,
       columnWidth: 24,
     };
@@ -382,6 +397,30 @@ const SchedulePrintView = () => {
     downloadCsv(`${baseFilename}.csv`, exportMatrix.header, exportMatrix.rows);
   };
 
+  const handlePdf = async () => {
+    if (buildingPdf) return;
+    setBuildingPdf(true);
+    try {
+      await downloadSchedulePdf(
+        `${baseFilename}.pdf`,
+        {
+          title: active?.name || '',
+          period: `${monthLabel} ${year}`,
+          firstHead: table.firstHead,
+          columns: table.columns,
+          rows: table.rows,
+          legend: table.legend,
+          firstColumnShare: table.firstColumnShare,
+        },
+        orientation
+      );
+    } catch {
+      setError(t('schedule_print.pdf_error'));
+    } finally {
+      setBuildingPdf(false);
+    }
+  };
+
   /* --------------------------------- fitting the sheet onto one page ------ */
 
   const [sheetWidthMm, sheetHeightMm] =
@@ -394,16 +433,31 @@ const SchedulePrintView = () => {
     const body = bodyRef.current;
     if (!sheet || !body) return;
 
+    /* The table is measured at its natural height, not stretched to the page:
+       a stretched table reports the height it was given however much it holds,
+       so every size would look like a fit. */
+    sheet.classList.add('is-measuring');
+
+    /* What the content actually occupies, which is not what the box it sits in
+       reports: a container's scrolled height never falls below its own, so it
+       can say "too tall" but never "room to spare" -- and room to spare is
+       exactly what a page that must close on the last row needs to know. */
+    const contentHeight = () => {
+      const last = legendRef.current ?? tableRef.current;
+      if (!last) return 0;
+      return last.getBoundingClientRect().bottom - body.getBoundingClientRect().top;
+    };
+
     let low = MIN_FONT_PX;
     let high = MAX_FONT_PX;
     let best = MIN_FONT_PX;
     for (let step = 0; step < FIT_STEPS; step += 1) {
       const mid = (low + high) / 2;
       sheet.style.setProperty('--sprint-font', `${mid}px`);
-      // Reading the scrolled size flushes the layout the line above dirtied.
+      // Reading the geometry flushes the layout the line above dirtied.
       const fits =
-        body.scrollHeight <= body.clientHeight + 1 &&
-        body.scrollWidth <= body.clientWidth + 1;
+        contentHeight() <= body.clientHeight - FIT_SLACK_PX &&
+        (tableRef.current?.offsetWidth ?? 0) <= body.clientWidth;
       if (fits) {
         best = mid;
         low = mid;
@@ -411,7 +465,9 @@ const SchedulePrintView = () => {
         high = mid;
       }
     }
+
     sheet.style.setProperty('--sprint-font', `${best}px`);
+    sheet.classList.remove('is-measuring');
   }, [table, sheetWidthMm, sheetHeightMm, loading]);
 
   /* The sheet is laid out at its true printed size and only shown smaller, so
@@ -544,10 +600,10 @@ const SchedulePrintView = () => {
           <button
             type="button"
             className="sprint-btn sprint-btn-primary"
-            disabled={loading}
-            onClick={() => window.print()}
+            disabled={loading || buildingPdf}
+            onClick={handlePdf}
           >
-            {t('schedule_print.print')}
+            {buildingPdf ? t('schedule_print.pdf_building') : t('schedule_print.pdf')}
           </button>
           <button
             type="button"
@@ -586,6 +642,7 @@ const SchedulePrintView = () => {
           <div className="sprint-sheet-body" ref={bodyRef}>
             <div className="sprint-table-wrap">
               <table
+                ref={tableRef}
                 className={`sprint-table is-${layout}`}
                 style={{
                   minWidth: `calc(${table.minFirstEm}em + ${table.columns.length} * ${table.minColumnEm}em)`,
@@ -624,7 +681,7 @@ const SchedulePrintView = () => {
             </div>
 
             {table.legend.length > 0 && (
-              <ul className="sprint-legend">
+              <ul className="sprint-legend" ref={legendRef}>
                 {table.legend.map((item) => (
                   <li key={item.key}>
                     <b>{item.marker}</b>

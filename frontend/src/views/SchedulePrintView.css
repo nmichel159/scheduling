@@ -164,6 +164,16 @@
   min-height: 0;
 }
 
+/* Filling the page and being measured are two different states of the same
+   table, and it cannot be in both at once. At rest the table is stretched to
+   the height it was given, which is what spreads a short month evenly down the
+   sheet. But a stretched table is pinned to that height whatever it holds: its
+   rows overflow it silently, over the legend and past the paper's edge, and
+   the fit search reads a box that fits no matter how much is inside it. So the
+   search measures the table at its natural height instead (see .is-measuring),
+   and the stretch only goes back on once a size is known to fit. Because the
+   stretch can only ever add height to rows, a natural height that fits
+   guarantees the stretched one does too. */
 .sprint-table {
   width: 100%;
   height: 100%;
@@ -171,6 +181,18 @@
   table-layout: fixed;
   font-size: var(--sprint-font);
   line-height: 1.15;
+}
+
+/* While measuring, nothing stretches: the table stands at its natural height
+   and the wrap stops claiming the leftover space, so the content stacks from
+   the top of the body and its real height can simply be read off the bottom
+   of the last thing in it. */
+.sprint-sheet.is-measuring .sprint-table {
+  height: auto;
+}
+
+.sprint-sheet.is-measuring .sprint-table-wrap {
+  flex: 0 0 auto;
 }
 
 .sprint-table th,
@@ -234,6 +256,9 @@
 }
 
 .sprint-legend {
+  /* Never shrinks: the legend is what makes the numbers in the squares mean
+     anything, so it claims its lines before the table is given the rest. */
+  flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
   gap: 0.4em 1.2em;
