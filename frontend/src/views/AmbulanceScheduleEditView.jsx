@@ -13,6 +13,7 @@ import {
 } from '../services/scheduleService';
 import { useWorkplace, useWorkplaceSwitchGuard } from '../hooks/workplaceContext';
 import ScheduleListView from '../components/ScheduleListView';
+import SchedulePlannerView from '../components/SchedulePlannerView';
 import CompetenceCoverage from '../components/CompetenceCoverage';
 import ConfirmDialog from '../components/ConfirmDialog';
 import GenerationProgressDialog from '../components/GenerationProgressDialog';
@@ -289,10 +290,12 @@ const AmbulanceScheduleEditView = () => {
     () => [0, 1, 2, 3, 4, 5, 6].map((i) => t(`workload.days.${i}`)),
     [t]
   );
-  const viewLabels =
-    i18n.language === 'en'
-      ? { calendar: 'Calendar', list: 'Daily rows', switcher: 'Schedule view' }
-      : { calendar: 'Kalendár', list: 'Denné riadky', switcher: 'Zobrazenie rozvrhu' };
+  const viewLabels = {
+    calendar: t('schedule_edit.view_calendar'),
+    list: t('schedule_edit.view_list'),
+    planner: t('schedule_edit.view_planner'),
+    switcher: t('schedule_edit.view_switcher'),
+  };
 
 
   /* --- Shift editor: derived selection state --- */
@@ -370,6 +373,37 @@ const AmbulanceScheduleEditView = () => {
 
   const handleRemoveShift = (shiftId) => {
     setShifts((prev) => prev.filter((s) => s.id !== shiftId));
+  };
+
+  /* One-click assignment, used by the planner's people list: it already knows
+   * the day, the competence and the person, so it needs no editor popup. The
+   * same (user, competence, day) twice is the bulk PUT's own entry key, so a
+   * duplicate would be silently collapsed on save — refuse it here instead. */
+  const handleAssignShift = (dateStr, competenceId, userId) => {
+    const emp = employeeById.get(userId);
+    const comp = competenceMap[competenceId];
+    setShifts((prev) => {
+      const exists = prev.some(
+        (s) =>
+          s.work_date === dateStr &&
+          s.competence_id === competenceId &&
+          s.user_id === userId
+      );
+      if (exists) return prev;
+      return [
+        ...prev,
+        {
+          id: makeTempShiftId(),
+          ambulance_id: selectedId,
+          work_date: dateStr,
+          user_id: userId,
+          competence_id: competenceId,
+          user_full_name: emp?.full_name || emp?.email || '',
+          user_email: emp?.email || '',
+          competence_name: comp?.name || '',
+        },
+      ];
+    });
   };
 
   /** Step by `offset` months, or jump back to the running month when null. */
@@ -643,6 +677,139 @@ const AmbulanceScheduleEditView = () => {
   const showNoEligibleUsers =
     draftCompetenceId != null && eligibleEmployees.length === 0;
 
+  /* The bar is one row: what you are looking at on the left, what you can do
+   * to it on the right. It used to be two stacked rows, which read a little
+   * calmer but cost some fifty pixels of height.
+   *
+   * It is built here rather than rendered in place because the planner puts
+   * it somewhere else: there the day matrix owns the left column and has to
+   * start at the very top of the page, so the bar goes into the right column
+   * above the people calendar instead of lying across the whole width. */
+  const topbar = (
+    <div className="schedule-edit-topbar">
+      <h1 className="schedule-edit-topbar-name">{selected.name}</h1>
+
+      <div className="schedule-edit-state">
+        <span
+          className={`schedule-edit-pill ${isDirty ? 'is-dirty' : 'is-clean'}`}
+        >
+          <span className="schedule-edit-pill-dot" aria-hidden="true" />
+          {isDirty ? t('schedule_edit.unsaved') : t('schedule_edit.saved')}
+        </span>
+        <span
+          className={`schedule-edit-pill ${
+            isApproved ? 'is-approved' : 'is-draft'
+          }`}
+        >
+          <span className="schedule-edit-pill-dot" aria-hidden="true" />
+          {isApproved
+            ? t('schedule_edit.approved')
+            : t('schedule_edit.not_approved')}
+        </span>
+      </div>
+
+      <div className="schedule-edit-month-navigation">
+        <button
+          type="button"
+          className="schedule-edit-month-button"
+          onClick={() => changeMonth(-1)}
+          disabled={loading || generating || saving || approving}
+          aria-label={t('schedule_edit.previous_month')}
+        >
+          ‹
+        </button>
+        <span className="schedule-edit-topbar-month">{monthLabel}</span>
+        <button
+          type="button"
+          className="schedule-edit-month-button"
+          onClick={() => changeMonth(1)}
+          disabled={loading || generating || saving || approving}
+          aria-label={t('schedule_edit.next_month')}
+        >
+          ›
+        </button>
+      </div>
+
+      <div
+        className="schedule-view-switch"
+        role="group"
+        aria-label={viewLabels.switcher}
+      >
+        <button
+          type="button"
+          className={`schedule-view-switch-button ${
+            scheduleView === 'calendar' ? 'is-active' : ''
+          }`}
+          onClick={() => setScheduleView('calendar')}
+          aria-pressed={scheduleView === 'calendar'}
+        >
+          {viewLabels.calendar}
+        </button>
+        <button
+          type="button"
+          className={`schedule-view-switch-button ${
+            scheduleView === 'list' ? 'is-active' : ''
+          }`}
+          onClick={() => setScheduleView('list')}
+          aria-pressed={scheduleView === 'list'}
+        >
+          {viewLabels.list}
+        </button>
+        <button
+          type="button"
+          className={`schedule-view-switch-button ${
+            scheduleView === 'planner' ? 'is-active' : ''
+          }`}
+          onClick={() => setScheduleView('planner')}
+          aria-pressed={scheduleView === 'planner'}
+        >
+          {viewLabels.planner}
+        </button>
+      </div>
+
+      <div className="schedule-edit-topbar-actions">
+        {/* Only worth a place in the bar while there is something to
+            throw away; permanently greyed out it just took room. */}
+        {isDirty && (
+          <button
+            type="button"
+            className="schedule-edit-btn schedule-edit-btn-cancel"
+            onClick={handleCancel}
+            disabled={approving}
+          >
+            {t('schedule_edit.cancel')}
+          </button>
+        )}
+        <button
+          type="button"
+          className="schedule-edit-btn schedule-edit-btn-primary"
+          onClick={handleSave}
+          disabled={!isDirty || saving || approving}
+        >
+          {saving ? t('schedule_edit.saving') : t('schedule_edit.save')}
+        </button>
+        <button
+          type="button"
+          className="schedule-edit-btn schedule-edit-btn-approve"
+          onClick={handleApprove}
+          disabled={
+            loading ||
+            isDirty ||
+            isApproved ||
+            shifts.length === 0 ||
+            saving ||
+            generating ||
+            approving
+          }
+        >
+          {approving
+            ? t('schedule_edit.approving')
+            : t('schedule_edit.approve')}
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="schedule-edit">
       {error && (
@@ -654,7 +821,16 @@ const AmbulanceScheduleEditView = () => {
         </div>
       )}
 
-      <div className="schedule-edit-layout is-single">
+      {/* The planner carries its own generate button and shows the required
+          head-counts inside its demand matrix, so the left rail would only
+          repeat itself there — and the two halves of the split need the
+          width far more than a second copy of the legend does. */}
+      <div
+        className={`schedule-edit-layout ${
+          scheduleView === 'planner' ? 'is-wide' : 'is-single'
+        }`}
+      >
+        {scheduleView !== 'planner' && (
         <nav className="schedule-edit-side">
           <div className="schedule-edit-generate-panel">
             <button
@@ -680,129 +856,14 @@ const AmbulanceScheduleEditView = () => {
             emptyLabel={t('schedule_edit.legend_empty')}
           />
         </nav>
+        )}
 
         <div className="schedule-edit-detail">
-          {/* Two rows, each with one job: what you are looking at and what
-              state it is in, then everything you can do to it. Before this the
-              name, the month stepper, the view toggle, two status texts and
-              three buttons all sat in one flat row with equal weight, which
-              read as a pile rather than a bar. */}
-          <div className="schedule-edit-topbar">
-            <div className="schedule-edit-topbar-row schedule-edit-topbar-identity">
-              <h1 className="schedule-edit-topbar-name">{selected.name}</h1>
-              <div className="schedule-edit-state">
-                <span
-                  className={`schedule-edit-pill ${isDirty ? 'is-dirty' : 'is-clean'}`}
-                >
-                  <span className="schedule-edit-pill-dot" aria-hidden="true" />
-                  {isDirty ? t('schedule_edit.unsaved') : t('schedule_edit.saved')}
-                </span>
-                <span
-                  className={`schedule-edit-pill ${
-                    isApproved ? 'is-approved' : 'is-draft'
-                  }`}
-                >
-                  <span className="schedule-edit-pill-dot" aria-hidden="true" />
-                  {isApproved
-                    ? t('schedule_edit.approved')
-                    : t('schedule_edit.not_approved')}
-                </span>
-              </div>
-            </div>
+          {/* In planner mode the bar travels into the planner's own right
+              column — see the comment on `topbar`. */}
+          {scheduleView !== 'planner' && topbar}
 
-            <div className="schedule-edit-topbar-row schedule-edit-topbar-controls">
-              <div className="schedule-edit-month-navigation">
-                <button
-                  type="button"
-                  className="schedule-edit-month-button"
-                  onClick={() => changeMonth(-1)}
-                  disabled={loading || generating || saving || approving}
-                  aria-label={t('schedule_edit.previous_month')}
-                >
-                  ‹
-                </button>
-                <span className="schedule-edit-topbar-month">{monthLabel}</span>
-                <button
-                  type="button"
-                  className="schedule-edit-month-button"
-                  onClick={() => changeMonth(1)}
-                  disabled={loading || generating || saving || approving}
-                  aria-label={t('schedule_edit.next_month')}
-                >
-                  ›
-                </button>
-              </div>
-
-              <div className="schedule-edit-topbar-actions">
-              <div
-                className="schedule-view-switch"
-                role="group"
-                aria-label={viewLabels.switcher}
-              >
-                <button
-                  type="button"
-                  className={`schedule-view-switch-button ${
-                    scheduleView === 'calendar' ? 'is-active' : ''
-                  }`}
-                  onClick={() => setScheduleView('calendar')}
-                  aria-pressed={scheduleView === 'calendar'}
-                >
-                  {viewLabels.calendar}
-                </button>
-                <button
-                  type="button"
-                  className={`schedule-view-switch-button ${
-                    scheduleView === 'list' ? 'is-active' : ''
-                  }`}
-                  onClick={() => setScheduleView('list')}
-                  aria-pressed={scheduleView === 'list'}
-                >
-                  {viewLabels.list}
-                </button>
-              </div>
-              <span className="schedule-edit-topbar-divider" aria-hidden="true" />
-              <button
-                type="button"
-                className="schedule-edit-btn schedule-edit-btn-cancel"
-                onClick={handleCancel}
-                disabled={!isDirty || approving}
-              >
-                {t('schedule_edit.cancel')}
-              </button>
-              <button
-                type="button"
-                className="schedule-edit-btn schedule-edit-btn-primary"
-                onClick={handleSave}
-                disabled={!isDirty || saving || approving}
-              >
-                {saving ? t('schedule_edit.saving') : t('schedule_edit.save')}
-              </button>
-              {/* Publishing is a different lifecycle step from editing, so it
-                  sits past a divider instead of blending into the edit pair. */}
-              <span className="schedule-edit-topbar-divider" aria-hidden="true" />
-              <button
-                type="button"
-                className="schedule-edit-btn schedule-edit-btn-approve"
-                onClick={handleApprove}
-                disabled={
-                  loading ||
-                  isDirty ||
-                  isApproved ||
-                  shifts.length === 0 ||
-                  saving ||
-                  generating ||
-                  approving
-                }
-              >
-                {approving
-                  ? t('schedule_edit.approving')
-                  : t('schedule_edit.approve')}
-              </button>
-              </div>
-            </div>
-          </div>
-
-          {scheduleView === 'calendar' ? (
+          {scheduleView === 'calendar' && (
             <div className={`schedule-edit-grid ${loading ? 'is-loading' : ''}`}>
             {dayLabels.map((label) => (
               <div key={label} className="schedule-edit-grid-head">
@@ -892,7 +953,36 @@ const AmbulanceScheduleEditView = () => {
               );
             })}
             </div>
-          ) : (
+          )}
+
+          {scheduleView === 'planner' && (
+            <SchedulePlannerView
+              header={topbar}
+              year={view.y}
+              month={view.m}
+              today={today}
+              locale={i18n.language === 'en' ? 'en-GB' : 'sk-SK'}
+              weekdayLabels={dayLabels}
+              competences={legend}
+              employees={employees}
+              shiftsByDate={shiftsByDate}
+              competenceColor={competenceColor}
+              loading={loading}
+              onAssign={handleAssignShift}
+              onRemoveShift={handleRemoveShift}
+              onShiftClick={openEditorForShift}
+              onGenerate={handleGenerate}
+              generateLabel={
+                generating
+                  ? t('schedule_edit.generating')
+                  : t('schedule_edit.generate')
+              }
+              generateHint={t('schedule_edit.generate_hint')}
+              generateDisabled={loading || saving || generating || approving}
+            />
+          )}
+
+          {scheduleView === 'list' && (
             <ScheduleListView
               year={view.y}
               month={view.m}

@@ -1,0 +1,718 @@
+/* Planner — the split schedule mode.
+
+   Left half: days x competences, as small squares. Right half: people x days,
+   as coloured dots. Both halves are dense on purpose: a whole month has to be
+   readable without scrolling sideways, which is what the 45-degree competence
+   headers and the ~22px cells buy.
+
+   Tokens come from src/index.css (--background, --code-background, --border,
+   --text-h, --primary, --primary-background). */
+
+.planner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.planner.is-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* --- toolbar: generate + colour legend + how much is still unstaffed --- */
+
+.planner-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.planner-generate {
+  flex-shrink: 0;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  padding: 7px 14px;
+  background: var(--primary);
+  color: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.planner-generate:not(:disabled):hover {
+  filter: brightness(1.1);
+}
+
+.planner-generate:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.planner-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.planner-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-h);
+  font-size: 0.78rem;
+}
+
+.planner-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Pushed to the far end: it is the one number that says whether the month is
+   finished, so it should not sit inside the legend's rhythm. */
+.planner-missing {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border: 1px solid rgba(239, 83, 80, 0.5);
+  border-radius: 999px;
+  background: rgba(239, 83, 80, 0.13);
+  color: var(--text-h);
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.planner-missing.is-ok {
+  border-color: rgba(76, 175, 80, 0.5);
+  background: rgba(76, 175, 80, 0.13);
+}
+
+/* --- the split --- */
+
+.planner-split {
+  display: grid;
+  /* The demand half only needs as much room as its competences take, capped so
+     it can never crowd out the people half; everything left over goes right. */
+  grid-template-columns: fit-content(46%) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+}
+
+/* Toolbar + people calendar, stacked. The toolbar lives here rather than over
+   the whole width so that nothing is pushed down in front of the matrix. */
+.planner-right {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.planner-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 10px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.planner-pane-title {
+  margin: 0;
+  color: var(--text-h);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+  text-transform: uppercase;
+}
+
+.planner-empty {
+  margin: 0;
+  padding: 18px 2px;
+  color: var(--text-h);
+  opacity: 0.6;
+  font-size: 0.85rem;
+}
+
+/* Each half scrolls on its own — the two tables have different row meanings,
+   so there is nothing to keep in sync between them. */
+.planner-scroll {
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+/* The demand table is sized to fit; the cap is only a backstop for the case
+   where the measurement runs before the surrounding layout has settled.
+   Centred as a block: the table reserves a strip on its right for the tilted
+   labels to lean into, and without this the whole grid sits against the left
+   edge with that strip left over as a gap. `safe` keeps the left edge
+   reachable if the table ever does outgrow the pane. */
+.planner-scroll-demand {
+  display: flex;
+  justify-content: safe center;
+  /* Deliberately loose. The fit is decided by the measured row height; this is
+     only here so the very first frame, before the measurement lands, cannot run
+     off the bottom of the page. Tight enough to bind and it would overrule the
+     measurement and bring the scrollbar back. */
+  max-height: calc(100svh - 40px);
+}
+
+.planner-scroll-demand > .planner-matrix {
+  flex: none;
+}
+
+.planner-scroll-people {
+  max-height: calc(100svh - 250px);
+  min-height: 180px;
+}
+
+.planner-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* --- left: day x competence matrix --- */
+
+.planner-matrix {
+  /* --planner-row is set inline from the measured height available; every other
+     measurement here follows from it, so the grid keeps its proportions whether
+     a row ends up 14px or 26px tall. */
+  --planner-row: 22px;
+  --planner-cell: calc(var(--planner-row) + 4px);
+  /* Both follow from the longest competence name, measured and set inline: a
+     label tilted 45 degrees claims its own length x sin(45) above the table,
+     and the same again to the right of the last column. */
+  --planner-label-w: 120px;
+  --planner-head-h: calc(var(--planner-label-w) * 0.7072 + 8px);
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-right: calc(var(--planner-label-w) * 0.7072);
+}
+
+/* The opaque backing is on the group, not on the individual header cells. The
+   tilted names are positioned boxes that reach over the columns to their right,
+   and a background on the cell next door would paint straight over them —
+   which is exactly what happens if each cell carries its own. */
+.planner-matrix thead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--background);
+}
+
+.planner-matrix-headrow th {
+  height: var(--planner-head-h);
+  padding: 0;
+  vertical-align: bottom;
+}
+
+.planner-matrix-corner {
+  position: sticky;
+  left: 0;
+  /* Above the tilted names, which have no z-index of their own: scrolled
+     sideways they pass behind this cell rather than over it. */
+  z-index: 1;
+  min-width: 38px;
+  background: var(--background);
+}
+
+.planner-matrix-colhead {
+  position: relative;
+  width: var(--planner-cell);
+  min-width: var(--planner-cell);
+}
+
+/* Pinned to the exact middle of its own column, at the line where the header
+   meets the first day. `left: 50%` is half of what the column really measures,
+   which is the point: hanging the label off an assumed cell width left every
+   name and its leader line sitting a few pixels to the left of the column they
+   name. Out of flow, so however long a name is it never widens the column. */
+.planner-matrix-colhead-label {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: rotate(-45deg);
+  transform-origin: 0 100%;
+}
+
+.planner-matrix-colhead-text {
+  display: block;
+  /* The header was sized to this, so only a name past the cap is ellipsised —
+     and that one still has its full text in the tooltip. */
+  max-width: var(--planner-label-w);
+  overflow: hidden;
+  padding-bottom: 3px;
+  /* The leader line. Tilted with the name, it runs from the foot of the label
+     straight down to the middle of the column it belongs to, which is the only
+     thing that makes a diagonal heading readable once there are more than two
+     of them. In the competence's own colour, so it also ties the heading to
+     the dots in the column below it. */
+  border-bottom: 1px solid color-mix(in srgb, var(--head-color, currentColor) 55%, transparent);
+  color: var(--text-h);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planner-matrix-row {
+  height: var(--planner-row);
+}
+
+.planner-matrix-dayhead {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  padding: 0 6px 0 2px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--background);
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.planner-matrix-daynum {
+  color: var(--text-h);
+  font-size: clamp(0.56rem, calc(var(--planner-row) * 0.44), 0.76rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.planner-matrix-dayname {
+  margin-left: 3px;
+  color: var(--text-h);
+  opacity: 0.45;
+  font-size: clamp(0.5rem, calc(var(--planner-row) * 0.38), 0.66rem);
+}
+
+.planner-matrix-row.is-weekend .planner-matrix-dayhead,
+.planner-matrix-row.is-weekend .planner-matrix-cell {
+  background: rgba(128, 128, 128, 0.09);
+}
+
+.planner-matrix-row.is-today .planner-matrix-dayhead {
+  box-shadow: inset 2px 0 0 var(--primary);
+}
+
+.planner-matrix-row.is-today .planner-matrix-daynum {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* One cell = one day x one competence, and the cell is the control: no padding
+   around it, no rounded chip floating inside it. The grid lines come from the
+   cell borders, so the whole thing reads as an ordinary table and every pixel
+   of a square is clickable. */
+.planner-matrix-cell {
+  height: var(--planner-row);
+  padding: 0;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+
+.planner-square {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-h);
+  font: inherit;
+  font-size: clamp(0.5rem, calc(var(--planner-row) * 0.5), 0.72rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  cursor: pointer;
+  transition: box-shadow 90ms ease, background-color 90ms ease;
+}
+
+/* An inset ring rather than a scale: a cell that grows on hover would push its
+   neighbours' grid lines out of true. */
+.planner-square:hover {
+  box-shadow: inset 0 0 0 2px var(--square-color);
+}
+
+.planner-square.is-open {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+/* Nothing needed, nobody assigned — nothing but the grid. */
+.planner-square.is-idle {
+  color: transparent;
+}
+
+/* Needed and empty: the count in the competence's colour on an untouched cell,
+   so a gap is visible without ever looking filled. */
+.planner-square.is-needed {
+  background: transparent;
+  color: var(--square-color);
+}
+
+/* Started but short. Filled from the bottom in proportion to how much of the
+   day is covered, so "1" on a half-filled cell cannot be misread as the "1"
+   on an empty cell that still needs one person. */
+.planner-square.is-partial {
+  background: linear-gradient(
+    to top,
+    var(--square-color) var(--square-fill, 50%),
+    transparent var(--square-fill, 50%)
+  );
+  color: var(--text-h);
+}
+
+/* Fully staffed — the filled cell (or its dot) is the "done" signal. */
+.planner-square.is-complete {
+  background: var(--square-color);
+  color: #fff;
+}
+
+/* More people than the workplace asked for: allowed, but flagged. */
+.planner-square.is-over {
+  background: color-mix(in srgb, var(--square-color) 55%, #ffb74d);
+  color: #1b1b1b;
+}
+
+.planner-square-dot {
+  width: clamp(5px, calc(var(--planner-row) * 0.4), 10px);
+  height: clamp(5px, calc(var(--planner-row) * 0.4), 10px);
+  border-radius: 50%;
+  background: #fff;
+}
+
+.planner-square.is-over .planner-square-dot {
+  background: #1b1b1b;
+}
+
+.planner-square-count {
+  pointer-events: none;
+}
+
+/* --- right: person x day grid --- */
+
+.planner-people-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.planner-people-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--background);
+}
+
+.planner-people-corner,
+.planner-people-name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 118px;
+  max-width: 152px;
+  overflow: hidden;
+  padding: 3px 10px 3px 2px;
+  background: var(--background);
+  color: var(--text-h);
+  font-size: 0.78rem;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Pinned in both directions, so it has to outrank both the day headers it
+   scrolls past sideways and the name column it scrolls past downwards. The
+   selector is as specific as the `thead th` rule above on purpose — a bare
+   class loses to it and the day numbers slide over the corner. */
+.planner-people-table thead th.planner-people-corner {
+  z-index: 4;
+  /* Muted through the colour, never through opacity: a translucent element
+     takes its own background down with it, and the day columns would show
+     through the corner as they scroll behind it. */
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.planner-people-name {
+  font-weight: 500;
+}
+
+.planner-people-dayhead {
+  width: 21px;
+  min-width: 21px;
+  padding: 2px 0 4px;
+  color: var(--text-h);
+  font-size: 0.64rem;
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.planner-people-daynum {
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+
+.planner-people-dayname {
+  display: block;
+  opacity: 0.45;
+  font-size: 0.58rem;
+}
+
+.planner-people-dayhead.is-weekend,
+.planner-people-cell.is-weekend {
+  background: rgba(128, 128, 128, 0.07);
+}
+
+.planner-people-dayhead.is-today {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.planner-people-cell.is-today {
+  background: var(--primary-background);
+}
+
+.planner-people-cell {
+  height: 21px;
+  padding: 0;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.planner-people-name {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Two duties for one person in one day — the backend allows it, the ward
+   usually does not, so it should be impossible to miss. */
+.planner-people-cell.is-clash {
+  box-shadow: inset 0 0 0 1px #ef5350;
+}
+
+.planner-people-dot {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin: 0 1px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: transform 90ms ease;
+}
+
+.planner-people-dot:hover {
+  transform: scale(1.3);
+}
+
+.planner-people-total-head,
+.planner-people-total {
+  padding: 2px 4px 2px 10px;
+  color: var(--text-h);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.planner-people-total-head {
+  color: var(--text);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.planner-people-total {
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+/* --- who can fill this square --- */
+
+.planner-picker {
+  position: fixed;
+  z-index: 901;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--code-background);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
+}
+
+.planner-picker-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.planner-picker-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.planner-picker-competence {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-h);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.planner-picker-meta {
+  color: var(--text-h);
+  opacity: 0.6;
+  font-size: 0.75rem;
+}
+
+.planner-picker-close {
+  border: 0;
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: none;
+  color: var(--text-h);
+  opacity: 0.55;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.planner-picker-close:hover {
+  opacity: 1;
+}
+
+.planner-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.planner-picker-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  border: 0;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.83rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.planner-picker-person:hover:not(:disabled) {
+  background: var(--primary-background);
+}
+
+.planner-picker-person.is-assigned {
+  font-weight: 600;
+}
+
+.planner-picker-person.is-busy {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.planner-picker-check {
+  width: 12px;
+  flex-shrink: 0;
+  color: var(--primary);
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.planner-picker-person-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.planner-picker-person-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planner-picker-person-note {
+  font-size: 0.7rem;
+  font-weight: 400;
+  opacity: 0.75;
+}
+
+/* Duties this person already has in the month — the number that decides who
+   to pick when several of them can do the job. */
+.planner-picker-load {
+  flex-shrink: 0;
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(128, 128, 128, 0.16);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.planner-picker-empty {
+  margin: 0;
+  padding: 14px 12px;
+  color: var(--text-h);
+  opacity: 0.7;
+  font-size: 0.8rem;
+}
+
+/* Below roughly a laptop width the two halves stop fitting side by side, so
+   they stack and each keeps its own scroll. */
+@media (max-width: 1100px) {
+  .planner-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Stacked, the matrix no longer owns the window's height on its own, so it
+     gets a scroll back instead of squeezing the rows to nothing. */
+  .planner-scroll-demand,
+  .planner-scroll-people {
+    max-height: 60svh;
+  }
+}
