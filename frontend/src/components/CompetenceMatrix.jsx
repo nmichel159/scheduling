@@ -157,6 +157,7 @@ const CompetenceMatrix = ({
   const popoverAnchorRef = useRef(null);
   const popoverElRef = useRef(null);
   const [popoverRect, setPopoverRect] = useState(null);
+  const [popoverHeight, setPopoverHeight] = useState(0);
 
   useLayoutEffect(() => {
     if (!removingRowId || !popoverAnchorRef.current) return;
@@ -187,6 +188,15 @@ const CompetenceMatrix = ({
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [removingRowId]);
+
+  /* The confirm popover normally hangs below the ✕ it belongs to, but the
+   * last rows of a long table sit at the bottom of the viewport, where
+   * that would push "Odobrať" off screen. Measure the rendered popover and
+   * flip it above the anchor when it doesn't fit below. */
+  useLayoutEffect(() => {
+    if (!removingRowId || !popoverElRef.current) return;
+    setPopoverHeight(popoverElRef.current.offsetHeight);
+  }, [removingRowId, popoverRect]);
 
   /* Employee detail modal — read-only for now; this is the place where
    * editing the person (name, e-mail, …) will live later. */
@@ -220,6 +230,18 @@ const CompetenceMatrix = ({
     return { first: parts[0], last: parts.slice(1).join(' ') };
   };
   const detailName = detailRow ? splitName(detailRow.full_name) : null;
+
+  /* Below the anchor when it fits, above it when it doesn't, always inside
+   * the viewport. `height` is 0 on the very first paint (nothing measured
+   * yet); the effect above fills it in and re-renders. */
+  const placePopover = (rect, height) => {
+    const below = rect.bottom + 6;
+    const fitsBelow = !height || below + height <= window.innerHeight - 8;
+    return {
+      top: fitsBelow ? below : Math.max(8, rect.top - 6 - height),
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - 276)),
+    };
+  };
 
   return (
     <section className="cmatrix">
@@ -441,7 +463,7 @@ const CompetenceMatrix = ({
             className="cmatrix-popover"
             role="dialog"
             aria-modal="true"
-            style={{ top: popoverRect.bottom + 6, left: popoverRect.left }}
+            style={placePopover(popoverRect, popoverHeight)}
           >
             <p className="cmatrix-popover-text">
               {t('departments.confirm_remove_named', {
