@@ -49,7 +49,8 @@
     "section_analyst": "Analyst",
     "statistics": "Statistics",
     "competences": "Competence manager",
-    "employees": "Employees"
+    "employees": "Employees",
+    "special_days": "Special days"
   },
   "workplace": {
     "loading": "Loading workplaces...",
@@ -453,5 +454,50 @@
     "filter_placeholder": "Search name, e-mail or competence...",
     "no_competences": "No competence",
     "competence_count": "Competences defined for this workplace: {{count}}"
+  },
+  "special_days": {
+    "title": "Special days",
+    "lede": "A special day is a day of rest. Which dates those are in Slovakia comes from the public-holiday library — including the moving feasts (Good Friday, Easter Monday) and including the fact that since 2024 8 May, 1 and 15 September, 28 October and 17 November are state holidays but working days. That list is not editable. Click a day to add or remove this workplace's own exception.",
+    "year": "Year",
+    "load_error": "The special days could not be loaded.",
+    "save_error": "The change could not be saved.",
+    "rest_day_count_one": "{{count}} day of rest",
+    "rest_day_count_other": "{{count}} days of rest",
+    "copy_from": "Copy from workplace",
+    "copy_pick": "Pick a workplace…",
+    "copy": "Copy",
+    "copy_hint": "Replaces this workplace's exceptions for the year with the chosen workplace's.",
+    "copied": "Exceptions copied",
+    "legend_rest": "Day of rest (from the library)",
+    "legend_own": "This workplace's own decision",
+    "legend_state_workday": "State holiday, but a working day",
+    "legend_plain": "Ordinary day",
+    "is_rest_hint": "Day of rest — click to make it a working day",
+    "is_worked_hint": "Working day — click to make it a day of rest",
+    "own_decision": "own decision",
+    "own_title": "This workplace's exceptions",
+    "own_empty": "This workplace follows the library for this year.",
+    "own_added": "day of rest added",
+    "own_removed": "day of rest removed",
+    "reset": "Back to the library",
+    "reset_hint": "Drops the exception — the holiday library decides this date again.",
+    "column_short": "Hol",
+    "column_hint": "Day of rest: this is how a public holiday is staffed, whatever weekday it falls on. Which dates count is set on the Special days screen.",
+    "legend": "Day of rest (public holiday)",
+    "recovery_hint": "Days off after a duty on a day of rest",
+    "months": {
+      "0": "January",
+      "1": "February",
+      "2": "March",
+      "3": "April",
+      "4": "May",
+      "5": "June",
+      "6": "July",
+      "7": "August",
+      "8": "September",
+      "9": "October",
+      "10": "November",
+      "11": "December"
+    }
   }
 }

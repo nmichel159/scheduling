@@ -21,7 +21,9 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.config import settings
 from app.models.associations import UserAmbulance, UserCompetence
 from app.models.competence import Competence
+from app.models.competence_weekday_requirement import SPECIAL_DAY_SLOT
 from app.services.competence_scenario_service import get_selected_scenario
+from app.services.special_day_service import rest_days_between
 from app.models.schedule import Schedule
 from app.models.unavailability import Unavailability
 from app.models.user import User
@@ -50,9 +52,27 @@ class SchedulingCompetence:
     name: str
     required_count: int
     weekday_required_counts: tuple[int, ...] | None = None
+    #: Demand on a day of rest -- a public holiday from the special-day
+    #: library, or one the workplace declared itself. ``None`` means the
+    #: workplace draws no distinction and such a date is staffed by its
+    #: calendar weekday like any other.
+    special_day_required_count: int | None = None
+    #: The dates the above applies to, for the month being solved.
+    special_dates: frozenset[date] = frozenset()
 
     def required_on(self, work_date: date) -> int:
-        """Return the configured demand for a concrete calendar date."""
+        """Return the configured demand for a concrete calendar date.
+
+        A day of rest is answered from its own slot rather than from the
+        weekday it happens to fall on: that is the whole point of the
+        special-day calendar, so a holiday on a Tuesday is staffed like a
+        holiday.
+        """
+        if (
+            self.special_day_required_count is not None
+            and work_date in self.special_dates
+        ):
+            return self.special_day_required_count
         if self.weekday_required_counts is None:
             return self.required_count
         return self.weekday_required_counts[work_date.weekday()]
@@ -535,6 +555,19 @@ def generate_ambulance_monthly_schedule(
     # scenario yet falls back to the competence's legacy all-days count.
     selected_scenario = get_selected_scenario(db, ambulance_id)
     selected_scenario_id = selected_scenario.id if selected_scenario else None
+
+    def scenario_counts(competence: Competence) -> dict[int, int]:
+        """This competence's demand per day slot in the selected scenario."""
+        return {
+            requirement.weekday: requirement.required_count
+            for requirement in competence.weekday_requirements
+            if requirement.scenario_id == selected_scenario_id
+        }
+
+    # Which of the month's dates are days of rest is the workplace's own
+    # answer: the Slovak public-holiday library, corrected by whatever this
+    # workplace added or took away.
+    special_dates = frozenset(rest_days_between(db, ambulance_id, start, end))
     user_ids = [user.id for user in user_rows]
     competence_ids = [competence.id for competence in competence_rows]
 
@@ -628,13 +661,18 @@ def generate_ambulance_monthly_schedule(
             name=competence.name,
             required_count=competence.required_count,
             weekday_required_counts=tuple(
-                {
-                    requirement.weekday: requirement.required_count
-                    for requirement in competence.weekday_requirements
-                    if requirement.scenario_id == selected_scenario_id
-                }.get(weekday, competence.required_count)
+                scenario_counts(competence).get(weekday, competence.required_count)
                 for weekday in range(7)
             ),
+            # A public holiday is staffed from its own slot rather than
+            # from the weekday it falls on. A competence with no row for
+            # that slot gets Sunday's count, which is what it was staffed
+            # with before the distinction existed.
+            special_day_required_count=scenario_counts(competence).get(
+                SPECIAL_DAY_SLOT,
+                scenario_counts(competence).get(6, competence.required_count),
+            ),
+            special_dates=special_dates,
             # The scenario also configures recovery_days per weekday. The
             # solver does not read it yet; its rest rule is still the fixed
             # neighbouring-day block.

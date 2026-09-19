@@ -146,6 +146,21 @@
 
 .cmanager-day.is-weekend { background: var(--primary-background); }
 
+/* The day of rest is not a day of the week, so it stands off the strip
+   rather than being shaded like a weekend: a gap, a divider, and the accent
+   colour on its label. */
+.cmanager-day.is-special {
+  margin-left: 8px;
+  background: var(--primary-background);
+  box-shadow: -9px 0 0 -8px var(--border);
+}
+
+.cmanager-day.is-special em {
+  color: var(--primary);
+  font-weight: 700;
+  opacity: 1;
+}
+
 /* A day paid with a surcharge is framed, not recoloured or filled: the
    weekend shading already owns the background, so the mark has to be the
    outline. It is a solid two-pixel ring in the accent colour -- heavy
@@ -381,6 +396,15 @@
 .cmanager-summary-table th.cmanager-col-name { text-align: left; }
 .cmanager-summary-table th.is-weekend { color: var(--primary); }
 
+/* The eighth column is the day of rest. It is separated from the seven by a
+   left border rather than by a gap, because a table cannot have one. */
+.cmanager-summary-table th.is-special {
+  color: var(--primary);
+  font-weight: 700;
+  border-left: 2px solid var(--border);
+  cursor: help;
+}
+
 /* A workplace with no competences yet still shows the table: the weekday
    header is what says what is about to be filled in, and it would be odd
    for it to appear only once the first row exists. */
@@ -399,6 +423,11 @@
 }
 
 .cmanager-summary-cell.is-weekend { background: var(--primary-background); }
+
+.cmanager-summary-cell.is-special {
+  background: var(--primary-background);
+  border-left: 2px solid var(--border);
+}
 
 /* The summary's cells are table cells with no gap between them, so the
    surcharge frame is drawn inside the cell: an outline would overlap the

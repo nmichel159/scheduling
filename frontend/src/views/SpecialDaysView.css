@@ -1,0 +1,294 @@
+/* --- Special days: one workplace's days of rest for a whole year --- */
+
+.sdays {
+  max-width: 1180px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.sdays-head { margin-bottom: 14px; }
+
+.sdays-title {
+  margin: 0 0 6px;
+  font-size: 1.5rem;
+  color: var(--text-h);
+}
+
+.sdays-lede {
+  margin: 0;
+  max-width: 68ch;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.sdays-banner {
+  border: 1px solid var(--border);
+  background: var(--primary-background);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+}
+
+.sdays-note {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+/* ---------- the bar: year, count, copy ---------- */
+
+.sdays-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.sdays-years {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.sdays-year,
+.sdays-btn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.sdays-year:hover,
+.sdays-btn:hover:not(:disabled) { background: var(--primary-background); }
+
+.sdays-year.is-current {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-contrast, #fff);
+  font-weight: 700;
+}
+
+.sdays-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.sdays-count {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.sdays-copy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: 0.8rem;
+}
+
+.sdays-select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 5px 8px;
+  max-width: 200px;
+}
+
+.sdays-workplace {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+  color: var(--text-h);
+}
+
+/* ---------- key ---------- */
+
+.sdays-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-bottom: 14px;
+  font-size: 0.76rem;
+  opacity: 0.85;
+}
+
+.sdays-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sdays-swatch {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+}
+
+/* ---------- the year as twelve month cards ---------- */
+
+.sdays-year-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(212px, 1fr));
+  gap: 12px;
+}
+
+.sdays-month {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--code-background);
+  padding: 10px;
+}
+
+.sdays-month h2 {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+  color: var(--text-h);
+}
+
+.sdays-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.sdays-weekday {
+  text-align: center;
+  font-size: 0.62rem;
+  opacity: 0.6;
+  padding-bottom: 2px;
+}
+
+.sdays-weekday.is-weekend {
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+.sdays-blank { min-height: 26px; }
+
+/* A date is a button over its whole square, not over the digits: a one-digit
+   day would otherwise be a two-pixel target in a square that looks clickable.
+   See the "clickable text = clickable field" rule in the README. */
+.sdays-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  width: 100%;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--background);
+  color: inherit;
+  font: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.sdays-day:hover:not(:disabled) { border-color: var(--primary); }
+.sdays-day:disabled { opacity: 0.5; cursor: default; }
+
+.sdays-day.is-saturday,
+.sdays-day.is-sunday { background: var(--primary-background); }
+
+/* A day of rest is filled, because that is the one thing this screen is
+   about and it has to be readable across twelve cards at once. */
+.sdays-day.is-rest,
+.sdays-swatch.is-rest {
+  background: var(--primary);
+  color: var(--primary-contrast, #fff);
+  font-weight: 700;
+}
+
+/* A day the workplace itself decided is ringed on top of its fill, so
+   "which of these did we change" is answerable without reading the list
+   underneath. */
+.sdays-day.is-own,
+.sdays-swatch.is-own {
+  box-shadow: inset 0 0 0 2px var(--text-h);
+}
+
+/* A state holiday that is worked: known to the library, commemorated, and
+   not a day of rest -- exactly the dates a workplace might want to add. */
+.sdays-day.is-state-workday,
+.sdays-swatch.is-state-workday {
+  border-style: dashed;
+  border-color: var(--primary);
+}
+
+/* ---------- the workplace's own exceptions, listed back ---------- */
+
+.sdays-own {
+  margin-top: 22px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--code-background);
+  padding: 14px 16px;
+}
+
+.sdays-own h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: var(--text-h);
+}
+
+.sdays-own-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sdays-own-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.84rem;
+}
+
+.sdays-own-day {
+  font-weight: 700;
+  color: var(--text-h);
+  min-width: 6.5em;
+}
+
+.sdays-own-name {
+  font-style: normal;
+  opacity: 0.7;
+}
+
+.sdays-own-list li .sdays-btn { margin-left: auto; }
+
+.sdays-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--code-background);
+  padding: 8px 16px;
+  font-size: 0.84rem;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 18%);
+}
+
+@media (max-width: 640px) {
+  .sdays-copy {
+    margin-left: 0;
+    width: 100%;
+  }
+  .sdays-year-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+}

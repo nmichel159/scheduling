@@ -20,6 +20,8 @@ from app.models.competence_scenario import CompetenceScenario
 from app.models.competence_weekday_requirement import (
     DEFAULT_RECOVERY_DAYS,
     DEFAULT_SHIFT_HOURS,
+    REQUIREMENT_SLOTS,
+    SPECIAL_DAY_SLOT,
     CompetenceWeekdayRequirement,
     default_is_surcharge,
 )
@@ -54,11 +56,18 @@ def resolve_scenario(
 def weekly_parameters(
     competence: Competence, scenario_id: int
 ) -> list[CompetenceWeekdayRequirementData]:
-    """Return this scenario's complete Monday-to-Sunday parameters.
+    """Return this scenario's complete parameters for all eight day slots.
 
     Weekdays the scenario has no row for fall back to the competence's
     legacy all-days count and the default recovery, so a competence created
     before scenarios existed still reads as a full week.
+
+    The special-day slot falls back to Sunday instead, because that is the
+    honest default: a competence configured before special days existed was
+    staffed on public holidays exactly as the rest of the calendar staffed
+    them, and a holiday is a day of rest like a Sunday. Its surcharge flag
+    is on by default whatever Sunday says, a day of rest being surcharged by
+    definition.
     """
     configured = {
         row.weekday: row
@@ -66,31 +75,37 @@ def weekly_parameters(
         if row.scenario_id == scenario_id
     }
     fallback_count = max(0, competence.required_count or 0)
+
+    def fallback_for(slot: int) -> CompetenceWeekdayRequirementData:
+        """Values for a slot the scenario has no row for."""
+        if slot == SPECIAL_DAY_SLOT and 6 in configured:
+            sunday = configured[6]
+            return CompetenceWeekdayRequirementData(
+                weekday=slot,
+                required_count=sunday.required_count,
+                recovery_days=sunday.recovery_days,
+                shift_hours=sunday.shift_hours,
+                is_surcharge=True,
+            )
+        return CompetenceWeekdayRequirementData(
+            weekday=slot,
+            required_count=fallback_count,
+            recovery_days=DEFAULT_RECOVERY_DAYS,
+            shift_hours=DEFAULT_SHIFT_HOURS,
+            is_surcharge=default_is_surcharge(slot),
+        )
+
     return [
         CompetenceWeekdayRequirementData(
-            weekday=weekday,
-            required_count=(
-                configured[weekday].required_count
-                if weekday in configured
-                else fallback_count
-            ),
-            recovery_days=(
-                configured[weekday].recovery_days
-                if weekday in configured
-                else DEFAULT_RECOVERY_DAYS
-            ),
-            shift_hours=(
-                configured[weekday].shift_hours
-                if weekday in configured
-                else DEFAULT_SHIFT_HOURS
-            ),
-            is_surcharge=(
-                bool(configured[weekday].is_surcharge)
-                if weekday in configured
-                else default_is_surcharge(weekday)
-            ),
+            weekday=slot,
+            required_count=configured[slot].required_count,
+            recovery_days=configured[slot].recovery_days,
+            shift_hours=configured[slot].shift_hours,
+            is_surcharge=bool(configured[slot].is_surcharge),
         )
-        for weekday in range(7)
+        if slot in configured
+        else fallback_for(slot)
+        for slot in REQUIREMENT_SLOTS
     ]
 
 
@@ -114,12 +129,13 @@ def to_response(competence: Competence, scenario_id: int) -> CompetenceResponse:
 def _replace_weekday_requirements(
     competence: Competence, scenario_id: int, requirements
 ) -> None:
-    """Replace one scenario's weekly parameters, leaving the others alone."""
+    """Replace one scenario's day parameters, leaving the others alone."""
     existing_by_weekday = {
         row.weekday: row
         for row in competence.weekday_requirements
         if row.scenario_id == scenario_id
     }
+    submitted = {item.weekday for item in requirements}
     for item in requirements:
         row = existing_by_weekday.pop(item.weekday, None)
         if row is None:
@@ -131,10 +147,17 @@ def _replace_weekday_requirements(
         row.recovery_days = item.recovery_days
         row.shift_hours = item.shift_hours
         row.is_surcharge = item.is_surcharge
-    # Weekdays the payload omitted would leave a partial week behind; a
+    # Slots the payload omitted would leave a partial week behind; a
     # complete definition is validated at the schema, so this only fires
-    # when the caller deliberately cleared the week.
-    for row in existing_by_weekday.values():
+    # when the caller deliberately cleared the week. The special-day slot
+    # is the exception: a client that knows nothing about it must not
+    # unstaff the holidays by saving the seven weekdays it does know.
+    keeps_special_day = (
+        SPECIAL_DAY_SLOT not in submitted and len(submitted) == 7
+    )
+    for weekday, row in existing_by_weekday.items():
+        if weekday == SPECIAL_DAY_SLOT and keeps_special_day:
+            continue
         competence.weekday_requirements.remove(row)
 
 
@@ -230,13 +253,13 @@ def create_competence(
 
     requirements = data.weekday_requirements or [
         CompetenceWeekdayRequirementData(
-            weekday=weekday,
+            weekday=slot,
             required_count=data.required_count,
             recovery_days=DEFAULT_RECOVERY_DAYS,
             shift_hours=DEFAULT_SHIFT_HOURS,
-            is_surcharge=default_is_surcharge(weekday),
+            is_surcharge=default_is_surcharge(slot),
         )
-        for weekday in range(7)
+        for slot in REQUIREMENT_SLOTS
     ]
     competence = Competence(
         name=data.name,

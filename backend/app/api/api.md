@@ -123,6 +123,34 @@ Práca s konkrétnou ambulanciou vyžaduje rolu 2 pre vlastnú ambulanciu alebo 
 </details>
 
 <details>
+<summary><strong>Špeciálne dni (dni pracovného pokoja)</strong></summary>
+
+Ktoré dni sú dni pracovného pokoja, nedrží databáza: backend sa pýta knižnice
+štátnych sviatkov pre Slovensko. Tá pozná pohyblivé sviatky aj rozdelenie od
+roku 2024 na dni pracovného pokoja a štátne sviatky, ktoré sú pracovné (8. máj,
+1. a 15. september, 28. október, 17. november). Uložené sú len **výnimky**
+jedného pracoviska.
+
+Jeden záznam roka má `day`, `name`, `in_library` (knižnica ten deň pozná),
+`library_rest_day` (knižnica ho považuje za deň pracovného pokoja),
+`is_rest_day` (výsledok pre toto pracovisko) a `is_overridden` (pracovisko sa
+od knižnice odklonilo).
+
+- `GET /ambulances/{ambulance_id}/special-days?year={year}`
+- `PUT /ambulances/{ambulance_id}/special-days` s body `{"day":"2026-09-15","is_rest_day":true,"name":"..."}`
+- `DELETE /ambulances/{ambulance_id}/special-days/{day}`
+- `POST /ambulances/{ambulance_id}/special-days/copy` s body `{"source_ambulance_id":2,"year":2026}`
+
+Oprávnenie: rola 2 pre vlastné pracovisko alebo rola 3; pri kopírovaní to platí
+aj pre zdrojové pracovisko. Každý zápis vracia celý rok, pretože nastavenie dňa
+na to, čo už tvrdí knižnica, výnimku zmaže namiesto uloženia. Úspech je `200`,
+neplatný rok `422`, zdroj rovnaký ako cieľ `400`.
+
+Kompetencia má na tieto dni vlastný ôsmy deň (`weekday: 7`) — sviatok sa
+obsadzuje z neho bez ohľadu na to, na ktorý deň týždňa padne.
+</details>
+
+<details>
 <summary><strong>Kompetencie ambulancie</strong></summary>
 
 Kompetencia obsahuje `id`, `name`, `description`, `ambulance_id`, `required_count` a kompatibilné `count`.

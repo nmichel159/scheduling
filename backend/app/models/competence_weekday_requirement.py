@@ -25,9 +25,21 @@ DEFAULT_REQUIRED_COUNT = 1
 #: competence editor pre-fills a new competence with.
 DEFAULT_SHIFT_HOURS = 4.0
 
+#: The eighth slot of the week: a day of rest that is not a weekday at all.
+#: A date the special-day library (or the workplace) calls a day of rest is
+#: staffed from this slot instead of from its calendar weekday, so a public
+#: holiday falling on a Tuesday is staffed like a holiday and not like a
+#: Tuesday.
+SPECIAL_DAY_SLOT = 7
+
+#: Every slot a competence carries parameters for: Monday to Sunday plus
+#: the special day.
+REQUIREMENT_SLOTS = tuple(range(8))
+
 #: Weekdays a duty is paid with a surcharge unless the editor says
-#: otherwise. Saturday and Sunday, in ``date.weekday()`` numbering.
-DEFAULT_SURCHARGE_WEEKDAYS = (5, 6)
+#: otherwise. Saturday and Sunday, in ``date.weekday()`` numbering, and the
+#: special day, which is a day of rest by definition.
+DEFAULT_SURCHARGE_WEEKDAYS = (5, 6, SPECIAL_DAY_SLOT)
 
 
 def default_is_surcharge(weekday: int) -> bool:
@@ -36,11 +48,13 @@ def default_is_surcharge(weekday: int) -> bool:
 
 
 class CompetenceWeekdayRequirement(Base):
-    """Parameters of one competence, on one ISO weekday, in one scenario.
+    """Parameters of one competence, on one day slot, in one scenario.
 
     Weekdays use Python's ``date.weekday()`` convention: Monday is 0 and
-    Sunday is 6. A zero ``required_count`` means the competence is not
-    staffed that day.
+    Sunday is 6. Slot 7 (:data:`SPECIAL_DAY_SLOT`) is not a weekday but the
+    day of rest: a date the special-day library or the workplace marks as
+    one is staffed from that slot whatever weekday it falls on. A zero
+    ``required_count`` means the competence is not staffed that day.
 
     ``recovery_days`` says how many days off a duty on this weekday costs
     its holder before the same competence may be assigned to them again:
@@ -66,7 +80,7 @@ class CompetenceWeekdayRequirement(Base):
             name="uq_competence_weekday_requirement",
         ),
         CheckConstraint(
-            "weekday >= 0 AND weekday <= 6",
+            "weekday >= 0 AND weekday <= 7",
             name="ck_competence_weekday_requirement_weekday",
         ),
         CheckConstraint(

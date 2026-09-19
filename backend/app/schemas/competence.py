@@ -16,20 +16,26 @@ from pydantic import BaseModel, Field, field_validator
 from app.models.competence_weekday_requirement import (
     DEFAULT_RECOVERY_DAYS,
     DEFAULT_SHIFT_HOURS,
+    SPECIAL_DAY_SLOT,
 )
 
 
 class CompetenceWeekdayRequirementData(BaseModel):
-    """Parameters of one competence on one ISO weekday (Monday=0, Sunday=6).
+    """Parameters of one competence on one day slot of the week.
 
-    ``recovery_days`` is how many days off a duty started on this weekday
+    Slots 0 to 6 are the ISO weekdays (Monday=0, Sunday=6). Slot 7 is the
+    special day: a date the holiday library or the workplace itself calls a
+    day of rest is staffed from that slot instead of from the weekday it
+    happens to fall on.
+
+    ``recovery_days`` is how many days off a duty started on this slot
     costs its holder, ``shift_hours`` is how long that duty lasts and
     ``is_surcharge`` says whether it is paid with a surcharge; all three
     default so that clients written against the staffing-only contract keep
     working unchanged.
     """
 
-    weekday: int = Field(..., ge=0, le=6)
+    weekday: int = Field(..., ge=0, le=SPECIAL_DAY_SLOT)
     required_count: int = Field(..., ge=0, le=1000)
     recovery_days: int = Field(
         DEFAULT_RECOVERY_DAYS,
@@ -55,12 +61,22 @@ class CompetenceWeekdayRequirementData(BaseModel):
 def _validate_complete_weekday_requirements(
     requirements: list[CompetenceWeekdayRequirementData] | None,
 ) -> list[CompetenceWeekdayRequirementData] | None:
-    """Require a complete, duplicate-free weekly definition when supplied."""
+    """Require a complete, duplicate-free weekly definition when supplied.
+
+    Both shapes are complete: the seven weekdays alone, which is what
+    clients written before special days existed send, and the seven plus
+    the special-day slot. A payload without slot 7 leaves that slot as the
+    scenario already has it rather than clearing it, so an old client can
+    still save a competence without silently unstaffing its holidays.
+    """
     if requirements is None:
         return None
     weekdays = [item.weekday for item in requirements]
-    if len(weekdays) != 7 or set(weekdays) != set(range(7)):
-        raise ValueError("weekday_requirements must contain each weekday 0 through 6 exactly once")
+    if sorted(weekdays) not in (list(range(7)), list(range(8))):
+        raise ValueError(
+            "weekday_requirements must contain each weekday 0 through 6 exactly "
+            "once, optionally followed by the special-day slot 7"
+        )
     return requirements
 
 
@@ -77,7 +93,10 @@ class CompetenceBase(BaseModel):
     )
     weekday_requirements: Optional[list[CompetenceWeekdayRequirementData]] = Field(
         None,
-        description="Optional complete Monday-to-Sunday staffing definition.",
+        description=(
+            "Optional complete Monday-to-Sunday staffing definition, "
+            "optionally including the special-day slot 7."
+        ),
     )
 
     _validate_weekdays = field_validator("weekday_requirements")(

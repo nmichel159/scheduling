@@ -109,7 +109,9 @@
 /* ---------- week grid ---------- */
 
 /* One column per weekday, so "how many people" and "for how long" line up
-   under the same day. The label and the tie box are the outer columns. */
+   under the same day. The label and the tie box are the outer columns, and
+   an eighth day column holds the day of rest, separated from the week by a
+   gap because it is not a weekday. */
 .ceditor-grid {
   display: flex;
   flex-direction: column;
@@ -119,7 +121,8 @@
 .ceditor-grid-row {
   display: grid;
   grid-template-columns:
-    minmax(96px, 1.2fr) repeat(7, minmax(40px, 1fr)) minmax(88px, 1fr);
+    minmax(96px, 1.2fr) repeat(7, minmax(36px, 1fr)) minmax(40px, 1.1fr)
+    minmax(88px, 1fr);
   align-items: center;
   gap: 6px;
 }
@@ -135,6 +138,29 @@
   font-weight: 700;
   opacity: 0.9;
 }
+
+/* The day of rest is the one column that is not a day of the week, so it is
+   fenced off from the seven rather than shaded like a weekend. */
+.ceditor-grid-day.is-special,
+.ceditor-grid-input.is-special,
+.ceditor-grid-check.is-special {
+  margin-left: 6px;
+  box-shadow: -7px 0 0 -6px var(--border);
+}
+
+.ceditor-grid-day.is-special {
+  font-weight: 700;
+  color: var(--primary);
+  opacity: 1;
+  cursor: help;
+}
+
+.ceditor-grid-input.is-special {
+  background: var(--primary-background);
+  border-color: var(--primary);
+}
+
+.ceditor-grid-check.is-special { background: var(--primary-background); }
 
 .ceditor-grid-label { font-size: 0.82rem; }
 
@@ -229,6 +255,21 @@
   gap: 4px;
 }
 
+/* The day of rest has no weekday to point at, so its row carries a plain
+   number where the others carry the track. */
+.ceditor-recovery-row.is-special {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.ceditor-recovery-plain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ceditor-recovery-plain .ceditor-grid-input { max-width: 68px; }
+
 .ceditor-slot {
   display: flex;
   flex-direction: column;
@@ -301,7 +342,7 @@
 @media (max-width: 640px) {
   .ceditor-body { padding: 14px; }
   .ceditor-grid-row {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(8, minmax(0, 1fr));
     gap: 4px;
   }
   .ceditor-grid-label,
@@ -314,7 +355,8 @@
     grid-template-columns: 1fr auto;
     gap: 4px 8px;
   }
-  .ceditor-track { grid-column: 1 / -1; }
+  .ceditor-track,
+  .ceditor-recovery-plain { grid-column: 1 / -1; }
   .ceditor-recovery-value { text-align: left; }
   .ceditor-recovery-row + .ceditor-recovery-row {
     border-top: 1px solid var(--border);

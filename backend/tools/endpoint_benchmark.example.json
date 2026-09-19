@@ -106,6 +106,15 @@
       "expected_status": 200
     },
     {
+      "name": "ambulance_special_days",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/special-days",
+      "params": {
+        "year": 2026
+      },
+      "expected_status": 200
+    },
+    {
       "name": "competence_employees_page",
       "method": "GET",
       "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/competences/${BENCHMARK_COMPETENCE_ID}/employees",

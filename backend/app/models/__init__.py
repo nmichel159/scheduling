@@ -7,6 +7,7 @@ from app.models.competence_scenario import CompetenceScenario
 from app.models.competence_weekday_requirement import CompetenceWeekdayRequirement
 from app.models.unavailability import Unavailability
 from app.models.schedule import Schedule
+from app.models.special_day import SpecialDay
 from app.models.audit import AuditLog
 from app.models.seed_version import SeedVersion
 from app.models.automatic_schedule_generation_run import AutomaticScheduleGenerationRun
@@ -20,6 +21,7 @@ __all__ = [
     "CompetenceWeekdayRequirement",
     "Unavailability",
     "Schedule",
+    "SpecialDay",
     "AuditLog",
     "UserRole",
     "UserAmbulance",

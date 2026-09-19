@@ -41,6 +41,12 @@ class Ambulance(Base):
         cascade="all, delete-orphan",
     )
     schedules = relationship("Schedule", back_populates="ambulance")
+    special_days = relationship(
+        "SpecialDay",
+        back_populates="ambulance",
+        cascade="all, delete-orphan",
+        order_by="SpecialDay.day",
+    )
     manager = relationship("User", back_populates="managed_ambulances")
 
     # Proxies for direct collection manipulation

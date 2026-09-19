@@ -60,20 +60,38 @@ def _week(
     ]
 
 
+# A response also carries the special-day slot, which these tests are not
+# about -- they are about what a scenario does with the seven weekdays.
+# test_competence_weekday_requirements covers slot 7 on its own.
+def _weekdays_of(response):
+    return [
+        item for item in response.weekday_requirements if item.weekday <= 6
+    ]
+
+
+def _json_weekdays(payload, field):
+    """One field of a JSON response's seven weekdays, special day aside."""
+    return [
+        item[field]
+        for item in payload["weekday_requirements"]
+        if item["weekday"] <= 6
+    ]
+
+
 def _counts(response) -> list[int]:
-    return [item.required_count for item in response.weekday_requirements]
+    return [item.required_count for item in _weekdays_of(response)]
 
 
 def _recovery(response) -> list[int]:
-    return [item.recovery_days for item in response.weekday_requirements]
+    return [item.recovery_days for item in _weekdays_of(response)]
 
 
 def _hours(response) -> list[float]:
-    return [item.shift_hours for item in response.weekday_requirements]
+    return [item.shift_hours for item in _weekdays_of(response)]
 
 
 def _surcharge(response) -> list[bool]:
-    return [item.is_surcharge for item in response.weekday_requirements]
+    return [item.is_surcharge for item in _weekdays_of(response)]
 
 
 class SolverReadsSelectedScenarioTests(unittest.TestCase):
@@ -630,13 +648,13 @@ class CompetenceScenarioRouterTests(unittest.TestCase):
         )
         self.assertEqual(edited.status_code, 200)
         self.assertEqual(
-            [item["recovery_days"] for item in edited.json()["weekday_requirements"]],
+            _json_weekdays(edited.json(), "recovery_days"),
             [0, 0, 0, 0, 2, 0, 0],
         )
 
         untouched = self.client.get(f"{self.base}/{first}/competences").json()
         self.assertEqual(
-            [item["required_count"] for item in untouched[0]["weekday_requirements"]],
+            _json_weekdays(untouched[0], "required_count"),
             [2, 2, 2, 2, 2, 1, 1],
         )
 
@@ -644,7 +662,7 @@ class CompetenceScenarioRouterTests(unittest.TestCase):
         # The scenario-unaware endpoint the other screens use follows along.
         legacy = self.client.get("/ambulances/1/competences").json()
         self.assertEqual(
-            [item["required_count"] for item in legacy[0]["weekday_requirements"]],
+            _json_weekdays(legacy[0], "required_count"),
             [5] * 7,
         )
 
@@ -688,14 +706,14 @@ class CompetenceScenarioRouterTests(unittest.TestCase):
         self.assertEqual(saved.status_code, 200)
         self.assertEqual(saved.json()["scenario_id"], second)
         self.assertEqual(
-            [item["recovery_days"] for item in saved.json()["weekday_requirements"]],
+            _json_weekdays(saved.json(), "recovery_days"),
             [2] * 7,
             "a matrix save must not flatten the recovery it never shows",
         )
 
         untouched = self.client.get(f"{self.base}/{first}/competences").json()[0]
         self.assertEqual(
-            [item["required_count"] for item in untouched["weekday_requirements"]],
+            _json_weekdays(untouched, "required_count"),
             [1] * 7,
         )
 

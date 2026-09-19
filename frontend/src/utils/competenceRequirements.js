@@ -1,5 +1,15 @@
 export const ISO_WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
 
+/** The eighth slot of the week: a day of rest, which is not a weekday at
+ *  all. A date the special-day library (or the workplace itself) calls a
+ *  day of rest is staffed from this slot rather than from the weekday it
+ *  happens to fall on, so a public holiday on a Tuesday is staffed like a
+ *  holiday and not like a Tuesday. */
+export const SPECIAL_DAY_SLOT = 7;
+
+/** Every slot a competence carries parameters for. */
+export const REQUIREMENT_SLOTS = [...ISO_WEEKDAYS, SPECIAL_DAY_SLOT];
+
 export const legacyRequiredCount = (column) =>
   Math.max(0, Number(column.required_count ?? column.count ?? 1));
 
@@ -21,8 +31,9 @@ export const clampShiftHours = (value) => {
 
 /** Weekdays a duty is paid with a surcharge unless the editor says
  *  otherwise. Surcharge follows the day, not the competence: the same duty
- *  is ordinary on a Tuesday and surcharged on a Sunday. */
-export const DEFAULT_SURCHARGE_WEEKDAYS = [5, 6];
+ *  is ordinary on a Tuesday and surcharged on a Sunday. The special day is
+ *  among them because a day of rest is surcharged by definition. */
+export const DEFAULT_SURCHARGE_WEEKDAYS = [5, 6, SPECIAL_DAY_SLOT];
 
 export const defaultIsSurcharge = (weekday) =>
   DEFAULT_SURCHARGE_WEEKDAYS.includes(Number(weekday));
@@ -44,7 +55,17 @@ export const recoveryTargetWeekday = (weekday, recoveryDays) =>
 export const recoveryDaysForTarget = (weekday, targetWeekday) =>
   (targetWeekday - weekday + 6) % 7;
 
-/** Return a complete, sorted weekly definition for old and new API records. */
+/** Return a complete, sorted definition of all eight slots, for old and
+ *  new API records alike.
+ *
+ *  The special day falls back to Sunday rather than to the legacy count:
+ *  a competence configured before the slot existed staffed public holidays
+ *  exactly as the calendar staffed them, and a holiday is a day of rest
+ *  like a Sunday. Its surcharge is on whatever Sunday says.
+ *
+ *  Position equals slot in the result, so `week[weekday]` keeps working and
+ *  `week[SPECIAL_DAY_SLOT]` is the special day.
+ */
 export const normalizeWeekdayRequirements = (column) => {
   const configured = new Map(
     (column.weekday_requirements || []).map((item) => [
@@ -61,14 +82,20 @@ export const normalizeWeekdayRequirements = (column) => {
     ])
   );
   const fallback = legacyRequiredCount(column);
-  return ISO_WEEKDAYS.map((weekday) => ({
-    weekday,
-    required_count: configured.get(weekday)?.required_count ?? fallback,
-    recovery_days:
-      configured.get(weekday)?.recovery_days ?? DEFAULT_RECOVERY_DAYS,
-    shift_hours: configured.get(weekday)?.shift_hours ?? DEFAULT_SHIFT_HOURS,
-    is_surcharge:
-      configured.get(weekday)?.is_surcharge ?? defaultIsSurcharge(weekday),
+  const fallbackFor = (slot) => {
+    if (slot === SPECIAL_DAY_SLOT && configured.has(6)) {
+      return { ...configured.get(6), is_surcharge: true };
+    }
+    return {
+      required_count: fallback,
+      recovery_days: DEFAULT_RECOVERY_DAYS,
+      shift_hours: DEFAULT_SHIFT_HOURS,
+      is_surcharge: defaultIsSurcharge(slot),
+    };
+  };
+  return REQUIREMENT_SLOTS.map((slot) => ({
+    weekday: slot,
+    ...(configured.get(slot) ?? fallbackFor(slot)),
   }));
 };
 

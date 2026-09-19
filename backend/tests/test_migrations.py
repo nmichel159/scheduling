@@ -42,7 +42,7 @@ class FreshDatabaseMigrationTests(unittest.TestCase):
             with engine.connect() as connection:
                 self.assertEqual(
                     connection.scalar(sa.text("SELECT version_num FROM alembic_version")),
-                    "20260919_03",
+                    "20260919_04",
                 )
         finally:
             engine.dispose()
@@ -202,18 +202,23 @@ class CompetenceWeekdayMigrationTests(unittest.TestCase):
             ).all()
 
     def test_backfills_monday_through_sunday_from_legacy_count(self) -> None:
-        """Each old competence receives seven rows with its previous count."""
+        """Each old competence receives a full week with its previous count.
+
+        A full week is eight rows since special days exist: the seven
+        weekdays the backfill writes, plus the day-of-rest slot a later
+        migration copies from Sunday.
+        """
         self._upgrade()
         rows = self._load_requirements()
 
-        self.assertEqual(len(rows), 14)
+        self.assertEqual(len(rows), 16)
         self.assertEqual(
-            [(row.weekday, row.required_count) for row in rows[:7]],
-            [(weekday, 2) for weekday in range(7)],
+            [(row.weekday, row.required_count) for row in rows[:8]],
+            [(weekday, 2) for weekday in range(8)],
         )
         self.assertEqual(
-            [(row.weekday, row.required_count) for row in rows[7:]],
-            [(weekday, 4) for weekday in range(7)],
+            [(row.weekday, row.required_count) for row in rows[8:]],
+            [(weekday, 4) for weekday in range(8)],
         )
 
     def test_preserves_existing_day_and_only_adds_missing_weekdays(self) -> None:
@@ -238,11 +243,11 @@ class CompetenceWeekdayMigrationTests(unittest.TestCase):
         self._upgrade()
         rows = self._load_requirements()
 
-        self.assertEqual(len(rows), 14)
+        self.assertEqual(len(rows), 16)
         self.assertEqual(rows[0].required_count, 9)
         self.assertEqual(
-            [(row.weekday, row.required_count) for row in rows[1:7]],
-            [(weekday, 2) for weekday in range(1, 7)],
+            [(row.weekday, row.required_count) for row in rows[1:8]],
+            [(weekday, 2) for weekday in range(1, 8)],
         )
 
 

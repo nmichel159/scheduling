@@ -19,6 +19,7 @@ import {
   RolesIcon,
   ScheduleOverviewIcon,
   SearchIcon,
+  SpecialDaysIcon,
   StatisticsIcon,
   SettingsIcon,
   TeamLimitsIcon,
@@ -58,6 +59,7 @@ const SECTIONS = [
       { to: '/departments', labelKey: 'sidebar.departments', Icon: WorkplaceIcon },
       { to: '/employees', labelKey: 'sidebar.employees', Icon: EmployeesIcon },
       { to: '/competences', labelKey: 'sidebar.competences', Icon: CompetenceIcon },
+      { to: '/special-days', labelKey: 'sidebar.special_days', Icon: SpecialDaysIcon },
     ],
   },
   {

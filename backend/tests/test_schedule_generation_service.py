@@ -563,10 +563,16 @@ class ScheduleGenerationLoadingTests(unittest.TestCase):
         )
         coverage = Counter(entry.work_date for entry in result.entries)
 
-        self.assertEqual(result.assignment_count, 15)
+        # 15 from the weekdays, plus 29 August -- a public holiday, and
+        # therefore staffed from the day-of-rest slot rather than as the
+        # Saturday it falls on. That slot has no row either, so it inherits
+        # Sunday's two.
+        self.assertEqual(result.assignment_count, 17)
         self.assertEqual(coverage[date(2026, 8, 3)], 1)
         self.assertEqual(coverage[date(2026, 8, 2)], 2)
         self.assertEqual(coverage[date(2026, 8, 4)], 0)
+        self.assertEqual(coverage[date(2026, 8, 29)], 2)
+        self.assertEqual(coverage[date(2026, 8, 22)], 0)
 
 
 if __name__ == "__main__":

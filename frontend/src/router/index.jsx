@@ -8,6 +8,7 @@ import ManagerWorkloadView from '../views/ManagerWorkloadView';
 import DepartmentsView from '../views/DepartmentsView';
 import EmployeesView from '../views/EmployeesView';
 import CompetenceManagerView from '../views/CompetenceManagerView';
+import SpecialDaysView from '../views/SpecialDaysView';
 import AdminView from '../views/AdminView';
 import ScheduleOverviewView from '../views/ScheduleOverviewView';
 import StatisticsView from '../views/StatisticsView';
@@ -77,6 +78,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole flag="hasManager">
             <CompetenceManagerView />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "/special-days",
+        element: (
+          <RequireRole flag="hasManager">
+            <SpecialDaysView />
           </RequireRole>
         ),
       },

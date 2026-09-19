@@ -4,6 +4,9 @@ import {
   DEFAULT_RECOVERY_DAYS,
   DEFAULT_SHIFT_HOURS,
   ISO_WEEKDAYS,
+  MAX_RECOVERY_DAYS,
+  REQUIREMENT_SLOTS,
+  SPECIAL_DAY_SLOT,
   clampRecoveryDays,
   clampShiftHours,
   defaultIsSurcharge,
@@ -23,13 +26,19 @@ import './CompetenceEditorDialog.css';
  *
  * The people needed, the hours worked and whether those hours are paid with
  * a surcharge sit one under the other on the same Monday-to-Sunday grid, so
- * a weekday is one column and reads top to bottom. Surcharge belongs here,
- * beside the hours of the day, because that is what it actually follows:
- * the same competence is ordinary on a Tuesday and surcharged on a Sunday.
- * A new competence starts out surcharged on the weekend and nowhere else.
- * Either number row can be tied together with its "same every day" box:
- * the seven fields stay on screen either way, and typing into any of them
- * writes the whole row.
+ * a weekday is one column and reads top to bottom. An eighth column follows
+ * the seven: the day of rest, which is what a public holiday is staffed
+ * from whatever weekday it falls on. Which dates those are is not decided
+ * here -- the holiday library and the Special days screen answer that -- so
+ * the column is set apart from the week rather than pretending to be part
+ * of it.
+ *
+ * Surcharge belongs here, beside the hours of the day, because that is what
+ * it actually follows: the same competence is ordinary on a Tuesday and
+ * surcharged on a Sunday. A new competence starts out surcharged on the
+ * weekend and on the day of rest, and nowhere else. Either number row can
+ * be tied together with its "same every day" box: the fields stay on screen
+ * either way, and typing into any of them writes the whole row.
  *
  * The recovery section is one row per weekday. Each row is a full Monday-
  * to-Sunday track on which the figure marks the day the duty is worked and
@@ -38,6 +47,10 @@ import './CompetenceEditorDialog.css';
  * marker, so "how long is the break after a Saturday duty" is answered by
  * pointing at the day it ends. A break can wrap past Sunday, which is why
  * every row also spells the number of days out in words.
+ *
+ * The day of rest gets a plain number instead of a track: it has no fixed
+ * weekday, so there is no square on a Monday-to-Sunday strip that could
+ * mean "the day this duty's break ends".
  *
  * Enter walks to the next field instead of submitting: the form is a
  * table of numbers to fill in, and losing it to a stray Enter on the
@@ -53,10 +66,24 @@ import './CompetenceEditorDialog.css';
  * - onSave({ name, description, weekday_requirements }): Promise
  * - onCancel()
  */
+/** Whether a slot is the day of rest rather than one of the seven days. */
+const isSpecialDay = (slot) => Number(slot) === SPECIAL_DAY_SLOT;
+
+/** Column heading for one slot: a weekday's short name, or the holiday mark. */
+const dayLabel = (t, slot) =>
+  isSpecialDay(slot) ? t('special_days.column_short') : t(`workload.days.${slot}`);
+
+/** Shared modifiers of a slot's cell: shaded on the weekend, set apart on
+ *  the day of rest. */
+const dayClass = (base, slot) =>
+  [base, slot >= 5 && slot <= 6 ? 'is-weekend' : '', isSpecialDay(slot) ? 'is-special' : '']
+    .join(' ')
+    .trim();
+
 const emptyDraft = () => ({
   name: '',
   description: '',
-  week: ISO_WEEKDAYS.map((weekday) => ({
+  week: REQUIREMENT_SLOTS.map((weekday) => ({
     weekday,
     required_count: 1,
     recovery_days: DEFAULT_RECOVERY_DAYS,
@@ -257,12 +284,13 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
             <div className="ceditor-grid">
               <div className="ceditor-grid-row ceditor-grid-head">
                 <span className="ceditor-grid-label" />
-                {ISO_WEEKDAYS.map((weekday) => (
+                {REQUIREMENT_SLOTS.map((weekday) => (
                   <span
                     key={weekday}
-                    className={`ceditor-grid-day ${weekday >= 5 ? 'is-weekend' : ''}`}
+                    className={dayClass('ceditor-grid-day', weekday)}
+                    title={isSpecialDay(weekday) ? t('special_days.column_hint') : undefined}
                   >
-                    {t(`workload.days.${weekday}`)}
+                    {dayLabel(t, weekday)}
                   </span>
                 ))}
                 <span className="ceditor-grid-tie" />
@@ -289,13 +317,13 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
                   {draft.week.map((item) => (
                     <input
                       key={item.weekday}
-                      className={`ceditor-grid-input ${item.weekday >= 5 ? 'is-weekend' : ''}`}
+                      className={dayClass('ceditor-grid-input', item.weekday)}
                       type="number"
                       min="0"
                       max={row.max}
                       step={row.step}
                       value={item[row.field]}
-                      aria-label={`${row.label} — ${t(`workload.days.${item.weekday}`)}`}
+                      aria-label={`${row.label} — ${dayLabel(t, item.weekday)}`}
                       onChange={(e) =>
                         setField(row.field, item.weekday, e.target.value, row.tied)
                       }
@@ -322,12 +350,12 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
                 {draft.week.map((item) => (
                   <label
                     key={item.weekday}
-                    className={`ceditor-grid-check ${item.weekday >= 5 ? 'is-weekend' : ''} ${item.is_surcharge ? 'is-surcharge' : ''}`}
+                    className={`${dayClass('ceditor-grid-check', item.weekday)} ${item.is_surcharge ? 'is-surcharge' : ''}`}
                   >
                     <input
                       type="checkbox"
                       checked={!!item.is_surcharge}
-                      aria-label={`${t('scenarios.surcharge_row')} — ${t(`workload.days.${item.weekday}`)}`}
+                      aria-label={`${t('scenarios.surcharge_row')} — ${dayLabel(t, item.weekday)}`}
                       onChange={(e) =>
                         setField(
                           'is_surcharge',
@@ -355,6 +383,60 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
                   item.recovery_days
                 );
                 const rest = new Set(restDays[index]);
+
+                // A day of rest has no weekday, so no square on the strip
+                // could mean the day its break ends. The number itself is
+                // the whole answer here.
+                if (isSpecialDay(item.weekday)) {
+                  return (
+                    <div
+                      className="ceditor-recovery-row is-special"
+                      key={item.weekday}
+                    >
+                      <span className="ceditor-recovery-label">
+                        {t('special_days.column_short')}
+                      </span>
+                      <div className="ceditor-recovery-plain">
+                        <input
+                          className="ceditor-grid-input"
+                          type="number"
+                          min="0"
+                          max={MAX_RECOVERY_DAYS}
+                          step="1"
+                          value={item.recovery_days}
+                          aria-label={t('scenarios.recovery_row', {
+                            day: t('special_days.column_short'),
+                          })}
+                          onChange={(e) =>
+                            setField(
+                              'recovery_days',
+                              item.weekday,
+                              e.target.value,
+                              false
+                            )
+                          }
+                          onBlur={() =>
+                            setField(
+                              'recovery_days',
+                              item.weekday,
+                              clampRecoveryDays(item.recovery_days),
+                              false
+                            )
+                          }
+                        />
+                        <span className="ceditor-grid-hint">
+                          {t('special_days.recovery_hint')}
+                        </span>
+                      </div>
+                      <span className="ceditor-recovery-value">
+                        {t('scenarios.recovery_days', {
+                          count: clampRecoveryDays(item.recovery_days),
+                        })}
+                      </span>
+                    </div>
+                  );
+                }
+
                 return (
                   <div className="ceditor-recovery-row" key={item.weekday}>
                     <span className="ceditor-recovery-label">

@@ -49,7 +49,8 @@
     "section_analyst": "Analytik",
     "statistics": "Štatistiky",
     "competences": "Správca kompetencií",
-    "employees": "Zamestnanci"
+    "employees": "Zamestnanci",
+    "special_days": "Špeciálne dni"
   },
   "workplace": {
     "loading": "Načítavam pracoviská...",
@@ -454,5 +455,51 @@
     "filter_placeholder": "Hľadať meno, e-mail alebo kompetenciu...",
     "no_competences": "Bez kompetencie",
     "competence_count": "Pracovisko má definovaných kompetencií: {{count}}"
+  },
+  "special_days": {
+    "title": "Špeciálne dni",
+    "lede": "Špeciálny deň je deň pracovného pokoja. Ktoré dni to na Slovensku sú, hovorí knižnica štátnych sviatkov — vrátane pohyblivých (Veľký piatok, Veľkonočný pondelok) a vrátane toho, že 8. máj, 1. a 15. september, 28. október a 17. november sú od roku 2024 štátne sviatky, ale pracovné dni. Tento zoznam sa needituje. Kliknutím na deň si toto pracovisko pridá alebo odoberie svoju vlastnú výnimku.",
+    "year": "Rok",
+    "load_error": "Nepodarilo sa načítať špeciálne dni.",
+    "save_error": "Zmenu sa nepodarilo uložiť.",
+    "rest_day_count_one": "{{count}} deň pracovného pokoja",
+    "rest_day_count_few": "{{count}} dni pracovného pokoja",
+    "rest_day_count_other": "{{count}} dní pracovného pokoja",
+    "copy_from": "Prevziať z pracoviska",
+    "copy_pick": "Vyberte pracovisko…",
+    "copy": "Prevziať",
+    "copy_hint": "Nahradí výnimky tohto pracoviska za daný rok výnimkami vybraného pracoviska.",
+    "copied": "Výnimky prevzaté",
+    "legend_rest": "Deň pracovného pokoja (z knižnice)",
+    "legend_own": "Vlastné rozhodnutie pracoviska",
+    "legend_state_workday": "Štátny sviatok, ale pracovný deň",
+    "legend_plain": "Bežný deň",
+    "is_rest_hint": "Deň pracovného pokoja — kliknutím sa zmení na pracovný",
+    "is_worked_hint": "Pracovný deň — kliknutím sa zmení na deň pracovného pokoja",
+    "own_decision": "vlastné rozhodnutie",
+    "own_title": "Výnimky tohto pracoviska",
+    "own_empty": "Toto pracovisko sa v tomto roku drží knižnice.",
+    "own_added": "pridaný deň pracovného pokoja",
+    "own_removed": "odobraný deň pracovného pokoja",
+    "reset": "Vrátiť na knižnicu",
+    "reset_hint": "Zruší výnimku — o dni znova rozhoduje knižnica sviatkov.",
+    "column_short": "Sv",
+    "column_hint": "Deň pracovného pokoja: takto sa obsadzuje sviatok bez ohľadu na to, na ktorý deň týždňa padne. Ktoré dni to sú, sa nastavuje na obrazovke Špeciálne dni.",
+    "legend": "Deň pracovného pokoja (sviatok)",
+    "recovery_hint": "Dni voľna po službe v deň pracovného pokoja",
+    "months": {
+      "0": "Január",
+      "1": "Február",
+      "2": "Marec",
+      "3": "Apríl",
+      "4": "Máj",
+      "5": "Jún",
+      "6": "Júl",
+      "7": "August",
+      "8": "September",
+      "9": "Október",
+      "10": "November",
+      "11": "December"
+    }
   }
 }

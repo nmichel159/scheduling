@@ -14,7 +14,8 @@ import { useWorkplace } from '../hooks/workplaceContext';
 import ConfirmDialog from '../components/ConfirmDialog';
 import CompetenceEditorDialog from '../components/CompetenceEditorDialog';
 import {
-  ISO_WEEKDAYS,
+  REQUIREMENT_SLOTS,
+  SPECIAL_DAY_SLOT,
   clampRecoveryDays,
   clampShiftHours,
   normalizeCompetenceRequirements,
@@ -22,13 +23,23 @@ import {
 } from '../utils/competenceRequirements';
 import './CompetenceManagerView.css';
 
-/** One day chip of a week strip: weekends are shaded, and a day paid with
- *  a surcharge is ringed, so a surcharged day is visible without reading
- *  a column of labels. */
+/** Whether a slot is the day of rest rather than one of the seven weekdays.
+ *  A public holiday is staffed from that slot whatever weekday it falls on;
+ *  which dates those are is what the Special days screen decides. */
+const isSpecialDay = (slot) => Number(slot) === SPECIAL_DAY_SLOT;
+
+/** Heading for one slot: a weekday's short name, or the day-of-rest mark. */
+const slotLabel = (t, slot) =>
+  isSpecialDay(slot) ? t('special_days.column_short') : t(`workload.days.${slot}`);
+
+/** One day chip of a week strip: weekends are shaded, the day of rest is
+ *  fenced off from the week, and a day paid with a surcharge is ringed, so a
+ *  surcharged day is visible without reading a column of labels. */
 const dayClassName = (dayParameters, weekday) =>
   [
     'cmanager-day',
-    weekday >= 5 ? 'is-weekend' : '',
+    weekday >= 5 && weekday <= 6 ? 'is-weekend' : '',
+    isSpecialDay(weekday) ? 'is-special' : '',
     dayParameters.is_surcharge ? 'is-surcharge' : '',
   ]
     .join(' ')
@@ -38,7 +49,7 @@ const dayClassName = (dayParameters, weekday) =>
  *  above once it would otherwise run off the window. The size is the
  *  card's own worst case, which is cheaper than measuring it every time
  *  the mouse moves by a pixel. */
-const LEGEND_SIZE = { width: 260, height: 120 };
+const LEGEND_SIZE = { width: 260, height: 148 };
 const LEGEND_GAP = 16;
 
 const legendPosition = (event) => {
@@ -541,17 +552,19 @@ const CompetenceManagerView = () => {
 
                     <td>
                       <div className="cmanager-week" aria-label={t('competences.required_count')}>
-                        {ISO_WEEKDAYS.map((weekday) => (
+                        {REQUIREMENT_SLOTS.map((weekday) => (
                           <span
                             key={weekday}
                             className={dayClassName(row.week[weekday], weekday)}
                             title={
-                              row.week[weekday].is_surcharge
-                                ? t('scenarios.surcharge_day_hint')
-                                : undefined
+                              isSpecialDay(weekday)
+                                ? t('special_days.column_hint')
+                                : row.week[weekday].is_surcharge
+                                  ? t('scenarios.surcharge_day_hint')
+                                  : undefined
                             }
                           >
-                            <em>{t(`workload.days.${weekday}`)}</em>
+                            <em>{slotLabel(t, weekday)}</em>
                             <b>{row.week[weekday].required_count}</b>
                           </span>
                         ))}
@@ -560,17 +573,19 @@ const CompetenceManagerView = () => {
 
                     <td>
                       <div className="cmanager-week" aria-label={t('scenarios.hours_column')}>
-                        {ISO_WEEKDAYS.map((weekday) => (
+                        {REQUIREMENT_SLOTS.map((weekday) => (
                           <span
                             key={weekday}
                             className={dayClassName(row.week[weekday], weekday)}
                             title={
-                              row.week[weekday].is_surcharge
-                                ? t('scenarios.surcharge_day_hint')
-                                : undefined
+                              isSpecialDay(weekday)
+                                ? t('special_days.column_hint')
+                                : row.week[weekday].is_surcharge
+                                  ? t('scenarios.surcharge_day_hint')
+                                  : undefined
                             }
                           >
-                            <em>{t(`workload.days.${weekday}`)}</em>
+                            <em>{slotLabel(t, weekday)}</em>
                             <b>{clampShiftHours(row.week[weekday].shift_hours)}</b>
                           </span>
                         ))}
@@ -579,17 +594,19 @@ const CompetenceManagerView = () => {
 
                     <td>
                       <div className="cmanager-week" aria-label={t('scenarios.recovery_column')}>
-                        {ISO_WEEKDAYS.map((weekday) => (
+                        {REQUIREMENT_SLOTS.map((weekday) => (
                           <span
                             key={weekday}
                             className={dayClassName(row.week[weekday], weekday)}
                             title={
-                              row.week[weekday].is_surcharge
-                                ? t('scenarios.surcharge_day_hint')
-                                : undefined
+                              isSpecialDay(weekday)
+                                ? t('special_days.column_hint')
+                                : row.week[weekday].is_surcharge
+                                  ? t('scenarios.surcharge_day_hint')
+                                  : undefined
                             }
                           >
-                            <em>{t(`workload.days.${weekday}`)}</em>
+                            <em>{slotLabel(t, weekday)}</em>
                             <b>{clampRecoveryDays(row.week[weekday].recovery_days)}</b>
                           </span>
                         ))}
@@ -770,6 +787,10 @@ const CompetenceManagerView = () => {
                 <i className="cmanager-legend-frame" aria-hidden="true" />
                 {t('scenarios.legend_surcharge')}
               </span>
+              <span className="cmanager-legend-item">
+                <b>{t('special_days.column_short')}</b>
+                {t('special_days.legend')}
+              </span>
             </div>
             )}
             <table
@@ -782,12 +803,22 @@ const CompetenceManagerView = () => {
                   <th className="cmanager-col-name">
                     {t('competence_manager.name')}
                   </th>
-                  {ISO_WEEKDAYS.map((weekday) => (
+                  {REQUIREMENT_SLOTS.map((weekday) => (
                     <th
                       key={weekday}
-                      className={weekday >= 5 ? 'is-weekend' : ''}
+                      className={[
+                        weekday >= 5 && weekday <= 6 ? 'is-weekend' : '',
+                        isSpecialDay(weekday) ? 'is-special' : '',
+                      ]
+                        .join(' ')
+                        .trim()}
+                      title={
+                        isSpecialDay(weekday)
+                          ? t('special_days.column_hint')
+                          : undefined
+                      }
                     >
-                      {t(`workload.days.${weekday}`)}
+                      {slotLabel(t, weekday)}
                     </th>
                   ))}
                 </tr>
@@ -795,7 +826,7 @@ const CompetenceManagerView = () => {
               <tbody>
                 {overviewRows.length === 0 && (
                   <tr>
-                    <td className="cmanager-empty-row" colSpan={ISO_WEEKDAYS.length + 1}>
+                    <td className="cmanager-empty-row" colSpan={REQUIREMENT_SLOTS.length + 1}>
                       {t('competences.empty')}
                     </td>
                   </tr>
@@ -823,14 +854,23 @@ const CompetenceManagerView = () => {
                         ×
                       </button>
                     </td>
-                    {ISO_WEEKDAYS.map((weekday) => (
+                    {REQUIREMENT_SLOTS.map((weekday) => (
                       <td
                         key={weekday}
-                        className={`cmanager-summary-cell ${weekday >= 5 ? 'is-weekend' : ''} ${row.week[weekday].is_surcharge ? 'is-surcharge' : ''}`}
+                        className={[
+                          'cmanager-summary-cell',
+                          weekday >= 5 && weekday <= 6 ? 'is-weekend' : '',
+                          isSpecialDay(weekday) ? 'is-special' : '',
+                          row.week[weekday].is_surcharge ? 'is-surcharge' : '',
+                        ]
+                          .join(' ')
+                          .trim()}
                         title={
-                          row.week[weekday].is_surcharge
-                            ? t('scenarios.surcharge_day_hint')
-                            : undefined
+                          isSpecialDay(weekday)
+                            ? t('special_days.column_hint')
+                            : row.week[weekday].is_surcharge
+                              ? t('scenarios.surcharge_day_hint')
+                              : undefined
                         }
                       >
                         <b>{row.week[weekday].required_count}</b>

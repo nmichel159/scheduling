@@ -87,6 +87,16 @@ export const CompetenceIcon = (props) => (
   </Icon>
 );
 
+/* A calendar with one day marked: the screen is about the handful of dates
+   in a year that are treated differently from the rest. */
+export const SpecialDaysIcon = (props) => (
+  <Icon {...props}>
+    <rect x="3.6" y="5" width="16.8" height="15" rx="2.2" />
+    <path d="M3.6 9.6h16.8M8 3.4v3.2M16 3.4v3.2" />
+    <circle cx="15.6" cy="14.6" r="2" />
+  </Icon>
+);
+
 export const AdminIcon = (props) => (
   <Icon {...props}>
     <path d="M6.8 3.6v5.2M6.8 14.4v6M17.2 3.6v8.4M17.2 17.6v2.8" />
