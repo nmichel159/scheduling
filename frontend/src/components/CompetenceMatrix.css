@@ -22,7 +22,7 @@
 }
 .cmatrix-group-title { grid-column: 2; }
 .cmatrix-group-inner > .cmatrix-add,
-.cmatrix-group-inner > .cmatrix-addcol-btn {
+.cmatrix-group-inner > .cmatrix-addbtn {
   grid-column: 3;
   justify-self: end;
 }
@@ -48,39 +48,112 @@
   min-width: 0;
 }
 
-.cmatrix-addcol-btn {
-  border: 1px dashed var(--border);
-  background: none;
-  color: var(--text-h);
-  border-radius: 8px;
-  width: 34px;
-  height: 34px;
-  font-size: 1.1rem;
-  line-height: 1;
-  cursor: pointer;
-}
-.cmatrix-addcol-btn:hover { border-color: var(--primary); color: var(--primary); }
-
-/* --- employee search (add row) --- */
-.cmatrix-search-th {
+/* --- header tools: filter (left) + add employee (right) ---
+ * Two separate controls on purpose: the left one only narrows what the
+ * table shows, the right one puts a new person into it. The add button
+ * swaps in place for the picker input once clicked. */
+.cmatrix-tools-th {
   position: relative;
   overflow: visible;
   text-align: left;
 }
-.cmatrix-search {
-  position: relative;
-  min-width: 160px;
+.cmatrix-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
 }
-.cmatrix-search input {
+
+.cmatrix-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 6px;
+  background: var(--background);
+}
+.cmatrix-filter:focus-within,
+.cmatrix-filter.is-active {
+  border-color: var(--primary);
+}
+.cmatrix-filter-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+  opacity: 0.6;
+  color: var(--text-h);
+}
+.cmatrix-filter input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 6px 0;
+}
+.cmatrix-filter-clear {
+  border: none;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.6;
+}
+.cmatrix-filter-clear:hover { opacity: 1; }
+
+.cmatrix-addrow input {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid var(--border);
+  border: 1px solid var(--primary);
   border-radius: 8px;
   padding: 6px 8px;
   font: inherit;
   font-size: 0.85rem;
   background: var(--background);
   color: var(--text-h);
+}
+
+/* Labelled "+ Pridať ..." control — the plus alone read as decoration. */
+.cmatrix-addbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px dashed var(--border);
+  background: none;
+  color: var(--text-h);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cmatrix-addbtn-wide {
+  width: 100%;
+  justify-content: center;
+}
+.cmatrix-addbtn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  border-style: solid;
+}
+.cmatrix-addbtn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+.cmatrix-addbtn-plus {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 /*
@@ -189,21 +262,21 @@
 
 /* Days in the middle of a run drop their side borders, so only the two
  * ends carry a border and the rounding — that is what turns consecutive
- * days into one continuous pill. */
+ * days into one continuous pill. Static labels: the required counts are
+ * read-only on this screen, so there is nothing to click here. */
 .cmatrix-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   height: 26px;
-  padding: 0;
   border: 1px solid color-mix(in srgb, var(--primary) 45%, var(--border));
   border-left-width: 0;
   border-right-width: 0;
   background: var(--primary-background);
   color: var(--primary);
-  font: inherit;
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1;
-  cursor: pointer;
-  transition: background 0.12s ease;
 }
 .cmatrix-day.is-start {
   border-left-width: 1px;
@@ -215,23 +288,6 @@
   border-top-right-radius: 999px;
   border-bottom-right-radius: 999px;
 }
-.cmatrix-day:hover {
-  background: color-mix(in srgb, var(--primary) 22%, var(--primary-background));
-}
-.cmatrix-day:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 1px;
-}
-.cmatrix-day.is-picked {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
-/* The source day is also the one whose counts the new group inherits, so
- * it gets an inner ring on top of the picked fill. */
-.cmatrix-day.is-source {
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55);
-}
 
 .cmatrix-required-cell {
   font-weight: 700;
@@ -241,10 +297,8 @@
 
 /* Inner box, inset from the cell's own border — mirrors the
  * .cmatrix-daycell pattern below so each day-group's count reads as its
- * own rounded chip instead of one solid band across the row.
- * The number stays centered at all times; a minus/plus button fades in
- * on hover at the left/right edge and commits the change immediately —
- * no separate edit step. */
+ * own rounded chip instead of one solid band across the row. Read-only:
+ * the number is just printed, centered in the chip. */
 .cmatrix-required-fill {
   position: relative;
   display: flex;
@@ -263,40 +317,6 @@
   min-width: 1.6ch;
   text-align: center;
   font-weight: 700;
-}
-
-.cmatrix-required-step {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  border: none;
-  background: none;
-  color: inherit;
-  font: inherit;
-  font-weight: 700;
-  font-size: 1rem;
-  line-height: 1;
-  padding: 4px 6px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
-.cmatrix-required-step-minus { left: 2px; }
-.cmatrix-required-step-plus { right: 2px; }
-
-.cmatrix-required-fill:hover .cmatrix-required-step {
-  opacity: 0.85;
-}
-.cmatrix-required-step:hover:not(:disabled) { opacity: 1 !important; }
-.cmatrix-required-step:disabled { cursor: not-allowed; opacity: 0.25 !important; }
-.cmatrix-required-step:focus-visible {
-  opacity: 1;
-  outline: 2px solid var(--primary);
-  outline-offset: 1px;
-  border-radius: 4px;
-}
-@media (hover: none) {
-  .cmatrix-required-step { opacity: 0.85; }
 }
 
 /* Horizontal scroll for many competences. */
@@ -378,7 +398,30 @@ tbody tr:hover > td.cmatrix-cell-td {
   justify-content: space-between;
   gap: 8px;
 }
-.cmatrix-row-name { min-width: 0; }
+/* The name opens the employee detail dialog — styled as text, but it is a
+ * real button, so it gets an underline on hover to advertise that. */
+.cmatrix-row-name {
+  min-width: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text-h);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cmatrix-row-name:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.cmatrix-row-name:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 
 .cmatrix-remove-btn {
   border: none;
@@ -433,51 +476,6 @@ tbody tr:hover > td.cmatrix-cell-td {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-}
-
-/* New-day-group popover — same portal/rect mechanics as .cmatrix-popover,
- * anchored to the first day clicked. */
-.cmatrix-group-popover { min-width: 210px; }
-
-.cmatrix-popover-title {
-  margin: 0 0 8px;
-  color: var(--text-h);
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
-.cmatrix-group-days {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-bottom: 9px;
-}
-
-.cmatrix-group-day {
-  min-width: 29px;
-  padding: 5px 7px;
-  border: 1px solid color-mix(in srgb, var(--primary) 45%, var(--border));
-  border-radius: 999px;
-  background: var(--primary-background);
-  color: var(--primary);
-  font-size: 0.72rem;
-  font-weight: 700;
-  line-height: 1;
-  text-align: center;
-}
-.cmatrix-group-day.is-source {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
-
-.cmatrix-popover-hint {
-  margin: 0 0 12px;
-  color: var(--text);
-  font-size: 0.78rem;
-  line-height: 1.4;
-  opacity: 0.8;
-  white-space: normal;
 }
 
 .cmatrix-empty-row {
@@ -573,4 +571,114 @@ tbody tr:hover > td.cmatrix-cell-td {
 .cmatrix-day-dot:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 1px;
+}
+/* --- employee detail dialog ---
+ * Read-only for now: it prints the basics about the person. The same
+ * dialog is where editing them will live later, which is why it is a
+ * proper centered modal and not another small popover. */
+.cmatrix-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.cmatrix-modal {
+  width: 100%;
+  max-width: 380px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--code-background);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
+  padding: 16px;
+}
+
+.cmatrix-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.cmatrix-modal-avatar {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--primary-background);
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.cmatrix-modal-heading { flex: 1; min-width: 0; }
+
+.cmatrix-modal-title {
+  margin: 0;
+  color: var(--text-h);
+  font-size: 1rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmatrix-modal-subtitle {
+  margin: 2px 0 0;
+  color: var(--text);
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+
+.cmatrix-modal-close {
+  flex: none;
+  border: none;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.cmatrix-modal-close:hover { opacity: 1; }
+
+.cmatrix-modal-fields {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+.cmatrix-modal-fields > div {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  align-items: baseline;
+  gap: 10px;
+}
+.cmatrix-modal-fields dt {
+  color: var(--text);
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+.cmatrix-modal-fields dd {
+  margin: 0;
+  color: var(--text-h);
+  font-size: 0.88rem;
+  word-break: break-word;
+}
+
+.cmatrix-modal-note {
+  margin: 14px 0 12px;
+  color: var(--text);
+  font-size: 0.76rem;
+  line-height: 1.4;
+  opacity: 0.7;
 }

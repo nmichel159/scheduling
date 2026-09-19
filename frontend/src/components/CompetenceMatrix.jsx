@@ -20,31 +20,29 @@ import './CompetenceMatrix.css';
  * `onToggleWeek` flips). The whole cell area is clickable (not just a
  * small inner square) — see .cmatrix-daycell in the CSS.
  *
- * The "Potrebný počet" header rows show, per day-group (e.g. Po–Pi vs
- * So–Ne), how many people with that competence the ambulance needs on
- * those days. Each row carries a full seven-slot week track and fills in
- * only the days it owns, so Monday sits at the same x in every row and a
- * group reads as one connected pill. Clicking any day opens a popover
- * that collects days into a new group (see `onCreateDayGroup`).
+ * The "Potrebný počet" header rows are READ-ONLY here: they spell out,
+ * per day-group (e.g. Po–Pi vs So–Ne), how many people with that
+ * competence the ambulance needs on those days. Changing those numbers
+ * (and regrouping days) belongs to the competence-scenario screen — this
+ * screen is only about who can do what, and the compact table above the
+ * grid is there for orientation, not for editing. Each group still
+ * carries a full seven-slot week track and fills in only the days it
+ * owns, so Monday sits at the same x in every row and a group reads as
+ * one connected pill.
  *
  * Props:
  * - columns: [{ id, name, description }] — competences of the ambulance
+ * - dayGroups: [{ id, weekdays }] — groups the required counts are shown for
  * - rows: [{ user_id, email, full_name, competenceDays: { [competenceId]: number[] } }] — draft state.
  *   competenceDays[competenceId] holds the ISO weekdays (0=Po..6=Ne) on which
  *   that employee holds that competence; a missing/empty entry means "not assigned".
  *   This view only ever sets it to "all 7 days" or empty (see onToggleWeek).
- * - allUsers: [{ id, email, full_name }] — hospital-wide pool for the search box
+ * - allUsers: [{ id, email, full_name }] — hospital-wide pool for the add box
  * - loading: table is (re)loading
  * - onToggleWeek(userId, competenceId) — assign/clear the competence for the whole week
  * - onAddRow(user)
  * - onRemoveRow(userId)
  * - onAddCompetence(name): Promise
- * - onUpdateRequiredCount(groupId, competenceId, requiredCount) — draft-only;
- *   the parent only commits this to the backend when the shared "Uložiť"
- *   button is clicked, same as every other edit in this table.
- * - onCreateDayGroup(weekdays, sourceWeekday) — move `weekdays` into a new
- *   group; every one of them takes `sourceWeekday`'s counts. Draft-only,
- *   like onUpdateRequiredCount.
  * - onDeleteCompetence(competenceId): Promise
  */
 const CompetenceMatrix = ({
@@ -57,108 +55,41 @@ const CompetenceMatrix = ({
   onAddRow,
   onRemoveRow,
   onAddCompetence,
-  onUpdateRequiredCount,
-  onCreateDayGroup,
   onDeleteCompetence,
 }) => {
   const { t } = useTranslation();
 
+  const [filter, setFilter] = useState('');
+  const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
   const [addingCompetence, setAddingCompetence] = useState(false);
   const [newCompetenceName, setNewCompetenceName] = useState('');
   const [deletingId, setDeletingId] = useState(null);
   const [removingRowId, setRemovingRowId] = useState(null);
+  const [detailRowId, setDetailRowId] = useState(null);
 
-  /* ---------- required head-count row (per competence) ----------
-   * Shows how many employees each competence needs in this ambulance.
-   * The cell is green when enough people are qualified, red otherwise.
-   * Hovering it fades in a − / + stepper at its left and right edge, which
-   * changes the count straight away. Changes are local draft only — they
-   * are saved together with all other edits when the user clicks the
-   * shared "Uložiť" button.
-   */
+  /* ---------- required head-count rows (read-only) ---------- */
+
   const requiredOf = (col, group) => requiredCountForGroup(col, group);
 
-  const stepRequired = (group, col, delta) => {
-    const next = Math.max(0, requiredOf(col, group) + delta);
-    onUpdateRequiredCount(group.id, col.id, next);
-  };
-
-  /* ---------- building a new day group ----------
-   * Clicking a day opens a popover that keeps collecting days as the user
-   * clicks more of them, in any row. The first day clicked is the source:
-   * every day that joins inherits its counts, which is what allows days
-   * taken from two different groups to land in one row under one number.
-   *
-   * `draftSource` holds a weekday index, and Monday is 0 — every check
-   * against it must be `!== null`, never a truthiness test.
+  /* ---------- table filter ----------
+   * Purely visual: hides rows that don't match, without touching the
+   * draft. Cells of hidden rows keep whatever the user set on them.
    */
-  const [draftDays, setDraftDays] = useState([]);
-  const [draftSource, setDraftSource] = useState(null);
-  const groupAnchorRef = useRef(null);
-  const groupPopoverRef = useRef(null);
-  const [groupRect, setGroupRect] = useState(null);
-
-  const closeDayGroup = () => {
-    setDraftSource(null);
-    setDraftDays([]);
-  };
-
-  const startOrToggleDay = (weekday, element) => {
-    if (draftSource === null) {
-      groupAnchorRef.current = element;
-      setDraftSource(weekday);
-      setDraftDays([weekday]);
-      return;
-    }
-    // The source anchors the inherited counts, so it stays put; the popover's
-    // Cancel button (or Escape) is how you back out of the whole selection.
-    if (weekday === draftSource) return;
-    setDraftDays((previous) =>
-      previous.includes(weekday)
-        ? previous.filter((item) => item !== weekday)
-        : [...previous, weekday].sort((a, b) => a - b)
+  const visibleRows = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      (r) =>
+        (r.full_name || '').toLowerCase().includes(q) ||
+        r.email.toLowerCase().includes(q)
     );
-  };
+  }, [rows, filter]);
 
-  const confirmDayGroup = () => {
-    if (draftSource === null || draftDays.length === 0) return;
-    onCreateDayGroup(draftDays, draftSource);
-    closeDayGroup();
-  };
-
-  useLayoutEffect(() => {
-    if (draftSource === null || !groupAnchorRef.current) return;
-    const anchor = groupAnchorRef.current;
-    const update = () => setGroupRect(anchor.getBoundingClientRect());
-    update();
-    window.addEventListener('scroll', update, true);
-    window.addEventListener('resize', update);
-
-    // Clicks on other day buttons are how the selection grows, so they must
-    // not count as clicking away.
-    const handleMouseDown = (e) => {
-      if (e.target.closest && e.target.closest('.cmatrix-day')) return;
-      if (groupPopoverRef.current && groupPopoverRef.current.contains(e.target)) return;
-      closeDayGroup();
-    };
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') closeDayGroup();
-    };
-    document.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('scroll', update, true);
-      window.removeEventListener('resize', update);
-      document.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [draftSource]);
-
-  /* ---------- employee search (add row) ----------
-   * The dropdown opens on focus with the full list of assignable users
+  /* ---------- employee picker (add row) ----------
+   * Opened from the explicit "+ Pridať zamestnanca" button, so that
+   * adding a person and filtering the table are two visibly separate
+   * controls. The dropdown opens with the full list of assignable users
    * (everyone not already in the table) and narrows as the user types.
    */
 
@@ -174,12 +105,17 @@ const CompetenceMatrix = ({
     );
   }, [search, allUsers, rows]);
 
+  const closeAdd = () => {
+    setAdding(false);
+    setSearch('');
+  };
+
   const handlePick = (user) => {
     onAddRow(user);
     setSearch('');
   };
 
-  /* ---------- floating layers (dropdown + popover) ----------
+  /* ---------- floating layers (dropdown + popovers) ----------
    * .cmatrix-scroll needs overflow-x:auto for wide tables, but the CSS
    * overflow spec forces overflow-y to 'auto' too whenever overflow-x
    * isn't 'visible' — so any position:absolute layer nested inside it
@@ -192,7 +128,7 @@ const CompetenceMatrix = ({
   const [suggestRect, setSuggestRect] = useState(null);
 
   useLayoutEffect(() => {
-    if (!searchOpen || !searchAnchorRef.current) return;
+    if (!adding || !searchAnchorRef.current) return;
     const el = searchAnchorRef.current;
     const update = () => setSuggestRect(el.getBoundingClientRect());
     update();
@@ -204,11 +140,11 @@ const CompetenceMatrix = ({
         !el.contains(e.target) &&
         !(suggestElRef.current && suggestElRef.current.contains(e.target))
       ) {
-        setSearchOpen(false);
+        closeAdd();
       }
     };
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setSearchOpen(false);
+      if (e.key === 'Escape') closeAdd();
     };
     document.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('keydown', handleKeyDown);
@@ -219,7 +155,7 @@ const CompetenceMatrix = ({
       document.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [searchOpen]);
+  }, [adding]);
 
   const popoverAnchorRef = useRef(null);
   const popoverElRef = useRef(null);
@@ -290,6 +226,17 @@ const CompetenceMatrix = ({
     };
   }, [deletingId]);
 
+  /* Employee detail modal — read-only for now; this is the place where
+   * editing the person (name, e-mail, …) will live later. */
+  useLayoutEffect(() => {
+    if (!detailRowId) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setDetailRowId(null);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [detailRowId]);
+
   /* ---------- codebook actions (immediate) ---------- */
 
   const handleAddCompetence = async () => {
@@ -316,6 +263,16 @@ const CompetenceMatrix = ({
 
   const competenceColSpan = Math.max(columns.length, 1);
   const removingRow = rows.find((r) => r.user_id === removingRowId) || null;
+  const detailRow = rows.find((r) => r.user_id === detailRowId) || null;
+
+  /* The backend keeps a single `full_name`; the dialog shows it split into
+   * given/family name the way a future edit form will collect it. */
+  const splitName = (fullName) => {
+    const parts = (fullName || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return { first: '', last: '' };
+    return { first: parts[0], last: parts.slice(1).join(' ') };
+  };
+  const detailName = detailRow ? splitName(detailRow.full_name) : null;
 
   return (
     <section className="cmatrix">
@@ -360,28 +317,67 @@ const CompetenceMatrix = ({
                   ) : (
                     <button
                       type="button"
-                      className="cmatrix-addcol-btn"
+                      className="cmatrix-addbtn"
                       onClick={() => setAddingCompetence(true)}
-                      aria-label={t('competences.add_competence')}
                       title={t('competences.add_competence')}
                     >
-                      +
+                      <span className="cmatrix-addbtn-plus" aria-hidden="true">+</span>
+                      {t('competences.add_competence')}
                     </button>
                   )}
                 </div>
               </th>
             </tr>
             <tr>
-              <th className="cmatrix-corner cmatrix-search-th">
-                <div className="cmatrix-search" ref={searchAnchorRef}>
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    onFocus={() => setSearchOpen(true)}
-                    placeholder={t('competences.search_placeholder')}
-                    aria-label={t('competences.search_placeholder')}
-                  />
+              <th className="cmatrix-corner cmatrix-tools-th">
+                {/* Filter (left) and add (right) are deliberately two separate
+                  * controls: one narrows the table, the other puts a new
+                  * person into it. */}
+                <div className="cmatrix-tools">
+                  <div className={`cmatrix-filter ${filter ? 'is-active' : ''}`}>
+                    <span className="cmatrix-filter-icon" aria-hidden="true">⌕</span>
+                    <input
+                      type="text"
+                      value={filter}
+                      onChange={(e) => setFilter(e.target.value)}
+                      placeholder={t('competences.filter_placeholder')}
+                      aria-label={t('competences.filter_placeholder')}
+                    />
+                    {filter && (
+                      <button
+                        type="button"
+                        className="cmatrix-filter-clear"
+                        onClick={() => setFilter('')}
+                        title={t('competences.clear_filter')}
+                        aria-label={t('competences.clear_filter')}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="cmatrix-addrow" ref={searchAnchorRef}>
+                    {adding ? (
+                      <input
+                        type="text"
+                        autoFocus
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder={t('competences.search_placeholder')}
+                        aria-label={t('competences.search_placeholder')}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        className="cmatrix-addbtn cmatrix-addbtn-wide"
+                        onClick={() => setAdding(true)}
+                        title={t('competences.add_employee')}
+                      >
+                        <span className="cmatrix-addbtn-plus" aria-hidden="true">+</span>
+                        {t('competences.add_employee')}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </th>
               {columns.map((c) => (
@@ -427,82 +423,61 @@ const CompetenceMatrix = ({
                             />
                           );
                         }
-                        const picked = draftDays.includes(weekday);
-                        const isSource = draftSource === weekday;
                         const className = [
                           'cmatrix-day',
                           groupDays.has(weekday - 1) ? '' : 'is-start',
                           groupDays.has(weekday + 1) ? '' : 'is-end',
-                          picked ? 'is-picked' : '',
-                          isSource ? 'is-source' : '',
                         ]
                           .filter(Boolean)
                           .join(' ');
                         return (
-                          <button
-                            type="button"
-                            key={weekday}
-                            className={className}
-                            aria-pressed={picked}
-                            onClick={(e) => startOrToggleDay(weekday, e.currentTarget)}
-                            title={
-                              isSource
-                                ? t('competences.source_day')
-                                : t('competences.new_group_start')
-                            }
-                          >
+                          <span key={weekday} className={className}>
                             {t(`workload.days.${weekday}`)}
-                          </button>
+                          </span>
                         );
                       })}
                     </div>
                   </th>
-                  {columns.map((c) => {
-                    const required = requiredOf(c, group);
-                    return (
-                      <th key={c.id} className="cmatrix-required-cell">
-                        <div className="cmatrix-required-fill">
-                          <button
-                            type="button"
-                            className="cmatrix-required-step cmatrix-required-step-minus"
-                            onClick={(e) => { e.stopPropagation(); stepRequired(group, c, -1); }}
-                            disabled={required <= 0}
-                            aria-label={t('competences.decrease_required')}
-                            title={t('competences.decrease_required')}
-                          >
-                            −
-                          </button>
-                          <span className="cmatrix-required-number">{required}</span>
-                          <button
-                            type="button"
-                            className="cmatrix-required-step cmatrix-required-step-plus"
-                            onClick={(e) => { e.stopPropagation(); stepRequired(group, c, 1); }}
-                            aria-label={t('competences.increase_required')}
-                            title={t('competences.increase_required')}
-                          >
-                            +
-                          </button>
-                        </div>
-                      </th>
-                    );
-                  })}
+                  {columns.map((c) => (
+                    <th key={c.id} className="cmatrix-required-cell">
+                      <div
+                        className="cmatrix-required-fill"
+                        title={t('competences.required_count')}
+                      >
+                        <span className="cmatrix-required-number">
+                          {requiredOf(c, group)}
+                        </span>
+                      </div>
+                    </th>
+                  ))}
                 </tr>
               );
             })}
           </thead>
           <tbody>
-            {rows.length === 0 ? (
+            {visibleRows.length === 0 ? (
               <tr>
                 <td className="cmatrix-empty-row" colSpan={competenceColSpan + 1}>
-                  {columns.length === 0 ? t('competences.empty') : t('departments.no_employees')}
+                  {rows.length > 0
+                    ? t('competences.no_filter_match')
+                    : columns.length === 0
+                      ? t('competences.empty')
+                      : t('departments.no_employees')}
                 </td>
               </tr>
             ) : (
-              rows.map((r) => (
+              visibleRows.map((r) => (
                 <tr key={r.user_id}>
                   <th className="cmatrix-row">
                     <div className="cmatrix-row-inner">
-                      <span className="cmatrix-row-name">{r.full_name || r.email}</span>
+                      <button
+                        type="button"
+                        className="cmatrix-row-name"
+                        onClick={() => setDetailRowId(r.user_id)}
+                        title={t('competences.employee_detail')}
+                      >
+                        {r.full_name || r.email}
+                      </button>
                       <button
                         type="button"
                         className={`cmatrix-remove-btn ${removingRowId === r.user_id ? 'is-active' : ''}`}
@@ -546,53 +521,7 @@ const CompetenceMatrix = ({
         </table>
       </div>
 
-      {draftSource !== null &&
-        groupRect &&
-        createPortal(
-          <div
-            ref={groupPopoverRef}
-            className="cmatrix-popover cmatrix-group-popover"
-            role="dialog"
-            style={{
-              top: groupRect.bottom + 8,
-              left: Math.max(8, Math.min(groupRect.left - 60, window.innerWidth - 268)),
-            }}
-          >
-            <p className="cmatrix-popover-title">{t('competences.new_group_title')}</p>
-            <div className="cmatrix-group-days">
-              {draftDays.map((weekday) => (
-                <span
-                  key={weekday}
-                  className={`cmatrix-group-day ${draftSource === weekday ? 'is-source' : ''}`}
-                  title={draftSource === weekday ? t('competences.source_day') : undefined}
-                >
-                  {t(`workload.days.${weekday}`)}
-                </span>
-              ))}
-            </div>
-            <p className="cmatrix-popover-text">
-              {t('competences.new_group_inherits', {
-                day: t(`workload.days.${draftSource}`),
-              })}
-            </p>
-            <p className="cmatrix-popover-hint">{t('competences.new_group_hint')}</p>
-            <div className="cmatrix-popover-actions">
-              <button type="button" className="departments-btn" onClick={closeDayGroup}>
-                {t('departments.cancel')}
-              </button>
-              <button
-                type="button"
-                className="departments-btn departments-btn-primary"
-                onClick={confirmDayGroup}
-              >
-                {t('competences.create_group')}
-              </button>
-            </div>
-          </div>,
-          document.body
-        )}
-
-      {searchOpen &&
+      {adding &&
         searchResults.length > 0 &&
         suggestRect &&
         createPortal(
@@ -678,6 +607,78 @@ const CompetenceMatrix = ({
               >
                 {t('departments.remove')}
               </button>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {detailRow &&
+        createPortal(
+          <div
+            className="cmatrix-modal-backdrop"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setDetailRowId(null);
+            }}
+          >
+            <div className="cmatrix-modal" role="dialog" aria-modal="true">
+              <header className="cmatrix-modal-head">
+                <div className="cmatrix-modal-avatar" aria-hidden="true">
+                  {(detailRow.full_name || detailRow.email).trim().charAt(0).toUpperCase()}
+                </div>
+                <div className="cmatrix-modal-heading">
+                  <h3 className="cmatrix-modal-title">
+                    {detailRow.full_name || detailRow.email}
+                  </h3>
+                  <p className="cmatrix-modal-subtitle">
+                    {t('competences.employee_detail')}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="cmatrix-modal-close"
+                  onClick={() => setDetailRowId(null)}
+                  title={t('departments.cancel')}
+                  aria-label={t('departments.cancel')}
+                >
+                  ✕
+                </button>
+              </header>
+
+              <dl className="cmatrix-modal-fields">
+                <div>
+                  <dt>{t('competences.first_name')}</dt>
+                  <dd>{detailName.first || '—'}</dd>
+                </div>
+                <div>
+                  <dt>{t('competences.last_name')}</dt>
+                  <dd>{detailName.last || '—'}</dd>
+                </div>
+                <div>
+                  <dt>{t('competences.email')}</dt>
+                  <dd>{detailRow.email}</dd>
+                </div>
+                <div>
+                  <dt>{t('competences.title')}</dt>
+                  <dd>
+                    {columns
+                      .filter((c) => (detailRow.competenceDays[c.id] || []).length > 0)
+                      .map((c) => c.name)
+                      .join(', ') || '—'}
+                  </dd>
+                </div>
+              </dl>
+
+              <p className="cmatrix-modal-note">{t('competences.detail_readonly')}</p>
+
+              <div className="cmatrix-popover-actions">
+                <button
+                  type="button"
+                  className="departments-btn"
+                  onClick={() => setDetailRowId(null)}
+                >
+                  {t('competences.close_detail')}
+                </button>
+              </div>
             </div>
           </div>,
           document.body

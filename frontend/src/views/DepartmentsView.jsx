@@ -22,8 +22,6 @@ import {
   mergeEquivalentDayGroups,
   normalizeCompetenceRequirements,
   normalizeWeekdayRequirements,
-  extractDayGroup,
-  updateGroupRequiredCount,
 } from '../utils/competenceRequirements';
 import './DepartmentsView.css';
 
@@ -246,40 +244,6 @@ const DepartmentsView = () => {
     setRows((prev) => prev.filter((r) => r.user_id !== userId));
   };
 
-  /** Draft-only update for one competence across every day in a grouped row.
-   *  Deliberately does NOT re-group/merge dayGroups here: two rows that
-   *  happen to reach the same numbers mid-edit (e.g. while clicking one
-   *  row's count up towards another row's value) must stay separate rows
-   *  until the user actually saves — merging them immediately would pull
-   *  both rows under one shared count and make it impossible to set them
-   *  to different values. The table only re-groups (merging equal rows or
-   *  splitting changed ones) when `loadTable()` re-fetches after Save. */
-  const updateRequiredCount = (groupId, competenceId, requiredCount) => {
-    setColumns((previousColumns) => {
-      const group = dayGroups.find((item) => item.id === groupId);
-      if (!group) return previousColumns;
-      return updateGroupRequiredCount(
-        previousColumns,
-        competenceId,
-        group.weekdays,
-        requiredCount
-      );
-    });
-  };
-
-  /** Build a new day-group out of the days the user picked in the matrix.
-   *  `sourceWeekday` is the day they clicked first; every day joining the
-   *  group takes that day's counts, so days pulled out of different groups
-   *  end up agreeing and the new group is one editable row. Draft-only,
-   *  like every other edit here — Save persists it, and the reload
-   *  afterwards folds the group back into its neighbour if the counts
-   *  turned out to match. */
-  const createDayGroup = (weekdays, sourceWeekday) => {
-    const next = extractDayGroup(dayGroups, columns, weekdays, sourceWeekday);
-    setDayGroups(next.groups);
-    setColumns(next.columns);
-  };
-
   /* ---------- codebook actions (immediate — registry, not draft) ---------- */
 
   const handleAddCompetence = async (name) => {
@@ -467,8 +431,6 @@ const DepartmentsView = () => {
                 onAddRow={addRow}
                 onRemoveRow={removeRow}
                 onAddCompetence={handleAddCompetence}
-                onUpdateRequiredCount={updateRequiredCount}
-                onCreateDayGroup={createDayGroup}
                 onDeleteCompetence={handleDeleteCompetence}
               />
             </>
