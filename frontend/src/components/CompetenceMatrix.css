@@ -369,14 +369,24 @@ tbody tr:hover > td.cmatrix-cell-td {
  * not just the glyphs: the cell drops its own padding, the button takes it
  * over and stretches across the row, so a click anywhere left of the ✕
  * hits it. */
-.cmatrix-table th.cmatrix-row { padding: 0; }
+/* Both the name cell and the toggle cells hand their whole box to the
+ * button inside them. The explicit row height is what makes the inner
+ * `height: 100%` resolve (a table cell's height is a minimum, so a taller
+ * row still stretches every cell); without it the buttons fall back to
+ * their content height and leave a dead strip above and below them. */
+.cmatrix-table th.cmatrix-row,
+.cmatrix-table td.cmatrix-cell-td {
+  padding: 0;
+  height: 56px;
+}
+.cmatrix-row-inner { height: 100%; }
 
 .cmatrix-row-name {
   display: flex;
   align-items: center;
   width: 100%;
+  height: 100%;
   box-sizing: border-box;
-  min-height: 48px;
   border: none;
   background: none;
   padding: 11px 30px 11px 14px;
@@ -560,8 +570,6 @@ tbody tr:hover > td.cmatrix-cell-td {
  * background-clip:padding-box keeps the colored fill inside an inner
  * "oval" area rather than covering the entire cell edge-to-edge; the
  * assignment mark (✕) is centered inside it. */
-.cmatrix-cell-td { padding: 0; }
-
 .cmatrix-daycell {
   box-sizing: border-box;
   display: flex;
@@ -570,7 +578,6 @@ tbody tr:hover > td.cmatrix-cell-td {
   width: 100%;
   height: 100%;
   min-width: 112px;
-  min-height: 48px;
   padding: 8px 10px;
   border: 4px solid transparent;
   border-radius: 10px;
