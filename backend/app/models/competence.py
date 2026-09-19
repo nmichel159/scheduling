@@ -5,14 +5,6 @@ from app.db.session import Base
 from sqlalchemy.ext.associationproxy import association_proxy
 from app.models.associations import UserCompetence
 
-#: Kinds of duty a competence can stand for. The list is open on purpose --
-#: adding a value here (and its label in the frontend) is all a new kind
-#: needs, because the column stores the value as plain text.
-COMPETENCE_TYPE_STANDARD = "standard"
-COMPETENCE_TYPE_SURCHARGE = "surcharge"
-COMPETENCE_TYPES = (COMPETENCE_TYPE_STANDARD, COMPETENCE_TYPE_SURCHARGE)
-DEFAULT_COMPETENCE_TYPE = COMPETENCE_TYPE_STANDARD
-
 class Competence(Base):
     __tablename__ = "competences"
     __table_args__ = (
@@ -36,12 +28,6 @@ class Competence(Base):
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     required_count = Column(Integer, nullable=False, default=1)
-    competence_type = Column(
-        String,
-        nullable=False,
-        default=DEFAULT_COMPETENCE_TYPE,
-        server_default=DEFAULT_COMPETENCE_TYPE,
-    )
     ambulance_id = Column(Integer, ForeignKey("ambulances.id"), nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

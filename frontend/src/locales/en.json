@@ -413,19 +413,20 @@
     "duplicate_hint": "Create a copy of the scenario with its parameters",
     "duplicated": "Scenario duplicated",
     "copy_name": "{{name}} (copy)",
-    "type_column": "Competence type",
-    "types": {
-      "standard": "Standard",
-      "surcharge": "Surcharge"
-    },
     "hours_column": "Hours",
-    "week_title": "People needed and hours",
+    "surcharge_row": "Surcharge",
+    "surcharge_hint": "Circled days are paid with a surcharge",
+    "surcharge_day_hint": "Surcharged day",
+    "week_title": "People needed, hours and surcharge",
     "same_every_day": "Same every day",
     "overview_title": "People needed and hours",
     "hours_short": "{{hours}} h",
+    "legend_count": "How many people needed",
+    "legend_hours": "Length of the duty",
+    "legend_recovery": "Days off afterwards",
+    "legend_surcharge": "Surcharged day",
     "rename_hint": "Double-click to rename",
-    "recovery_short": "{{days}} d",
-    "overview_legend": "people / hours / recovery"
+    "recovery_short": "{{days}} d"
   },
   "employees": {
     "title": "Employees",

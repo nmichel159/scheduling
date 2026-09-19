@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  COMPETENCE_TYPES,
-  DEFAULT_COMPETENCE_TYPE,
   DEFAULT_RECOVERY_DAYS,
   DEFAULT_SHIFT_HOURS,
   ISO_WEEKDAYS,
   clampRecoveryDays,
   clampShiftHours,
-  normalizeCompetenceType,
+  defaultIsSurcharge,
   normalizeWeekdayRequirements,
   recoveryDaysForTarget,
   recoveryTargetWeekday,
@@ -18,14 +16,18 @@ import './CompetenceEditorDialog.css';
 /**
  * Modal editor for one competence inside one scenario.
  *
- * The name, description and type are workplace-wide and the weekly numbers
+ * The name and description are workplace-wide and the weekly numbers
  * belong to the scenario, and the dialog says so rather than hiding it:
  * renaming a competence renames it everywhere, while the counts, hours and
  * recovery only move this scenario.
  *
- * The people needed and the hours worked sit one under the other on the
- * same Monday-to-Sunday grid, so a weekday is one column and reads top to
- * bottom. Either row can be tied together with its "same every day" box:
+ * The people needed, the hours worked and whether those hours are paid with
+ * a surcharge sit one under the other on the same Monday-to-Sunday grid, so
+ * a weekday is one column and reads top to bottom. Surcharge belongs here,
+ * beside the hours of the day, because that is what it actually follows:
+ * the same competence is ordinary on a Tuesday and surcharged on a Sunday.
+ * A new competence starts out surcharged on the weekend and nowhere else.
+ * Either number row can be tied together with its "same every day" box:
  * the seven fields stay on screen either way, and typing into any of them
  * writes the whole row.
  *
@@ -48,18 +50,18 @@ import './CompetenceEditorDialog.css';
  * - open: whether to render
  * - competence: the record being edited, or null to create a new one
  * - saving: disables the form while the parent persists
- * - onSave({ name, description, competence_type, weekday_requirements }): Promise
+ * - onSave({ name, description, weekday_requirements }): Promise
  * - onCancel()
  */
 const emptyDraft = () => ({
   name: '',
   description: '',
-  competence_type: DEFAULT_COMPETENCE_TYPE,
   week: ISO_WEEKDAYS.map((weekday) => ({
     weekday,
     required_count: 1,
     recovery_days: DEFAULT_RECOVERY_DAYS,
     shift_hours: DEFAULT_SHIFT_HOURS,
+    is_surcharge: defaultIsSurcharge(weekday),
   })),
 });
 
@@ -68,7 +70,6 @@ const draftFrom = (competence) =>
     ? {
         name: competence.name || '',
         description: competence.description || '',
-        competence_type: normalizeCompetenceType(competence.competence_type),
         week: normalizeWeekdayRequirements(competence),
       }
     : emptyDraft();
@@ -183,12 +184,12 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
     onSave({
       name: trimmedName,
       description: draft.description.trim() || null,
-      competence_type: draft.competence_type,
       weekday_requirements: draft.week.map((item) => ({
         weekday: item.weekday,
         required_count: clampRequiredCount(item.required_count),
         recovery_days: clampRecoveryDays(item.recovery_days),
         shift_hours: clampShiftHours(item.shift_hours),
+        is_surcharge: !!item.is_surcharge,
       })),
     });
   };
@@ -249,23 +250,6 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
               placeholder={t('competence_manager.description_placeholder')}
               onChange={(e) => setDraft({ ...draft, description: e.target.value })}
             />
-          </label>
-
-          <label className="ceditor-field">
-            <span>{t('scenarios.type_column')}</span>
-            <select
-              className="ceditor-input"
-              value={draft.competence_type}
-              onChange={(e) =>
-                setDraft({ ...draft, competence_type: e.target.value })
-              }
-            >
-              {COMPETENCE_TYPES.map((value) => (
-                <option key={value} value={value}>
-                  {t(`scenarios.types.${value}`)}
-                </option>
-              ))}
-            </select>
           </label>
 
           <section className="ceditor-section">
@@ -330,6 +314,35 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
                   </label>
                 </div>
               ))}
+
+              <div className="ceditor-grid-row">
+                <span className="ceditor-grid-label">
+                  {t('scenarios.surcharge_row')}
+                </span>
+                {draft.week.map((item) => (
+                  <label
+                    key={item.weekday}
+                    className={`ceditor-grid-check ${item.weekday >= 5 ? 'is-weekend' : ''} ${item.is_surcharge ? 'is-surcharge' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!item.is_surcharge}
+                      aria-label={`${t('scenarios.surcharge_row')} — ${t(`workload.days.${item.weekday}`)}`}
+                      onChange={(e) =>
+                        setField(
+                          'is_surcharge',
+                          item.weekday,
+                          e.target.checked,
+                          false
+                        )
+                      }
+                    />
+                  </label>
+                ))}
+                <span className="ceditor-grid-tie ceditor-grid-hint">
+                  {t('scenarios.surcharge_hint')}
+                </span>
+              </div>
             </div>
           </section>
 

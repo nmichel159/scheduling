@@ -24,6 +24,7 @@ from app.models.competence_weekday_requirement import (
     DEFAULT_RECOVERY_DAYS,
     DEFAULT_REQUIRED_COUNT,
     DEFAULT_SHIFT_HOURS,
+    default_is_surcharge,
     CompetenceWeekdayRequirement,
 )
 from app.schemas.competence_scenario import (
@@ -211,6 +212,11 @@ def materialize_scenario(
                     ),
                     shift_hours=(
                         template.shift_hours if template else DEFAULT_SHIFT_HOURS
+                    ),
+                    is_surcharge=(
+                        bool(template.is_surcharge)
+                        if template
+                        else default_is_surcharge(weekday)
                     ),
                 )
             )

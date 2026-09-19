@@ -414,19 +414,20 @@
     "duplicate_hint": "Vytvoriť kópiu scenára aj s jeho parametrami",
     "duplicated": "Scenár zduplikovaný",
     "copy_name": "{{name}} (kópia)",
-    "type_column": "Typ kompetencie",
-    "types": {
-      "standard": "Štandard",
-      "surcharge": "Príplatok"
-    },
     "hours_column": "Hodiny",
-    "week_title": "Potrební ľudia a hodiny",
+    "surcharge_row": "Príplatok",
+    "surcharge_hint": "Zakrúžkované dni sú príplatkové",
+    "surcharge_day_hint": "Príplatkový deň",
+    "week_title": "Potrební ľudia, hodiny a príplatok",
     "same_every_day": "Rovnaké každý deň",
     "overview_title": "Potrebné počty a hodiny",
     "hours_short": "{{hours}} h",
+    "legend_count": "Koľko ľudí treba",
+    "legend_hours": "Dĺžka služby v hodinách",
+    "legend_recovery": "Dni voľna po službe",
+    "legend_surcharge": "Príplatkový deň",
     "rename_hint": "Dvojklikom premenujete scenár",
-    "recovery_short": "{{days}} d",
-    "overview_legend": "počet / hodiny / regenerácia"
+    "recovery_short": "{{days}} d"
   },
   "employees": {
     "title": "Zamestnanci",

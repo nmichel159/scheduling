@@ -3,7 +3,7 @@
 import unittest
 
 from fastapi import HTTPException
-from pydantic import ValidationError
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -44,6 +44,7 @@ def _week(
     counts: list[int],
     recovery: list[int] | None = None,
     hours: list[float] | None = None,
+    surcharge: list[bool] | None = None,
 ) -> list[dict[str, float]]:
     return [
         {
@@ -51,6 +52,9 @@ def _week(
             "required_count": count,
             "recovery_days": (recovery or [1] * 7)[weekday],
             "shift_hours": (hours or [4] * 7)[weekday],
+            "is_surcharge": (
+                surcharge or [False] * 5 + [True] * 2
+            )[weekday],
         }
         for weekday, count in enumerate(counts)
     ]
@@ -66,6 +70,10 @@ def _recovery(response) -> list[int]:
 
 def _hours(response) -> list[float]:
     return [item.shift_hours for item in response.weekday_requirements]
+
+
+def _surcharge(response) -> list[bool]:
+    return [item.is_surcharge for item in response.weekday_requirements]
 
 
 class SolverReadsSelectedScenarioTests(unittest.TestCase):
@@ -364,39 +372,68 @@ class CompetenceScenarioTests(unittest.TestCase):
             "hours belong to one scenario",
         )
 
-    def test_a_new_competence_defaults_to_four_hours_and_the_standard_type(self) -> None:
+    def test_a_new_competence_defaults_to_four_hours_and_weekend_surcharge(self) -> None:
         ensure_selected_scenario(self.db, self.ambulance_id)
         created = create_competence(
             self.db, self.ambulance_id, CompetenceCreate(name="Triage")
         )
 
         self.assertEqual(_hours(created), [4] * 7)
-        self.assertEqual(created.competence_type, "standard")
-
-    def test_the_competence_type_is_workplace_wide_and_validated(self) -> None:
-        base = ensure_selected_scenario(self.db, self.ambulance_id)
-        other = create_scenario(
-            self.db, self.ambulance_id, CompetenceScenarioCreate(name="Quiet week")
+        self.assertEqual(
+            _surcharge(created),
+            [False, False, False, False, False, True, True],
+            "a competence nobody configured is surcharged on the weekend",
         )
+
+    def test_the_surcharge_flag_is_per_weekday_and_per_scenario(self) -> None:
+        base = ensure_selected_scenario(self.db, self.ambulance_id)
+        weekend_plus_friday = [False] * 4 + [True] * 3
         created = create_competence(
             self.db,
             self.ambulance_id,
-            CompetenceCreate(name="On call", competence_type="surcharge"),
-            scenario_id=other.id,
+            CompetenceCreate(
+                name="On call",
+                weekday_requirements=_week([1] * 7, surcharge=weekend_plus_friday),
+            ),
         )
 
-        self.assertEqual(created.competence_type, "surcharge")
-        for scenario_id in (base.id, other.id):
-            self.assertEqual(
-                list_competence_responses(
-                    self.db, self.ambulance_id, scenario_id
-                )[0].competence_type,
-                "surcharge",
-                "the type is a property of the competence, not of a scenario",
-            )
+        self.assertEqual(_surcharge(created), weekend_plus_friday)
 
-        with self.assertRaises(ValidationError):
-            CompetenceCreate(name="Odd", competence_type="bonus")
+        copy = create_scenario(
+            self.db,
+            self.ambulance_id,
+            CompetenceScenarioCreate(name="Quiet week", copy_from_scenario_id=base.id),
+        )
+        self.assertEqual(
+            _surcharge(
+                list_competence_responses(self.db, self.ambulance_id, copy.id)[0]
+            ),
+            weekend_plus_friday,
+            "a duplicate must carry the surcharged days over",
+        )
+
+        update_competence(
+            self.db,
+            created.id,
+            self.ambulance_id,
+            CompetenceUpdate(
+                weekday_requirements=_week([1] * 7, surcharge=[False] * 7)
+            ),
+            scenario_id=copy.id,
+        )
+        self.assertEqual(
+            _surcharge(
+                list_competence_responses(self.db, self.ambulance_id, copy.id)[0]
+            ),
+            [False] * 7,
+        )
+        self.assertEqual(
+            _surcharge(
+                list_competence_responses(self.db, self.ambulance_id, base.id)[0]
+            ),
+            weekend_plus_friday,
+            "surcharged days belong to one scenario",
+        )
 
     def test_a_competence_without_weekday_rows_reads_its_legacy_count(self) -> None:
         """Rows seeded straight into the table keep answering as a full week."""
@@ -413,7 +450,9 @@ class CompetenceScenarioTests(unittest.TestCase):
         self.assertEqual(_counts(response), [4] * 7)
         self.assertEqual(_recovery(response), [1] * 7)
         self.assertEqual(_hours(response), [4] * 7)
-        self.assertEqual(response.competence_type, "standard")
+        self.assertEqual(
+            _surcharge(response), [False, False, False, False, False, True, True]
+        )
 
     def test_selecting_a_scenario_changes_what_the_application_reads(self) -> None:
         base = ensure_selected_scenario(self.db, self.ambulance_id)

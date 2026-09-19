@@ -6,8 +6,8 @@ Business rules:
   are shared by all of its scenarios: creating one adds it everywhere,
   deleting one removes it everywhere.
 - What differs between scenarios is a competence's parameters -- the
-  per-weekday required counts and recovery days -- which live in
-  ``competence_weekday_requirements`` keyed by scenario.
+  per-weekday required counts, hours, surcharge flag and recovery days --
+  which live in ``competence_weekday_requirements`` keyed by scenario.
 - Only the ambulance manager may create, update, or delete competences
   (ownership is enforced at the dependency level).
 """
@@ -17,11 +17,11 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models.competence import Competence
 from app.models.competence_scenario import CompetenceScenario
-from app.models.competence import DEFAULT_COMPETENCE_TYPE
 from app.models.competence_weekday_requirement import (
     DEFAULT_RECOVERY_DAYS,
     DEFAULT_SHIFT_HOURS,
     CompetenceWeekdayRequirement,
+    default_is_surcharge,
 )
 from app.schemas.competence import (
     CompetenceCreate,
@@ -84,6 +84,11 @@ def weekly_parameters(
                 if weekday in configured
                 else DEFAULT_SHIFT_HOURS
             ),
+            is_surcharge=(
+                bool(configured[weekday].is_surcharge)
+                if weekday in configured
+                else default_is_surcharge(weekday)
+            ),
         )
         for weekday in range(7)
     ]
@@ -98,7 +103,6 @@ def to_response(competence: Competence, scenario_id: int) -> CompetenceResponse:
         name=competence.name,
         description=competence.description,
         required_count=competence.required_count,
-        competence_type=competence.competence_type or DEFAULT_COMPETENCE_TYPE,
         count=competence.required_count,
         weekday_requirements=weekly_parameters(competence, scenario_id),
         created_at=competence.created_at,
@@ -126,6 +130,7 @@ def _replace_weekday_requirements(
         row.required_count = item.required_count
         row.recovery_days = item.recovery_days
         row.shift_hours = item.shift_hours
+        row.is_surcharge = item.is_surcharge
     # Weekdays the payload omitted would leave a partial week behind; a
     # complete definition is validated at the schema, so this only fires
     # when the caller deliberately cleared the week.
@@ -229,6 +234,7 @@ def create_competence(
             required_count=data.required_count,
             recovery_days=DEFAULT_RECOVERY_DAYS,
             shift_hours=DEFAULT_SHIFT_HOURS,
+            is_surcharge=default_is_surcharge(weekday),
         )
         for weekday in range(7)
     ]
@@ -236,7 +242,6 @@ def create_competence(
         name=data.name,
         description=data.description,
         required_count=data.required_count,
-        competence_type=data.competence_type,
         ambulance_id=ambulance_id,
         is_active=True,
     )

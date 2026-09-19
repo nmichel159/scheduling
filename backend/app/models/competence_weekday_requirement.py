@@ -1,6 +1,7 @@
 """Weekday-specific staffing parameters for ambulance competences."""
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Column,
     Float,
@@ -9,6 +10,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import text
 
 from app.db.session import Base
 
@@ -22,6 +24,15 @@ DEFAULT_REQUIRED_COUNT = 1
 #: Hours a duty lasts when nothing else is configured. It is what the
 #: competence editor pre-fills a new competence with.
 DEFAULT_SHIFT_HOURS = 4.0
+
+#: Weekdays a duty is paid with a surcharge unless the editor says
+#: otherwise. Saturday and Sunday, in ``date.weekday()`` numbering.
+DEFAULT_SURCHARGE_WEEKDAYS = (5, 6)
+
+
+def default_is_surcharge(weekday: int) -> bool:
+    """Whether a freshly created weekday starts out surcharged."""
+    return weekday in DEFAULT_SURCHARGE_WEEKDAYS
 
 
 class CompetenceWeekdayRequirement(Base):
@@ -39,6 +50,11 @@ class CompetenceWeekdayRequirement(Base):
     ``shift_hours`` is how long a duty on this weekday lasts. Like the
     counts it belongs to one scenario, so the same competence can be a
     four-hour duty in one model case and a twelve-hour one in another.
+
+    ``is_surcharge`` says whether that duty is paid with a surcharge. It is
+    per weekday because that is what the distinction actually follows: the
+    same competence is ordinary on a Tuesday and surcharged on a Sunday.
+    New weekdays start out surcharged exactly on the weekend.
     """
 
     __tablename__ = "competence_weekday_requirements"
@@ -87,6 +103,9 @@ class CompetenceWeekdayRequirement(Base):
     )
     shift_hours = Column(
         Float, nullable=False, default=DEFAULT_SHIFT_HOURS, server_default="4"
+    )
+    is_surcharge = Column(
+        Boolean, nullable=False, default=False, server_default=text("false")
     )
 
     competence = relationship("Competence", back_populates="weekday_requirements")

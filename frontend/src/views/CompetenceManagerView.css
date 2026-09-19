@@ -146,6 +146,18 @@
 
 .cmanager-day.is-weekend { background: var(--primary-background); }
 
+/* A day paid with a surcharge is framed, not recoloured or filled: the
+   weekend shading already owns the background, so the mark has to be the
+   outline. It is a solid two-pixel ring in the accent colour -- heavy
+   enough to find at a glance across the whole week. The same ring marks
+   the ticked days in the competence editor. */
+.cmanager-day.is-surcharge {
+  border: 2px solid var(--primary);
+  /* The thicker border would otherwise push the chip a pixel wider than
+     its unframed neighbours and nudge the strip out of line. */
+  padding: 2px 0 3px;
+}
+
 .cmanager-day em {
   font-style: normal;
   font-size: 0.64rem;
@@ -159,12 +171,25 @@
 
 /* ---------- scenario list / detail ---------- */
 
+/* A double click is the rename gesture, so the row must not answer it by
+   selecting the words under the pointer instead. */
+.cmanager-row.is-openable { user-select: none; }
+
 .cmanager-col-radio {
   width: 72px;
   text-align: center;
 }
 
-.cmanager-table tr.is-selected .cmanager-link { font-weight: 700; }
+.cmanager-table tr.is-selected .cmanager-link,
+.cmanager-table tr.is-selected .cmanager-name { font-weight: 700; }
+
+/* The scenario name is no longer a control of its own -- the whole row
+   takes the click and the double click -- so it is set as plain text and
+   does not pretend to be a link. */
+.cmanager-name {
+  font-weight: 600;
+  color: var(--text-h);
+}
 
 /* The scenario and competence names are the way into the next screen, so
    they read as links rather than as another button in a row of them. */
@@ -287,7 +312,11 @@
   .cmanager-table td { border-top: 0; padding: 4px 0; }
   .cmanager-col-actions { text-align: left; }
   .cmanager-col-actions .cmanager-btn:first-child { margin-left: 0; }
-  .cmanager-col-radio { width: auto; text-align: left; }
+  /* A double click is the rename gesture, so the row must not answer it by
+   selecting the words under the pointer instead. */
+.cmanager-row.is-openable { user-select: none; }
+
+.cmanager-col-radio { width: auto; text-align: left; }
   .cmanager-detail-workplace { margin-left: 0; }
 
   .cmanager-columns { flex-direction: column; }
@@ -301,20 +330,6 @@
   .cmanager-summary-table tbody { display: table-row-group; }
   .cmanager-summary-table tr { display: table-row; padding: 0; }
   .cmanager-summary-table td { display: table-cell; padding: 6px 4px; }
-}
-
-.cmanager-type {
-  display: inline-block;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 2px 10px;
-  font-size: 0.78rem;
-  white-space: nowrap;
-}
-
-.cmanager-type.is-surcharge {
-  background: var(--primary-background);
-  border-color: var(--primary);
 }
 
 /* ---------- active scenario summary ---------- */
@@ -337,6 +352,7 @@
 }
 
 .cmanager-summary {
+  position: relative;
   flex: 0 1 auto;
   max-width: 100%;
   overflow-x: auto;
@@ -365,12 +381,33 @@
 .cmanager-summary-table th.cmanager-col-name { text-align: left; }
 .cmanager-summary-table th.is-weekend { color: var(--primary); }
 
+/* A workplace with no competences yet still shows the table: the weekday
+   header is what says what is about to be filled in, and it would be odd
+   for it to appear only once the first row exists. */
+.cmanager-empty-row {
+  padding: 18px 6px;
+  text-align: center;
+  opacity: 0.6;
+}
+
 .cmanager-summary-cell {
   text-align: center;
   line-height: 1.25;
+  /* Each of the three figures is one line; letting "4 h" break into two
+     would turn the cell into a column of single characters. */
+  white-space: nowrap;
 }
 
 .cmanager-summary-cell.is-weekend { background: var(--primary-background); }
+
+/* The summary's cells are table cells with no gap between them, so the
+   surcharge frame is drawn inside the cell: an outline would overlap the
+   neighbouring column, an inset shadow keeps the grid intact and still
+   reads as a two-pixel ring. */
+.cmanager-summary-cell.is-surcharge {
+  box-shadow: inset 0 0 0 2px var(--primary);
+  border-radius: 10px;
+}
 
 .cmanager-summary-cell b {
   display: block;
@@ -389,6 +426,56 @@
 .cmanager-summary-cell em + em { opacity: 0.5; }
 
 .cmanager-summary h3 .cmanager-btn-icon { margin-left: auto; }
+
+/* The key rides with the pointer, so it is positioned in viewport
+   coordinates and must not take part in the layout at all: in the flow it
+   would shove the table out from under the cursor that summoned it. The
+   pointer never reaches it, so it stays out of the way of a click. */
+.cmanager-legend {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-width: 260px;
+  pointer-events: none;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  font-size: 0.72rem;
+}
+
+.cmanager-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.cmanager-legend-item b {
+  font-size: 0.85rem;
+  color: var(--text-h);
+}
+
+.cmanager-legend-item em {
+  font-style: normal;
+  opacity: 0.6;
+}
+
+/* The same two-pixel accent ring the surcharged days wear. */
+.cmanager-legend-frame {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--primary);
+  border-radius: 5px;
+}
+
+@media (hover: none) {
+  /* Nothing hovers on a touch screen, so the key simply stays out. */
+  .cmanager-legend { display: none; }
+}
 
 @media (max-width: 1100px) {
   .cmanager-columns { flex-direction: column; }

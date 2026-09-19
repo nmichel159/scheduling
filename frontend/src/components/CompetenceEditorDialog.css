@@ -163,6 +163,35 @@
 
 .ceditor-grid-input { appearance: textfield; }
 
+/* The surcharge row sits under the two number rows and is read the same
+   way: one column is one weekday. A ticked day is ringed rather than only
+   ticked, so it matches the circled day in the tables outside. */
+.ceditor-grid-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 5px 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.ceditor-grid-check.is-weekend { background: var(--primary-background); }
+
+.ceditor-grid-check.is-surcharge {
+  border: 2px solid var(--primary);
+  padding: 4px 0;
+}
+
+.ceditor-grid-check input { cursor: pointer; }
+
+.ceditor-grid-hint {
+  font-size: 0.68rem;
+  opacity: 0.6;
+  cursor: default;
+}
+
 .ceditor-grid-tie {
   display: flex;
   align-items: center;

@@ -19,14 +19,13 @@ export const clampShiftHours = (value) => {
   return Math.min(MAX_SHIFT_HOURS, Math.max(0, hours));
 };
 
-/** Kinds of duty a competence can stand for; the backend validates the same
- *  list. A new kind needs a value here and a label in the locale files. */
-export const COMPETENCE_TYPES = ['standard', 'surcharge'];
+/** Weekdays a duty is paid with a surcharge unless the editor says
+ *  otherwise. Surcharge follows the day, not the competence: the same duty
+ *  is ordinary on a Tuesday and surcharged on a Sunday. */
+export const DEFAULT_SURCHARGE_WEEKDAYS = [5, 6];
 
-export const DEFAULT_COMPETENCE_TYPE = 'standard';
-
-export const normalizeCompetenceType = (value) =>
-  COMPETENCE_TYPES.includes(value) ? value : DEFAULT_COMPETENCE_TYPE;
+export const defaultIsSurcharge = (weekday) =>
+  DEFAULT_SURCHARGE_WEEKDAYS.includes(Number(weekday));
 
 /** Largest rest a duty may cost — a full week minus the duty day itself. */
 export const MAX_RECOVERY_DAYS = 6;
@@ -56,6 +55,8 @@ export const normalizeWeekdayRequirements = (column) => {
           item.recovery_days ?? DEFAULT_RECOVERY_DAYS
         ),
         shift_hours: clampShiftHours(item.shift_hours ?? DEFAULT_SHIFT_HOURS),
+        is_surcharge:
+          item.is_surcharge ?? defaultIsSurcharge(Number(item.weekday)),
       },
     ])
   );
@@ -66,12 +67,13 @@ export const normalizeWeekdayRequirements = (column) => {
     recovery_days:
       configured.get(weekday)?.recovery_days ?? DEFAULT_RECOVERY_DAYS,
     shift_hours: configured.get(weekday)?.shift_hours ?? DEFAULT_SHIFT_HOURS,
+    is_surcharge:
+      configured.get(weekday)?.is_surcharge ?? defaultIsSurcharge(weekday),
   }));
 };
 
 export const normalizeCompetenceRequirements = (column) => ({
   ...column,
-  competence_type: normalizeCompetenceType(column.competence_type),
   weekday_requirements: normalizeWeekdayRequirements(column),
 });
 

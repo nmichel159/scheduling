@@ -13,7 +13,6 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.competence import COMPETENCE_TYPES, DEFAULT_COMPETENCE_TYPE
 from app.models.competence_weekday_requirement import (
     DEFAULT_RECOVERY_DAYS,
     DEFAULT_SHIFT_HOURS,
@@ -24,7 +23,8 @@ class CompetenceWeekdayRequirementData(BaseModel):
     """Parameters of one competence on one ISO weekday (Monday=0, Sunday=6).
 
     ``recovery_days`` is how many days off a duty started on this weekday
-    costs its holder and ``shift_hours`` is how long that duty lasts; both
+    costs its holder, ``shift_hours`` is how long that duty lasts and
+    ``is_surcharge`` says whether it is paid with a surcharge; all three
     default so that clients written against the staffing-only contract keep
     working unchanged.
     """
@@ -43,18 +43,13 @@ class CompetenceWeekdayRequirementData(BaseModel):
         le=24,
         description="Hours a duty on this weekday lasts.",
     )
+    is_surcharge: bool = Field(
+        False,
+        description="Whether a duty on this weekday is paid with a surcharge.",
+    )
 
     class Config:
         from_attributes = True
-
-
-def _validate_competence_type(value: str) -> str:
-    """Reject types the application has no meaning for."""
-    if value not in COMPETENCE_TYPES:
-        raise ValueError(
-            f"competence_type must be one of {', '.join(COMPETENCE_TYPES)}"
-        )
-    return value
 
 
 def _validate_complete_weekday_requirements(
@@ -80,19 +75,10 @@ class CompetenceBase(BaseModel):
         le=1000,
         description="Legacy all-days worker count used when weekday requirements are absent.",
     )
-    competence_type: str = Field(
-        DEFAULT_COMPETENCE_TYPE,
-        description="Kind of duty the competence stands for.",
-    )
     weekday_requirements: Optional[list[CompetenceWeekdayRequirementData]] = Field(
         None,
         description="Optional complete Monday-to-Sunday staffing definition.",
     )
-
-    @field_validator("competence_type")
-    @classmethod
-    def _known_competence_type(cls, value: str) -> str:
-        return _validate_competence_type(value)
 
     _validate_weekdays = field_validator("weekday_requirements")(
         _validate_complete_weekday_requirements
@@ -114,13 +100,7 @@ class CompetenceUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=200, description="Updated competence name.")
     description: Optional[str] = Field(None, max_length=2000, description="Updated competence description.")
     required_count: Optional[int] = Field(None, ge=0, le=1000, description="Updated legacy worker count.")
-    competence_type: Optional[str] = Field(None, description="Updated competence type.")
     weekday_requirements: Optional[list[CompetenceWeekdayRequirementData]] = None
-
-    @field_validator("competence_type")
-    @classmethod
-    def _known_competence_type(cls, value):
-        return value if value is None else _validate_competence_type(value)
 
     _validate_weekdays = field_validator("weekday_requirements")(
         _validate_complete_weekday_requirements

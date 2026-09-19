@@ -17,11 +17,39 @@ import {
   ISO_WEEKDAYS,
   clampRecoveryDays,
   clampShiftHours,
-  normalizeCompetenceType,
   normalizeCompetenceRequirements,
   normalizeWeekdayRequirements,
 } from '../utils/competenceRequirements';
 import './CompetenceManagerView.css';
+
+/** One day chip of a week strip: weekends are shaded, and a day paid with
+ *  a surcharge is ringed, so a surcharged day is visible without reading
+ *  a column of labels. */
+const dayClassName = (dayParameters, weekday) =>
+  [
+    'cmanager-day',
+    weekday >= 5 ? 'is-weekend' : '',
+    dayParameters.is_surcharge ? 'is-surcharge' : '',
+  ]
+    .join(' ')
+    .trim();
+
+/** Place the key beside the pointer, flipping it to the other side or
+ *  above once it would otherwise run off the window. The size is the
+ *  card's own worst case, which is cheaper than measuring it every time
+ *  the mouse moves by a pixel. */
+const LEGEND_SIZE = { width: 260, height: 120 };
+const LEGEND_GAP = 16;
+
+const legendPosition = (event) => {
+  const { clientX, clientY } = event;
+  const room = LEGEND_GAP + LEGEND_SIZE.width < window.innerWidth - clientX;
+  const below = LEGEND_GAP + LEGEND_SIZE.height < window.innerHeight - clientY;
+  return {
+    left: room ? clientX + LEGEND_GAP : clientX - LEGEND_GAP - LEGEND_SIZE.width,
+    top: below ? clientY + LEGEND_GAP : clientY - LEGEND_GAP - LEGEND_SIZE.height,
+  };
+};
 
 /**
  * Competence scenarios of one workplace (scheduler screen).
@@ -73,6 +101,9 @@ const CompetenceManagerView = () => {
   const [competences, setCompetences] = useState([]);
   const [competencesLoading, setCompetencesLoading] = useState(false);
   const [overview, setOverview] = useState([]);
+  // Where to draw the key, in viewport coordinates, or null while the
+  // pointer is away from the table.
+  const [legendAt, setLegendAt] = useState(null);
   const [viewedId, setViewedId] = useState(null);
 
   const [toast, setToast] = useState(null);
@@ -268,12 +299,25 @@ const CompetenceManagerView = () => {
     }, OPEN_CLICK_DELAY_MS);
   };
 
+  /** Controls that own their own click: the radio, the rename field and
+   *  the row's action buttons. The name is deliberately not among them --
+   *  it is part of the row and behaves like the rest of it. */
+  const isOwnControl = (event) =>
+    !!event.target.closest('input, label, .cmanager-btn');
+
   const handleRowClick = (event, scenario) => {
-    // The radio, the rename field and the buttons are their own controls.
-    if (event.target.closest('button, input, label')) return;
+    if (isOwnControl(event)) return;
     if (renaming?.id === scenario.id) return;
     setViewedId(scenario.id);
     scheduleOpen(scenario);
+  };
+
+  /** Anywhere on the row, not only on the name: a double click is how the
+   *  row is renamed, and hunting for the one word that accepts it is not
+   *  a gesture anyone would guess. */
+  const handleRowDoubleClick = (event, scenario) => {
+    if (isOwnControl(event)) return;
+    handleRenameGesture(scenario);
   };
 
   const handleRenameGesture = (scenario) => {
@@ -461,16 +505,11 @@ const CompetenceManagerView = () => {
 
           {competencesLoading && <p className="cmanager-note">{t('departments.loading')}</p>}
 
-          {!competencesLoading && sortedCompetences.length === 0 && (
-            <p className="cmanager-note">{t('competences.empty')}</p>
-          )}
-
-          {sortedCompetences.length > 0 && (
+          {!competencesLoading && (
             <table className="cmanager-table">
               <thead>
                 <tr>
                   <th className="cmanager-col-name">{t('competence_manager.name')}</th>
-                  <th>{t('scenarios.type_column')}</th>
                   <th>{t('competences.required_count')}</th>
                   <th>{t('scenarios.hours_column')}</th>
                   <th>{t('scenarios.recovery_column')}</th>
@@ -478,6 +517,13 @@ const CompetenceManagerView = () => {
                 </tr>
               </thead>
               <tbody>
+                {sortedCompetences.length === 0 && (
+                  <tr>
+                    <td className="cmanager-empty-row" colSpan={5}>
+                      {t('competences.empty')}
+                    </td>
+                  </tr>
+                )}
                 {sortedCompetences.map((row) => (
                   <tr key={row.id}>
                     <td className="cmanager-col-name">
@@ -494,17 +540,16 @@ const CompetenceManagerView = () => {
                     </td>
 
                     <td>
-                      <span className={`cmanager-type is-${normalizeCompetenceType(row.competence_type)}`}>
-                        {t(`scenarios.types.${normalizeCompetenceType(row.competence_type)}`)}
-                      </span>
-                    </td>
-
-                    <td>
                       <div className="cmanager-week" aria-label={t('competences.required_count')}>
                         {ISO_WEEKDAYS.map((weekday) => (
                           <span
                             key={weekday}
-                            className={`cmanager-day ${weekday >= 5 ? 'is-weekend' : ''}`}
+                            className={dayClassName(row.week[weekday], weekday)}
+                            title={
+                              row.week[weekday].is_surcharge
+                                ? t('scenarios.surcharge_day_hint')
+                                : undefined
+                            }
                           >
                             <em>{t(`workload.days.${weekday}`)}</em>
                             <b>{row.week[weekday].required_count}</b>
@@ -518,7 +563,12 @@ const CompetenceManagerView = () => {
                         {ISO_WEEKDAYS.map((weekday) => (
                           <span
                             key={weekday}
-                            className={`cmanager-day ${weekday >= 5 ? 'is-weekend' : ''}`}
+                            className={dayClassName(row.week[weekday], weekday)}
+                            title={
+                              row.week[weekday].is_surcharge
+                                ? t('scenarios.surcharge_day_hint')
+                                : undefined
+                            }
                           >
                             <em>{t(`workload.days.${weekday}`)}</em>
                             <b>{clampShiftHours(row.week[weekday].shift_hours)}</b>
@@ -532,7 +582,12 @@ const CompetenceManagerView = () => {
                         {ISO_WEEKDAYS.map((weekday) => (
                           <span
                             key={weekday}
-                            className={`cmanager-day ${weekday >= 5 ? 'is-weekend' : ''}`}
+                            className={dayClassName(row.week[weekday], weekday)}
+                            title={
+                              row.week[weekday].is_surcharge
+                                ? t('scenarios.surcharge_day_hint')
+                                : undefined
+                            }
                           >
                             <em>{t(`workload.days.${weekday}`)}</em>
                             <b>{clampRecoveryDays(row.week[weekday].recovery_days)}</b>
@@ -610,7 +665,9 @@ const CompetenceManagerView = () => {
                       ]
                         .join(' ')
                         .trim()}
+                      title={t('scenarios.rename_hint')}
                       onClick={(e) => handleRowClick(e, scenario)}
+                      onDoubleClick={(e) => handleRowDoubleClick(e, scenario)}
                     >
                       <td className="cmanager-col-radio">
                         <input
@@ -637,15 +694,7 @@ const CompetenceManagerView = () => {
                             aria-label={t('scenarios.name')}
                           />
                         ) : (
-                          <button
-                            type="button"
-                            className="cmanager-link"
-                            title={t('scenarios.rename_hint')}
-                            onClick={() => scheduleOpen(scenario)}
-                            onDoubleClick={() => handleRenameGesture(scenario)}
-                          >
-                            {scenario.name}
-                          </button>
+                          <span className="cmanager-name">{scenario.name}</span>
                         )}
                       </td>
 
@@ -682,7 +731,7 @@ const CompetenceManagerView = () => {
           )}
         </section>
 
-        {overview.length > 0 && (
+        {viewedScenario && (
           <aside className="cmanager-summary">
             <h3>
               {t('scenarios.overview_title')}
@@ -697,14 +746,41 @@ const CompetenceManagerView = () => {
                 +
               </button>
             </h3>
-            <table className="cmanager-table cmanager-summary-table">
+            {/* Held back until the table is actually being read: the three
+                figures stacked in a cell and the frame around a day are
+                not self-evident, but a permanent key beside them was what
+                pushed the seven weekday columns out of shape. It rides
+                with the pointer, so the answer is wherever the question
+                was asked. */}
+            {legendAt && (
+            <div className="cmanager-legend" role="note" style={legendAt}>
+              <span className="cmanager-legend-item">
+                <b>1</b>
+                {t('scenarios.legend_count')}
+              </span>
+              <span className="cmanager-legend-item">
+                <em>4 h</em>
+                {t('scenarios.legend_hours')}
+              </span>
+              <span className="cmanager-legend-item">
+                <em>1 d</em>
+                {t('scenarios.legend_recovery')}
+              </span>
+              <span className="cmanager-legend-item">
+                <i className="cmanager-legend-frame" aria-hidden="true" />
+                {t('scenarios.legend_surcharge')}
+              </span>
+            </div>
+            )}
+            <table
+              className="cmanager-table cmanager-summary-table"
+              onMouseMove={(e) => setLegendAt(legendPosition(e))}
+              onMouseLeave={() => setLegendAt(null)}
+            >
               <thead>
                 <tr>
                   <th className="cmanager-col-name">
                     {t('competence_manager.name')}
-                    <span className="cmanager-desc">
-                      {t('scenarios.overview_legend')}
-                    </span>
                   </th>
                   {ISO_WEEKDAYS.map((weekday) => (
                     <th
@@ -717,6 +793,13 @@ const CompetenceManagerView = () => {
                 </tr>
               </thead>
               <tbody>
+                {overviewRows.length === 0 && (
+                  <tr>
+                    <td className="cmanager-empty-row" colSpan={ISO_WEEKDAYS.length + 1}>
+                      {t('competences.empty')}
+                    </td>
+                  </tr>
+                )}
                 {overviewRows.map((row) => (
                   <tr
                     key={row.id}
@@ -739,14 +822,16 @@ const CompetenceManagerView = () => {
                       >
                         ×
                       </button>
-                      <span className="cmanager-desc">
-                        {t(`scenarios.types.${normalizeCompetenceType(row.competence_type)}`)}
-                      </span>
                     </td>
                     {ISO_WEEKDAYS.map((weekday) => (
                       <td
                         key={weekday}
-                        className={`cmanager-summary-cell ${weekday >= 5 ? 'is-weekend' : ''}`}
+                        className={`cmanager-summary-cell ${weekday >= 5 ? 'is-weekend' : ''} ${row.week[weekday].is_surcharge ? 'is-surcharge' : ''}`}
+                        title={
+                          row.week[weekday].is_surcharge
+                            ? t('scenarios.surcharge_day_hint')
+                            : undefined
+                        }
                       >
                         <b>{row.week[weekday].required_count}</b>
                         <em>
