@@ -96,6 +96,11 @@
   filter: brightness(1.1);
 }
 
+/* Secondary next to Generate: it destroys work, so it never looks primary. */
+.schedule-edit-btn-clear {
+  width: 100%;
+}
+
 .schedule-edit-generate-hint {
   font-size: 0.78rem;
   line-height: 1.35;

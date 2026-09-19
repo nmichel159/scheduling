@@ -260,7 +260,10 @@ GET vracia položky rozdelené podľa používateľa: `user_id`, `user_full_name
 
 - Oprávnenie: rola 2 pre spravovanú ambulanciu alebo rola 3 pre ľubovoľnú aktívnu ambulanciu
 - Parametre: povinné `month` (`1–12`) a `year` (`2000–2100`)
-- Request body: žiadny
+- Request body: nepovinný `{"fixed_entries":[{"user_id":1,"competence_id":2,"work_date":"2026-08-20"}],"generate_from":"2026-08-20"}`
+- `fixed_entries` sú služby, ktoré solver musí ponechať presne tak, ako sú zadané; obsadia svoj vlastný dopyt, blokujú svojmu človeku susedné dni a počítajú sa do vyrovnávania záťaže. Prekročený dopyt, dve služby jedného človeka vedľa seba alebo služba mimo pracoviska sa hlásia ako `409` ešte pred výpočtom.
+- `generate_from` je prvý deň, ktorý smie solver obsadiť. Skoršie dni si ponechajú len to, čo je v `fixed_entries`, a pravidlo obsadenosti sa na ne nevzťahuje — tak sa preplánuje zvyšok už rozbehnutého mesiaca bez prepisovania jeho minulosti.
+- Bez body sa generuje celý mesiac od začiatku, ako doteraz
 - Úspech: `200` — neuložený mesačný návrh s poľami `month`, `year`, `assignment_count` a `entries`
 - Každá položka `entries` obsahuje `user_id`, `ambulance_id`, `competence_id`, `work_date`, `user_email`, `user_full_name` a `competence_name`
 - Správanie: MILP model obsadí každý deň každú aktívnu kompetenciu danej ambulancie presne počtom `required_count`, povolí najviac jednu rolu človeka denne a zakáže akúkoľvek službu dva dni po sebe aj pri zmene kompetencie. Skutočne nedostupné dni sú zakázané; záznam `PREFERRED` zostáva neutrálny, kým nebude implementovaná optimalizácia preferencií. Existujúce služby v iných ambulanciách blokujú rovnaký aj susedné dni a pravidlo odpočinku platí aj cez hranice mesiaca. Konvexná cieľová funkcia vyrovnáva počet služieb medzi dostupnými kvalifikovanými zamestnancami.

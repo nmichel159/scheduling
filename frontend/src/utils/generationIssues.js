@@ -45,6 +45,25 @@ export const formatGenerationIssue = (issue, t) => {
       required: issue.required_count,
     });
   }
+  if (issue.code === 'fixed_assignment_over_requirement') {
+    return t('schedule_edit.generate_fixed_over_requirement', {
+      date: issue.work_date,
+      competence: issue.competence_name,
+      fixed: issue.fixed_count,
+      required: issue.required_count,
+    });
+  }
+  if (issue.code === 'fixed_assignment_rest_conflict') {
+    return t('schedule_edit.generate_fixed_rest_conflict', {
+      firstDate: issue.work_date,
+      secondDate: issue.next_work_date,
+    });
+  }
+  if (issue.code === 'fixed_assignment_unknown') {
+    return t('schedule_edit.generate_fixed_unknown', {
+      date: issue.work_date,
+    });
+  }
   if (issue.code === 'no_active_competences') {
     return t('schedule_edit.generate_no_competences');
   }

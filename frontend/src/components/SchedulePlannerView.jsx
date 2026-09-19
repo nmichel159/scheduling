@@ -70,6 +70,8 @@ const LABEL_PADDING = 8;
  * - onShiftClick(shift) — hands a dot over to the full shift editor.
  * - onGenerate + generate* — the solver button, repeated here because the
  *   planner replaces the left rail that normally carries it.
+ * - onClear + clear* — the same for the button that empties the still
+ *   plannable part of the month.
  * - header — the page's own action bar. It is handed in rather than left
  *   above the planner because the demand matrix has to start at the very top
  *   of the page; the bar therefore sits in the right column, beside the
@@ -94,6 +96,9 @@ const SchedulePlannerView = ({
   generateLabel,
   generateHint,
   generateDisabled,
+  onClear,
+  clearLabel,
+  clearDisabled,
 }) => {
   const { t } = useTranslation();
 
@@ -499,6 +504,17 @@ const SchedulePlannerView = ({
                 title={generateHint}
               >
                 {generateLabel}
+              </button>
+            )}
+
+            {onClear && (
+              <button
+                type="button"
+                className="planner-clear"
+                onClick={onClear}
+                disabled={clearDisabled}
+              >
+                {clearLabel}
               </button>
             )}
 

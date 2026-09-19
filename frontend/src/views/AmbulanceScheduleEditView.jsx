@@ -277,6 +277,36 @@ const AmbulanceScheduleEditView = () => {
     return formatter.format(new Date(view.y, view.m, 1));
   }, [view.y, view.m, i18n.language]);
 
+  /* The first date the manager may still change: tomorrow, or the 1st for a
+   * month that has not started yet. Today and every day before it are already
+   * worked or being worked, so neither Clear nor the solver may touch them —
+   * regenerating a running month rewrites its remainder, not its history.
+   * null means the whole displayed month lies in the past. */
+  const firstEditableDate = useMemo(() => {
+    const monthStart = new Date(view.y, view.m, 1);
+    const monthEnd = new Date(view.y, view.m + 1, 0);
+    const tomorrow = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() + 1
+    );
+    const from = tomorrow > monthStart ? tomorrow : monthStart;
+    if (from > monthEnd) return null;
+    return isoDate(from.getFullYear(), from.getMonth(), from.getDate());
+  }, [today, view.m, view.y]);
+
+  // ISO dates sort lexicographically, so a plain string compare separates the
+  // editable tail of the month from its locked head.
+  const isEditableDate = useCallback(
+    (dateStr) => firstEditableDate != null && dateStr >= firstEditableDate,
+    [firstEditableDate]
+  );
+
+  const hasClearableShifts = useMemo(
+    () => shifts.some((shift) => isEditableDate(shift.work_date)),
+    [isEditableDate, shifts]
+  );
+
   // Shown before the solve starts, so the manager can decide whether to wait.
   // Derived from the employees and competences already on screen -- see
   // utils/generationEstimate.js for the calibration and the safety factor.
@@ -435,10 +465,22 @@ const AmbulanceScheduleEditView = () => {
     setError(null);
     setGenerationMessage(null);
     try {
-      const result = await generateAmbulanceSchedule(selectedId, {
-        month: view.m + 1,
-        year: view.y,
-      });
+      // Everything on screen is handed to the solver as fixed: the locked head
+      // of the month because it is history, and whatever the manager placed
+      // himself because that is the instruction. Clear is what empties the
+      // editable tail before a full regeneration.
+      const fixedEntries = shifts
+        .filter((shift) => shift.user_id != null && shift.competence_id != null)
+        .map((shift) => ({
+          user_id: shift.user_id,
+          competence_id: shift.competence_id,
+          work_date: shift.work_date,
+        }));
+      const result = await generateAmbulanceSchedule(
+        selectedId,
+        { month: view.m + 1, year: view.y },
+        { fixed_entries: fixedEntries, generate_from: firstEditableDate }
+      );
       setShifts(
         result.entries.map((entry, index) => ({
           ...entry,
@@ -461,6 +503,7 @@ const AmbulanceScheduleEditView = () => {
   // saved -- and the solve cannot be undone or cancelled once it starts.
   const handleGenerate = () => {
     if (!selectedId || generating || loading || saving || approving) return;
+    if (firstEditableDate == null) return;
     const warning = t('schedule_edit.generate_confirm', {
       ambulance: selected?.name || '',
       month: monthLabel,
@@ -477,6 +520,34 @@ const AmbulanceScheduleEditView = () => {
       onConfirm: () => {
         setConfirmState(null);
         generateSchedule();
+      },
+      onCancel: () => setConfirmState(null),
+    });
+  };
+
+  /* Empty the part of the month that may still be planned. It is a local
+   * edit like any other: the manager sees the empty days, can generate into
+   * them, and nothing reaches the database until Save. */
+  const clearSchedule = () => {
+    setShifts((prev) => prev.filter((shift) => !isEditableDate(shift.work_date)));
+    setEditingShift(null);
+    setGenerationMessage(null);
+  };
+
+  const handleClear = () => {
+    if (!selectedId || generating || loading || saving || approving) return;
+    if (firstEditableDate == null) return;
+    if (!shifts.some((shift) => isEditableDate(shift.work_date))) return;
+    setConfirmState({
+      message: t('schedule_edit.clear_confirm', {
+        ambulance: selected?.name || '',
+        month: monthLabel,
+      }),
+      confirmLabel: t('schedule_edit.clear'),
+      cancelLabel: t('schedule_edit.editor_cancel'),
+      onConfirm: () => {
+        setConfirmState(null);
+        clearSchedule();
       },
       onCancel: () => setConfirmState(null),
     });
@@ -837,11 +908,31 @@ const AmbulanceScheduleEditView = () => {
               type="button"
               className="schedule-edit-btn schedule-edit-btn-generate"
               onClick={handleGenerate}
-              disabled={loading || saving || generating || approving}
+              disabled={
+                loading ||
+                saving ||
+                generating ||
+                approving ||
+                firstEditableDate == null
+              }
             >
               {generating
                 ? t('schedule_edit.generating')
                 : t('schedule_edit.generate')}
+            </button>
+            <button
+              type="button"
+              className="schedule-edit-btn schedule-edit-btn-clear"
+              onClick={handleClear}
+              disabled={
+                loading ||
+                saving ||
+                generating ||
+                approving ||
+                !hasClearableShifts
+              }
+            >
+              {t('schedule_edit.clear')}
             </button>
             <span className="schedule-edit-generate-hint">
               {t('schedule_edit.generate_hint')}
@@ -978,7 +1069,22 @@ const AmbulanceScheduleEditView = () => {
                   : t('schedule_edit.generate')
               }
               generateHint={t('schedule_edit.generate_hint')}
-              generateDisabled={loading || saving || generating || approving}
+              generateDisabled={
+                loading ||
+                saving ||
+                generating ||
+                approving ||
+                firstEditableDate == null
+              }
+              onClear={handleClear}
+              clearLabel={t('schedule_edit.clear')}
+              clearDisabled={
+                loading ||
+                saving ||
+                generating ||
+                approving ||
+                !hasClearableShifts
+              }
             />
           )}
 

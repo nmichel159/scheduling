@@ -45,11 +45,26 @@
   cursor: pointer;
 }
 
-.planner-generate:not(:disabled):hover {
+.planner-clear {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 14px;
+  background: transparent;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.planner-generate:not(:disabled):hover,
+.planner-clear:not(:disabled):hover {
   filter: brightness(1.1);
 }
 
-.planner-generate:disabled {
+.planner-generate:disabled,
+.planner-clear:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

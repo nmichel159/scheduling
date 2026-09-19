@@ -12,7 +12,7 @@ from app.models.ambulance import Ambulance
 from app.models.associations import UserAmbulance
 from app.models.schedule import Schedule
 from app.models.user import User
-from app.schemas.schedule import MonthlyScheduleOverview, MonthlyScheduleSave, MonthlyScheduleStatistics, NextScheduleResponse, ScheduleApprovalResponse, ScheduleCreate, ScheduleEdit, ScheduleGenerationResponse, ScheduleResponse, ScheduleUpdate, UserMonthlySchedule, WorkedScheduleStatistics
+from app.schemas.schedule import MonthlyScheduleOverview, MonthlyScheduleSave, MonthlyScheduleStatistics, NextScheduleResponse, ScheduleApprovalResponse, ScheduleCreate, ScheduleEdit, ScheduleGenerationRequest, ScheduleGenerationResponse, ScheduleResponse, ScheduleUpdate, UserMonthlySchedule, WorkedScheduleStatistics
 from app.services.schedule_generation_service import ScheduleGenerationError, generate_ambulance_monthly_schedule
 from app.services.schedule_service import approve_ambulance_monthly_schedule, create_schedule, deactivate_schedule, get_ambulance_schedule, get_manageable_user_ambulance_ids, get_monthly_schedule_overview, get_next_user_schedule, get_user_monthly_statistics, get_user_schedule, get_user_worked_statistics, save_ambulance_monthly_schedule, save_monthly_schedule, update_schedule
 
@@ -271,6 +271,7 @@ def approve_ambulance_schedule_endpoint(
 def generate_ambulance_schedule_endpoint(
     month: int,
     year: int,
+    data: ScheduleGenerationRequest | None = None,
     ambulance: Ambulance = Depends(get_manager_ambulance),
     db: Session = Depends(get_db),
 ) -> ScheduleGenerationResponse:
@@ -280,6 +281,22 @@ def generate_ambulance_schedule_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="month and year must be valid.",
         )
+    request = data or ScheduleGenerationRequest()
+    if any(
+        entry.work_date.month != month or entry.work_date.year != year
+        for entry in request.fixed_entries
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Fixed entries must belong to the selected month and year.",
+        )
+    if request.generate_from is not None and (
+        request.generate_from.month != month or request.generate_from.year != year
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="generate_from must belong to the selected month and year.",
+        )
     if not _schedule_generation_slots.acquire(blocking=False):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -288,7 +305,17 @@ def generate_ambulance_schedule_endpoint(
         )
     try:
         try:
-            return generate_ambulance_monthly_schedule(db, ambulance.id, month, year)
+            return generate_ambulance_monthly_schedule(
+                db,
+                ambulance.id,
+                month,
+                year,
+                [
+                    (entry.user_id, entry.competence_id, entry.work_date)
+                    for entry in request.fixed_entries
+                ],
+                request.generate_from,
+            )
         except ScheduleGenerationError as exc:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

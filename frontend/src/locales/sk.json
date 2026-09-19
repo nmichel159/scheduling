@@ -274,9 +274,11 @@
     "duration_seconds": "{{value}} s",
     "duration_minutes": "{{value}} min",
     "generate_hint": "Vytvorí optimalizovaný návrh. Uloží sa až po kontrole tlačidlom Uložiť.",
+    "clear": "Vyčistiť rozvrh",
+    "clear_confirm": "Vyčistí sa rozvrh pracoviska {{ambulance}} za {{month}} od zajtrajšieho dňa. Dnešný a starší deň zostane.",
     "generate_success": "Vygenerovaný návrh obsahuje {{count}} služieb. Skontrolujte ho a potom ho uložte.",
     "generate_error": "Rozvrh sa nepodarilo vygenerovať.",
-    "generate_confirm": "Vygenerovaním sa zahodí súčasný rozvrh pracoviska {{ambulance}} za {{month}} a nahradí ho nový návrh.",
+    "generate_confirm": "Generovanie doplní rozvrh pracoviska {{ambulance}} za {{month}} od zajtrajšieho dňa a ponechá už nahodené služby.",
     "generate_confirm_unsaved": "Stratíte aj svoje neuložené zmeny.",
     "generate_confirm_estimate": "Odhadovaný čas generovania: približne {{duration}}.",
     "generate_shortage": "{{date}} – {{competence}}: dostupných {{available}}, potrebných {{required}}.",
@@ -334,7 +336,10 @@
     "planner_picker_title": "Kto môže zastať kompetenciu {{competence}}",
     "planner_picker_filled": "obsadené {{filled}} z {{required}}",
     "planner_picker_busy": "V tento deň už slúži: {{competence}}",
-    "planner_picker_load": "Služby v tomto mesiaci: {{shifts}}"
+    "planner_picker_load": "Služby v tomto mesiaci: {{shifts}}",
+    "generate_fixed_over_requirement": "{{date}} – {{competence}}: nahodených {{fixed}}, potrebných {{required}}.",
+    "generate_fixed_rest_conflict": "{{firstDate}} a {{secondDate}}: nahodené služby nedodržiavajú deň odpočinku.",
+    "generate_fixed_unknown": "{{date}}: nahodenú službu nemožno priradiť tomuto pracovisku."
   },
   "schedule_overview": {
     "loading": "Načítavam prehľad…",

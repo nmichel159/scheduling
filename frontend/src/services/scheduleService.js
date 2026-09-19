@@ -75,11 +75,17 @@ export async function fetchMonthlyScheduleOverview(params) {
   return data;
 }
 
-/** Generate an optimized, unsaved monthly schedule draft for one ambulance. */
-export async function generateAmbulanceSchedule(ambulanceId, params) {
+/**
+ * Generate an optimized, unsaved monthly schedule draft for one ambulance.
+ *
+ * `body.fixed_entries` are duties the solver must keep exactly where they are,
+ * and `body.generate_from` is the first date it may fill, so the editor can
+ * regenerate the rest of a month around what is already placed.
+ */
+export async function generateAmbulanceSchedule(ambulanceId, params, body = {}) {
   const { data } = await client.post(
     `/ambulances/${ambulanceId}/schedule/generate`,
-    null,
+    { fixed_entries: [], ...body },
     { params }
   );
   return data;

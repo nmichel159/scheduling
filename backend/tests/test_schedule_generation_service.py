@@ -477,6 +477,141 @@ class ScheduleGenerationSolverTests(unittest.TestCase):
 
         self.assertEqual(len(assignments), 4)
 
+    def test_keeps_manually_placed_duties_and_plans_around_them(self) -> None:
+        """A placed duty survives the solve and claims its own rest days."""
+        placed_day = date(2026, 8, 10)
+        employees = [_employee(index) for index in range(1, 7)]
+        competences = [
+            SchedulingCompetence(id=1, name="Triage", required_count=1),
+            SchedulingCompetence(id=2, name="Procedure", required_count=1),
+        ]
+
+        assignments = solve_monthly_schedule(
+            employees,
+            competences,
+            month=8,
+            year=2026,
+            fixed_assignments=frozenset({(1, 1, placed_day)}),
+        )
+
+        self.assertIn(
+            (1, 1, placed_day),
+            {
+                (item.user_id, item.competence_id, item.work_date)
+                for item in assignments
+            },
+        )
+        neighbours = {placed_day - timedelta(days=1), placed_day + timedelta(days=1)}
+        self.assertFalse(
+            any(
+                item.user_id == 1 and item.work_date in neighbours
+                for item in assignments
+            )
+        )
+        coverage = Counter(
+            (item.work_date, item.competence_id) for item in assignments
+        )
+        self.assertEqual(coverage[(placed_day, 1)], 1)
+        self.assertEqual(coverage[(placed_day, 2)], 1)
+
+    def test_regenerates_only_from_the_requested_date_onwards(self) -> None:
+        """Earlier days keep exactly what was fixed and are not staffed anew."""
+        generate_from = date(2026, 8, 15)
+        kept_day = date(2026, 8, 3)
+        employees = [_employee(index) for index in range(1, 7)]
+        competences = [SchedulingCompetence(id=1, name="Triage", required_count=1)]
+
+        assignments = solve_monthly_schedule(
+            employees,
+            competences,
+            month=8,
+            year=2026,
+            fixed_assignments=frozenset({(2, 1, kept_day)}),
+            generate_from=generate_from,
+        )
+
+        past_assignments = [
+            item for item in assignments if item.work_date < generate_from
+        ]
+        self.assertEqual(
+            [(item.user_id, item.competence_id, item.work_date) for item in past_assignments],
+            [(2, 1, kept_day)],
+        )
+        for day_number in range(15, 32):
+            work_date = date(2026, 8, day_number)
+            self.assertEqual(
+                sum(1 for item in assignments if item.work_date == work_date),
+                1,
+            )
+
+    def test_rejects_manually_placed_duties_that_break_the_rest_day(self) -> None:
+        """Two placed duties on neighbouring days are reported, not solved."""
+        employees = [_employee(index) for index in range(1, 7)]
+        competences = [SchedulingCompetence(id=1, name="Triage", required_count=1)]
+
+        with self.assertRaises(ScheduleGenerationError) as error:
+            solve_monthly_schedule(
+                employees,
+                competences,
+                month=8,
+                year=2026,
+                fixed_assignments=frozenset(
+                    {(1, 1, date(2026, 8, 4)), (1, 1, date(2026, 8, 5))}
+                ),
+            )
+
+        self.assertEqual(
+            [issue["code"] for issue in error.exception.issues],
+            ["fixed_assignment_rest_conflict"],
+        )
+
+    def test_rejects_more_manually_placed_duties_than_the_day_requires(self) -> None:
+        """Overfilling a role by hand is reported before the solve starts."""
+        crowded_day = date(2026, 8, 7)
+        employees = [_employee(index) for index in range(1, 7)]
+        competences = [SchedulingCompetence(id=1, name="Triage", required_count=1)]
+
+        with self.assertRaises(ScheduleGenerationError) as error:
+            solve_monthly_schedule(
+                employees,
+                competences,
+                month=8,
+                year=2026,
+                fixed_assignments=frozenset(
+                    {(1, 1, crowded_day), (2, 1, crowded_day)}
+                ),
+            )
+
+        self.assertEqual(
+            [issue["code"] for issue in error.exception.issues],
+            ["fixed_assignment_over_requirement"],
+        )
+
+    def test_keeps_a_manually_placed_duty_on_an_unavailable_day(self) -> None:
+        """The manager's own placement outranks the employee's absence."""
+        placed_day = date(2026, 8, 12)
+        employees = [
+            _employee(1, unavailable_dates=frozenset({placed_day})),
+            *(_employee(index) for index in range(2, 7)),
+        ]
+        competences = [SchedulingCompetence(id=1, name="Triage", required_count=1)]
+
+        assignments = solve_monthly_schedule(
+            employees,
+            competences,
+            month=8,
+            year=2026,
+            fixed_assignments=frozenset({(1, 1, placed_day)}),
+        )
+
+        self.assertIn(
+            (1, 1, placed_day),
+            {
+                (item.user_id, item.competence_id, item.work_date)
+                for item in assignments
+            },
+        )
+
 
 class ScheduleGenerationLoadingTests(unittest.TestCase):
     """Verify database inputs used to build the monthly solver model."""
@@ -602,6 +737,61 @@ class ScheduleGenerationLoadingTests(unittest.TestCase):
                 for entry in result.entries
             )
         )
+
+    def test_regenerates_a_month_from_a_date_around_placed_duties(self) -> None:
+        """The loader passes placed duties and the window through to the solver."""
+        ambulance = Ambulance(name="Partial month", is_active=True)
+        users = [
+            User(email=f"partial{index}@example.com", is_active=True)
+            for index in range(4)
+        ]
+        self.db.add_all([ambulance, *users])
+        self.db.flush()
+        competence = Competence(
+            name="Triage",
+            required_count=1,
+            ambulance_id=ambulance.id,
+            is_active=True,
+        )
+        self.db.add(competence)
+        self.db.flush()
+        self.db.add_all(
+            [
+                UserAmbulance(user_id=user.id, ambulance_id=ambulance.id, is_active=True)
+                for user in users
+            ]
+            + [
+                UserCompetence(
+                    user_id=user.id, competence_id=competence.id, is_active=True
+                )
+                for user in users
+            ]
+        )
+        self.db.commit()
+
+        kept_day = date(2026, 8, 2)
+        result = generate_ambulance_monthly_schedule(
+            self.db,
+            ambulance.id,
+            month=8,
+            year=2026,
+            fixed_entries=[(users[3].id, competence.id, kept_day)],
+            generate_from=date(2026, 8, 15),
+        )
+
+        planned_dates = {entry.work_date for entry in result.entries}
+        self.assertEqual(
+            {work_date for work_date in planned_dates if work_date < date(2026, 8, 15)},
+            {kept_day},
+        )
+        self.assertEqual(
+            {work_date for work_date in planned_dates if work_date >= date(2026, 8, 15)},
+            {date(2026, 8, day) for day in range(15, 32)},
+        )
+        kept_entry = next(
+            entry for entry in result.entries if entry.work_date == kept_day
+        )
+        self.assertEqual(kept_entry.user_id, users[3].id)
 
     def test_loads_weekday_requirements_with_legacy_fallback(self) -> None:
         """Database rows override only their weekday while absent days use legacy demand."""

@@ -36,6 +36,19 @@ class GeneratedScheduleEntry(ScheduleEntry):
     competence_name: str
 
 
+class ScheduleGenerationRequest(BaseModel):
+    """What the solver must keep, and from which date it may fill the month.
+
+    ``fixed_entries`` are the duties already placed in the editor; the solver
+    keeps every one of them and plans around them. ``generate_from`` is the
+    first date it may touch, so a month that is already partly worked can be
+    regenerated from tomorrow onwards without rewriting its past.
+    """
+
+    fixed_entries: list[ScheduleEntry] = Field(default_factory=list, max_length=20000)
+    generate_from: date | None = None
+
+
 class ScheduleGenerationResponse(BaseModel):
     """Complete unsaved monthly schedule draft produced by the MILP solver."""
 

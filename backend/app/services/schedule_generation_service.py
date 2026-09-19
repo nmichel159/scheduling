@@ -323,12 +323,78 @@ def _detect_capacity_issues(
     return issues
 
 
+def _detect_fixed_assignment_conflicts(
+    fixed_assignments: frozenset[tuple[int, int, date]],
+    employees: list[SchedulingEmployee],
+    competences: list[SchedulingCompetence],
+) -> list[dict[str, object]]:
+    """Find manually placed duties the solver could never keep.
+
+    A manual placement is an instruction, not a wish, so anything the solver
+    would have to break to honor it is reported before the solve rather than
+    coming back as an unexplained infeasibility.
+    """
+    issues: list[dict[str, object]] = []
+    employee_ids = {employee.id for employee in employees}
+    competences_by_id = {competence.id: competence for competence in competences}
+    dates_by_user: dict[int, list[date]] = {}
+    counts_by_competence_date: dict[tuple[int, date], int] = {}
+
+    for user_id, competence_id, work_date in sorted(fixed_assignments):
+        if user_id not in employee_ids or competence_id not in competences_by_id:
+            issues.append(
+                {
+                    "code": "fixed_assignment_unknown",
+                    "work_date": work_date.isoformat(),
+                    "user_id": user_id,
+                    "competence_id": competence_id,
+                }
+            )
+            continue
+        dates_by_user.setdefault(user_id, []).append(work_date)
+        counts_by_competence_date[(competence_id, work_date)] = (
+            counts_by_competence_date.get((competence_id, work_date), 0) + 1
+        )
+
+    for (competence_id, work_date), count in sorted(counts_by_competence_date.items()):
+        competence = competences_by_id[competence_id]
+        required_count = competence.required_on(work_date)
+        if count > required_count:
+            issues.append(
+                {
+                    "code": "fixed_assignment_over_requirement",
+                    "work_date": work_date.isoformat(),
+                    "competence_id": competence_id,
+                    "competence_name": competence.name,
+                    "required_count": required_count,
+                    "fixed_count": count,
+                }
+            )
+
+    for user_id, work_dates in sorted(dates_by_user.items()):
+        ordered = sorted(work_dates)
+        for current_date, next_date in zip(ordered, ordered[1:]):
+            if next_date - current_date <= timedelta(days=1):
+                issues.append(
+                    {
+                        "code": "fixed_assignment_rest_conflict",
+                        "work_date": current_date.isoformat(),
+                        "next_work_date": next_date.isoformat(),
+                        "user_id": user_id,
+                    }
+                )
+
+    return issues
+
+
 def solve_monthly_schedule(
     employees: list[SchedulingEmployee],
     competences: list[SchedulingCompetence],
     month: int,
     year: int,
     adjacent_assignments: frozenset[tuple[int, int, date]] = frozenset(),
+    fixed_assignments: frozenset[tuple[int, int, date]] = frozenset(),
+    generate_from: date | None = None,
 ) -> list[GeneratedAssignment]:
     """Solve one monthly ambulance schedule as a binary MILP.
 
@@ -346,6 +412,12 @@ def solve_monthly_schedule(
         month: Calendar month from 1 to 12.
         year: Four-digit calendar year.
         adjacent_assignments: Assignments on the day before or after the month.
+        fixed_assignments: Assignments the solver must keep exactly as given.
+            They cover their own demand, occupy their employee's rest days and
+            count towards the workload balance like any generated duty.
+        generate_from: First date the solver may fill. Earlier dates keep only
+            their fixed assignments and are exempt from the coverage rule, so a
+            month already half worked can be regenerated from tomorrow on.
 
     Returns:
         A deterministic, sorted list of generated assignments.
@@ -369,11 +441,40 @@ def solve_monthly_schedule(
         raise ValueError("weekday_required_counts must contain exactly seven values")
 
     days = _calendar_days(month, year)
+    if generate_from is not None and (
+        generate_from.month != month or generate_from.year != year
+    ):
+        raise ValueError("generate_from must belong to the solved month")
+    # Dates the solver may still fill. Everything before them is history: it
+    # keeps whatever is fixed there and is exempt from the coverage rule.
+    window_days = [
+        work_date
+        for work_date in days
+        if generate_from is None or work_date >= generate_from
+    ]
+    fixed_assignments = frozenset(
+        assignment
+        for assignment in fixed_assignments
+        if assignment[2] in set(days)
+    )
+    fixed_issues = _detect_fixed_assignment_conflicts(
+        fixed_assignments,
+        employees,
+        competences,
+    )
+    if fixed_issues:
+        raise ScheduleGenerationError(
+            "The manually placed duties cannot all be kept.",
+            fixed_issues,
+        )
+    fixed_dates_by_user: dict[int, set[date]] = {}
+    for user_id, _competence_id, work_date in fixed_assignments:
+        fixed_dates_by_user.setdefault(user_id, set()).add(work_date)
     if not employees:
         if all(
             competence.required_on(work_date) == 0
             for competence in competences
-            for work_date in days
+            for work_date in window_days
         ):
             return []
         raise ScheduleGenerationError(
@@ -399,13 +500,19 @@ def solve_monthly_schedule(
     variables: dict[tuple[int, int, date], LpVariable] = {}
 
     for employee in sorted(employees, key=lambda item: item.id):
-        blocked_dates = employee.unavailable_dates | _rest_blocked_dates(
-            employee.externally_scheduled_dates
+        blocked_dates = (
+            employee.unavailable_dates
+            | _rest_blocked_dates(employee.externally_scheduled_dates)
+            # A manually placed duty claims its own rest days too, so no free
+            # duty may land next to one.
+            | _rest_blocked_dates(
+                frozenset(fixed_dates_by_user.get(employee.id, set()))
+            )
         )
         for competence in sorted(competences, key=lambda item: item.id):
             if competence.id not in employee.competence_ids:
                 continue
-            for work_date in days:
+            for work_date in window_days:
                 if competence.required_on(work_date) == 0:
                     continue
                 if work_date in blocked_dates:
@@ -418,6 +525,17 @@ def solve_monthly_schedule(
                     f"assign_{employee.id}_{competence.id}_{work_date.isoformat()}",
                     cat="Binary",
                 )
+
+    # A manual placement overrides every soft filter above: the manager has
+    # already decided, so it gets a variable even on a day the employee did
+    # not ask for and even outside the generation window.
+    for user_id, competence_id, work_date in sorted(fixed_assignments):
+        key = (user_id, competence_id, work_date)
+        if key not in variables:
+            variables[key] = LpVariable(
+                f"assign_{user_id}_{competence_id}_{work_date.isoformat()}",
+                cat="Binary",
+            )
 
     variable_index = _index_schedule_variables(variables)
     preferred_dates_by_employee = {
@@ -433,7 +551,7 @@ def solve_monthly_schedule(
     capacity_issues = _detect_capacity_issues(
         variables,
         competences,
-        days,
+        window_days,
         variable_index,
     )
     if capacity_issues:
@@ -442,7 +560,13 @@ def solve_monthly_schedule(
             capacity_issues,
         )
 
-    for work_date in days:
+    for user_id, competence_id, work_date in sorted(fixed_assignments):
+        problem += (
+            variables[(user_id, competence_id, work_date)] == 1,
+            f"fixed_{user_id}_{competence_id}_{work_date.isoformat()}",
+        )
+
+    for work_date in window_days:
         for competence in competences:
             coverage_variables = variable_index.by_competence_date.get(
                 (competence.id, work_date), []
@@ -452,6 +576,7 @@ def solve_monthly_schedule(
                 f"coverage_{competence.id}_{work_date.isoformat()}",
             )
 
+    for work_date in days:
         for employee in employees:
             daily_variables = variable_index.by_user_date.get(
                 (employee.id, work_date), []
@@ -575,8 +700,16 @@ def generate_ambulance_monthly_schedule(
     ambulance_id: int,
     month: int,
     year: int,
+    fixed_entries: list[tuple[int, int, date]] | None = None,
+    generate_from: date | None = None,
 ) -> ScheduleGenerationResponse:
-    """Load one ambulance's data and return an unsaved optimized schedule draft."""
+    """Load one ambulance's data and return an unsaved optimized schedule draft.
+
+    ``fixed_entries`` are duties the manager placed by hand and wants kept;
+    ``generate_from`` restricts the solver to that date onwards, which is how a
+    month that is already partly worked gets regenerated without rewriting its
+    past.
+    """
     days = _calendar_days(month, year)
     start = days[0]
     end = days[-1]
@@ -741,6 +874,8 @@ def generate_ambulance_monthly_schedule(
         month,
         year,
         frozenset(adjacent_assignments),
+        frozenset(fixed_entries or ()),
+        generate_from,
     )
     users_by_id = {user.id: user for user in user_rows}
     competences_by_id = {competence.id: competence for competence in competence_rows}

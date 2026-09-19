@@ -274,9 +274,11 @@
     "duration_seconds": "{{value}} s",
     "duration_minutes": "{{value}} min",
     "generate_hint": "Creates an optimized draft. It is saved only after review with Save.",
+    "clear": "Clear schedule",
+    "clear_confirm": "Clears the schedule for {{ambulance}} in {{month}} from tomorrow onwards. Today and earlier stay as they are.",
     "generate_success": "The generated draft contains {{count}} duties. Review it, then save it.",
     "generate_error": "The schedule could not be generated.",
-    "generate_confirm": "Generating discards the current schedule for {{ambulance}} in {{month}} and replaces it with a new draft.",
+    "generate_confirm": "Generating fills the schedule for {{ambulance}} in {{month}} from tomorrow onwards and keeps every duty already placed.",
     "generate_confirm_unsaved": "Your unsaved changes will be lost too.",
     "generate_confirm_estimate": "Estimated generation time: about {{duration}}.",
     "generate_shortage": "{{date}} – {{competence}}: {{available}} available, {{required}} required.",
@@ -334,7 +336,10 @@
     "planner_picker_title": "Who can cover {{competence}}",
     "planner_picker_filled": "{{filled}} of {{required}} staffed",
     "planner_picker_busy": "Already on duty that day: {{competence}}",
-    "planner_picker_load": "Duties this month: {{shifts}}"
+    "planner_picker_load": "Duties this month: {{shifts}}",
+    "generate_fixed_over_requirement": "{{date}} – {{competence}}: {{fixed}} placed, {{required}} required.",
+    "generate_fixed_rest_conflict": "{{firstDate}} and {{secondDate}}: the placed duties leave no rest day in between.",
+    "generate_fixed_unknown": "{{date}}: a placed duty cannot be assigned in this workplace."
   },
   "schedule_overview": {
     "loading": "Loading the overview…",
