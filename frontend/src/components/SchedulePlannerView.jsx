@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   SPECIAL_DAY_SLOT,
@@ -19,12 +19,17 @@ const PICKER_WIDTH = 268;
 const PICKER_MAX_HEIGHT = 320;
 const PICKER_MARGIN = 12;
 
-/* The people list opens inside the demand table, between two days, and the
-   rows above and below it must not move more than they have to — so it is
-   given a height rather than allowed to take one. */
-const DETAIL_ROW_HEIGHT = 24;
-const DETAIL_HEAD_HEIGHT = 44;
-const DETAIL_MAX_HEIGHT = 240;
+/* The people list is a floating panel anchored to the square that opened it,
+   so it has to know its own size to stay inside the viewport. It is laid out
+   in columns of at most ten names rather than as one long list: a workplace
+   where thirty people hold the same competence is exactly the case where the
+   whole roster has to be comparable at a glance, and a scrolling column shows
+   ten of them. */
+const DETAIL_COL_WIDTH = 158;
+const DETAIL_MAX_ROWS = 10;
+const DETAIL_MAX_COLS = 4;
+const DETAIL_CHROME = 14; // borders + the grid's own padding
+const DETAIL_MAX_HEIGHT = 360;
 
 /* Every day of the month has to be on screen at once, so the row height is not
    a fixed number but whatever divides the space actually left under the matrix.
@@ -120,13 +125,14 @@ const SchedulePlannerView = ({
 }) => {
   const { t } = useTranslation();
 
-  // { dateStr, competenceId } — the square whose people are listed in the
-  // table. Null while nothing is being filled.
+  // { dateStr, competenceId, anchor: DOMRect } — the square whose people are
+  // listed. Null while nothing is being filled.
   const [demandCell, setDemandCell] = useState(null);
   // { dateStr, userId, anchor: DOMRect } — the person's day whose competence
   // list is open.
   const [personCell, setPersonCell] = useState(null);
   const pickerRef = useRef(null);
+  const detailRef = useRef(null);
   const demandRef = useRef(null);
   const [metrics, setMetrics] = useState({
     rowHeight: MAX_ROW_HEIGHT,
@@ -278,13 +284,12 @@ const SchedulePlannerView = ({
     return day && employee ? { ...personCell, day, employee } : null;
   }, [personCell, days, employeeById]);
 
-  /* Escape closes whichever list is open; a press outside closes the floating
-   * one. Deliberately a listener rather than a full-screen backdrop: filling a
+  /* Escape closes whichever list is open; a press outside closes it too.
+   * Deliberately a listener rather than a full-screen backdrop: filling a
    * month means clicking one cell after another, and a backdrop would eat the
    * press that opens the next one, making every cell after the first cost two
    * clicks. Closing on mousedown lets the click that follows land on the new
-   * cell. The list inside the table needs none of this — it is part of the
-   * table, and clicking another square already moves it. */
+   * cell. */
   useEffect(() => {
     if (!openDemand && !openPerson) return undefined;
     const handleKeyDown = (e) => {
@@ -294,6 +299,7 @@ const SchedulePlannerView = ({
     };
     const handlePointerDown = (e) => {
       if (!pickerRef.current?.contains(e.target)) setPersonCell(null);
+      if (!detailRef.current?.contains(e.target)) setDemandCell(null);
     };
     window.addEventListener('keydown', handleKeyDown);
     document.addEventListener('mousedown', handlePointerDown);
@@ -352,12 +358,13 @@ const SchedulePlannerView = ({
     [locale]
   );
 
-  const toggleDemandCell = (dateStr, competenceId) => {
+  const toggleDemandCell = (event, dateStr, competenceId) => {
+    const rect = event.currentTarget.getBoundingClientRect();
     setPersonCell(null);
     setDemandCell((current) =>
       current && current.dateStr === dateStr && current.competenceId === competenceId
         ? null
-        : { dateStr, competenceId }
+        : { dateStr, competenceId, anchor: rect }
     );
   };
 
@@ -415,13 +422,36 @@ const SchedulePlannerView = ({
     else onAssign(dateStr, competenceId, row.employee.user_id);
   };
 
-  /* Given rather than taken, so the days above and below the open list keep
-     their places instead of the whole month jumping by however many people
-     hold the competence. */
-  const detailHeight = Math.min(
-    DETAIL_MAX_HEIGHT,
-    DETAIL_HEAD_HEIGHT + Math.max(1, demandRows.length) * DETAIL_ROW_HEIGHT
-  );
+  /* Fill columns top to bottom, ten names each, and let the panel be as wide
+     as the columns it ends up with. */
+  const detailGrid = useMemo(() => {
+    const count = Math.max(1, demandRows.length);
+    const columns = Math.min(DETAIL_MAX_COLS, Math.ceil(count / DETAIL_MAX_ROWS));
+    return { columns, rows: Math.ceil(count / columns) };
+  }, [demandRows.length]);
+
+  /* Anchored to the right of the square it belongs to, and pulled back inside
+     the viewport near the edges of the month. */
+  const detailStyle = useMemo(() => {
+    if (!openDemand?.anchor) return null;
+    const { anchor } = openDemand;
+    const width = detailGrid.columns * DETAIL_COL_WIDTH + DETAIL_CHROME;
+    const left = Math.max(
+      PICKER_MARGIN,
+      Math.min(anchor.right + 8, window.innerWidth - width - PICKER_MARGIN)
+    );
+    const top = Math.max(
+      PICKER_MARGIN,
+      Math.min(anchor.top - 6, window.innerHeight - DETAIL_MAX_HEIGHT - PICKER_MARGIN)
+    );
+    return {
+      left,
+      top,
+      width,
+      maxHeight: DETAIL_MAX_HEIGHT,
+      '--detail-rows': detailGrid.rows,
+    };
+  }, [openDemand, detailGrid]);
 
   /* ---------- what the open person can do that day ---------- */
 
@@ -502,11 +532,7 @@ const SchedulePlannerView = ({
             row height that has to carry all 31 days. Everything else — the
             generate button, the legend, the shortfall — moved across to the
             right column for the same reason. */}
-        <section
-          className={`planner-pane planner-pane-demand ${
-            openDemand ? 'has-detail' : ''
-          }`}
-        >
+        <section className="planner-pane planner-pane-demand">
           <h2 className="planner-pane-title">
             {t('schedule_edit.planner_demand_title')}
           </h2>
@@ -558,12 +584,12 @@ const SchedulePlannerView = ({
                   {days.map((dayInfo) => {
                     const isOpenDay = openDemand?.dateStr === dayInfo.dateStr;
                     return (
-                      <Fragment key={dayInfo.dateStr}>
-                        <tr
-                          className={`planner-matrix-row ${
-                            dayInfo.isWeekend ? 'is-weekend' : ''
-                          } ${dayInfo.isToday ? 'is-today' : ''}`}
-                        >
+                      <tr
+                        key={dayInfo.dateStr}
+                        className={`planner-matrix-row ${
+                          dayInfo.isWeekend ? 'is-weekend' : ''
+                        } ${dayInfo.isToday ? 'is-today' : ''}`}
+                      >
                           <th scope="row" className="planner-matrix-dayhead">
                             <span className="planner-matrix-daynum">{dayInfo.day}</span>
                             <span className="planner-matrix-dayname">
@@ -603,8 +629,8 @@ const SchedulePlannerView = ({
                                       ? `${Math.round((filled / required) * 100)}%`
                                       : '100%',
                                   }}
-                                  onClick={() =>
-                                    toggleDemandCell(dayInfo.dateStr, competence.id)
+                                  onClick={(e) =>
+                                    toggleDemandCell(e, dayInfo.dateStr, competence.id)
                                   }
                                   title={t('schedule_edit.planner_cell_title', {
                                     date: dateFormatter.format(dayInfo.date),
@@ -627,156 +653,7 @@ const SchedulePlannerView = ({
                               </td>
                             );
                           })}
-                        </tr>
-                        {/* The people who hold the clicked competence, opened as a
-                           row of the same table rather than as a panel over it:
-                           the answer belongs next to the day it is about, and a
-                           floating list covered the very columns being compared.
-                           The contents sit in an absolutely positioned layer so
-                           that however long a name is, it cannot stretch the
-                           squares above it. */
-                        isOpenDay && openDemand && (
-                          <tr className="planner-detail-row">
-                            <td
-                              className="planner-detail-cell"
-                              colSpan={competences.length + 1}
-                            >
-                              <div
-                                className="planner-detail-frame"
-                                style={{ height: `${detailHeight}px` }}
-                              >
-                                <div
-                                  className="planner-detail"
-                                  role="group"
-                                  aria-label={t('schedule_edit.planner_picker_title', {
-                                    competence: openDemand.competence.name,
-                                  })}
-                                >
-                                  <div className="planner-detail-head">
-                                    <span className="planner-detail-heading">
-                                      <span
-                                        className="planner-legend-swatch"
-                                        style={{
-                                          backgroundColor: competenceColor(
-                                            openDemand.competenceId
-                                          ),
-                                        }}
-                                        aria-hidden="true"
-                                      />
-                                      <span className="planner-detail-competence">
-                                        {openDemand.competence.name}
-                                      </span>
-                                      <span className="planner-detail-meta">
-                                        {dateFormatter.format(openDemand.day.date)} ·{' '}
-                                        {t('schedule_edit.planner_picker_filled', {
-                                          filled: assignedOn(
-                                            openDemand.dateStr,
-                                            openDemand.competenceId
-                                          ).length,
-                                          required: requiredFor(
-                                            openDemand.competenceId,
-                                            openDemand.day.slot
-                                          ),
-                                        })}
-                                      </span>
-                                    </span>
-                                    <button
-                                      type="button"
-                                      className="planner-picker-close"
-                                      onClick={() => setDemandCell(null)}
-                                      title={t('schedule_edit.close')}
-                                    >
-                                      ✕
-                                    </button>
-                                  </div>
-
-                                  {demandRows.length === 0 ? (
-                                    <p className="planner-picker-empty">
-                                      {t('schedule_edit.no_eligible_users')}
-                                    </p>
-                                  ) : (
-                                    <table className="planner-detail-table">
-                                      <thead>
-                                        <tr>
-                                          <th scope="col" className="planner-detail-mark">
-                                            <span className="planner-sr-only">
-                                              {t('schedule_edit.planner_assigned')}
-                                            </span>
-                                          </th>
-                                          <th scope="col">
-                                            {t('schedule_edit.planner_person')}
-                                          </th>
-                                          <th
-                                            scope="col"
-                                            className="planner-detail-number"
-                                          >
-                                            {t('schedule_edit.planner_surcharge')}
-                                          </th>
-                                          <th
-                                            scope="col"
-                                            className="planner-detail-number"
-                                          >
-                                            {t('schedule_edit.planner_standard')}
-                                          </th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {demandRows.map((row) => {
-                                          const fullLabel =
-                                            row.employee.full_name ||
-                                            row.employee.email;
-                                          return (
-                                            <tr
-                                              key={row.employee.user_id}
-                                              className={`planner-detail-person ${
-                                                row.shift ? 'is-assigned' : ''
-                                              } ${row.busyWith ? 'is-busy' : ''}`}
-                                              onClick={() =>
-                                                toggleAssignment(
-                                                  openDemand.dateStr,
-                                                  openDemand.competenceId,
-                                                  row
-                                                )
-                                              }
-                                            >
-                                              <td className="planner-detail-mark">
-                                                {row.shift ? '✓' : ''}
-                                              </td>
-                                              <td
-                                                className="planner-detail-name"
-                                                title={
-                                                  row.busyWith
-                                                    ? `${fullLabel} — ${t(
-                                                        'schedule_edit.planner_picker_busy',
-                                                        {
-                                                          competence:
-                                                            row.busyWith
-                                                              .competence_name,
-                                                        }
-                                                      )}`
-                                                    : fullLabel
-                                                }
-                                              >
-                                                {fullLabel}
-                                              </td>
-                                              <td className="planner-detail-number">
-                                                {row.stats.surcharge}
-                                              </td>
-                                              <td className="planner-detail-number">
-                                                {row.stats.standard}
-                                              </td>
-                                            </tr>
-                                          );
-                                        })}
-                                      </tbody>
-                                    </table>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
+                      </tr>
                     );
                   })}
                 </tbody>
@@ -956,6 +833,119 @@ const SchedulePlannerView = ({
           </section>
         </div>
       </div>
+
+      {openDemand && (
+        <div
+          ref={detailRef}
+          className="planner-detail"
+          style={detailStyle}
+          role="dialog"
+          aria-label={t('schedule_edit.planner_picker_title', {
+            competence: openDemand.competence.name,
+          })}
+        >
+          <div className="planner-detail-head">
+            <span className="planner-detail-heading">
+              <span
+                className="planner-legend-swatch"
+                style={{
+                  backgroundColor: competenceColor(openDemand.competenceId),
+                }}
+                aria-hidden="true"
+              />
+              <span className="planner-detail-competence">
+                {openDemand.competence.name}
+              </span>
+              <span className="planner-detail-meta">
+                {dateFormatter.format(openDemand.day.date)} ·{' '}
+                {t('schedule_edit.planner_picker_filled', {
+                  filled: assignedOn(openDemand.dateStr, openDemand.competenceId)
+                    .length,
+                  required: requiredFor(
+                    openDemand.competenceId,
+                    openDemand.day.slot
+                  ),
+                })}
+              </span>
+            </span>
+            <button
+              type="button"
+              className="planner-picker-close"
+              onClick={() => setDemandCell(null)}
+              title={t('schedule_edit.close')}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="planner-detail-legend">
+            <span className="planner-detail-count is-surcharge">
+              {t('schedule_edit.planner_surcharge')}
+            </span>
+            <span className="planner-detail-count-sep">/</span>
+            <span className="planner-detail-count">
+              {t('schedule_edit.planner_standard')}
+            </span>
+          </div>
+
+          {demandRows.length === 0 ? (
+            <p className="planner-picker-empty">
+              {t('schedule_edit.no_eligible_users')}
+            </p>
+          ) : (
+            <div className="planner-detail-grid">
+              {demandRows.map((row) => {
+                const fullLabel = row.employee.full_name || row.employee.email;
+                return (
+                  <button
+                    key={row.employee.user_id}
+                    type="button"
+                    className={`planner-detail-person ${
+                      row.shift ? 'is-assigned' : ''
+                    } ${row.busyWith ? 'is-busy' : ''}`}
+                    onClick={() =>
+                      toggleAssignment(
+                        openDemand.dateStr,
+                        openDemand.competenceId,
+                        row
+                      )
+                    }
+                    disabled={!!row.busyWith}
+                    title={
+                      row.busyWith
+                        ? `${fullLabel} — ${t('schedule_edit.planner_picker_busy', {
+                            competence: row.busyWith.competence_name,
+                          })}`
+                        : fullLabel
+                    }
+                  >
+                    <span className="planner-detail-mark" aria-hidden="true">
+                      {row.shift ? '✓' : ''}
+                    </span>
+                    <span className="planner-detail-name">
+                      {formatShortName(row.employee.full_name) ||
+                        row.employee.email}
+                    </span>
+                    {/* The two numbers the choice is made on, read as one
+                        figure: surcharged duties first, ordinary ones after
+                        the slash. The legend in the head says which is which
+                        so the cells themselves can stay this short. */}
+                    <span className="planner-detail-counts">
+                      <span className="planner-detail-count is-surcharge">
+                        {row.stats.surcharge}
+                      </span>
+                      <span className="planner-detail-count-sep">/</span>
+                      <span className="planner-detail-count">
+                        {row.stats.standard}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {openPerson && (
         <div

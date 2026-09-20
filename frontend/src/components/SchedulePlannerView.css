@@ -190,18 +190,6 @@
   flex: none;
 }
 
-/* Only while a list is open: the pane holds at least as much as the list
-   needs, and the matrix stops being centred so the list starts at the pane's
-   own left edge instead of at the table's. Centred, a narrow matrix would
-   push the list off the right-hand side. */
-.planner-pane-demand.has-detail {
-  min-width: 20.5rem;
-}
-
-.planner-pane-demand.has-detail .planner-scroll-demand {
-  justify-content: safe flex-start;
-}
-
 .planner-scroll-people {
   max-height: calc(100svh - 250px);
   min-height: 180px;
@@ -598,44 +586,22 @@
   opacity: 0.75;
 }
 
-/* --- who can fill this square: a row of the demand table itself --- */
-
-.planner-detail-row {
-  height: auto;
-}
-
-.planner-detail-cell {
-  padding: 0;
-}
-
-/* The list is laid over its own row rather than inside it. A cell spanning
-   every column contributes its content's width to the table, so a long name
-   would stretch the competence squares above it; taken out of flow, it
-   cannot. The frame keeps the height the row still needs. */
-.planner-detail-frame {
-  position: relative;
-}
+/* --- who can fill this square: a panel floating beside it ---
+   It used to be a row of the demand table, which pushed the month's days
+   apart and covered the very columns being compared. Floating, it leaves the
+   matrix exactly where it was, and the names are laid out in columns of ten
+   so a whole roster is comparable without scrolling. */
 
 .planner-detail {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  /* A workplace with three competences makes a matrix narrower than a list of
-     names, and being out of flow the list cannot widen it — so it claims the
-     room it needs and the pane below makes sure the room is there. */
-  min-width: 19rem;
+  position: fixed;
+  z-index: 901;
   display: flex;
   flex-direction: column;
-  overflow: auto;
-  scrollbar-width: thin;
-  /* The panel carries its own surface rather than the cell it sits in: it
-     reaches past that cell, and a background on the cell would stop at the
-     column's edge with the names hanging off the end of it. */
+  overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--code-background);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
   text-align: left;
 }
 
@@ -644,11 +610,8 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding: 6px 8px 4px;
-  background: var(--code-background);
+  flex: none;
+  padding: 7px 8px 5px;
 }
 
 .planner-detail-heading {
@@ -671,38 +634,54 @@
   font-size: 0.7rem;
 }
 
-.planner-detail-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  table-layout: fixed;
-}
-
-.planner-detail-table thead th {
-  position: sticky;
-  top: 26px;
-  z-index: 1;
-  padding: 0 6px 3px;
-  background: var(--code-background);
-  color: var(--text-h);
-  opacity: 0.6;
-  font-size: 0.64rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-align: left;
+/* What the pair of numbers in every cell means, written once in the same
+   shape and colours the cells use. */
+.planner-detail-legend {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 0 8px 5px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  white-space: nowrap;
 }
 
-.planner-detail-table th.planner-detail-number {
-  text-align: right;
+/* Columns of at most ten, filled top to bottom; the row count comes from the
+   panel's inline style, which also sizes its width to match. */
+.planner-detail-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(var(--detail-rows, 10), auto);
+  grid-auto-columns: 1fr;
+  align-content: start;
+  padding: 4px 6px 6px;
+  overflow: auto;
+  scrollbar-width: thin;
 }
 
 .planner-detail-person {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  height: 22px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.76rem;
+  line-height: 1;
+  text-align: left;
   cursor: pointer;
 }
 
-.planner-detail-person:hover {
+.planner-detail-person:hover:not(:disabled) {
   background: var(--primary-background);
 }
 
@@ -711,35 +690,51 @@
 }
 
 .planner-detail-person.is-busy {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-.planner-detail-person td {
-  height: 24px;
-  padding: 0 6px;
-  color: var(--text-h);
-  font-size: 0.78rem;
-  line-height: 1;
-}
-
 .planner-detail-mark {
-  width: 14px;
-  padding-right: 0 !important;
+  flex: none;
+  width: 9px;
   color: var(--primary);
-  font-size: 0.74rem;
+  font-size: 0.72rem;
 }
 
 .planner-detail-name {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.planner-detail-number {
-  width: 4.3rem;
+/* Right up against the name rather than in a column of their own: the pair
+   belongs to that person, and lined up in columns it read as a table of
+   figures that happened to have names beside it. */
+.planner-detail-counts {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 1px;
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  font-size: 0.7rem;
+}
+
+.planner-detail-count {
+  color: var(--text-h);
+  opacity: 0.65;
+}
+
+.planner-detail-count.is-surcharge {
+  color: var(--primary);
+  opacity: 1;
+  font-weight: 600;
+}
+
+.planner-detail-count-sep {
+  color: var(--text-h);
+  opacity: 0.35;
 }
 
 /* --- who can fill this square --- */
