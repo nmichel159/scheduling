@@ -14,6 +14,10 @@ from app.models.ambulance import Ambulance
 from app.models.schedule_mail import ScheduleMailDispatch
 from app.models.user import User
 from app.schemas.schedule_mail import (
+    FillRequestGroup,
+    FillRequestResult,
+    FillRequestSend,
+    FillRequestTemplate,
     ScheduleMailDispatchResponse,
     ScheduleMailPreview,
     ScheduleMailRecipientCreate,
@@ -26,11 +30,53 @@ from app.services.schedule_mail_service import (
     build_schedule_mail,
     delete_recipient,
     list_dispatches,
+    fill_request_template,
+    list_fill_request_groups,
     list_recipients,
+    send_fill_request,
     send_schedule_mail,
 )
 
 router = APIRouter()
+
+
+@router.get(
+    "/mail/fill-request-groups",
+    response_model=list[FillRequestGroup],
+    summary="The caller's workplaces with their employees, for a group mailing",
+)
+def list_fill_request_groups_endpoint(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[FillRequestGroup]:
+    return list_fill_request_groups(db, current_user)
+
+
+@router.get(
+    "/mail/fill-request-template",
+    response_model=FillRequestTemplate,
+    summary="The default wording of the fill-in request",
+)
+def fill_request_template_endpoint(
+    _current_user: User = Depends(get_current_user),
+) -> FillRequestTemplate:
+    return FillRequestTemplate(**fill_request_template())
+
+
+@router.post(
+    "/mail/fill-request",
+    response_model=FillRequestResult,
+    summary="Ask the chosen employees to fill their schedule in",
+)
+def send_fill_request_endpoint(
+    data: FillRequestSend,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> FillRequestResult:
+    result = send_fill_request(
+        db, current_user, data.user_ids, data.subject, data.body
+    )
+    return FillRequestResult(**result)
 
 
 def _dispatch_response(item: ScheduleMailDispatch) -> ScheduleMailDispatchResponse:

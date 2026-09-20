@@ -69,6 +69,8 @@ def build_message(
     text_body: str,
     html_body: str | None = None,
     attachments: list[tuple[str, str, bytes]] | None = None,
+    reply_to: str | None = None,
+    from_name: str | None = None,
 ) -> EmailMessage:
     """Assemble a message from the configured sender to ``recipients``.
 
@@ -79,6 +81,11 @@ def build_message(
         html_body: Optional richer alternative.
         attachments: ``(filename, mime_subtype, content)`` triples, attached
             as ``text/<mime_subtype>`` in UTF-8.
+        reply_to: Where a reply should go. The envelope sender is always the
+            configured mailbox -- the application has no access to anybody
+            else's -- so this is what makes a reply reach the person who
+            pressed the button.
+        from_name: Display name to show instead of ``MAIL_FROM_NAME``.
 
     Returns:
         A ready-to-send :class:`EmailMessage`.
@@ -94,8 +101,12 @@ def build_message(
     message = EmailMessage()
     message["Subject"] = subject
     local, _sep, domain = settings.MAIL_FROM.partition("@")
-    message["From"] = Address(settings.MAIL_FROM_NAME or "", local, domain)
+    message["From"] = Address(
+        from_name or settings.MAIL_FROM_NAME or "", local, domain
+    )
     message["To"] = ", ".join(recipients)
+    if reply_to:
+        message["Reply-To"] = reply_to
     message.set_content(text_body)
     if html_body:
         message.add_alternative(html_body, subtype="html")

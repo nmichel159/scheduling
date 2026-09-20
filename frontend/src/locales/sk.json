@@ -50,7 +50,7 @@
     "competences": "Správca kompetencií",
     "employees": "Zamestnanci",
     "special_days": "Špeciálne dni",
-    "schedule_mail": "Rozposlanie rozpisu",
+    "schedule_mail": "Výzva na vyplnenie rozvrhu",
     "schedule_print": "Tlač rozvrhu"
   },
   "workplace": {
@@ -518,42 +518,18 @@
     }
   },
   "schedule_mail": {
-    "title": "Rozposlanie rozpisu",
-    "month": "Mesiac",
-    "year": "Rok",
+    "title": "Výzva na vyplnenie rozvrhu",
     "recipients": "Príjemcovia",
-    "no_recipients": "Zatiaľ žiadni príjemcovia.",
-    "email": "E-mail",
-    "label": "Označenie",
-    "add": "Pridať",
-    "remove": "Odobrať",
-    "preview": "Náhľad",
-    "entry_count": "Počet služieb: {{count}}",
-    "note": "Sprievodný text",
+    "no_groups": "Nespravujete žiadnu ambulanciu.",
+    "message": "Správa",
+    "subject": "Predmet",
     "send": "Odoslať",
-    "send_confirm": "Naozaj odoslať rozpis týmto príjemcom?",
-    "sent": "Rozpis bol odoslaný.",
+    "send_confirm": "Naozaj odoslať výzvu týmto ľuďom?",
+    "sent": "Výzva bola odoslaná.",
     "send_failed": "Odoslanie zlyhalo.",
     "not_configured": "Odosielanie e-mailov nie je nastavené.",
-    "invalid_email": "Zadajte platnú e-mailovú adresu.",
-    "duplicate_error": "Táto adresa už rozpis dostáva.",
-    "save_error": "Akcia zlyhala, skús to znova.",
-    "load_error": "Nepodarilo sa načítať dáta.",
-    "log": "Odoslané rozpisy",
-    "log_empty": "Zatiaľ nebol odoslaný žiadny rozpis.",
-    "sent_at": "Odoslané",
-    "period": "Obdobie",
-    "status": "Stav",
-    "statuses": {
-      "sent": "Odoslané",
-      "dry-run": "Skúšobný režim",
-      "failed": "Zlyhalo"
-    },
-    "refusal": {
-      "empty_schedule": "Pre tento mesiac nie je vytvorený rozpis.",
-      "not_approved": "Rozpis tohto mesiaca nie je schválený.",
-      "no_recipients": "Nie je vybraný žiadny príjemca."
-    }
+    "no_selection": "Nie je vybraný nikto.",
+    "load_error": "Nepodarilo sa načítať dáta."
   },
   "schedule_print": {
     "title": "Tlač rozvrhu",

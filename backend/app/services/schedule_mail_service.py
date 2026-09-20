@@ -27,6 +27,7 @@ from html import escape
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.config import settings
 from app.models.ambulance import Ambulance
 from app.models.schedule import Schedule
 from app.models.schedule_mail import (
@@ -37,6 +38,10 @@ from app.models.schedule_mail import (
     ScheduleMailRecipient,
 )
 from app.models.user import User
+from app.services.ambulance_employee_service import (
+    list_employees,
+    list_manager_ambulances,
+)
 from app.services.database_conflict import commit_or_conflict
 from app.services.email_service import (
     EmailError,
@@ -442,3 +447,130 @@ def list_dispatches(
         .limit(limit)
         .all()
     )
+
+
+# --------------------------------------------------------------------------
+# Asking the employees to fill their availability in
+# --------------------------------------------------------------------------
+
+
+FILL_REQUEST_SUBJECT = "Vyplňte si rozvrh"
+
+
+def list_fill_request_groups(db: Session, manager: User) -> list[dict]:
+    """The manager's workplaces, each with the employees assigned to it.
+
+    One employee works in several workplaces, so the same address shows up
+    in several groups. That is the point of the grouping -- the scheduler
+    picks people the way they think of them, by workplace -- and the send
+    deduplicates afterwards.
+    """
+    groups = []
+    for ambulance in list_manager_ambulances(db, manager.id):
+        groups.append(
+            {
+                "ambulance_id": ambulance.id,
+                "ambulance_name": ambulance.name,
+                "employees": [
+                    {
+                        "user_id": employee.user_id,
+                        "email": employee.email,
+                        "full_name": employee.full_name,
+                    }
+                    for employee in list_employees(db, ambulance.id)
+                    if is_valid_email(employee.email or "")
+                ],
+            }
+        )
+    return groups
+
+
+def fill_request_template() -> dict:
+    """The default message, with the sign-in link already in it.
+
+    The scheduler edits this before sending, so it is a starting point,
+    not a fixed format -- the only thing the send really needs is an
+    address list.
+    """
+    return {
+        "subject": FILL_REQUEST_SUBJECT,
+        "body": (
+            "Dobrý deň,\n\n"
+            "prosím, vyplňte si rozvrh.\n\n"
+            f"{settings.APP_URL}\n"
+        ),
+    }
+
+
+def send_fill_request(
+    db: Session,
+    manager: User,
+    user_ids: list[int],
+    subject: str | None = None,
+    body: str | None = None,
+) -> dict:
+    """Mail the chosen employees a short request to fill their schedule in.
+
+    Only employees of the workplaces the caller manages can be addressed;
+    an id outside that set is dropped rather than refused, because the
+    screen builds the selection from those same groups and a stale one is a
+    reload, not an error.
+
+    ``subject`` and ``body`` are what the scheduler edited on the screen;
+    left out, the default template goes instead.
+
+    Returns:
+        ``status`` (``sent`` or ``dry-run``) and the addresses written to.
+
+    Raises:
+        HTTPException 409: If the selection resolves to no address.
+        HTTPException 422: If the edited message is empty.
+        HTTPException 503: If no mail server is configured.
+    """
+    wanted = set(user_ids or [])
+    addresses: list[str] = []
+    seen: set[str] = set()
+    for group in list_fill_request_groups(db, manager):
+        for employee in group["employees"]:
+            if employee["user_id"] in wanted and employee["email"] not in seen:
+                seen.add(employee["email"])
+                addresses.append(employee["email"])
+
+    if not addresses:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "no_recipients",
+                "message": "No employee was selected.",
+            },
+        )
+
+    template = fill_request_template()
+    final_subject = (subject if subject is not None else template["subject"]).strip()
+    final_body = (body if body is not None else template["body"]).strip()
+    if not final_subject or not final_body:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A subject and a message are required.",
+        )
+
+    try:
+        message = build_message(
+            subject=final_subject,
+            recipients=addresses,
+            text_body=final_body + "\n",
+            reply_to=manager.email or None,
+            from_name=manager.full_name or None,
+        )
+        outcome = send_message(message)
+    except EmailNotConfiguredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Mail sending is not configured: {exc}",
+        ) from exc
+    except EmailError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+    return {"status": outcome, "recipients": addresses}

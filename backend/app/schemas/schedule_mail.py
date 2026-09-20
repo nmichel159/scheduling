@@ -71,3 +71,45 @@ class ScheduleMailDispatchResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class FillRequestEmployee(BaseModel):
+    """One employee who can be asked to fill their schedule in."""
+
+    user_id: int
+    email: str
+    full_name: Optional[str] = None
+
+
+class FillRequestGroup(BaseModel):
+    """One workplace and the employees assigned to it."""
+
+    ambulance_id: int
+    ambulance_name: str
+    employees: list[FillRequestEmployee]
+
+
+class FillRequestTemplate(BaseModel):
+    """The default message, offered for editing before it is sent."""
+
+    subject: str
+    body: str
+
+
+class FillRequestSend(BaseModel):
+    """Which employees to ask, and what to write to them."""
+
+    user_ids: list[int] = Field(..., max_length=2000)
+    subject: Optional[str] = Field(None, max_length=300)
+    body: Optional[str] = Field(None, max_length=5000)
+
+
+class FillRequestResult(BaseModel):
+    """What the send did.
+
+    ``status`` is ``sent`` or ``dry-run``; ``recipients`` are the addresses
+    the message went to, deduplicated across the chosen groups.
+    """
+
+    status: str
+    recipients: list[str]

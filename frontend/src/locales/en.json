@@ -50,7 +50,7 @@
     "competences": "Competence manager",
     "employees": "Employees",
     "special_days": "Special days",
-    "schedule_mail": "Schedule mailing",
+    "schedule_mail": "Schedule fill-in request",
     "schedule_print": "Print schedule"
   },
   "workplace": {
@@ -516,42 +516,18 @@
     }
   },
   "schedule_mail": {
-    "title": "Schedule mailing",
-    "month": "Month",
-    "year": "Year",
+    "title": "Schedule fill-in request",
     "recipients": "Recipients",
-    "no_recipients": "No recipients yet.",
-    "email": "E-mail",
-    "label": "Label",
-    "add": "Add",
-    "remove": "Remove",
-    "preview": "Preview",
-    "entry_count": "Duties: {{count}}",
-    "note": "Covering note",
+    "no_groups": "You manage no workplace.",
+    "message": "Message",
+    "subject": "Subject",
     "send": "Send",
-    "send_confirm": "Send the schedule to these recipients?",
-    "sent": "The schedule was sent.",
+    "send_confirm": "Send the request to these people?",
+    "sent": "The request was sent.",
     "send_failed": "Sending failed.",
     "not_configured": "Mail sending is not configured.",
-    "invalid_email": "Enter a valid e-mail address.",
-    "duplicate_error": "This address already receives the schedule.",
-    "save_error": "The action failed, try again.",
-    "load_error": "The data could not be loaded.",
-    "log": "Sent schedules",
-    "log_empty": "No schedule has been sent yet.",
-    "sent_at": "Sent",
-    "period": "Period",
-    "status": "Status",
-    "statuses": {
-      "sent": "Sent",
-      "dry-run": "Dry run",
-      "failed": "Failed"
-    },
-    "refusal": {
-      "empty_schedule": "There is no schedule for this month.",
-      "not_approved": "This month's schedule is not approved.",
-      "no_recipients": "No recipient is selected."
-    }
+    "no_selection": "Nobody is selected.",
+    "load_error": "Could not load the data."
   },
   "schedule_print": {
     "title": "Print schedule",

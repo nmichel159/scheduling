@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     MAIL_FROM: str = os.getenv("MAIL_FROM", "")
     MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "Rozpisy")
     MAIL_DRY_RUN: bool = os.getenv("MAIL_DRY_RUN", "false").lower() == "true"
+    # Where an invited employee signs in. Defaults to the first configured
+    # frontend origin, which is the address the application already runs on.
+    APP_URL: str = os.getenv("APP_URL", "") or os.getenv(
+        "FRONTEND_ORIGINS", "http://localhost:5173"
+    ).split(",")[0].strip()
 
     class Config:
         case_sensitive = True

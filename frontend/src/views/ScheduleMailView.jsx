@@ -1,61 +1,46 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import ConfirmDialog from '../components/ConfirmDialog';
-import { useWorkplace } from '../hooks/workplaceContext';
 import {
-  addMailRecipient,
-  deleteMailRecipient,
-  fetchMailLog,
-  fetchMailRecipients,
-  fetchSchedulePreview,
+  fetchFillRequestGroups,
+  fetchFillRequestTemplate,
   refusalCode,
-  sendScheduleMail,
+  sendFillRequest,
 } from '../services/scheduleMailService';
 import './ScheduleMailView.css';
 
-const MONTHS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-
-/** How far either side of this year the year picker reaches. */
-const YEAR_SPAN = 2;
+/** A tick identifies a person inside one workplace, not a person alone. */
+const memberKey = (group, employee) =>
+  `${group.ambulance_id}:${employee.user_id}`;
 
 /**
- * Mailing one workplace's approved monthly schedule to its clinic.
+ * Asking the employees to fill their schedule in.
  *
- * The clinic is not a user of this system: nobody there logs in, and the
- * people who need the finished month — the head of the clinic, the ward
- * secretary — read it in a mailbox. So the screen carries three things in
- * one place: the addresses this workplace mails to, the month as it would
- * arrive, and the record of what has already left, failures included.
+ * The scheduler thinks in workplaces, not in addresses, so the people are
+ * picked through the groups they already belong to — one collapsible block
+ * per workplace, with the whole group tickable at once.
  *
- * The preview is not decoration. A send cannot be taken back, and the
- * backend refuses an unapproved or empty month; showing exactly what would
- * go out — and, when it refuses, why — is what makes the send button safe
- * to press.
+ * A tick belongs to a workplace, not to a person: the same people staff
+ * several workplaces, and unticking one of them must not quietly drop
+ * somebody who is still ticked in another. So the selection is keyed by
+ * workplace and person together, and the send is the union of the
+ * addresses -- one message per person, however many groups they were
+ * ticked in.
+ *
+ * The message itself is editable. A default is offered with the sign-in
+ * link already in it, but a send that cannot be taken back should show
+ * exactly what goes out, and the wording changes from month to month.
  */
 const ScheduleMailView = () => {
   const { t } = useTranslation();
-  const {
-    workplaces,
-    activeId,
-    active,
-    loading: workplacesLoading,
-    error: workplacesError,
-    forbidden,
-  } = useWorkplace();
 
-  const today = useMemo(() => new Date(), []);
-  const [month, setMonth] = useState(today.getMonth() + 1);
-  const [year, setYear] = useState(today.getFullYear());
-
-  const [recipients, setRecipients] = useState([]);
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [preview, setPreview] = useState(null);
-  const [previewProblem, setPreviewProblem] = useState(null);
-  const [log, setLog] = useState([]);
-
-  const [email, setEmail] = useState('');
-  const [label, setLabel] = useState('');
-  const [note, setNote] = useState('');
+  const [groups, setGroups] = useState([]);
+  const [openGroups, setOpenGroups] = useState([]);
+  const [selectedKeys, setSelectedKeys] = useState([]);
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sendAsked, setSendAsked] = useState(false);
   const [toast, setToast] = useState(null);
@@ -65,114 +50,86 @@ const ScheduleMailView = () => {
     setTimeout(() => setToast(null), 3200);
   };
 
-  const years = useMemo(() => {
-    const current = new Date().getFullYear();
-    return Array.from(
-      { length: YEAR_SPAN * 2 + 1 },
-      (_unused, offset) => current - YEAR_SPAN + offset
-    );
+  const load = useCallback(async () => {
+    const [groupList, template] = await Promise.all([
+      fetchFillRequestGroups(),
+      fetchFillRequestTemplate(),
+    ]);
+    setGroups(groupList);
+    setSubject(template.subject);
+    setBody(template.body);
   }, []);
 
-  const loadRecipients = useCallback(async () => {
-    if (activeId == null) return;
-    const list = await fetchMailRecipients(activeId);
-    setRecipients(list);
-    setSelectedIds(list.map((item) => item.id));
-  }, [activeId]);
-
-  const loadLog = useCallback(async () => {
-    if (activeId == null) return;
-    setLog(await fetchMailLog(activeId));
-  }, [activeId]);
-
-  const loadPreview = useCallback(async () => {
-    if (activeId == null) return;
-    try {
-      setPreview(await fetchSchedulePreview(activeId, month, year));
-      setPreviewProblem(null);
-    } catch (error) {
-      setPreview(null);
-      setPreviewProblem(refusalCode(error) || 'load_error');
-    }
-  }, [activeId, month, year]);
-
   useEffect(() => {
-    if (activeId == null) {
-      setRecipients([]);
-      setSelectedIds([]);
-      setPreview(null);
-      setLog([]);
-      return;
-    }
-    loadRecipients().catch(() => notify(t('schedule_mail.load_error')));
-    loadLog().catch(() => setLog([]));
-  }, [activeId, loadRecipients, loadLog, t]);
+    load()
+      .catch(() => setLoadError(true))
+      .finally(() => setLoaded(true));
+  }, [load]);
 
-  useEffect(() => {
-    loadPreview();
-  }, [loadPreview]);
-
-  const toggleRecipient = (id) => {
-    setSelectedIds((current) =>
-      current.includes(id)
-        ? current.filter((item) => item !== id)
-        : [...current, id]
+  const toggleGroupOpen = (ambulanceId) => {
+    setOpenGroups((current) =>
+      current.includes(ambulanceId)
+        ? current.filter((item) => item !== ambulanceId)
+        : [...current, ambulanceId]
     );
   };
 
-  const handleAdd = async (event) => {
-    event.preventDefault();
-    if (busy || !email.trim()) return;
-    setBusy(true);
-    try {
-      await addMailRecipient(activeId, email.trim(), label.trim() || null);
-      setEmail('');
-      setLabel('');
-      await loadRecipients();
-    } catch (error) {
-      notify(
-        error?.response?.status === 409
-          ? t('schedule_mail.duplicate_error')
-          : t('schedule_mail.invalid_email')
-      );
-    } finally {
-      setBusy(false);
-    }
+  const toggleMember = (key) => {
+    setSelectedKeys((current) =>
+      current.includes(key)
+        ? current.filter((item) => item !== key)
+        : [...current, key]
+    );
   };
 
-  const handleDelete = async (recipientId) => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      await deleteMailRecipient(activeId, recipientId);
-      await loadRecipients();
-    } catch {
-      notify(t('schedule_mail.save_error'));
-    } finally {
-      setBusy(false);
-    }
+  const groupState = (group) => {
+    const keys = group.employees.map((item) => memberKey(group, item));
+    const picked = keys.filter((key) => selectedKeys.includes(key));
+    return { keys, all: keys.length > 0 && picked.length === keys.length };
   };
+
+  const toggleGroup = (group) => {
+    const { keys, all } = groupState(group);
+    setSelectedKeys((current) =>
+      all
+        ? current.filter((key) => !keys.includes(key))
+        : [...current, ...keys.filter((key) => !current.includes(key))]
+    );
+  };
+
+  /* One tick anywhere is enough: a person ticked in any workplace gets the
+     message once, and the address is what makes two rows the same person. */
+  const selectedPeople = useMemo(() => {
+    const seen = new Map();
+    groups.forEach((group) => {
+      group.employees.forEach((employee) => {
+        if (selectedKeys.includes(memberKey(group, employee))) {
+          seen.set(employee.email, {
+            address: employee.email,
+            name: employee.full_name || employee.email,
+            userId: employee.user_id,
+          });
+        }
+      });
+    });
+    return [...seen.values()];
+  }, [groups, selectedKeys]);
 
   const handleSend = async () => {
     setSendAsked(false);
     setBusy(true);
     try {
-      const dispatch = await sendScheduleMail(activeId, month, year, {
-        recipientIds: selectedIds,
-        note: note.trim() || null,
-      });
-      await loadLog();
-      if (dispatch.status === 'failed') {
-        notify(t('schedule_mail.send_failed'));
-      } else {
-        setNote('');
-        notify(t('schedule_mail.sent'));
-      }
+      await sendFillRequest(
+        selectedPeople.map((person) => person.userId),
+        subject.trim(),
+        body.trim()
+      );
+      setSelectedKeys([]);
+      notify(t('schedule_mail.sent'));
     } catch (error) {
-      const code = refusalCode(error);
       notify(
-        code
-          ? t(`schedule_mail.refusal.${code}`)
+        refusalCode(error) === 'no_recipients'
+          ? t('schedule_mail.no_selection')
           : error?.response?.status === 503
             ? t('schedule_mail.not_configured')
             : t('schedule_mail.send_failed')
@@ -182,141 +139,105 @@ const ScheduleMailView = () => {
     }
   };
 
-  if (workplacesLoading) {
+  if (!loaded) {
     return <div className="smail"><p>{t('departments.loading')}</p></div>;
   }
 
-  if (forbidden || workplaces.length === 0) {
-    return (
-      <div className="smail">
-        <h1 className="smail-title">{t('schedule_mail.title')}</h1>
-        <div className="smail-banner">
-          {forbidden ? t('departments.forbidden') : t('departments.no_ambulances')}
-        </div>
-      </div>
-    );
-  }
-
-  const canSend = Boolean(preview) && selectedIds.length > 0 && !busy;
+  const canSend =
+    !busy &&
+    selectedPeople.length > 0 &&
+    subject.trim().length > 0 &&
+    body.trim().length > 0;
 
   return (
     <div className="smail">
       <h1 className="smail-title">{t('schedule_mail.title')}</h1>
 
-      {workplacesError && (
-        <div className="smail-banner">{t('schedule_mail.load_error')}</div>
-      )}
-
-      <div className="smail-bar">
-        <select
-          className="smail-select"
-          aria-label={t('schedule_mail.month')}
-          value={month}
-          onChange={(e) => setMonth(Number(e.target.value))}
-        >
-          {MONTHS.map((index) => (
-            <option key={index} value={index + 1}>
-              {t(`special_days.months.${index}`)}
-            </option>
-          ))}
-        </select>
-        <select
-          className="smail-select"
-          aria-label={t('schedule_mail.year')}
-          value={year}
-          onChange={(e) => setYear(Number(e.target.value))}
-        >
-          {years.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-        <span className="smail-workplace">{active?.name}</span>
-      </div>
+      {loadError && <div className="smail-banner">{t('schedule_mail.load_error')}</div>}
 
       <section className="smail-card">
         <h2>{t('schedule_mail.recipients')}</h2>
-        {recipients.length === 0 ? (
-          <p className="smail-note">{t('schedule_mail.no_recipients')}</p>
+        {groups.length === 0 ? (
+          <p className="smail-note">{t('schedule_mail.no_groups')}</p>
         ) : (
-          <ul className="smail-list">
-            {recipients.map((item) => (
-              <li key={item.id}>
-                <label className="smail-check">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(item.id)}
-                    onChange={() => toggleRecipient(item.id)}
-                  />
-                  <span className="smail-email">{item.email}</span>
-                  {item.label && <em className="smail-label">{item.label}</em>}
-                </label>
-                <button
-                  type="button"
-                  className="smail-btn"
-                  disabled={busy}
-                  onClick={() => handleDelete(item.id)}
-                >
-                  {t('schedule_mail.remove')}
-                </button>
-              </li>
-            ))}
+          <ul className="smail-groups">
+            {groups.map((group) => {
+              const { all } = groupState(group);
+              const open = openGroups.includes(group.ambulance_id);
+              return (
+                <li key={group.ambulance_id} className="smail-group">
+                  <div className="smail-group-head">
+                    <label className="smail-check">
+                      <input
+                        type="checkbox"
+                        checked={all}
+                        onChange={() => toggleGroup(group)}
+                      />
+                      <span className="smail-email">{group.ambulance_name}</span>
+                    </label>
+                    <button
+                      type="button"
+                      className="smail-btn"
+                      aria-expanded={open}
+                      onClick={() => toggleGroupOpen(group.ambulance_id)}
+                    >
+                      {open ? '−' : '+'}
+                    </button>
+                  </div>
+                  {open && (
+                    <ul className="smail-list smail-group-list">
+                      {group.employees.map((employee) => (
+                        <li key={employee.user_id}>
+                          <label className="smail-check">
+                            <input
+                              type="checkbox"
+                              checked={selectedKeys.includes(
+                                memberKey(group, employee)
+                              )}
+                              onChange={() =>
+                                toggleMember(memberKey(group, employee))
+                              }
+                            />
+                            <span className="smail-email">
+                              {employee.full_name || employee.email}
+                            </span>
+                            <em className="smail-label">{employee.email}</em>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
 
-        <form className="smail-add" onSubmit={handleAdd}>
-          <input
-            type="email"
-            className="smail-input"
-            placeholder={t('schedule_mail.email')}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <input
-            type="text"
-            className="smail-input"
-            placeholder={t('schedule_mail.label')}
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-          />
-          <button type="submit" className="smail-btn" disabled={busy || !email.trim()}>
-            {t('schedule_mail.add')}
-          </button>
-        </form>
+        {selectedPeople.length > 0 && (
+          <p className="smail-note smail-selected">
+            {selectedPeople.map((person) => person.name).join(', ')}
+          </p>
+        )}
       </section>
 
       <section className="smail-card">
-        <h2>{t('schedule_mail.preview')}</h2>
-        {previewProblem ? (
-          <p className="smail-note">
-            {t(
-              previewProblem === 'load_error'
-                ? 'schedule_mail.load_error'
-                : `schedule_mail.refusal.${previewProblem}`
-            )}
-          </p>
-        ) : (
-          preview && (
-            <>
-              <p className="smail-subject">{preview.subject}</p>
-              <p className="smail-note">
-                {t('schedule_mail.entry_count', { count: preview.entry_count })}
-              </p>
-              <pre className="smail-body">{preview.text_body}</pre>
-            </>
-          )
-        )}
-
+        <h2>{t('schedule_mail.message')}</h2>
+        <input
+          type="text"
+          className="smail-input smail-subject-input"
+          aria-label={t('schedule_mail.subject')}
+          maxLength={300}
+          value={subject}
+          onChange={(event) => setSubject(event.target.value)}
+        />
         <textarea
           className="smail-textarea"
-          rows={3}
-          maxLength={2000}
-          placeholder={t('schedule_mail.note')}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
+          aria-label={t('schedule_mail.message')}
+          rows={8}
+          maxLength={5000}
+          value={body}
+          onChange={(event) => setBody(event.target.value)}
         />
-
         <button
           type="button"
           className="smail-btn smail-btn-primary"
@@ -327,50 +248,10 @@ const ScheduleMailView = () => {
         </button>
       </section>
 
-      <section className="smail-card">
-        <h2>{t('schedule_mail.log')}</h2>
-        {log.length === 0 ? (
-          <p className="smail-note">{t('schedule_mail.log_empty')}</p>
-        ) : (
-          <table className="smail-table">
-            <thead>
-              <tr>
-                <th>{t('schedule_mail.sent_at')}</th>
-                <th>{t('schedule_mail.period')}</th>
-                <th>{t('schedule_mail.recipients')}</th>
-                <th>{t('schedule_mail.status')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {log.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    {item.created_at
-                      ? new Date(item.created_at).toLocaleString()
-                      : ''}
-                  </td>
-                  <td>{`${String(item.month).padStart(2, '0')}/${item.year}`}</td>
-                  <td className="smail-recipients">{item.recipients}</td>
-                  <td>
-                    <span className={`smail-status is-${item.status}`}>
-                      {t(`schedule_mail.statuses.${item.status}`)}
-                    </span>
-                    {item.error && <em className="smail-error">{item.error}</em>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-
       <ConfirmDialog
         open={sendAsked}
         message={t('schedule_mail.send_confirm')}
-        details={recipients
-          .filter((item) => selectedIds.includes(item.id))
-          .map((item) => item.email)
-          .join(', ')}
+        details={selectedPeople.map((person) => person.address).join(', ')}
         confirmLabel={t('schedule_mail.send')}
         cancelLabel={t('sidebar.cancel')}
         onConfirm={handleSend}

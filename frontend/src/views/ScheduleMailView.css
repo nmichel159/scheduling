@@ -229,3 +229,35 @@
     padding: 2px 0;
   }
 }
+
+/* Group mailing: one collapsible block per workplace. */
+.smail-groups {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.smail-group + .smail-group {
+  margin-top: 6px;
+}
+
+.smail-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.smail-group-list {
+  margin-left: 24px;
+}
+
+.smail-selected {
+  margin-bottom: 12px;
+}
+
+.smail-subject-input {
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+}

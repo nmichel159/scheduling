@@ -24,7 +24,9 @@ from app.services.schedule_mail_service import (
     build_schedule_mail,
     delete_recipient,
     list_dispatches,
+    list_fill_request_groups,
     list_recipients,
+    send_fill_request,
     send_schedule_mail,
 )
 
@@ -238,6 +240,48 @@ class ScheduleMailTests(unittest.TestCase):
 
         self.assertEqual(refused.exception.status_code, 503)
         self.assertEqual(list_dispatches(self.db, self.ambulance.id), [])
+
+
+class FillRequestTests(ScheduleMailTests):
+    """Asking the employees themselves to fill their schedule in."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.ambulance.managed_by_user_id = self.manager.id
+        self.db.commit()
+
+    def test_groups_list_the_managed_workplaces_with_their_people(self) -> None:
+        groups = list_fill_request_groups(self.db, self.manager)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["ambulance_name"], "Cardiology")
+        self.assertEqual(
+            [item["email"] for item in groups[0]["employees"]],
+            ["employee@example.com"],
+        )
+
+    def test_send_reaches_the_chosen_people_with_a_link_and_a_reply_to(self) -> None:
+        captured = {}
+
+        def capture(message):
+            captured["message"] = message
+            return "sent"
+
+        with mock.patch.object(schedule_mail_service, "send_message", capture):
+            result = send_fill_request(self.db, self.manager, [self.employee.id])
+
+        self.assertEqual(result["recipients"], ["employee@example.com"])
+        message = captured["message"]
+        self.assertEqual(message["Reply-To"], "manager@example.com")
+        self.assertIn(settings.APP_URL, message.get_body(("plain",)).get_content())
+
+    def test_an_unmanaged_person_cannot_be_addressed(self) -> None:
+        outsider = User(email="outside@example.com", full_name="Outside", is_active=True)
+        self.db.add(outsider)
+        self.db.commit()
+
+        with self.assertRaises(HTTPException) as refused:
+            send_fill_request(self.db, self.manager, [outsider.id])
+        self.assertEqual(refused.exception.status_code, 409)
 
 
 if __name__ == "__main__":
