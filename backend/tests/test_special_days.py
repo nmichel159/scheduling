@@ -15,7 +15,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.core.dependencies import get_current_user, require_manager_role
+from app.core.dependencies import get_current_user
 from app.db.session import Base, get_db
 from app.main import app
 from app.models import (
@@ -274,7 +274,12 @@ class SpecialDaySolverTests(unittest.TestCase):
 
 
 class SpecialDayRouterTests(unittest.TestCase):
-    """Drive the endpoints the special-day screen calls, over HTTP."""
+    """Drive the endpoints the special-day screen calls, over HTTP.
+
+    The screen has two audiences with different rights, so the tests sign in
+    as both: only the role checks are real here, and who the caller is comes
+    from the one override the endpoints all resolve through.
+    """
 
     def setUp(self) -> None:
         self.engine = create_engine(
@@ -285,23 +290,37 @@ class SpecialDayRouterTests(unittest.TestCase):
         Base.metadata.create_all(self.engine)
         self.db = sessionmaker(bind=self.engine)()
 
-        role = Role(id=1, code="MANAGER", name="Manager", level=2, is_active=True)
-        manager = User(id=1, email="manager@example.com", is_active=True)
-        self.db.add_all([role, manager])
-        self.db.flush()
-        self.db.add(UserRole(user_id=manager.id, role_id=role.id))
-        ambulance = Ambulance(
-            name="Clinic", managed_by_user_id=manager.id, is_active=True
+        leader = Role(id=1, code="LEADER", name="Scheduler", level=2, is_active=True)
+        overseer = Role(
+            id=2, code="AMBULANCE_OVERSEER", name="Admin", level=3, is_active=True
         )
-        self.foreign = Ambulance(name="Other clinic", managed_by_user_id=2, is_active=True)
+        self.scheduler = User(id=1, email="scheduler@example.com", is_active=True)
+        self.admin = User(id=2, email="admin@example.com", is_active=True)
+        self.db.add_all([leader, overseer, self.scheduler, self.admin])
+        self.db.flush()
+        self.db.add_all(
+            [
+                UserRole(user_id=self.scheduler.id, role_id=leader.id),
+                # The administrator schedules nowhere and still reaches every
+                # workplace, which is the point of the level.
+                UserRole(user_id=self.admin.id, role_id=overseer.id),
+            ]
+        )
+        ambulance = Ambulance(
+            name="Clinic", managed_by_user_id=self.scheduler.id, is_active=True
+        )
+        self.foreign = Ambulance(name="Other clinic", managed_by_user_id=99, is_active=True)
         self.db.add_all([ambulance, self.foreign])
         self.db.commit()
         self.base = f"/ambulances/{ambulance.id}/special-days"
 
         app.dependency_overrides[get_db] = lambda: self.db
-        app.dependency_overrides[get_current_user] = lambda: manager
-        app.dependency_overrides[require_manager_role] = lambda: manager
         self.client = TestClient(app)
+        self._as(self.admin)
+
+    def _as(self, user: User) -> None:
+        """Sign the test client in as one of the two callers."""
+        app.dependency_overrides[get_current_user] = lambda: user
 
     def tearDown(self) -> None:
         app.dependency_overrides.clear()
@@ -353,20 +372,41 @@ class SpecialDayRouterTests(unittest.TestCase):
             self.client.get(self.base, params={"year": 1900}).status_code, 422
         )
 
-    def test_a_workplace_the_caller_does_not_manage_is_refused(self) -> None:
+    def test_a_workplace_the_scheduler_does_not_manage_is_refused(self) -> None:
+        self._as(self.scheduler)
         response = self.client.get(
             f"/ambulances/{self.foreign.id}/special-days", params={"year": 2026}
         )
         self.assertEqual(response.status_code, 403)
 
-    def test_copying_from_a_workplace_the_caller_does_not_manage_is_refused(
-        self,
-    ) -> None:
-        response = self.client.post(
+    def test_the_administrator_reaches_a_workplace_they_do_not_manage(self) -> None:
+        response = self.client.get(
+            f"/ambulances/{self.foreign.id}/special-days", params={"year": 2026}
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_the_scheduler_reads_the_year_but_cannot_change_it(self) -> None:
+        """The screen is open to the scheduler and read-only in their hands."""
+        self._as(self.scheduler)
+
+        listed = self.client.get(self.base, params={"year": 2026})
+        self.assertEqual(listed.status_code, 200)
+
+        added = self.client.put(
+            self.base, json={"day": "2026-09-01", "is_rest_day": True}
+        )
+        self.assertEqual(added.status_code, 403)
+
+        reset = self.client.delete(f"{self.base}/2026-12-24")
+        self.assertEqual(reset.status_code, 403)
+
+        copied = self.client.post(
             f"{self.base}/copy",
             json={"source_ambulance_id": self.foreign.id, "year": 2026},
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(copied.status_code, 403)
+
+        self.assertEqual(self.db.query(SpecialDay).count(), 0)
 
 
 if __name__ == "__main__":

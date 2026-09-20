@@ -1,30 +1,115 @@
-/* --- Special days: one workplace's days of rest for a whole year --- */
+/* --- Special days: one workplace's days of rest for a whole year ---
+
+   Twelve month cards are a lot of small squares at once, so everything here
+   is tuned for reading them as one picture: the cards sit on a surface a
+   shade off the page, the dates carry no chrome of their own until they mean
+   something, and the one colour that matters -- a day of rest -- is the only
+   filled thing on the screen. */
 
 .sdays {
+  /* Cards lift off the page by a shade. In light the page is already grey,
+     so the card goes white; in dark the theme has a lifted surface already. */
+  --sd-surface: #fff;
+  --sd-sunken: color-mix(in srgb, var(--text) 8%, transparent);
+  --sd-lift: 0 1px 2px rgb(0 0 0 / 5%);
+  /* What sits on the primary fill. The dark theme lightens the primary, and
+     white on it is too faint to read at the size of a date square, so there
+     the fill carries the page colour instead. */
+  --sd-on-primary: #fff;
+
   max-width: 1180px;
   margin: 0 auto;
   text-align: left;
 }
 
-.sdays-head { margin-bottom: 14px; }
+:root[data-theme='dark'] .sdays {
+  --sd-surface: var(--code-background);
+  --sd-lift: none;
+  --sd-on-primary: var(--background);
+}
+
+/* ---------- head: what this is, and which year ---------- */
+
+.sdays-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.sdays-head-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
 
 .sdays-title {
-  margin: 0 0 6px;
+  margin: 0;
   font-size: 1.5rem;
   color: var(--text-h);
 }
 
-.sdays-lede {
-  margin: 0;
-  max-width: 68ch;
-  font-size: 0.85rem;
-  opacity: 0.75;
+/* The workplace rides with the title rather than under it: the whole screen
+   belongs to one workplace, and that is a caption, not a second heading. */
+.sdays-workplace {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--primary-background);
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.sdays-years {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--sd-surface);
+  box-shadow: var(--sd-lift);
+}
+
+.sdays-step {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sdays-step:hover:not(:disabled) { background: var(--primary-background); }
+
+.sdays-step:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.sdays-year {
+  min-width: 3.6em;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-h);
 }
 
 .sdays-banner {
   border: 1px solid var(--border);
   background: var(--primary-background);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 10px 14px;
   margin-bottom: 16px;
   font-size: 0.85rem;
@@ -35,193 +120,258 @@
   opacity: 0.7;
 }
 
-/* ---------- the bar: year, count, copy ---------- */
-
-.sdays-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.sdays-years {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.sdays-year,
-.sdays-btn {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
-  color: inherit;
-  font: inherit;
-  font-size: 0.82rem;
-  padding: 5px 10px;
-  cursor: pointer;
-}
-
-.sdays-year:hover,
-.sdays-btn:hover:not(:disabled) { background: var(--primary-background); }
-
-.sdays-year.is-current {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: var(--primary-contrast, #fff);
-  font-weight: 700;
-}
-
-.sdays-btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.sdays-count {
-  font-size: 0.8rem;
-  opacity: 0.75;
-}
-
-.sdays-copy {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-  font-size: 0.8rem;
-}
-
-.sdays-select {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
-  color: inherit;
-  font: inherit;
-  font-size: 0.82rem;
-  padding: 5px 8px;
-  max-width: 200px;
-}
-
-.sdays-workplace {
-  margin: 0 0 10px;
-  font-size: 1.05rem;
-  color: var(--text-h);
-}
-
-/* ---------- key ---------- */
+/* ---------- the key ---------- */
 
 .sdays-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 18px;
-  margin-bottom: 14px;
-  font-size: 0.76rem;
-  opacity: 0.85;
-}
-
-.sdays-legend-item {
-  display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin-bottom: 14px;
+}
+
+/* The key reads as a row of small labels rather than a paragraph with
+   squares in it -- at this size that is the difference between a caption
+   and a legend. */
+.sdays-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--sd-surface);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.sdays-chip.is-count {
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--sd-on-primary);
+  font-weight: 700;
 }
 
 .sdays-swatch {
-  width: 18px;
-  height: 18px;
+  position: relative;
+  width: 13px;
+  height: 13px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--background);
+}
+
+.sdays-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+}
+
+.sdays-select,
+.sdays-btn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--sd-surface);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 6px 11px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.sdays-select { max-width: 210px; }
+
+.sdays-select:hover,
+.sdays-btn:hover:not(:disabled) { border-color: var(--primary); }
+
+.sdays-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sdays-select:focus-visible,
+.sdays-btn:focus-visible,
+.sdays-step:focus-visible,
+.sdays-day:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* ---------- the year as twelve month cards ---------- */
 
 .sdays-year-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(212px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(206px, 1fr));
+  gap: 14px;
+  transition: opacity 0.15s ease;
+}
+
+.sdays-year-grid.is-loading {
+  opacity: 0.45;
+  pointer-events: none;
 }
 
 .sdays-month {
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--code-background);
-  padding: 10px;
+  border-radius: 14px;
+  background: var(--sd-surface);
+  box-shadow: var(--sd-lift);
+  padding: 11px 12px 12px;
+}
+
+.sdays-month-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .sdays-month h2 {
-  margin: 0 0 8px;
-  font-size: 0.92rem;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--text-h);
+}
+
+/* How many days of rest this month holds -- the count a planner otherwise
+   makes by running a finger over the squares. */
+.sdays-month-count {
+  min-width: 19px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--primary-background);
+  color: var(--primary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .sdays-month-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 3px;
+  gap: 2px;
 }
 
 .sdays-weekday {
+  padding-bottom: 4px;
   text-align: center;
-  font-size: 0.62rem;
-  opacity: 0.6;
-  padding-bottom: 2px;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.45;
 }
 
-.sdays-weekday.is-weekend {
-  font-weight: 700;
-  opacity: 0.8;
-}
+.sdays-weekday.is-weekend { opacity: 0.7; }
 
-.sdays-blank { min-height: 26px; }
+.sdays-blank { aspect-ratio: 1; }
 
 /* A date is a button over its whole square, not over the digits: a one-digit
    day would otherwise be a two-pixel target in a square that looks clickable.
    See the "clickable text = clickable field" rule in the README. */
 .sdays-day {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 26px;
+  aspect-ratio: 1;
+  min-height: 25px;
   width: 100%;
   padding: 0;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: var(--background);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 0.74rem;
+  font-size: 0.73rem;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
+  transition: background 0.12s ease, transform 0.12s ease;
 }
 
-.sdays-day:hover:not(:disabled) { border-color: var(--primary); }
-.sdays-day:disabled { opacity: 0.5; cursor: default; }
+.sdays-day:hover:not(:disabled):not(.is-static) {
+  background: var(--primary-background);
+  transform: translateY(-1px);
+}
 
-.sdays-day.is-saturday,
-.sdays-day.is-sunday { background: var(--primary-background); }
+.sdays-day:disabled { opacity: 0.4; cursor: default; }
+
+/* Read-only, for whoever may see the year but not set it: the same square
+   with nothing that invites a click. */
+.sdays-day.is-static { cursor: default; }
+
+/* The weekend is the ground the holidays sit on, so it is a tint of the
+   text colour -- neutral, and never mistaken for the primary fill. */
+.sdays-day.is-weekend { background: var(--sd-sunken); }
 
 /* A day of rest is filled, because that is the one thing this screen is
    about and it has to be readable across twelve cards at once. */
 .sdays-day.is-rest,
 .sdays-swatch.is-rest {
   background: var(--primary);
-  color: var(--primary-contrast, #fff);
+  color: var(--sd-on-primary);
   font-weight: 700;
 }
 
-/* A day the workplace itself decided is ringed on top of its fill, so
-   "which of these did we change" is answerable without reading the list
-   underneath. */
-.sdays-day.is-own,
-.sdays-swatch.is-own {
-  box-shadow: inset 0 0 0 2px var(--text-h);
+.sdays-day.is-rest:hover:not(:disabled):not(.is-static) {
+  background: var(--primary);
+  filter: brightness(1.08);
 }
 
 /* A state holiday that is worked: known to the library, commemorated, and
    not a day of rest -- exactly the dates a workplace might want to add. */
 .sdays-day.is-state-workday,
 .sdays-swatch.is-state-workday {
-  border-style: dashed;
-  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary-border);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* A day the workplace itself decided carries a dot in its corner, so "which
+   of these did we change" is answerable without reading the list underneath.
+   A dot rather than a ring, because it has to sit on the filled squares and
+   the empty ones alike. */
+.sdays-day.is-own::before,
+.sdays-swatch.is-own::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-h);
+}
+
+.sdays-swatch.is-own::before {
+  top: 2px;
+  right: 2px;
+  width: 3px;
+  height: 3px;
+}
+
+.sdays-day.is-rest.is-own::before,
+.sdays-swatch.is-rest.is-own::before { background: var(--sd-on-primary); }
+
+/* Today, as a bar under the number: the year in view is usually not the one
+   we are standing in, and when it is, this is the place to start reading. */
+.sdays-day.is-today::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 11px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.55;
 }
 
 /* ---------- the workplace's own exceptions, listed back ---------- */
@@ -229,14 +379,24 @@
 .sdays-own {
   margin-top: 22px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--code-background);
-  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--sd-surface);
+  box-shadow: var(--sd-lift);
+  padding: 14px 16px 6px;
+}
+
+.sdays-own-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
 .sdays-own h2 {
-  margin: 0 0 8px;
-  font-size: 1rem;
+  margin: 0;
+  font-size: 0.95rem;
   color: var(--text-h);
 }
 
@@ -244,9 +404,6 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .sdays-own-list li {
@@ -254,21 +411,54 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  font-size: 0.84rem;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.82rem;
 }
 
 .sdays-own-day {
+  min-width: 7em;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: var(--text-h);
-  min-width: 6.5em;
 }
 
+/* Added against taken away, as two shapes of badge -- the list is short and
+   scanned, so the difference has to land before the words are read. */
+.sdays-own-what {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.sdays-own-what.is-added {
+  background: var(--primary);
+  color: var(--sd-on-primary);
+}
+
+.sdays-own-what.is-removed {
+  background: var(--sd-sunken);
+  color: var(--text-h);
+}
+
+/* The holiday name takes whatever room is left and gives it up first, so a
+   narrow window shortens the name instead of dropping the button to its own
+   line. */
 .sdays-own-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-style: normal;
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
-.sdays-own-list li .sdays-btn { margin-left: auto; }
+.sdays-own-list li .sdays-btn {
+  flex: none;
+  margin-left: auto;
+}
 
 .sdays-toast {
   position: fixed;
@@ -277,18 +467,30 @@
   transform: translateX(-50%);
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--code-background);
-  padding: 8px 16px;
-  font-size: 0.84rem;
-  box-shadow: 0 6px 20px rgb(0 0 0 / 18%);
+  background: var(--sd-surface);
+  padding: 9px 18px;
+  font-size: 0.82rem;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  animation: sdays-rise 0.18s ease;
+}
+
+@keyframes sdays-rise {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sdays-day,
+  .sdays-year-grid { transition: none; }
+  .sdays-day:hover:not(:disabled):not(.is-static) { transform: none; }
+  .sdays-toast { animation: none; }
 }
 
 @media (max-width: 640px) {
-  .sdays-copy {
-    margin-left: 0;
-    width: 100%;
-  }
+  .sdays-copy { width: 100%; }
+  .sdays-select { flex: 1; }
   .sdays-year-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+    gap: 10px;
   }
 }

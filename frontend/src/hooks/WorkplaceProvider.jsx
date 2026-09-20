@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchMyManagedAmbulances } from '../services/competenceService';
+import { fetchAllAmbulances } from '../services/ambulanceService';
 import { useRoles } from './useRoles';
 import { WorkplaceContext } from './workplaceContext';
 
@@ -13,16 +14,21 @@ import { WorkplaceContext } from './workplaceContext';
  * was silently reset on every page change. The choice belongs to the
  * session, not to a page, so it lives here and is offered once — in the
  * header, via WorkplaceSwitcher.
+ *
+ * A scheduler's list is the workplaces they run. An administrator's is all
+ * of them: level 3 is allowed on every workplace by every endpoint here, and
+ * some of what they are responsible for — the special-day calendar — is on a
+ * workplace they do not personally schedule.
  */
 
 const STORAGE_KEY = 'activeWorkplaceId';
 
 export function WorkplaceProvider({ children }) {
-  const { hasManager } = useRoles();
+  const { hasManager, hasAdmin } = useRoles();
 
   const [workplaces, setWorkplaces] = useState([]);
   const [activeId, setActiveId] = useState(null);
-  const [loading, setLoading] = useState(hasManager);
+  const [loading, setLoading] = useState(hasManager || hasAdmin);
   const [error, setError] = useState(false);
   const [forbidden, setForbidden] = useState(false);
 
@@ -31,7 +37,7 @@ export function WorkplaceProvider({ children }) {
   const guardRef = useRef(null);
 
   useEffect(() => {
-    if (!hasManager) {
+    if (!hasManager && !hasAdmin) {
       setWorkplaces([]);
       setActiveId(null);
       setLoading(false);
@@ -43,7 +49,9 @@ export function WorkplaceProvider({ children }) {
     setLoading(true);
     (async () => {
       try {
-        const list = await fetchMyManagedAmbulances();
+        const list = hasAdmin
+          ? await fetchAllAmbulances()
+          : await fetchMyManagedAmbulances();
         if (cancelled) return;
         setWorkplaces(list);
         // A remembered id is only usable while it is still one of mine --
@@ -65,7 +73,7 @@ export function WorkplaceProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [hasManager]);
+  }, [hasManager, hasAdmin]);
 
   useEffect(() => {
     if (activeId != null) localStorage.setItem(STORAGE_KEY, String(activeId));

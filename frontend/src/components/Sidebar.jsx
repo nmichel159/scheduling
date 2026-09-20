@@ -36,7 +36,8 @@ const RAIL_WIDTH = 56;
 
 /**
  * Sekcie podľa rolí. `Icon` sekcie je ikona, ktorá ju zastupuje v raile;
- * `flag` je príznak z useRoles().
+ * `flag` je príznak z useRoles(). Položka môže mať `unless` — príznak, pri
+ * ktorom sa v danej sekcii nevypíše, lebo ju vypisuje sekcia vyššie.
  */
 const SECTIONS = [
   {
@@ -60,7 +61,14 @@ const SECTIONS = [
       { to: '/departments', labelKey: 'sidebar.departments', Icon: WorkplaceIcon },
       { to: '/employees', labelKey: 'sidebar.employees', Icon: EmployeesIcon },
       { to: '/competences', labelKey: 'sidebar.competences', Icon: CompetenceIcon },
-      { to: '/special-days', labelKey: 'sidebar.special_days', Icon: SpecialDaysIcon },
+      // Špeciálne dni patria adminovi — rozvrhár ich vidí, ale needituje.
+      // Adminovi sa vypíšu v jeho sekcii, tu by boli druhýkrát.
+      {
+        to: '/special-days',
+        labelKey: 'sidebar.special_days',
+        Icon: SpecialDaysIcon,
+        unless: 'hasAdmin',
+      },
       { to: '/ambulances/mail', labelKey: 'sidebar.schedule_mail', Icon: MailIcon },
     ],
   },
@@ -76,6 +84,7 @@ const SECTIONS = [
         Icon: ScheduleOverviewIcon,
       },
       { to: '/admin', labelKey: 'sidebar.admin', Icon: AdminIcon },
+      { to: '/special-days', labelKey: 'sidebar.special_days', Icon: SpecialDaysIcon },
       { to: '/roles', labelKey: 'sidebar.roles', Icon: RolesIcon },
     ],
   },
@@ -135,7 +144,9 @@ const Sidebar = ({ open, onToggle, onClose }) => {
     return SECTIONS.filter((section) => allowed[section.flag]).map((section) => ({
       ...section,
       title: t(section.titleKey),
-      items: section.items.map((item) => ({ ...item, label: t(item.labelKey) })),
+      items: section.items
+        .filter((item) => !item.unless || !allowed[item.unless])
+        .map((item) => ({ ...item, label: t(item.labelKey) })),
     }));
   }, [hasEmployee, hasManager, hasAdmin, hasAnalyst, t]);
 

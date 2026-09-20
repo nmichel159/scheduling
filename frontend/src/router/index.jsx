@@ -104,7 +104,7 @@ export const router = createBrowserRouter([
       {
         path: "/special-days",
         element: (
-          <RequireRole flag="hasManager">
+          <RequireRole flag={["hasManager", "hasAdmin"]}>
             <SpecialDaysView />
           </RequireRole>
         ),

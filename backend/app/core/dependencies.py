@@ -147,3 +147,41 @@ def get_manager_ambulance(
             detail="You do not manage this ambulance.",
         )
     return ambulance
+
+
+def get_admin_ambulance(
+    ambulance_id: int,
+    _admin: User = Depends(require_admin_role),
+    db: Session = Depends(get_db),
+) -> Ambulance:
+    """Verify that the ambulance exists and is active, for an administrator.
+
+    The manager variant asks who runs the workplace; this one has nothing to
+    ask, because level 3 reaches every workplace by definition. It is the
+    dependency for the writes on a screen a scheduler may read but not
+    change.
+
+    Args:
+        ambulance_id: Path parameter identifying the ambulance.
+        _admin: The administrator resolved by :func:`require_admin_role`,
+            required for its check rather than for its value.
+        db: Database session injected by FastAPI.
+
+    Returns:
+        The :class:`Ambulance` instance.
+
+    Raises:
+        HTTPException 403: If the caller is not an administrator.
+        HTTPException 404: If the ambulance does not exist or is inactive.
+    """
+    ambulance: Ambulance | None = (
+        db.query(Ambulance)
+        .filter(Ambulance.id == ambulance_id, Ambulance.is_active == True)
+        .first()
+    )
+    if not ambulance:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Ambulance with id {ambulance_id} not found or inactive.",
+        )
+    return ambulance

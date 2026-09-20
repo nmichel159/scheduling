@@ -2,9 +2,15 @@
 
 The public-holiday calendar itself comes from the ``holidays`` library and
 is the same for every workplace, so it needs no storage and no editing; what
-these endpoints write are one workplace's exceptions to it. Every route is
-scoped to an ambulance the caller manages, which ``get_manager_ambulance``
-enforces.
+these endpoints write are one workplace's exceptions to it.
+
+Reading and writing are not the same permission here. Which dates a clinic
+treats as days of rest is an administrator's decision: it follows from the
+law and from how the hospital runs, not from this month's schedule. A
+scheduler has to see the year -- it decides which column of a competence
+staffs a date -- but may not change it, so the reads are scoped to a
+workplace the caller manages (``get_manager_ambulance``) while every write
+requires level 3 (``get_admin_ambulance``).
 """
 
 from datetime import date
@@ -12,10 +18,9 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_manager_ambulance, require_manager_role
+from app.core.dependencies import get_admin_ambulance, get_manager_ambulance
 from app.db.session import get_db
 from app.models.ambulance import Ambulance
-from app.models.user import User
 from app.schemas.special_day import (
     SpecialDayCopy,
     SpecialDayEntry,
@@ -63,7 +68,7 @@ def list_special_days_endpoint(
 )
 def set_special_day_endpoint(
     data: SpecialDayWrite,
-    ambulance: Ambulance = Depends(get_manager_ambulance),
+    ambulance: Ambulance = Depends(get_admin_ambulance),
     db: Session = Depends(get_db),
 ) -> SpecialDayYear:
     """Override the library for one date.
@@ -85,7 +90,7 @@ def set_special_day_endpoint(
 )
 def clear_special_day_endpoint(
     day: date,
-    ambulance: Ambulance = Depends(get_manager_ambulance),
+    ambulance: Ambulance = Depends(get_admin_ambulance),
     db: Session = Depends(get_db),
 ) -> SpecialDayYear:
     """Drop this workplace's override for a date, whichever way it pointed."""
@@ -102,14 +107,14 @@ def clear_special_day_endpoint(
 )
 def copy_special_days_endpoint(
     data: SpecialDayCopy,
-    ambulance: Ambulance = Depends(get_manager_ambulance),
-    manager: User = Depends(require_manager_role),
+    ambulance: Ambulance = Depends(get_admin_ambulance),
     db: Session = Depends(get_db),
 ) -> SpecialDayYear:
     """Replace this workplace's year with another workplace's.
 
-    The source has to be a workplace the caller manages too: copying is a
-    read of the source, and this endpoint is not a way around that.
+    Only an administrator gets here, and an administrator reaches every
+    workplace, so the source needs no ownership check of its own -- only to
+    exist, to be active, and not to be the target.
     """
     validate_year(data.year)
     if data.source_ambulance_id == ambulance.id:
@@ -129,15 +134,6 @@ def copy_special_days_endpoint(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Ambulance with id {data.source_ambulance_id} not found or inactive.",
-        )
-    is_admin = any(
-        ur.role and ur.role.is_active and ur.role.level >= 3
-        for ur in manager.user_roles
-    )
-    if not is_admin and source.managed_by_user_id != manager.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not manage the source workplace.",
         )
     copy_special_days(db, source.id, ambulance.id, data.year)
     return _year_response(db, ambulance.id, data.year)
