@@ -43,10 +43,13 @@ class ScheduleGenerationRequest(BaseModel):
     keeps every one of them and plans around them. ``generate_from`` is the
     first date it may touch, so a month that is already partly worked can be
     regenerated from tomorrow onwards without rewriting its past.
+    ``time_budget_seconds`` is how long the solver may keep looking for a
+    better schedule; it falls back to the server's own limit when absent.
     """
 
     fixed_entries: list[ScheduleEntry] = Field(default_factory=list, max_length=20000)
     generate_from: date | None = None
+    time_budget_seconds: int | None = Field(default=None, ge=5, le=1800)
 
 
 class ScheduleGenerationResponse(BaseModel):

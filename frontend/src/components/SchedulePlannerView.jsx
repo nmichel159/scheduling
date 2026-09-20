@@ -47,11 +47,13 @@ const CELL_BORDER = 1;
    — a name set at 45 degrees claims its own length times sin(45) in height, and
    the same again in width past the last column. Measuring it beats a fixed
    height, which either clips real names ("Detská anestéziológia" is not short)
-   or reserves space no workplace uses. The cap stops one very long name from
-   eating the rows; past it the name ellipsises and the tooltip has the rest. */
+   or reserves space no workplace uses. A name is only ellipsised when the
+   window is too short to show it whole -- the header takes as much room as the
+   longest name asks for, as long as the month's days still fit under it at
+   their smallest row. */
 const LABEL_TILT = Math.SQRT1_2; // sin(45°) === cos(45°)
 const MIN_LABEL_WIDTH = 60;
-const MAX_LABEL_WIDTH = 190;
+const MAX_LABEL_WIDTH = 320;
 const LABEL_PADDING = 8;
 
 /**
@@ -119,6 +121,9 @@ const SchedulePlannerView = ({
   generateLabel,
   generateHint,
   generateDisabled,
+  timeBudget,
+  timeBudgetOptions,
+  onTimeBudgetChange,
   onClear,
   clearLabel,
   clearDisabled,
@@ -325,11 +330,22 @@ const SchedulePlannerView = ({
         MIN_LABEL_WIDTH,
         ...[...labels].map((label) => Math.ceil(label.scrollWidth) + 1)
       );
-      const labelWidth = Math.min(MAX_LABEL_WIDTH, longest);
-      const headHeight = Math.ceil(labelWidth * LABEL_TILT) + LABEL_PADDING;
-
       const room =
         window.innerHeight - el.getBoundingClientRect().top - MATRIX_BOTTOM_GAP;
+
+      // What the header may take without pushing the month's days below the
+      // row height they stop being readable at. Only a window shorter than
+      // that makes a name ellipsise.
+      const affordable =
+        (room - daysInMonth * (MIN_ROW_HEIGHT + CELL_BORDER) - LABEL_PADDING) /
+        LABEL_TILT;
+      const labelWidth = Math.min(
+        MAX_LABEL_WIDTH,
+        longest,
+        Math.max(MIN_LABEL_WIDTH, Math.floor(affordable))
+      );
+      const headHeight = Math.ceil(labelWidth * LABEL_TILT) + LABEL_PADDING;
+
       const perRow =
         Math.floor((room - headHeight) / daysInMonth) - CELL_BORDER;
       const rowHeight = Math.min(
@@ -677,6 +693,22 @@ const SchedulePlannerView = ({
               >
                 {generateLabel}
               </button>
+            )}
+
+            {onTimeBudgetChange && (
+              <select
+                className="planner-time-budget"
+                value={timeBudget}
+                onChange={(event) => onTimeBudgetChange(Number(event.target.value))}
+                disabled={generateDisabled}
+                aria-label={t('schedule_edit.time_budget_label')}
+              >
+                {(timeBudgetOptions || []).map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             )}
 
             {onClear && (

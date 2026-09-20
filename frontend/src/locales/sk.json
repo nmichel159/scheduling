@@ -268,6 +268,8 @@
     "generate_confirm": "Generovanie doplní rozvrh pracoviska {{ambulance}} za {{month}} od zajtrajšieho dňa a ponechá už nahodené služby.",
     "generate_confirm_unsaved": "Stratíte aj svoje neuložené zmeny.",
     "generate_confirm_estimate": "Odhadovaný čas generovania: približne {{duration}}.",
+    "generate_confirm_budget": "Generovanie potrvá najviac {{duration}}.",
+    "time_budget_label": "Čas na generovanie",
     "generate_shortage": "{{date}} – {{competence}}: dostupných {{available}}, potrebných {{required}}.",
     "generate_daily_capacity": "{{date}} – celková kapacita: dostupných {{available}}, potrebných {{required}}.",
     "generate_rotation_shortage": "{{firstDate}} až {{secondDate}} – {{competence}}: na rotáciu sú dostupní {{available}}, potrebných je {{required}}.",

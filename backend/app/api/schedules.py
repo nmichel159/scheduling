@@ -315,6 +315,7 @@ def generate_ambulance_schedule_endpoint(
                     for entry in request.fixed_entries
                 ],
                 request.generate_from,
+                request.time_budget_seconds,
             )
         except ScheduleGenerationError as exc:
             raise HTTPException(

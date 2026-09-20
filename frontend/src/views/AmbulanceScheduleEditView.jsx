@@ -26,6 +26,13 @@ import { generationErrorMessage } from '../utils/generationIssues';
 import { formatShortName } from '../utils/formatEmployeeName';
 import './AmbulanceScheduleEditView.css';
 
+/* How long the solver may keep improving the month, in seconds. The whole
+ * range is offered because a small workplace is settled in seconds while a
+ * large one keeps finding a fairer roster for minutes; the server accepts the
+ * same five-second to thirty-minute range. */
+const TIME_BUDGET_CHOICES = [5, 15, 30, 60, 120, 300, 600, 900, 1800];
+const DEFAULT_TIME_BUDGET_SECONDS = 60;
+
 const pad = (n) => String(n).padStart(2, '0');
 const isoDate = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const isoWeekday = (dateObj) => (dateObj.getDay() + 6) % 7;
@@ -108,6 +115,8 @@ const AmbulanceScheduleEditView = () => {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
   const [generationMessage, setGenerationMessage] = useState(null);
+  // How long the solver may keep looking for a better schedule, in seconds.
+  const [timeBudget, setTimeBudget] = useState(DEFAULT_TIME_BUDGET_SECONDS);
   // Pending confirmation dialog: { message, onConfirm, onCancel }.
   const [confirmState, setConfirmState] = useState(null);
   const [draggedShift, setDraggedShift] = useState(null);
@@ -353,6 +362,15 @@ const AmbulanceScheduleEditView = () => {
     return formatDurationSeconds(seconds, t);
   }, [employees, competences, view.y, view.m, t]);
 
+  const timeBudgetOptions = useMemo(
+    () =>
+      TIME_BUDGET_CHOICES.map((seconds) => ({
+        value: seconds,
+        label: formatDurationSeconds(seconds, t),
+      })),
+    [t]
+  );
+
   const dayLabels = useMemo(
     () => [0, 1, 2, 3, 4, 5, 6].map((i) => t(`workload.days.${i}`)),
     [t]
@@ -510,7 +528,11 @@ const AmbulanceScheduleEditView = () => {
       const result = await generateAmbulanceSchedule(
         selectedId,
         { month: view.m + 1, year: view.y },
-        { fixed_entries: fixedEntries, generate_from: firstEditableDate }
+        {
+          fixed_entries: fixedEntries,
+          generate_from: firstEditableDate,
+          time_budget_seconds: timeBudget,
+        }
       );
       setShifts(
         result.entries.map((entry, index) => ({
@@ -543,9 +565,9 @@ const AmbulanceScheduleEditView = () => {
       message: isDirty
         ? `${warning} ${t('schedule_edit.generate_confirm_unsaved')}`
         : warning,
-      details: estimateLabel
-        ? t('schedule_edit.generate_confirm_estimate', { duration: estimateLabel })
-        : null,
+      details: t('schedule_edit.generate_confirm_budget', {
+        duration: formatDurationSeconds(timeBudget, t),
+      }),
       confirmLabel: t('schedule_edit.generate'),
       cancelLabel: t('schedule_edit.editor_cancel'),
       onConfirm: () => {
@@ -1063,6 +1085,9 @@ const AmbulanceScheduleEditView = () => {
                   : t('schedule_edit.generate')
               }
               generateHint={t('schedule_edit.generate_hint')}
+              timeBudget={timeBudget}
+              timeBudgetOptions={timeBudgetOptions}
+              onTimeBudgetChange={setTimeBudget}
               generateDisabled={
                 loading ||
                 saving ||

@@ -635,6 +635,7 @@ def solve_monthly_schedule(
     adjacent_assignments: frozenset[tuple[int, int, date]] = frozenset(),
     fixed_assignments: frozenset[tuple[int, int, date]] = frozenset(),
     generate_from: date | None = None,
+    time_budget_seconds: float | None = None,
 ) -> list[GeneratedAssignment]:
     """Solve one monthly ambulance schedule as a binary MILP.
 
@@ -655,6 +656,8 @@ def solve_monthly_schedule(
         generate_from: First date the solver may fill. Earlier dates keep only
             their fixed assignments and are exempt from the coverage rule, so a
             month already half worked can be regenerated from tomorrow on.
+        time_budget_seconds: How long the two passes together may search. The
+            server's own limit applies when it is not given.
 
     Returns:
         A deterministic, sorted list of generated assignments.
@@ -1016,7 +1019,11 @@ def solve_monthly_schedule(
     # First pass: the fairest roster the month allows, with nobody's wishes
     # in the way. It is solved on its own because that is a question with
     # coarse answers -- one duty, one hour -- which a solver settles quickly.
-    deadline = float(settings.SCHEDULE_SOLVER_TIME_LIMIT_SECONDS)
+    deadline = float(
+        time_budget_seconds
+        if time_budget_seconds is not None
+        else settings.SCHEDULE_SOLVER_TIME_LIMIT_SECONDS
+    )
     started = perf_counter()
     problem.setObjective(balance)
     _run_solver(problem, deadline)
@@ -1027,9 +1034,7 @@ def solve_monthly_schedule(
                 [
                     {
                         "code": "solver_timeout",
-                        "time_limit_seconds": (
-                            settings.SCHEDULE_SOLVER_TIME_LIMIT_SECONDS
-                        ),
+                        "time_limit_seconds": int(deadline),
                     }
                 ],
             )
@@ -1158,6 +1163,7 @@ def generate_ambulance_monthly_schedule(
     year: int,
     fixed_entries: list[tuple[int, int, date]] | None = None,
     generate_from: date | None = None,
+    time_budget_seconds: float | None = None,
 ) -> ScheduleGenerationResponse:
     """Load one ambulance's data and return an unsaved optimized schedule draft.
 
@@ -1388,6 +1394,7 @@ def generate_ambulance_monthly_schedule(
         frozenset(adjacent_assignments),
         frozenset(fixed_entries or ()),
         generate_from,
+        time_budget_seconds,
     )
     users_by_id = {user.id: user for user in user_rows}
     competences_by_id = {competence.id: competence for competence in competence_rows}
