@@ -34,8 +34,11 @@ Then, under the balance the first pass reached:
 
 4. The day wishes. A day somebody asked for is rewarded, a day they would
    rather not work is penalized.
-5. The spread. A week holding every duty it physically can costs a tenth of
-   a day wish, so duties end up further apart wherever that is free.
+5. The spread. Every pair of duties a little way apart costs something,
+   and the closer the pair the steeper the cost -- so widening a one-day gap
+   to two is worth several times what widening eight to nine is. The whole
+   term is budgeted below a single day wish, so duties end up further apart
+   only where that is free.
 """
 
 from __future__ import annotations
@@ -137,15 +140,32 @@ PREFERRED_DAY_REWARD = 10.0
 SOFT_DECLINE_PENALTY = 10.0
 
 # --- Spread ---------------------------------------------------------------
-#: How long a stretch the spread rule looks at. A week that holds as many
-#: duties as it physically can -- one duty for every rest period that fits
-#: inside it -- is what "crowded" means here, which is a question that keeps
-#: its meaning whether the employee works four duties a month or fifteen.
-SPREAD_WINDOW_DAYS = 7
-#: What one crowded week costs, against ten for a day wish: pushing duties
-#: apart is worth having, and worth a tenth of somebody getting the day they
-#: asked for.
-CROWDED_WINDOW_PENALTY = 1.0
+# A gap is not a variable of the model -- the variables say which days are
+# worked, and the gaps only follow from where those days land. So the cost
+# of a gap is charged to the pair of duties bounding it instead: two duties
+# GAP days apart cost 1/GAP of the unit below, which is the same thing said
+# from the other side. What that buys is the shape the rule needs. Going
+# from a one-day gap to two saves half a unit, from two to three a sixth,
+# from five to six a thirtieth: the crushing gaps are the ones worth
+# opening, and a long gap growing longer is worth almost nothing.
+#
+# Pairs further apart than a week are not charged at all. Their share of the
+# cost is already negligible, and every further day of reach costs the
+# second pass real time, because it is one more flag per employee per day.
+SPREAD_HORIZON_DAYS = 7
+#: What the whole spread term may cost one employee at worst, against ten
+#: for a single day wish. Every employee's unit is scaled so their own worst
+#: case lands here, which is what stops a heavily loaded month from
+#: outbidding the days people actually asked for.
+SPREAD_BUDGET = 1.0
+
+#: How far above the true optimum the second pass may stop. A roster this
+#: close cannot be missing a day wish -- one of those is worth ten -- so
+#: what the tolerance gives up is at most a fraction of one employee's
+#: spread. What it buys is the difference between a pass that ends in
+#: seconds and one that spends its whole budget proving that a barely
+#: better arrangement of gaps does not exist.
+WISH_OPTIMALITY_TOLERANCE = SPREAD_BUDGET
 
 
 @dataclass(frozen=True)
@@ -595,9 +615,20 @@ def _detect_fixed_assignment_conflicts(
 _BALANCE_LOCK_TOLERANCE = 1e-4
 
 
-def _run_solver(problem: LpProblem, seconds: float) -> None:
-    """Hand the model to CBC with a share of the time budget."""
-    problem.solve(PULP_CBC_CMD(msg=False, timeLimit=max(1, int(seconds))))
+def _run_solver(
+    problem: LpProblem, seconds: float, close_enough: float | None = None
+) -> None:
+    """Hand the model to CBC with a share of the time budget.
+
+    ``close_enough`` is how far above the true optimum an answer may sit and
+    still be taken. It exists for the second pass, where the last fraction
+    of the spread term is worth far less than the minutes CBC would spend
+    proving that nothing beats it.
+    """
+    options = {"msg": False, "timeLimit": max(1, int(seconds))}
+    if close_enough is not None:
+        options["gapAbs"] = close_enough
+    problem.solve(PULP_CBC_CMD(**options))
 
 
 def _has_solution(problem: LpProblem) -> bool:
@@ -878,7 +909,7 @@ def solve_monthly_schedule(
     average_duty_hours = demanded_hours / demanded_duties if demanded_duties else 0.0
 
     objective_terms: list[LpAffineExpression] = []
-    crowded_windows: list[LpVariable] = []
+    spread_terms: list[LpAffineExpression] = []
     variables_by_user: dict[int, list[tuple[int, date, LpVariable]]] = {}
     for (user_id, competence_id, work_date), variable in variables.items():
         variables_by_user.setdefault(user_id, []).append(
@@ -958,36 +989,47 @@ def solve_monthly_schedule(
             )
         )
 
-        # The spread. A stretch of SPREAD_WINDOW_DAYS days is crowded when it
-        # holds every duty it physically can, which is one duty per rest
-        # period that fits inside it. The flags share the smallest budget in
-        # the model, so duties sitting further apart decide only between
-        # rosters that are already equal by every other rule.
-        for start_index, window_start in enumerate(days):
-            window_dates = [
-                days[start_index + offset]
-                for offset in range(SPREAD_WINDOW_DAYS)
-                if start_index + offset < len(days)
-                and (employee.id, days[start_index + offset]) in variable_index.by_user_date
-            ]
-            capacity = _maximum_spaced_days(window_dates, shortest_recovery)
-            if capacity < 2:
-                continue
-            window_variables = [
-                variable
-                for window_date in window_dates
-                for variable in variable_index.by_user_date[(employee.id, window_date)]
-            ]
-            crowded = LpVariable(
-                f"crowded_{employee.id}_{window_start.isoformat()}",
-                lowBound=0,
-                upBound=1,
+        # The spread. One flag per pair of days the employee could work that
+        # lie within SPREAD_HORIZON_DAYS of each other: it is forced up when
+        # both days are worked, and it costs less the further apart they
+        # are. A pair the rest rule already forbids is skipped, since its
+        # flag could never rise.
+        #
+        # The flags need no integrality. They are only ever pushed up, never
+        # down, so the cheapest way to satisfy each constraint is to sit at
+        # its right-hand side -- zero, or one when both days are worked.
+        capacity = _maximum_spaced_days(candidate_dates, shortest_recovery)
+        if capacity > 0:
+            # Each duty bounds at most one charged pair per gap length, so
+            # the whole term cannot exceed a full roster's worth of the
+            # steepest charges. Dividing the budget by that is what keeps
+            # every employee's spread below one day wish whatever their load.
+            worst_case = capacity * sum(
+                1.0 / gap for gap in range(1, SPREAD_HORIZON_DAYS + 1)
             )
-            problem += (
-                lpSum(window_variables) - (capacity - 1) <= crowded,
-                f"spread_{employee.id}_{window_start.isoformat()}",
-            )
-            crowded_windows.append(crowded)
+            spread_unit = SPREAD_BUDGET / worst_case
+            for earlier in sorted(candidate_dates):
+                earliest_allowed = shortest_recovery(earlier) + 1
+                for gap in range(earliest_allowed, SPREAD_HORIZON_DAYS + 1):
+                    later = earlier + timedelta(days=gap)
+                    later_variables = variable_index.by_user_date.get(
+                        (employee.id, later)
+                    )
+                    if not later_variables:
+                        continue
+                    close = LpVariable(
+                        f"close_{employee.id}_{earlier.isoformat()}_{gap}",
+                        lowBound=0,
+                        upBound=1,
+                    )
+                    problem += (
+                        lpSum(variable_index.by_user_date[(employee.id, earlier)])
+                        + lpSum(later_variables)
+                        - 1
+                        <= close,
+                        f"spread_{employee.id}_{earlier.isoformat()}_{gap}",
+                    )
+                    spread_terms.append((spread_unit / gap) * close)
 
         if employee.max_shifts_per_month is not None:
             over_wish = LpVariable(f"over_wish_{employee.id}", lowBound=0)
@@ -1011,7 +1053,7 @@ def solve_monthly_schedule(
         if work_date in soft_declined_dates_by_employee.get(user_id, frozenset())
     ]
     wishes = (
-        CROWDED_WINDOW_PENALTY * lpSum(crowded_windows)
+        lpSum(spread_terms)
         + SOFT_DECLINE_PENALTY * lpSum(soft_declined_variables)
         - PREFERRED_DAY_REWARD * lpSum(preferred_variables)
     )
@@ -1058,7 +1100,7 @@ def solve_monthly_schedule(
         )
         problem.setObjective(wishes)
         remaining = max(1.0, deadline - (perf_counter() - started))
-        _run_solver(problem, remaining)
+        _run_solver(problem, remaining, close_enough=WISH_OPTIMALITY_TOLERANCE)
         if not _has_solution(problem):
             # The wishes are a courtesy; the balanced roster is the answer.
             _restore(variables, balanced)

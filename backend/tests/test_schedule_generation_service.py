@@ -867,6 +867,34 @@ class ScheduleGenerationSpreadTests(unittest.TestCase):
                 ]
                 self.assertLess(len(inside_week), 3)
 
+    def test_widens_the_tightest_gaps_first(self) -> None:
+        """Slack in the month goes to the duties sitting closest together."""
+        employees = [
+            _employee(index, competence_ids=frozenset({1})) for index in range(1, 5)
+        ]
+        assignments = solve_monthly_schedule(
+            employees,
+            [SchedulingCompetence(id=1, name="Triage", required_count=1)],
+            month=8,
+            year=2026,
+        )
+
+        dates_by_employee: dict[int, list[date]] = {}
+        for item in assignments:
+            dates_by_employee.setdefault(item.user_id, []).append(item.work_date)
+
+        # Four employees over thirty-one days: the rest rule alone would be
+        # happy with duties two days apart, and a roster that only obeys it
+        # is full of them. There is room for four days between duties, and
+        # the spread term is what spends it, tightest gaps first.
+        gaps = [
+            (later - earlier).days
+            for work_dates in dates_by_employee.values()
+            for earlier, later in zip(sorted(work_dates), sorted(work_dates)[1:])
+        ]
+        self.assertLessEqual(len([gap for gap in gaps if gap < 3]), 2)
+
+
 class ScheduleGenerationLoadingTests(unittest.TestCase):
     """Verify database inputs used to build the monthly solver model."""
 
