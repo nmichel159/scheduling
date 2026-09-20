@@ -193,6 +193,26 @@
 .cmanager-col-radio {
   width: 72px;
   text-align: center;
+  padding: 0;
+}
+
+/* The dot alone is a pixel-sized target in a row that is otherwise all
+   click, so the label takes over the whole cell and the control itself is
+   drawn large enough to see which scenario the generator reads. */
+.cmanager-radio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 10px;
+  cursor: pointer;
+}
+
+.cmanager-radio input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
 }
 
 .cmanager-table tr.is-selected .cmanager-link,
@@ -332,6 +352,7 @@
 .cmanager-row.is-openable { user-select: none; }
 
 .cmanager-col-radio { width: auto; text-align: left; }
+  .cmanager-radio { justify-content: flex-start; padding: 8px 0; }
   .cmanager-detail-workplace { margin-left: 0; }
 
   .cmanager-columns { flex-direction: column; }

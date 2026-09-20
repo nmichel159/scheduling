@@ -687,13 +687,15 @@ const CompetenceManagerView = () => {
                       onDoubleClick={(e) => handleRowDoubleClick(e, scenario)}
                     >
                       <td className="cmanager-col-radio">
-                        <input
-                          type="radio"
-                          name="active-scenario"
-                          checked={!!scenario.is_selected}
-                          onChange={() => handleSelectScenario(scenario)}
-                          aria-label={t('scenarios.select_named', { name: scenario.name })}
-                        />
+                        <label className="cmanager-radio">
+                          <input
+                            type="radio"
+                            name="active-scenario"
+                            checked={!!scenario.is_selected}
+                            onChange={() => handleSelectScenario(scenario)}
+                            aria-label={t('scenarios.select_named', { name: scenario.name })}
+                          />
+                        </label>
                       </td>
 
                       <td className="cmanager-col-name">
