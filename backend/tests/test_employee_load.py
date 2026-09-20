@@ -12,6 +12,7 @@ from app.models.associations import UserAmbulance
 from app.models.competence_scenario import CompetenceScenario
 from app.models.competence_weekday_requirement import CompetenceWeekdayRequirement
 from app.models.special_day import SpecialDay
+from app.models.unavailability import Unavailability
 from app.schemas.ambulance_employee import EmployeeSchedulingSettings
 from app.services.employee_load_service import (
     get_monthly_employee_load,
@@ -143,6 +144,60 @@ class EmployeeLoadTests(unittest.TestCase):
         # Untouched employees keep the default, which is "no opinion".
         self.assertIsNone(rows[self.idle.id].max_shifts_per_month)
         self.assertEqual(rows[self.idle.id].shift_preference, "any")
+
+    def test_availability_calendar_is_counted_by_what_it_says(self) -> None:
+        """Wishes and absences are split; an unknown reason blocks the day."""
+        self.db.add_all(
+            [
+                Unavailability(
+                    user_id=self.busy.id,
+                    date_absent=date(2026, 9, 10),
+                    reason="PREFERRED",
+                    is_active=True,
+                ),
+                Unavailability(
+                    user_id=self.busy.id,
+                    date_absent=date(2026, 9, 11),
+                    reason="SOFT_DECLINE",
+                    is_active=True,
+                ),
+                Unavailability(
+                    user_id=self.busy.id,
+                    date_absent=date(2026, 9, 12),
+                    reason="VACATION",
+                    is_active=True,
+                ),
+                # Written by an older client, which left the reason empty.
+                Unavailability(
+                    user_id=self.busy.id,
+                    date_absent=date(2026, 9, 13),
+                    reason=None,
+                    is_active=True,
+                ),
+                # Another month, so this screen must not see it.
+                Unavailability(
+                    user_id=self.busy.id,
+                    date_absent=date(2026, 10, 1),
+                    reason="VACATION",
+                    is_active=True,
+                ),
+            ]
+        )
+        self.db.commit()
+
+        report = get_monthly_employee_load(self.db, self.ambulance.id, 9, 2026)
+        rows = {row.user_id: row for row in report.employees}
+
+        busy = rows[self.busy.id]
+        self.assertEqual(busy.marked_days, 4)
+        self.assertEqual(busy.preferred_days, 1)
+        self.assertEqual(busy.declined_days, 1)
+        self.assertEqual(busy.blocked_days, 2)
+
+        # An untouched calendar reports zeroes rather than being left out.
+        idle = rows[self.idle.id]
+        self.assertEqual(idle.marked_days, 0)
+        self.assertEqual(idle.blocked_days, 0)
 
 
 if __name__ == "__main__":

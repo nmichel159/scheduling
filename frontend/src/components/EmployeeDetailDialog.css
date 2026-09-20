@@ -1,7 +1,8 @@
-/* --- employee detail dialog (EmployeeDetailDialog.jsx) ---
- * Read-only for now: it prints the basics about the person. The same
- * dialog is where editing them will live later, which is why it is a
- * proper centered modal and not another small popover. */
+/* --- employee profile dialog (EmployeeDetailDialog.jsx) ---
+ * Sectioned: who the person is, what they are allowed to do, what they
+ * want, and what the shown month gave them. The middle two sections are
+ * only editable when the opening screen passes the data they edit — the
+ * competence matrix still gets the plain read-only card. */
 .empdlg-backdrop {
   position: fixed;
   inset: 0;
@@ -15,8 +16,11 @@
 
 .empdlg {
   width: 100%;
-  max-width: 380px;
+  max-width: 480px;
+  max-height: calc(100vh - 32px);
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--code-background);
@@ -28,13 +32,14 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
 }
 
 .empdlg-avatar {
   flex: none;
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -42,7 +47,7 @@
   background: var(--primary-background);
   color: var(--primary);
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 1.1rem;
 }
 
 .empdlg-heading { flex: 1; min-width: 0; }
@@ -50,7 +55,7 @@
 .empdlg-title {
   margin: 0;
   color: var(--text-h);
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -61,6 +66,9 @@
   color: var(--text);
   font-size: 0.78rem;
   opacity: 0.75;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .empdlg-close {
@@ -78,10 +86,48 @@
 }
 .empdlg-close:hover { opacity: 1; }
 
+/* The sections scroll, the header and the action row stay put, so Save
+ * is reachable however many competences the workplace has. */
+.empdlg-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 -16px;
+  padding: 0 16px;
+}
+
+.empdlg-section {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.empdlg-section:last-child { border-bottom: none; }
+
+.empdlg-section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 10px;
+  color: var(--text-h);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+}
+.empdlg-section-count {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
 .empdlg-fields {
   margin: 0;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 .empdlg-fields > div {
   display: grid;
@@ -101,35 +147,59 @@
   word-break: break-word;
 }
 
-.empdlg-note {
-  margin: 14px 0 12px;
-  color: var(--text);
-  font-size: 0.76rem;
-  line-height: 1.4;
-  opacity: 0.7;
+.empdlg-none {
+  margin: 0;
+  color: var(--text-h);
+  font-size: 0.85rem;
+  opacity: 0.75;
 }
 
-/* The dialog is opened from several screens, so it brings its own action
- * row instead of borrowing the matrix's. */
-.empdlg-actions {
+/* --- competences: every one of the workplace's, the person's are on --- */
+.empdlg-chips {
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-/* --- edit form ---
- * Only rendered when the opening screen passes `settings`; the matrix
- * still gets the plain read-only card. */
-.empdlg-form {
-  margin: 14px 0 12px;
-  display: grid;
-  gap: 12px;
+.empdlg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--background);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0.8;
+}
+.empdlg-chip:hover:not(:disabled) {
+  border-color: var(--primary);
+  opacity: 1;
+}
+.empdlg-chip.is-on {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+  opacity: 1;
+}
+.empdlg-chip:disabled { cursor: not-allowed; }
+
+.empdlg-chip-mark {
+  font-size: 0.78rem;
+  line-height: 1;
+  opacity: 0.8;
 }
 
+/* --- settings --- */
 .empdlg-field {
   display: grid;
   gap: 6px;
 }
+.empdlg-field + .empdlg-field { margin-top: 12px; }
 
 .empdlg-label {
   color: var(--text);
@@ -137,22 +207,65 @@
   opacity: 0.75;
 }
 
-.empdlg-input {
-  width: 100%;
-  box-sizing: border-box;
+.empdlg-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.empdlg-step {
+  flex: none;
+  width: 32px;
+  height: 32px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 7px 10px;
   background: var(--background);
   color: var(--text-h);
   font: inherit;
-  font-size: 0.88rem;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.empdlg-step:hover:not(:disabled) { border-color: var(--primary); }
+.empdlg-step:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.empdlg-input {
+  width: 64px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 8px;
+  background: var(--background);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 .empdlg-input:focus {
   outline: none;
   border-color: var(--primary);
 }
 .empdlg-input:disabled { opacity: 0.6; }
+/* The stepper is the control; the native spinners duplicate it. */
+.empdlg-input::-webkit-outer-spin-button,
+.empdlg-input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+.empdlg-input[type='number'] { appearance: textfield; }
+
+.empdlg-clear {
+  border: none;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+.empdlg-clear:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .empdlg-choice {
   display: inline-flex;
@@ -167,7 +280,7 @@
   flex: 1;
   border: 0;
   border-radius: 6px;
-  padding: 6px 8px;
+  padding: 6px 10px;
   background: transparent;
   color: var(--text-h);
   opacity: 0.65;
@@ -183,3 +296,83 @@
   opacity: 1;
 }
 .empdlg-choice-button:disabled { cursor: not-allowed; }
+
+/* --- the month in numbers ---
+ * A fixed grid of small tiles rather than a sentence: the scheduler
+ * compares people, and numbers in the same place every time compare
+ * faster than numbers in a paragraph. */
+.empdlg-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.empdlg-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+}
+.empdlg-tile.is-accent {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  background: var(--primary-background);
+}
+
+.empdlg-tile-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-h);
+}
+.empdlg-tile.is-accent .empdlg-tile-value { color: var(--primary); }
+
+.empdlg-tile-label {
+  font-size: 0.64rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+  color: var(--text-h);
+}
+
+/* --- the shown month's duties --- */
+.empdlg-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.empdlg-day {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--text-h);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+/* The surcharged days are the ones the scheduler counts twice, so they
+ * are the only thing coloured in the strip. */
+.empdlg-day.is-surcharge {
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+  background: var(--primary-background);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* The dialog is opened from several screens, so it brings its own action
+ * row instead of borrowing the matrix's. */
+.empdlg-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}

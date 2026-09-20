@@ -110,3 +110,76 @@ export async function saveMonthlyWish(maxShiftsPerMonth) {
   });
   return data.max_shifts_per_month ?? null;
 }
+
+/* ---------- the same calendar, read and written by a manager ----------
+ *
+ * The backend mirrors every route above under the workplace, checking
+ * that the caller manages it and that the user is one of its employees.
+ * The shapes are identical, so `WorkloadCalendar` takes these in place of
+ * the functions above and does not know the difference.
+ */
+
+/** Fetch one employee's records within an inclusive date range. */
+export async function fetchEmployeeUnavailabilities(
+  ambulanceId,
+  userId,
+  dateFrom,
+  dateTo
+) {
+  const { data } = await client.get(
+    `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities`,
+    { params: { date_from: dateFrom, date_to: dateTo, limit: 500 } }
+  );
+  return data;
+}
+
+/** Create a record on one employee's calendar. */
+export async function createEmployeeUnavailability(
+  ambulanceId,
+  userId,
+  dateAbsent,
+  reason = REASON_BLOCKED
+) {
+  const { data } = await client.post(
+    `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities`,
+    { date_absent: dateAbsent, reason }
+  );
+  return data;
+}
+
+/** Change what one of an employee's days says. */
+export async function updateEmployeeUnavailability(
+  ambulanceId,
+  userId,
+  id,
+  reason
+) {
+  const { data } = await client.put(
+    `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities/${id}`,
+    { reason }
+  );
+  return data;
+}
+
+/** Remove one of an employee's marks entirely. */
+export async function deleteEmployeeUnavailability(ambulanceId, userId, id) {
+  await client.delete(
+    `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities/${id}`
+  );
+}
+
+/** One employee's monthly duty wish (null = no opinion). */
+export async function fetchEmployeeMonthlyWish(ambulanceId, userId) {
+  const { data } = await client.get(
+    `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities/monthly-wish`
+  );
+  return data.max_shifts_per_month ?? null;
+}
+
+export async function saveEmployeeMonthlyWish(ambulanceId, userId, maxShiftsPerMonth) {
+  const { data } = await client.put(
+    `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities/monthly-wish`,
+    { max_shifts_per_month: maxShiftsPerMonth }
+  );
+  return data.max_shifts_per_month ?? null;
+}

@@ -1,0 +1,92 @@
+/* --- one employee's availability calendar, opened by their manager ---
+ * The calendar inside is the employee's own component, so this file only
+ * frames it: a modal with the person's name on top. The `.workload`
+ * class on the body is what that component's stylesheet hangs off. */
+.availdlg-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 620;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.availdlg {
+  width: 100%;
+  max-width: 620px;
+  max-height: calc(100vh - 32px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--code-background);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
+  padding: 16px;
+}
+
+.availdlg-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.availdlg-avatar {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--primary-background);
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.availdlg-heading { flex: 1; min-width: 0; }
+
+.availdlg-title {
+  margin: 0;
+  color: var(--text-h);
+  font-size: 1.05rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.availdlg-subtitle {
+  margin: 2px 0 0;
+  color: var(--text);
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+
+.availdlg-close {
+  flex: none;
+  border: none;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.availdlg-close:hover { opacity: 1; }
+
+.availdlg-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 -16px;
+  padding: 12px 16px 0;
+  text-align: left;
+}

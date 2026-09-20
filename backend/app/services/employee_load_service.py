@@ -32,6 +32,7 @@ from app.models.competence_weekday_requirement import (
 )
 from app.models.associations import UserAmbulance
 from app.models.schedule import Schedule
+from app.models.unavailability import Unavailability
 from app.models.user import User
 from app.schemas.ambulance_employee import (
     AmbulanceMonthlyLoad,
@@ -88,6 +89,55 @@ def _parameters_for(
     return found
 
 
+#: The two reasons that are wishes rather than absences, spelled the same
+#: way :mod:`app.services.schedule_generation_service` reads them. They are
+#: repeated here rather than imported: that module pulls in the solver, and
+#: this one is asked for on every load of the employees screen.
+PREFERRED_REASON = "PREFERRED"
+SOFT_DECLINE_REASON = "SOFT_DECLINE"
+
+
+def _availability_counts(
+    db: Session, user_ids: list[int], first: date, last: date
+) -> dict[int, dict[str, int]]:
+    """Count how each employee filled their availability calendar.
+
+    The table stores a free-text ``reason``, and the application writes
+    sentinels into it; the two the generator treats as wishes are counted
+    apart, and everything else -- including the null reason older records
+    were written with -- is an absence that blocks the day.
+    """
+    counts = {
+        user_id: {"marked": 0, "preferred": 0, "declined": 0, "blocked": 0}
+        for user_id in user_ids
+    }
+    if not user_ids:
+        return counts
+
+    rows = (
+        db.query(Unavailability.user_id, Unavailability.reason)
+        .filter(
+            Unavailability.user_id.in_(user_ids),
+            Unavailability.is_active.is_(True),
+            Unavailability.date_absent >= first,
+            Unavailability.date_absent <= last,
+        )
+        .all()
+    )
+    for user_id, reason in rows:
+        bucket = counts.get(user_id)
+        if bucket is None:
+            continue
+        bucket["marked"] += 1
+        if reason == PREFERRED_REASON:
+            bucket["preferred"] += 1
+        elif reason == SOFT_DECLINE_REASON:
+            bucket["declined"] += 1
+        else:
+            bucket["blocked"] += 1
+    return counts
+
+
 def get_monthly_employee_load(
     db: Session, ambulance_id: int, month: int, year: int
 ) -> AmbulanceMonthlyLoad:
@@ -121,6 +171,8 @@ def get_monthly_employee_load(
 
     parameters = _slot_parameters(db, ambulance_id)
     rest_days = rest_days_between(db, ambulance_id, first, last)
+
+    availability = _availability_counts(db, list(totals), first, last)
 
     competence_names = dict(
         db.query(Competence.id, Competence.name)
@@ -180,6 +232,10 @@ def get_monthly_employee_load(
                 max_shifts_per_month=employee.max_shifts_per_month,
                 shift_preference=employee.shift_preference or "any",
                 days=days[employee.id],
+                marked_days=availability[employee.id]["marked"],
+                preferred_days=availability[employee.id]["preferred"],
+                declined_days=availability[employee.id]["declined"],
+                blocked_days=availability[employee.id]["blocked"],
             )
             for employee in employees
         ],

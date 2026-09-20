@@ -108,6 +108,16 @@ class EmployeeMonthlyLoad(BaseModel):
     shift_preference: str = "any"
     days: list[EmployeeDutyDay] = Field(default_factory=list)
 
+    # How the employee filled their availability calendar for this month.
+    # ``marked_days`` counts every day they had an opinion about; the three
+    # figures under it split those days by what the opinion was, and add up
+    # to it. A month left untouched reports zeroes, which is what the
+    # scheduler needs to see before chasing anyone by e-mail.
+    marked_days: int = 0
+    preferred_days: int = 0
+    declined_days: int = 0
+    blocked_days: int = 0
+
 
 class AmbulanceMonthlyLoad(BaseModel):
     """Every employee of a workplace and their load in one month."""

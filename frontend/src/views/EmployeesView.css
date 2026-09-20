@@ -1,4 +1,4 @@
-/* --- Employees roster (read-only list of one workplace's people) --- */
+/* --- Employees roster (one workplace's people, one row each) --- */
 
 .employees {
   max-width: 960px;
@@ -10,12 +10,6 @@
   margin: 0 0 6px;
   font-size: 1.5rem;
   color: var(--text-h);
-}
-
-.employees-subtitle {
-  margin: 0 0 20px;
-  font-size: 0.85rem;
-  opacity: 0.75;
 }
 
 .employees-banner {
@@ -34,13 +28,21 @@
   padding: 16px;
 }
 
+/* Two rows rather than one: who we are looking at on top, what we are
+ * looking at underneath. In one row the four controls reflowed into
+ * whatever order the width allowed. */
 .employees-head {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.employees-headline {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
 }
 
 .employees-heading {
@@ -61,6 +63,15 @@
   opacity: 0.75;
 }
 
+.employees-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
 /* Same filter control as the competence matrix header, so the two screens
  * feel like one feature. */
 .employees-filter {
@@ -69,17 +80,18 @@
   gap: 6px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 0 6px;
+  padding: 0 8px;
   background: var(--background);
-  min-width: 220px;
+  min-width: 240px;
 }
 .employees-filter:focus-within,
 .employees-filter.is-active {
   border-color: var(--primary);
 }
 .employees-filter-icon {
-  font-size: 0.95rem;
-  line-height: 1;
+  width: 15px;
+  height: 15px;
+  flex: none;
   opacity: 0.6;
   color: var(--text-h);
 }
@@ -92,7 +104,7 @@
   color: var(--text-h);
   font: inherit;
   font-size: 0.85rem;
-  padding: 6px 0;
+  padding: 7px 0;
 }
 .employees-filter-clear {
   border: none;
@@ -108,6 +120,25 @@
 }
 .employees-filter-clear:hover { opacity: 1; }
 
+/* The chip that says which competence the list is narrowed to. It is a
+ * button, because clicking it is how the narrowing is undone. */
+.employees-activefilter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  padding: 5px 10px;
+  border: 1px solid var(--primary);
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.employees-activefilter:hover { filter: brightness(1.08); }
+
 .employees-list { transition: opacity 0.15s ease; }
 .employees-list.is-loading { opacity: 0.5; pointer-events: none; }
 
@@ -121,29 +152,62 @@
 }
 .employees-rows li + li { border-top: 1px solid var(--border); }
 
-/* The row itself is the button, edge to edge: clicking anywhere in it —
- * including the empty space between the name and the competence tags —
- * opens the detail. */
-.employees-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+/* The row cannot be one button any more: the competence chips inside it
+ * are buttons of their own. Instead the whole row is covered by an
+ * invisible button, and the chips sit above it. */
+.employees-item {
+  position: relative;
+}
+
+.employees-open {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
   width: 100%;
-  box-sizing: border-box;
   border: none;
   background: none;
-  padding: 12px 14px;
-  font: inherit;
-  color: var(--text-h);
-  text-align: left;
+  padding: 0;
   cursor: pointer;
 }
-.employees-row:hover {
+.employees-open:hover {
   background: color-mix(in srgb, var(--primary-background) 70%, transparent);
 }
-.employees-row:focus-visible {
+.employees-open:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: -2px;
+}
+.employees-open:hover ~ .employees-row .employees-chevron { opacity: 0.9; }
+
+/* One template for the row and for the legend above the list, so the
+ * column labels stand over the numbers they name. */
+.employees-row,
+.employees-legend {
+  display: grid;
+  grid-template-columns: 34px minmax(110px, 1fr) minmax(0, 1.4fr) auto 28px 16px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+}
+
+.employees-row {
+  position: relative;
+  z-index: 1;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  color: var(--text-h);
+  pointer-events: none; /* clicks fall through to the overlay button */
+}
+
+.employees-legend {
+  padding-bottom: 6px;
+}
+.employees-legend-spacer { grid-column: 1 / 4; }
+.employees-legend .employees-cell {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.55;
 }
 
 .employees-avatar {
@@ -164,7 +228,6 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  flex: 1;
 }
 .employees-name {
   font-weight: 600;
@@ -186,29 +249,144 @@
 .employees-tags {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
   gap: 5px;
   min-width: 0;
-  max-width: 50%;
 }
 
 .employees-tag {
+  pointer-events: auto;
   padding: 4px 9px;
   border: 1px solid color-mix(in srgb, var(--primary) 45%, var(--border));
   border-radius: 999px;
   background: var(--primary-background);
   color: var(--primary);
+  font: inherit;
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
+  cursor: pointer;
+}
+.employees-tag:hover { border-color: var(--primary); }
+.employees-tag.is-picked {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
 }
 .employees-tag.is-empty {
   border-color: var(--border);
+  border-style: dashed;
   background: none;
   color: var(--text);
   font-weight: 600;
   opacity: 0.7;
+  cursor: default;
+}
+
+/* --- the numbers on the right ---
+ * Five columns of their own grid, which both the row and the legend use,
+ * so a label sits exactly above its number whatever the row is wide. */
+.employees-stats {
+  display: grid;
+  /* Wide enough for the widest label, because the legend uses the same
+   * template: a label that does not fit its column would push the whole
+   * legend sideways and stop standing over its number. */
+  grid-template-columns: 74px repeat(4, 62px);
+  align-items: center;
+  gap: 8px;
+}
+
+.employees-cell {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-h);
+  white-space: nowrap;
+}
+.employees-cell.is-accent { color: var(--primary); }
+.employees-cell.is-muted { opacity: 0.35; }
+
+/* The first column carries the duty count against the person's own
+ * monthly wish, so it gets a bar the other four do not need. */
+.employees-meter {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.employees-meter-value {
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--text-h);
+}
+.employees-meter-max {
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0.55;
+}
+
+.employees-meter-track {
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 18%, transparent);
+  overflow: hidden;
+}
+.employees-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--primary);
+  transition: width 0.2s ease;
+}
+
+/* No wish set, so there is nothing to fill: the number stands alone. */
+.employees-meter.is-open .employees-meter-track { visibility: hidden; }
+/* Wish met exactly, and wish exceeded — the two states a scheduler looks
+ * for when deciding who else can take a day. */
+.employees-meter.is-full .employees-meter-value { color: var(--primary); }
+.employees-meter.is-over .employees-meter-fill { background: #ef5350; }
+.employees-meter.is-over .employees-meter-value { color: #ef5350; }
+
+/* The calendar button is the one thing in the row that is not the
+ * profile: it opens the person's availability month. */
+.employees-calendar {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-h);
+  cursor: pointer;
+  opacity: 0.45;
+}
+.employees-calendar:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  opacity: 1;
+}
+.employees-calendar-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.employees-chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  transform: rotate(180deg);
+  opacity: 0.35;
 }
 
 .employees-empty {
@@ -218,24 +396,7 @@
   opacity: 0.75;
 }
 
-.employees-foot {
-  margin-top: 12px;
-  font-size: 0.78rem;
-  opacity: 0.7;
-}
-
-@media (max-width: 640px) {
-  .employees-row { flex-wrap: wrap; }
-  .employees-tags {
-    max-width: 100%;
-    justify-content: flex-start;
-    padding-left: 46px;
-  }
-}
-
-/* --- month switch: rozvrh vs. obsadenosť ---
- * Same segmented control as the schedule editor, with the icon in front
- * of the label so the two tabs are told apart at a glance. */
+/* --- month stepper and sort switch --- */
 .employees-switch {
   display: inline-flex;
   align-items: center;
@@ -251,7 +412,7 @@
   gap: 6px;
   border: 0;
   border-radius: 6px;
-  padding: 6px 10px;
+  padding: 6px 12px;
   background: transparent;
   color: var(--text-h);
   opacity: 0.65;
@@ -266,12 +427,6 @@
   opacity: 1;
 }
 
-.employees-switch-icon {
-  width: 16px;
-  height: 16px;
-  flex: none;
-}
-
 .employees-month {
   display: flex;
   align-items: center;
@@ -279,20 +434,29 @@
 }
 
 .employees-month-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--background);
   color: var(--text-h);
   font: inherit;
   line-height: 1;
-  padding: 5px 9px;
+  padding: 6px;
   cursor: pointer;
 }
 .employees-month-button:hover:not(:disabled) { border-color: var(--primary); }
 .employees-month-button:disabled { opacity: 0.4; cursor: not-allowed; }
 
+.employees-month-icon {
+  width: 16px;
+  height: 16px;
+}
+.employees-month-icon.is-next { transform: rotate(180deg); }
+
 .employees-monthlabel {
-  min-width: 120px;
+  min-width: 128px;
   text-align: center;
   font-size: 0.85rem;
   font-weight: 600;
@@ -309,91 +473,28 @@
   cursor: pointer;
 }
 
-/* --- rozvrh tab: the days one person got --- */
-.employees-days {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 5px;
-  min-width: 0;
-  max-width: 55%;
-  margin-left: auto;
-}
-
-.employees-day {
-  padding: 3px 7px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--background);
-  color: var(--text-h);
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.3;
-  white-space: nowrap;
-}
-/* The surcharged days are the ones the scheduler counts twice, so they
- * are the only thing coloured in the strip. */
-.employees-day.is-surcharge {
-  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
-  background: var(--primary-background);
-  color: var(--primary);
-  font-weight: 700;
-}
-
-/* --- obsadenosť tab: the month in numbers --- */
-.employees-stats {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 16px;
-  margin-left: auto;
-  min-width: 0;
-}
-
-.employees-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  line-height: 1.2;
-}
-
-.employees-stat-value {
-  font-size: 0.95rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-h);
-}
-.employees-stat.is-surcharge .employees-stat-value { color: var(--primary); }
-
-.employees-stat-label {
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  opacity: 0.6;
-}
-
-.employees-pref {
-  padding: 4px 9px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.employees-pref.is-surcharge {
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
-  background: var(--primary-background);
-  color: var(--primary);
-}
-.employees-pref.is-any { opacity: 0.6; }
-
-@media (max-width: 640px) {
-  .employees-days,
-  .employees-stats {
-    max-width: 100%;
-    justify-content: flex-start;
-    margin-left: 0;
-    padding-left: 46px;
+@media (max-width: 860px) {
+  /* The numbers drop under the identity rather than squeezing it: on a
+   * narrow screen the row is two lines, not five columns of nothing. */
+  .employees-legend { display: none; }
+  .employees-row {
+    grid-template-columns: 34px minmax(0, 1fr) 28px 16px;
   }
-  .employees-stats { gap: 12px; flex-wrap: wrap; }
+  .employees-tags {
+    grid-column: 2 / 5;
+  }
+  .employees-calendar {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .employees-chevron {
+    grid-column: 4;
+    grid-row: 1;
+  }
+  .employees-stats {
+    grid-column: 2 / 5;
+    justify-content: start;
+  }
+  .employees-filter { min-width: 0; flex: 1; }
+  .employees-activefilter { margin-left: 0; }
 }
