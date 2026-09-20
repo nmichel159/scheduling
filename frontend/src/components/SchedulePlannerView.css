@@ -180,27 +180,21 @@
   font-size: 0.85rem;
 }
 
-/* Each half scrolls on its own — the two tables have different row meanings,
-   so there is nothing to keep in sync between them. */
+/* Sideways only, as a backstop for a pane narrower than its table. Vertically
+   neither half is capped, so the page itself is the only scroller here. */
 .planner-scroll {
   overflow: auto;
   scrollbar-width: thin;
 }
 
-/* The demand table is sized to fit; the cap is only a backstop for the case
-   where the measurement runs before the surrounding layout has settled.
-   Centred as a block: the table reserves a strip on its right for the tilted
+/* Centred as a block: the table reserves a strip on its right for the tilted
    labels to lean into, and without this the whole grid sits against the left
    edge with that strip left over as a gap. `safe` keeps the left edge
-   reachable if the table ever does outgrow the pane. */
+   reachable if the table ever does outgrow the pane. No height cap here: this
+   screen scrolls as one page, so neither pane may grow a scrollbar of its own. */
 .planner-scroll-demand {
   display: flex;
   justify-content: safe center;
-  /* Deliberately loose. The fit is decided by the measured row height; this is
-     only here so the very first frame, before the measurement lands, cannot run
-     off the bottom of the page. Tight enough to bind and it would overrule the
-     measurement and bring the scrollbar back. */
-  max-height: calc(100svh - 40px);
 }
 
 .planner-scroll-demand > .planner-matrix {
@@ -208,7 +202,6 @@
 }
 
 .planner-scroll-people {
-  max-height: calc(100svh - 250px);
   min-height: 180px;
 }
 
@@ -603,6 +596,17 @@
   opacity: 0.75;
 }
 
+/* The surcharged tally is the number the roster is actually balanced on, so
+   it carries the accent and full contrast next to the plain shift count. */
+.planner-people-total-head.is-surcharge {
+  color: var(--primary);
+}
+
+.planner-people-total.is-surcharge {
+  color: var(--primary);
+  opacity: 1;
+}
+
 /* --- who can fill this square: a panel floating beside it ---
    It used to be a row of the demand table, which pushed the month's days
    apart and covered the very columns being compared. Floating, it leaves the
@@ -903,16 +907,9 @@
 }
 
 /* Below roughly a laptop width the two halves stop fitting side by side, so
-   they stack and each keeps its own scroll. */
+   they stack; stacked or not, the page stays the only scroller. */
 @media (max-width: 1100px) {
   .planner-split {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  /* Stacked, the matrix no longer owns the window's height on its own, so it
-     gets a scroll back instead of squeezing the rows to nothing. */
-  .planner-scroll-demand,
-  .planner-scroll-people {
-    max-height: 60svh;
   }
 }

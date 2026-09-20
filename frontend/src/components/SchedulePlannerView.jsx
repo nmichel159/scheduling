@@ -779,12 +779,18 @@ const SchedulePlannerView = ({
                       <th scope="col" className="planner-people-total-head">
                         {t('schedule_edit.planner_shifts')}
                       </th>
+                      <th
+                        scope="col"
+                        className="planner-people-total-head is-surcharge"
+                      >
+                        {t('schedule_edit.planner_surcharge')}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {people.map((employee) => {
                       const byDate = shiftsByUserDate.get(employee.user_id);
-                      const total = statsFor(employee.user_id).total;
+                      const stats = statsFor(employee.user_id);
                       const fullLabel = employee.full_name || employee.email;
                       return (
                         <tr key={employee.user_id}>
@@ -854,7 +860,12 @@ const SchedulePlannerView = ({
                               </td>
                             );
                           })}
-                          <td className="planner-people-total">{total || ''}</td>
+                          <td className="planner-people-total">
+                            {stats.total || ''}
+                          </td>
+                          <td className="planner-people-total is-surcharge">
+                            {stats.surcharge || ''}
+                          </td>
                         </tr>
                       );
                     })}
