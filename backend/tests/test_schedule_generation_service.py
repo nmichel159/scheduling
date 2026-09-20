@@ -39,6 +39,7 @@ def _employee(
     preferred_dates: frozenset[date] = frozenset(),
     soft_declined_dates: frozenset[date] = frozenset(),
     max_shifts_per_month: int | None = None,
+    shift_preference: str = "any",
 ) -> SchedulingEmployee:
     """Build a concise employee fixture for solver tests."""
     return SchedulingEmployee(
@@ -51,6 +52,7 @@ def _employee(
         preferred_dates=preferred_dates,
         soft_declined_dates=soft_declined_dates,
         max_shifts_per_month=max_shifts_per_month,
+        shift_preference=shift_preference,
     )
 
 
@@ -613,6 +615,228 @@ class ScheduleGenerationSolverTests(unittest.TestCase):
         )
 
 
+
+class ScheduleGenerationBalanceTests(unittest.TestCase):
+    """Verify what the objective balances and whose wishes tilt it."""
+
+    #: Saturdays and Sundays of August 2026, which is the weekend rule a
+    #: competence starts from when nothing else is configured.
+    SURCHARGE_DAYS = frozenset(
+        date(2026, 8, day) for day in (1, 2, 8, 9, 15, 16, 22, 23, 29, 30)
+    )
+
+    def test_shares_out_the_surcharged_days_as_evenly_as_the_rest(self) -> None:
+        """Nobody is handed the weekends while somebody else works weekdays."""
+        employees = [_employee(index, competence_ids=frozenset({1})) for index in range(1, 5)]
+        assignments = solve_monthly_schedule(
+            employees,
+            [SchedulingCompetence(id=1, name="Triage", required_count=1)],
+            month=8,
+            year=2026,
+        )
+
+        surcharged = Counter(
+            item.user_id for item in assignments if item.work_date in self.SURCHARGE_DAYS
+        )
+        ordinary = Counter(
+            item.user_id
+            for item in assignments
+            if item.work_date not in self.SURCHARGE_DAYS
+        )
+
+        self.assertEqual(sorted(surcharged.values()), [2, 2, 3, 3])
+        self.assertLessEqual(max(ordinary.values()) - min(ordinary.values()), 1)
+
+    def test_duty_kind_wishes_trade_weekends_for_weekdays(self) -> None:
+        """Who wants the surcharged days gets more of them, not more duties."""
+        employees = [
+            _employee(
+                1,
+                competence_ids=frozenset({1}),
+                shift_preference="surcharge",
+            ),
+            _employee(
+                2,
+                competence_ids=frozenset({1}),
+                shift_preference="standard",
+            ),
+            _employee(3, competence_ids=frozenset({1})),
+            _employee(4, competence_ids=frozenset({1})),
+        ]
+        assignments = solve_monthly_schedule(
+            employees,
+            [SchedulingCompetence(id=1, name="Triage", required_count=1)],
+            month=8,
+            year=2026,
+        )
+
+        surcharged = Counter(
+            item.user_id for item in assignments if item.work_date in self.SURCHARGE_DAYS
+        )
+        workload = Counter(item.user_id for item in assignments)
+
+        self.assertGreater(surcharged[1], surcharged[2])
+        # The wish moves which duties they work, never how many: the whole
+        # roster stays as level as the month allows.
+        self.assertLessEqual(max(workload.values()) - min(workload.values()), 1)
+
+    def test_a_duty_kind_wish_never_buys_a_less_balanced_roster(self) -> None:
+        """Everybody wanting the weekends still shares them out evenly."""
+        employees = [
+            _employee(
+                index,
+                competence_ids=frozenset({1}),
+                shift_preference="surcharge",
+            )
+            for index in range(1, 5)
+        ]
+        assignments = solve_monthly_schedule(
+            employees,
+            [SchedulingCompetence(id=1, name="Triage", required_count=1)],
+            month=8,
+            year=2026,
+        )
+
+        surcharged = Counter(
+            item.user_id for item in assignments if item.work_date in self.SURCHARGE_DAYS
+        )
+
+        self.assertEqual(sorted(surcharged.values()), [2, 2, 3, 3])
+
+
+class ScheduleGenerationRecoveryTests(unittest.TestCase):
+    """Verify the rest a duty earns under the workplace's own settings."""
+
+    def test_a_long_recovery_keeps_an_employee_off_for_days(self) -> None:
+        """Three days of recovery put four days between two duties."""
+        employees = [_employee(index, competence_ids=frozenset({1})) for index in range(1, 6)]
+        assignments = solve_monthly_schedule(
+            employees,
+            [
+                SchedulingCompetence(
+                    id=1,
+                    name="Triage",
+                    required_count=1,
+                    weekday_recovery_days=(3, 3, 3, 3, 3, 3, 3),
+                )
+            ],
+            month=8,
+            year=2026,
+        )
+
+        self.assertEqual(len(assignments), 31)
+        dates_by_employee: dict[int, list[date]] = {}
+        for item in assignments:
+            dates_by_employee.setdefault(item.user_id, []).append(item.work_date)
+        for work_dates in dates_by_employee.values():
+            ordered = sorted(work_dates)
+            for current, following in zip(ordered, ordered[1:]):
+                self.assertGreaterEqual((following - current).days, 4)
+
+    def test_no_recovery_lets_the_same_employee_work_two_days_running(self) -> None:
+        """A workplace that asks for no rest is staffed by a single person."""
+        assignments = solve_monthly_schedule(
+            [_employee(1, competence_ids=frozenset({1}))],
+            [
+                SchedulingCompetence(
+                    id=1,
+                    name="Triage",
+                    required_count=1,
+                    weekday_recovery_days=(0, 0, 0, 0, 0, 0, 0),
+                )
+            ],
+            month=8,
+            year=2026,
+        )
+
+        self.assertEqual(len(assignments), 31)
+
+    def test_recovery_reaches_across_the_month_boundary(self) -> None:
+        """A duty on the last day of the previous month still claims its rest."""
+        employees = [_employee(index, competence_ids=frozenset({1})) for index in range(1, 6)]
+        assignments = solve_monthly_schedule(
+            employees,
+            [
+                SchedulingCompetence(
+                    id=1,
+                    name="Triage",
+                    required_count=1,
+                    weekday_recovery_days=(3, 3, 3, 3, 3, 3, 3),
+                )
+            ],
+            month=8,
+            year=2026,
+            adjacent_assignments=frozenset({(1, 1, date(2026, 7, 31))}),
+        )
+
+        blocked = {date(2026, 8, day) for day in (1, 2, 3)}
+        self.assertFalse(
+            any(item.user_id == 1 and item.work_date in blocked for item in assignments)
+        )
+
+    def test_rejects_manually_placed_duties_inside_a_long_recovery(self) -> None:
+        """Two placed duties three days apart break a three-day recovery."""
+        with self.assertRaises(ScheduleGenerationError) as context:
+            solve_monthly_schedule(
+                [_employee(index, competence_ids=frozenset({1})) for index in range(1, 6)],
+                [
+                    SchedulingCompetence(
+                        id=1,
+                        name="Triage",
+                        required_count=1,
+                        weekday_recovery_days=(3, 3, 3, 3, 3, 3, 3),
+                    )
+                ],
+                month=8,
+                year=2026,
+                fixed_assignments=frozenset(
+                    {(1, 1, date(2026, 8, 10)), (1, 1, date(2026, 8, 13))}
+                ),
+            )
+
+        self.assertEqual(
+            [issue["code"] for issue in context.exception.issues],
+            ["fixed_assignment_rest_conflict"],
+        )
+
+
+class ScheduleGenerationSpreadTests(unittest.TestCase):
+    """Verify that duties are pushed apart when the month leaves a choice."""
+
+    def test_keeps_one_employee_out_of_a_fully_packed_week(self) -> None:
+        """Two employees take turns rather than one working a whole week."""
+        employees = [_employee(index, competence_ids=frozenset({1})) for index in range(1, 3)]
+        assignments = solve_monthly_schedule(
+            employees,
+            [
+                SchedulingCompetence(
+                    id=1,
+                    name="Triage",
+                    required_count=1,
+                    # Monday, Wednesday and Friday: three duties a week, which
+                    # one employee could take alone without ever breaking the
+                    # day of rest between them.
+                    weekday_required_counts=(1, 0, 1, 0, 1, 0, 0),
+                )
+            ],
+            month=8,
+            year=2026,
+        )
+
+        self.assertEqual(len(assignments), 13)
+        dates_by_employee: dict[int, list[date]] = {}
+        for item in assignments:
+            dates_by_employee.setdefault(item.user_id, []).append(item.work_date)
+        for work_dates in dates_by_employee.values():
+            ordered = sorted(work_dates)
+            for start_index, first in enumerate(ordered):
+                inside_week = [
+                    work_date
+                    for work_date in ordered[start_index:]
+                    if (work_date - first).days < 7
+                ]
+                self.assertLess(len(inside_week), 3)
+
 class ScheduleGenerationLoadingTests(unittest.TestCase):
     """Verify database inputs used to build the monthly solver model."""
 
@@ -853,6 +1077,142 @@ class ScheduleGenerationLoadingTests(unittest.TestCase):
         self.assertEqual(coverage[date(2026, 8, 4)], 0)
         self.assertEqual(coverage[date(2026, 8, 29)], 2)
         self.assertEqual(coverage[date(2026, 8, 22)], 0)
+
+
+    def test_loads_recovery_days_from_the_selected_scenario(self) -> None:
+        """A week of recovery stops an employee working two Mondays running."""
+        ambulance = Ambulance(name="Recovery clinic", is_active=True)
+        users = [User(email=f"rest{index}@example.com", is_active=True) for index in range(2)]
+        self.db.add_all([ambulance, *users])
+        self.db.flush()
+        competence = Competence(
+            name="Long duty",
+            required_count=0,
+            ambulance_id=ambulance.id,
+            is_active=True,
+        )
+        scenario = CompetenceScenario(
+            name="Scenario 1",
+            ambulance_id=ambulance.id,
+            is_selected=True,
+            is_active=True,
+        )
+        self.db.add(scenario)
+        self.db.flush()
+        competence.weekday_requirements = [
+            CompetenceWeekdayRequirement(
+                weekday=0,
+                required_count=1,
+                recovery_days=6,
+                scenario_id=scenario.id,
+            )
+        ]
+        self.db.add(competence)
+        self.db.flush()
+        self.db.add_all(
+            [
+                UserAmbulance(user_id=user.id, ambulance_id=ambulance.id, is_active=True)
+                for user in users
+            ]
+            + [
+                UserCompetence(user_id=user.id, competence_id=competence.id, is_active=True)
+                for user in users
+            ]
+        )
+        self.db.commit()
+
+        result = generate_ambulance_monthly_schedule(
+            self.db,
+            ambulance.id,
+            month=8,
+            year=2026,
+        )
+
+        # Every Monday of the month is staffed, but six days of rest reach
+        # past the next one, so the two employees have to take turns.
+        self.assertEqual(result.assignment_count, 5)
+        dates_by_employee: dict[int, list[date]] = {}
+        for entry in result.entries:
+            dates_by_employee.setdefault(entry.user_id, []).append(entry.work_date)
+        for work_dates in dates_by_employee.values():
+            ordered = sorted(work_dates)
+            for current, following in zip(ordered, ordered[1:]):
+                self.assertGreater((following - current).days, 6)
+
+    def test_loads_the_surcharge_flag_and_the_employee_duty_kind_wish(self) -> None:
+        """The employee who asked for the surcharged duties gets more of them."""
+        ambulance = Ambulance(name="Surcharge clinic", is_active=True)
+        wants_surcharge = User(
+            email="surcharge@example.com",
+            is_active=True,
+            shift_preference="surcharge",
+        )
+        wants_standard = User(
+            email="standard@example.com",
+            is_active=True,
+            shift_preference="standard",
+        )
+        indifferent = [
+            User(email=f"any{index}@example.com", is_active=True, shift_preference="any")
+            for index in range(2)
+        ]
+        users = [wants_surcharge, wants_standard, *indifferent]
+        self.db.add_all([ambulance, *users])
+        self.db.flush()
+        competence = Competence(
+            name="Triage",
+            required_count=0,
+            ambulance_id=ambulance.id,
+            is_active=True,
+        )
+        scenario = CompetenceScenario(
+            name="Scenario 1",
+            ambulance_id=ambulance.id,
+            is_selected=True,
+            is_active=True,
+        )
+        self.db.add(scenario)
+        self.db.flush()
+        # Only Monday is paid with a surcharge here, which is the opposite of
+        # what the weekend default would have said.
+        competence.weekday_requirements = [
+            CompetenceWeekdayRequirement(
+                weekday=weekday,
+                required_count=1,
+                is_surcharge=weekday == 0,
+                scenario_id=scenario.id,
+            )
+            for weekday in range(8)
+        ]
+        self.db.add(competence)
+        self.db.flush()
+        self.db.add_all(
+            [
+                UserAmbulance(user_id=user.id, ambulance_id=ambulance.id, is_active=True)
+                for user in users
+            ]
+            + [
+                UserCompetence(user_id=user.id, competence_id=competence.id, is_active=True)
+                for user in users
+            ]
+        )
+        self.db.commit()
+
+        result = generate_ambulance_monthly_schedule(
+            self.db,
+            ambulance.id,
+            month=8,
+            year=2026,
+        )
+
+        mondays = Counter(
+            entry.user_id for entry in result.entries if entry.work_date.weekday() == 0
+        )
+        workload = Counter(entry.user_id for entry in result.entries)
+
+        self.assertEqual(result.assignment_count, 31)
+        self.assertGreater(mondays[wants_surcharge.id], mondays[wants_standard.id])
+        self.assertLessEqual(max(workload.values()) - min(workload.values()), 1)
 
 
 if __name__ == "__main__":
