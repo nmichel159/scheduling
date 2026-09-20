@@ -514,97 +514,10 @@ const SchedulePrintView = () => {
     <div className="sprint">
       <style>{`@page { size: A4 ${orientation}; margin: ${PAGE_MARGIN_MM}mm; }`}</style>
 
-      <h1 className="sprint-title">{t('schedule_print.title')}</h1>
-
-      {error && <div className="sprint-banner">{error}</div>}
-
-      <div className="sprint-bar">
-        <select
-          className="sprint-select"
-          aria-label={t('schedule_print.month')}
-          value={month}
-          onChange={(event) => setMonth(Number(event.target.value))}
-        >
-          {MONTHS.map((index) => (
-            <option key={index} value={index}>
-              {t(`special_days.months.${index}`)}
-            </option>
-          ))}
-        </select>
-
-        <select
-          className="sprint-select"
-          aria-label={t('schedule_print.year')}
-          value={year}
-          onChange={(event) => setYear(Number(event.target.value))}
-        >
-          {years.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-
-        <div className="sprint-seg" role="group" aria-label={t('schedule_print.layout')}>
-          <button
-            type="button"
-            className={layout === 'competences' ? 'is-active' : ''}
-            onClick={() => setLayout('competences')}
-          >
-            {t('schedule_print.layout_competences')}
-          </button>
-          <button
-            type="button"
-            className={layout === 'employees' ? 'is-active' : ''}
-            onClick={() => setLayout('employees')}
-          >
-            {t('schedule_print.layout_employees')}
-          </button>
-        </div>
-
-        <div className="sprint-seg" role="group" aria-label={t('schedule_print.orientation')}>
-          <button
-            type="button"
-            className={orientation === 'portrait' ? 'is-active' : ''}
-            onClick={() => setOrientation('portrait')}
-          >
-            {t('schedule_print.portrait')}
-          </button>
-          <button
-            type="button"
-            className={orientation === 'landscape' ? 'is-active' : ''}
-            onClick={() => setOrientation('landscape')}
-          >
-            {t('schedule_print.landscape')}
-          </button>
-        </div>
-
-        <div className="sprint-seg" role="group" aria-label={t('schedule_print.names')}>
-          <button
-            type="button"
-            className={nameStyle === 'short' ? 'is-active' : ''}
-            onClick={() => setNameStyle('short')}
-          >
-            {t('schedule_print.names_short')}
-          </button>
-          <button
-            type="button"
-            className={nameStyle === 'full' ? 'is-active' : ''}
-            onClick={() => setNameStyle('full')}
-          >
-            {t('schedule_print.names_full')}
-          </button>
-        </div>
+      <header className="sprint-head">
+        <h1 className="sprint-title">{t('schedule_print.title')}</h1>
 
         <div className="sprint-actions">
-          <button
-            type="button"
-            className="sprint-btn sprint-btn-primary"
-            disabled={loading || buildingPdf}
-            onClick={handlePdf}
-          >
-            {buildingPdf ? t('schedule_print.pdf_building') : t('schedule_print.pdf')}
-          </button>
           <button
             type="button"
             className="sprint-btn"
@@ -621,6 +534,101 @@ const SchedulePrintView = () => {
           >
             {t('schedule_print.csv')}
           </button>
+          <button
+            type="button"
+            className="sprint-btn sprint-btn-primary"
+            disabled={loading || buildingPdf}
+            onClick={handlePdf}
+          >
+            {buildingPdf ? t('schedule_print.pdf_building') : t('schedule_print.pdf')}
+          </button>
+        </div>
+      </header>
+
+      {error && <div className="sprint-banner">{error}</div>}
+
+      <div className="sprint-bar">
+        <div className="sprint-group">
+          <select
+            className="sprint-select"
+            aria-label={t('schedule_print.month')}
+            value={month}
+            onChange={(event) => setMonth(Number(event.target.value))}
+          >
+            {MONTHS.map((index) => (
+              <option key={index} value={index}>
+                {t(`special_days.months.${index}`)}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="sprint-select"
+            aria-label={t('schedule_print.year')}
+            value={year}
+            onChange={(event) => setYear(Number(event.target.value))}
+          >
+            {years.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <span className="sprint-divider" aria-hidden="true" />
+
+        <div className="sprint-group">
+          <div className="sprint-seg" role="group" aria-label={t('schedule_print.layout')}>
+            <button
+              type="button"
+              className={layout === 'competences' ? 'is-active' : ''}
+              onClick={() => setLayout('competences')}
+            >
+              {t('schedule_print.layout_competences')}
+            </button>
+            <button
+              type="button"
+              className={layout === 'employees' ? 'is-active' : ''}
+              onClick={() => setLayout('employees')}
+            >
+              {t('schedule_print.layout_employees')}
+            </button>
+          </div>
+
+          <div className="sprint-seg" role="group" aria-label={t('schedule_print.orientation')}>
+            <button
+              type="button"
+              className={orientation === 'portrait' ? 'is-active' : ''}
+              onClick={() => setOrientation('portrait')}
+            >
+              {t('schedule_print.portrait')}
+            </button>
+            <button
+              type="button"
+              className={orientation === 'landscape' ? 'is-active' : ''}
+              onClick={() => setOrientation('landscape')}
+            >
+              {t('schedule_print.landscape')}
+            </button>
+          </div>
+
+          <div className="sprint-seg" role="group" aria-label={t('schedule_print.names')}>
+            <button
+              type="button"
+              className={nameStyle === 'short' ? 'is-active' : ''}
+              onClick={() => setNameStyle('short')}
+            >
+              {t('schedule_print.names_short')}
+            </button>
+            <button
+              type="button"
+              className={nameStyle === 'full' ? 'is-active' : ''}
+              onClick={() => setNameStyle('full')}
+            >
+              {t('schedule_print.names_full')}
+            </button>
+          </div>
         </div>
       </div>
 

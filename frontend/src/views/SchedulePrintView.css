@@ -6,8 +6,17 @@
   text-align: left;
 }
 
+.sprint-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
 .sprint-title {
-  margin: 0 0 14px;
+  margin: 0;
   font-size: 1.5rem;
   color: var(--text-h);
 }
@@ -21,14 +30,38 @@
   font-size: 0.85rem;
 }
 
-/* ---------- toolbar ---------- */
+/* ---------- toolbar ----------
+
+   Two rows, because the two things done here are not the same thing: the head
+   carries what leaves the screen (PDF, and the two file formats behind it),
+   the bar underneath carries what the sheet looks like. Keeping them apart is
+   what stops the row of controls reading as one undifferentiated strip. */
 
 .sprint-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 10px 12px;
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.sprint-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Separates the month from the sheet's shape; drops out once the bar wraps,
+   where a vertical rule between two stacked rows means nothing. */
+.sprint-divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 24px;
+  background: var(--border);
 }
 
 .sprint-select,
@@ -36,9 +69,20 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--background);
-  color: inherit;
+  color: var(--text-h);
   font: inherit;
-  padding: 6px 10px;
+  font-size: 0.9rem;
+  padding: 7px 12px;
+  line-height: 1.2;
+}
+
+.sprint-select {
+  cursor: pointer;
+}
+
+.sprint-select:hover,
+.sprint-seg:hover {
+  border-color: var(--primary);
 }
 
 .sprint-btn {
@@ -46,50 +90,75 @@
 }
 
 .sprint-btn:hover:not(:disabled) {
-  background: var(--primary-background);
+  border-color: var(--primary);
 }
 
-.sprint-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
+.sprint-btn:disabled,
+.sprint-seg button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
+/* The one action the page exists for, so it is the only filled control here. */
 .sprint-btn-primary {
   border-color: var(--primary);
-  color: var(--primary);
+  background: var(--primary);
+  color: #fff;
   font-weight: 600;
+  /* Holds its width while the label swaps for the "preparing" one, so the row
+     of buttons does not shuffle sideways mid-click. */
+  min-width: 10em;
 }
 
+.sprint-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.sprint-select:focus-visible,
+.sprint-btn:focus-visible,
+.sprint-seg button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* A track with the chosen option lifted out of it: the choice reads at a
+   glance without a label having to name what is being chosen. */
 .sprint-seg {
   display: inline-flex;
   border: 1px solid var(--border);
   border-radius: 8px;
-  overflow: hidden;
+  background: var(--primary-background);
+  padding: 2px;
+  gap: 2px;
 }
 
 .sprint-seg button {
   border: 0;
+  border-radius: 6px;
   background: transparent;
-  color: inherit;
+  color: var(--text);
   font: inherit;
-  padding: 6px 12px;
+  font-size: 0.85rem;
+  padding: 5px 12px;
+  line-height: 1.2;
   cursor: pointer;
 }
 
-.sprint-seg button + button {
-  border-left: 1px solid var(--border);
+.sprint-seg button:hover:not(:disabled):not(.is-active) {
+  color: var(--text-h);
 }
 
 .sprint-seg button.is-active {
-  background: var(--primary-background);
-  color: var(--primary);
+  background: var(--background);
+  color: var(--text-h);
   font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 .sprint-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
-  margin-left: auto;
 }
 
 /* ---------- the sheet ----------
@@ -278,8 +347,12 @@
 }
 
 @media (max-width: 768px) {
-  .sprint-actions {
-    margin-left: 0;
+  .sprint-head {
+    align-items: flex-start;
+  }
+
+  .sprint-divider {
+    display: none;
   }
 }
 
