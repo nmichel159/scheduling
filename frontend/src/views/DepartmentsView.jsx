@@ -10,9 +10,15 @@ import {
   removeEmployeeFromAmbulance,
   fetchAllUsers,
 } from '../services/competenceService';
+import {
+  SHIFT_PREFERENCE,
+  fetchEmployeeSettings,
+  saveEmployeeSettings,
+} from '../services/employeeService';
 import { useWorkplace, useWorkplaceSwitchGuard } from '../hooks/workplaceContext';
 import CompetenceMatrix from '../components/CompetenceMatrix';
 import ConfirmDialog from '../components/ConfirmDialog';
+import EmployeeDetailDialog from '../components/EmployeeDetailDialog';
 import {
   ISO_WEEKDAYS,
   fingerprintCompetenceRequirements,
@@ -65,6 +71,13 @@ const fingerprintRows = (list) =>
  * "Save": added/removed employees are synced first (membership calls),
  * then the whole competence table is written in a single bulk PUT, and
  * any changed required_counts are patched per-competence.
+ *
+ * A name in the table opens that person's profile — the same editable
+ * dialog the employees screen opens, so the competences of one person can
+ * be set by reading their card rather than by finding their row in a wide
+ * grid. It is not a second way to write: its picks are folded into the
+ * same draft and go out through the same `persist`, which is what keeps it
+ * from overwriting an edit made in the matrix behind it.
  */
 const DepartmentsView = () => {
   const { t } = useTranslation();
@@ -89,6 +102,8 @@ const DepartmentsView = () => {
   const [tableLoading, setTableLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmState, setConfirmState] = useState(null);
+  const [profile, setProfile] = useState(null); // { userId, settings }
+  const [openingProfile, setOpeningProfile] = useState(null); // user id
 
   const notify = (msg) => {
     setToast(msg);
@@ -243,13 +258,27 @@ const DepartmentsView = () => {
 
   /* ---------- save: membership diff + bulk competence PUT + required_count patches ---------- */
 
-  const handleSave = async () => {
+  /**
+   * Write one draft of the table.
+   *
+   * It takes the rows to write instead of reading them off state: the
+   * profile dialog folds its own picks in and saves in the same tick, and
+   * state set a moment earlier is not visible here yet.
+   *
+   * `profileWrite` carries the one person's scheduling preferences the
+   * dialog collected. They are not part of the table draft — they are a
+   * record of their own — but they go in the same pass, so the dialog's
+   * button means one thing and lands either wholly or not at all. It is
+   * written last on purpose: somebody added to the draft a moment ago only
+   * becomes an employee of this workplace in the membership step above.
+   */
+  const persist = async (draftRows, profileWrite = null) => {
     if (selectedId == null || saving) return;
     setSaving(true);
     try {
       const originalIds = new Set(originalRows.map((r) => r.user_id));
-      const currentIds = new Set(rows.map((r) => r.user_id));
-      const added = rows.filter((r) => !originalIds.has(r.user_id));
+      const currentIds = new Set(draftRows.map((r) => r.user_id));
+      const added = draftRows.filter((r) => !originalIds.has(r.user_id));
       const removed = originalRows.filter((r) => !currentIds.has(r.user_id));
 
       const failedAdds = new Set();
@@ -279,7 +308,7 @@ const DepartmentsView = () => {
       // fields, so this is safe to send today and just needs šéf to add
       // real per-weekday persistence on the backend (see Slack) before it
       // actually takes effect.
-      const payload = rows
+      const payload = draftRows
         .filter((r) => !failedAdds.has(r.user_id))
         .map((r) => {
           const entries = Object.entries(r.competenceDays).filter(([, days]) => days.length > 0);
@@ -315,13 +344,85 @@ const DepartmentsView = () => {
         }
       }
 
+      if (profileWrite) {
+        try {
+          await saveEmployeeSettings(
+            selectedId,
+            profileWrite.userId,
+            profileWrite.settings
+          );
+        } catch {
+          notify(t('departments.action_error'));
+        }
+      }
+
       await loadTable();
+      setProfile(null);
       notify(t('departments.saved'));
     } catch {
       notify(t('departments.save_error'));
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSave = () => persist(rows);
+
+  /* ---------- one person's profile ----------
+   *
+   * The same dialog the employees screen opens, and editable here too:
+   * competences are what this screen is about, and the duty wish and
+   * duty-kind preference travel with the person rather than with the
+   * table, so they are read when the dialog opens.
+   *
+   * Without the month panels the employees screen shows, though. This
+   * screen has no month and no way to leave one, so a column of September
+   * numbers would be a worse answer than none — the employees screen is
+   * where a month is a question that can be asked.
+   */
+
+  const openProfile = async (userId) => {
+    if (selectedId == null || openingProfile != null) return;
+    /* Somebody added to the draft a moment ago is not an employee of the
+     * workplace yet, so there is nothing on the server to read for them. */
+    if (!originalRows.some((r) => r.user_id === userId)) {
+      setProfile({
+        userId,
+        settings: {
+          max_shifts_per_month: null,
+          shift_preference: SHIFT_PREFERENCE.ANY,
+        },
+      });
+      return;
+    }
+    setOpeningProfile(userId);
+    try {
+      setProfile({ userId, settings: await fetchEmployeeSettings(selectedId, userId) });
+    } catch {
+      notify(t('departments.load_error'));
+    } finally {
+      setOpeningProfile(null);
+    }
+  };
+
+  /** Fold the dialog's picks into the draft, then let `persist` write it.
+   *  The dialog never writes the table on its own, so it cannot undo an
+   *  edit made in the matrix behind it. */
+  const handleProfileSave = ({ competence_ids: competenceIds, ...settings }) => {
+    if (!profile) return undefined;
+    const { userId } = profile;
+    const nextRows = rows.map((row) =>
+      row.user_id === userId
+        ? {
+            ...row,
+            competenceDays: Object.fromEntries(
+              competenceIds.map((id) => [id, [...ISO_WEEKDAYS]])
+            ),
+          }
+        : row
+    );
+    setRows(nextRows);
+    return persist(nextRows, { userId, settings });
   };
 
   /* ---------- render ---------- */
@@ -340,6 +441,12 @@ const DepartmentsView = () => {
       </div>
     );
   }
+
+  const profileRow =
+    (profile && rows.find((r) => r.user_id === profile.userId)) || null;
+  const profileCompetences = profileRow
+    ? columns.filter((c) => (profileRow.competenceDays[c.id] || []).length > 0)
+    : [];
 
   return (
     <div className="departments">
@@ -378,6 +485,7 @@ const DepartmentsView = () => {
                 onToggleWeek={toggleWeek}
                 onAddRow={addRow}
                 onRemoveRow={removeRow}
+                onOpenProfile={openProfile}
               />
             </>
           )}
@@ -389,6 +497,17 @@ const DepartmentsView = () => {
           {toast}
         </div>
       )}
+
+      <EmployeeDetailDialog
+        key={profile ? profile.userId : 'none'}
+        employee={profileRow}
+        competences={profileCompetences}
+        allCompetences={columns}
+        settings={profile ? profile.settings : null}
+        saving={saving}
+        onSave={handleProfileSave}
+        onClose={() => setProfile(null)}
+      />
 
       <ConfirmDialog
         open={!!confirmState}

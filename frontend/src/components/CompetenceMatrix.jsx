@@ -6,7 +6,6 @@ import {
   SPECIAL_DAY_SLOT,
   requiredCountForGroup,
 } from '../utils/competenceRequirements';
-import EmployeeDetailDialog from './EmployeeDetailDialog';
 import './CompetenceMatrix.css';
 
 /**
@@ -49,6 +48,9 @@ import './CompetenceMatrix.css';
  * - onToggleWeek(userId, competenceId) — assign/clear the competence for the whole week
  * - onAddRow(user)
  * - onRemoveRow(userId)
+ * - onOpenProfile(userId) — the name is a link to the person's profile; the
+ *   parent owns the dialog, because opening it reads the workplace's own
+ *   record of that person and saving it writes the table
  *
  * The competence list itself (adding/removing a competence of the
  * ambulance) is NOT editable here — it belongs to the competence-scenario
@@ -63,6 +65,7 @@ const CompetenceMatrix = ({
   onToggleWeek,
   onAddRow,
   onRemoveRow,
+  onOpenProfile,
 }) => {
   const { t } = useTranslation();
 
@@ -70,7 +73,6 @@ const CompetenceMatrix = ({
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
   const [removingRowId, setRemovingRowId] = useState(null);
-  const [detailRowId, setDetailRowId] = useState(null);
 
   /* ---------- required head-count rows (read-only) ---------- */
 
@@ -216,7 +218,6 @@ const CompetenceMatrix = ({
 
   const competenceColSpan = Math.max(columns.length, 1);
   const removingRow = rows.find((r) => r.user_id === removingRowId) || null;
-  const detailRow = rows.find((r) => r.user_id === detailRowId) || null;
 
   /* Below the anchor when it fits, above it when it doesn't, always inside
    * the viewport. `height` is 0 on the very first paint (nothing measured
@@ -398,7 +399,7 @@ const CompetenceMatrix = ({
                       <button
                         type="button"
                         className="cmatrix-row-name"
-                        onClick={() => setDetailRowId(r.user_id)}
+                        onClick={() => onOpenProfile(r.user_id)}
                         title={t('competences.employee_detail')}
                       >
                         <span className="cmatrix-row-name-text">
@@ -498,16 +499,6 @@ const CompetenceMatrix = ({
           </div>,
           document.body
         )}
-
-      <EmployeeDetailDialog
-        employee={detailRow}
-        competences={
-          detailRow
-            ? columns.filter((c) => (detailRow.competenceDays[c.id] || []).length > 0)
-            : []
-        }
-        onClose={() => setDetailRowId(null)}
-      />
     </section>
   );
 };
