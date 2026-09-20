@@ -296,6 +296,43 @@
       "expected_status": 200
     },
     {
+      "name": "fill_request_groups",
+      "method": "GET",
+      "path": "/ambulances/mail/fill-request-groups",
+      "expected_status": 200
+    },
+    {
+      "name": "fill_request_template",
+      "method": "GET",
+      "path": "/ambulances/mail/fill-request-template",
+      "expected_status": 200
+    },
+    {
+      "name": "schedule_mail_recipients",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/mail-recipients",
+      "expected_status": 200
+    },
+    {
+      "name": "schedule_mail_preview",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/schedule/mail-preview",
+      "params": {
+        "month": "${BENCHMARK_MONTH}",
+        "year": "${BENCHMARK_YEAR}"
+      },
+      "expected_status": 200
+    },
+    {
+      "name": "schedule_mail_log",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/schedule/mail-log",
+      "params": {
+        "limit": 100
+      },
+      "expected_status": 200
+    },
+    {
       "name": "yearly_statistics",
       "method": "GET",
       "path": "/statistics/yearly",
