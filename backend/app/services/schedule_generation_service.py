@@ -5,24 +5,37 @@ plan the rest of a month that is already partly worked. The second is the
 first with ``generate_from`` set and the duties already placed handed in as
 ``fixed_assignments``.
 
-What the objective is made of, from the strongest term to the weakest:
+It is solved in two passes. The first asks for the fairest roster the month
+allows and ignores everybody's wishes; the second writes the balance that
+pass reached into the model as a rule of its own and then settles the wishes
+underneath it. Splitting the question that way is what makes the promise
+exact -- no number of honored requests can buy a less balanced roster,
+because a less balanced roster is no longer allowed -- and it is also what
+makes it quick, because neither pass has to weigh a whole hour of fairness
+against a fraction of somebody's preference.
+
+What each pass is made of, from the strongest term to the weakest:
 
 1. Hard constraints -- coverage, availability, one duty a day, the recovery
-   the workplace configured for each duty, and every manually placed duty.
+   the workplace configured for each duty (and, for a duty worked at another
+   workplace, the recovery that one configured), and every manually placed
+   duty.
 2. The monthly wish. A duty past what an employee said they want costs
    :data:`OVER_WISH_DUTY_COST`, far above any balance step, so it happens
    only when the month cannot be staffed otherwise.
-3. The balance. Three convex load ladders per employee -- all duties,
-   surcharged duties and ordinary ones -- so that neither the total nor
-   either kind piles up on one person. The employee's own
-   ``shift_preference`` tilts the two kind ladders, which is how "I would
-   rather have the surcharged days" is honored without anyone being handed
-   all of them.
-4. The day wishes. Requested days are rewarded, reluctant days penalized,
-   each from a fixed budget that cannot add up to a single balance step.
-5. The spread. A duty crowded into the same week as others costs a little,
-   from the smallest budget of all, so it only orders schedules that are
-   already equally good by every rule above.
+3. The balance. Four convex load ladders per employee -- all duties,
+   surcharged duties, ordinary ones, and the hours behind them all -- so
+   that neither the total, nor either kind, nor the time it takes piles up
+   on one person. The employee's own ``shift_preference`` tilts the two
+   kind ladders, which is how "I would rather have the surcharged days" is
+   honored without anyone being handed all of them.
+
+Then, under the balance the first pass reached:
+
+4. The day wishes. A day somebody asked for is rewarded, a day they would
+   rather not work is penalized.
+5. The spread. A week holding every duty it physically can costs a tenth of
+   a day wish, so duties end up further apart wherever that is free.
 """
 
 from __future__ import annotations
@@ -32,12 +45,16 @@ from calendar import monthrange
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import date, timedelta
+from math import ceil
+from time import perf_counter
 
 from pulp import (
     LpAffineExpression,
     LpMinimize,
     LpProblem,
-    LpStatus,
+    LpSolutionIntegerFeasible,
+    LpSolutionOptimal,
+    LpStatusNotSolved,
     LpVariable,
     PULP_CBC_CMD,
     lpSum,
@@ -50,6 +67,7 @@ from app.models.associations import UserAmbulance, UserCompetence
 from app.models.competence import Competence
 from app.models.competence_weekday_requirement import (
     DEFAULT_RECOVERY_DAYS,
+    DEFAULT_SHIFT_HOURS,
     SPECIAL_DAY_SLOT,
     CompetenceWeekdayRequirement,
     default_is_surcharge,
@@ -94,6 +112,15 @@ BALANCE_UNIT_COST = 4
 PREFERRED_KIND_UNIT_COST = 3
 DISPREFERRED_KIND_UNIT_COST = 5
 
+#: What the hours behind the duties cost, on a ladder of their own. A duty
+#: is one thing and the time it takes is another: where every duty is the
+#: same length the two ladders say the same thing, and where four-hour and
+#: twelve-hour duties are mixed the roster comes out level in both. The
+#: ladder is stepped in duty-sized pieces -- the mean length of the duties
+#: the month actually demands -- so nobody is measured against a scale the
+#: rest of the roster is not measured against.
+HOURS_UNIT_COST = 4
+
 # What one duty above an employee's monthly wish costs. The wish is a wish,
 # not a cap: exceeding it stays feasible, but at a price far above any
 # balance step, so the solver only does it when the month cannot be staffed
@@ -101,12 +128,13 @@ DISPREFERRED_KIND_UNIT_COST = 5
 OVER_WISH_DUTY_COST = 1000.0
 
 # --- Day wishes -----------------------------------------------------------
-# Each budget is shared by every day it covers, so the whole term stays below
-# the cheapest balance step no matter how large the month is. Wishes
-# therefore order schedules that are already equally balanced and can never
-# buy an honored request with a less balanced roster.
-PREFERENCE_REWARD_BUDGET = 0.4
-SOFT_DECLINE_PENALTY_BUDGET = 0.4
+# The wishes are not weighed against the balance at all: they are settled in
+# a second pass, once the balance the first pass reached has been written
+# into the model as a constraint. A wish therefore cannot buy a less
+# balanced roster however many of them there are, and these weights only say
+# how the wishes rank against each other.
+PREFERRED_DAY_REWARD = 10.0
+SOFT_DECLINE_PENALTY = 10.0
 
 # --- Spread ---------------------------------------------------------------
 #: How long a stretch the spread rule looks at. A week that holds as many
@@ -114,12 +142,10 @@ SOFT_DECLINE_PENALTY_BUDGET = 0.4
 #: inside it -- is what "crowded" means here, which is a question that keeps
 #: its meaning whether the employee works four duties a month or fifteen.
 SPREAD_WINDOW_DAYS = 7
-#: The smallest budget in the model, shared by every crowded window, so the
-#: spread is the last thing to decide between two otherwise equal schedules.
-SPREAD_PENALTY_BUDGET = 0.15
-
-# 0.4 + 0.4 + 0.15 < 1: all three wish terms together cannot pay for a single
-# step of imbalance.
+#: What one crowded week costs, against ten for a day wish: pushing duties
+#: apart is worth having, and worth a tenth of somebody getting the day they
+#: asked for.
+CROWDED_WINDOW_PENALTY = 1.0
 
 
 @dataclass(frozen=True)
@@ -153,6 +179,10 @@ class SchedulingCompetence:
     #: given another duty. ``None`` means one day, the editor's default.
     weekday_recovery_days: tuple[int, ...] | None = None
     special_day_recovery_days: int | None = None
+    #: How long a duty on each weekday lasts. ``None`` means the four hours
+    #: a new competence starts out with.
+    weekday_shift_hours: tuple[float, ...] | None = None
+    special_day_shift_hours: float | None = None
 
     def _slot(self, work_date: date) -> int:
         """Which of the eight day slots answers for a concrete date."""
@@ -189,6 +219,15 @@ class SchedulingCompetence:
             return DEFAULT_RECOVERY_DAYS
         return self.weekday_recovery_days[work_date.weekday()]
 
+    def shift_hours_on(self, work_date: date) -> float:
+        """How long a duty on this date lasts."""
+        slot = self._slot(work_date)
+        if slot == SPECIAL_DAY_SLOT and self.special_day_shift_hours is not None:
+            return self.special_day_shift_hours
+        if self.weekday_shift_hours is None:
+            return DEFAULT_SHIFT_HOURS
+        return self.weekday_shift_hours[work_date.weekday()]
+
 
 @dataclass(frozen=True)
 class SchedulingEmployee:
@@ -208,6 +247,10 @@ class SchedulingEmployee:
     #: Which kind of duty the employee would rather be given. It tilts the
     #: balance rather than filtering anything out.
     shift_preference: str = ANY_PREFERENCE
+    #: Duties worked at another workplace, each with the rest that workplace
+    #: earns it. A date missing from here is still an absence; it just falls
+    #: back to the longest rest this workplace would have asked for.
+    external_commitments: tuple[tuple[date, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -302,27 +345,40 @@ def _is_hard_unavailability(reason: str | None) -> bool:
     )
 
 
-def _maximum_spaced_days(
+def _best_spaced_value(
     candidate_dates: Iterable[date],
     recovery_of: Callable[[date], int],
-) -> int:
-    """Return the most duties possible once every duty claims its rest.
+    value_of: Callable[[date], float],
+) -> float:
+    """Return the most an employee can take once every duty claims its rest.
 
     A duty on a date blocks the next ``recovery_of(date)`` days, and the two
     duties bounding the answer need not be the earliest ones -- an early date
     demanding a long rest can be worth skipping. The exact answer therefore
     comes from a backward pass over the dates rather than from taking each
-    one as it comes.
+    one as it comes. ``value_of`` is what one duty on a date is worth: one,
+    when the question is how many duties, or its hours when it is how long
+    they last.
     """
     ordered = sorted(candidate_dates)
-    best_from = [0] * (len(ordered) + 1)
+    best_from = [0.0] * (len(ordered) + 1)
     for position in range(len(ordered) - 1, -1, -1):
         earliest_next = ordered[position] + timedelta(
             days=recovery_of(ordered[position]) + 1
         )
         resume = bisect_left(ordered, earliest_next, position + 1)
-        best_from[position] = max(best_from[position + 1], 1 + best_from[resume])
+        best_from[position] = max(
+            best_from[position + 1], value_of(ordered[position]) + best_from[resume]
+        )
     return best_from[0]
+
+
+def _maximum_spaced_days(
+    candidate_dates: Iterable[date],
+    recovery_of: Callable[[date], int],
+) -> int:
+    """Return the most duties possible once every duty claims its rest."""
+    return int(_best_spaced_value(candidate_dates, recovery_of, lambda _date: 1.0))
 
 
 def _kind_unit_cost(preference: str, is_surcharge: bool) -> int:
@@ -337,23 +393,29 @@ def _kind_unit_cost(preference: str, is_surcharge: bool) -> int:
 def _load_ladder(
     problem: LpProblem,
     name: str,
-    assigned: list[LpVariable],
-    maximum: int,
+    load: LpAffineExpression,
+    maximum: float,
     unit_cost: int,
+    step_size: float = 1.0,
 ) -> list[LpAffineExpression]:
-    """Charge an ever-growing price for each further duty of one load.
+    """Charge an ever-growing price for each further piece of one load.
 
-    The level variables are continuous on purpose. The prices rise with the
-    level, so the cheapest way to account for a load is always to fill the
-    lowest levels first, and no integrality has to be imposed to get there.
+    A piece is one duty when the load is counted in duties, and a duty worth
+    of hours when it is counted in hours. The level variables are continuous
+    on purpose: the prices rise with the level, so the cheapest way to
+    account for a load is always to fill the lowest levels first, and no
+    integrality has to be imposed to get there.
     """
-    if maximum <= 0 or not assigned:
+    if maximum <= 0 or step_size <= 0:
+        return []
+    steps = int(ceil(maximum / step_size - 1e-9))
+    if steps <= 0:
         return []
     levels = [
         LpVariable(f"level_{name}_{step}", lowBound=0, upBound=1)
-        for step in range(1, maximum + 1)
+        for step in range(1, steps + 1)
     ]
-    problem += (lpSum(levels) == lpSum(assigned), f"load_{name}")
+    problem += (lpSum(levels) * step_size == load, f"load_{name}")
     return [
         (unit_cost * (2 * step - 1)) * level
         for step, level in enumerate(levels, start=1)
@@ -527,6 +589,44 @@ def _detect_fixed_assignment_conflicts(
     return issues
 
 
+#: How far the second pass may drift above the balance the first one
+#: reached. It is there for the rounding a solver does on hours that are not
+#: whole numbers, and is far below one duty or one hour of imbalance.
+_BALANCE_LOCK_TOLERANCE = 1e-4
+
+
+def _run_solver(problem: LpProblem, seconds: float) -> None:
+    """Hand the model to CBC with a share of the time budget."""
+    problem.solve(PULP_CBC_CMD(msg=False, timeLimit=max(1, int(seconds))))
+
+
+def _has_solution(problem: LpProblem) -> bool:
+    """Whether the run came back with a schedule worth keeping.
+
+    A schedule that keeps every hard rule is worth having even when the
+    solver ran out of time before it could prove that nothing better exists,
+    so the manager gets a usable month rather than an error. Only a run that
+    found no schedule at all has failed.
+    """
+    return problem.sol_status in (LpSolutionOptimal, LpSolutionIntegerFeasible)
+
+
+def _snapshot(
+    variables: dict[tuple[int, int, date], LpVariable],
+) -> dict[tuple[int, int, date], float]:
+    """Remember what one pass decided, in case the next one finds nothing."""
+    return {key: (variable.varValue or 0.0) for key, variable in variables.items()}
+
+
+def _restore(
+    variables: dict[tuple[int, int, date], LpVariable],
+    remembered: dict[tuple[int, int, date], float],
+) -> None:
+    """Put a remembered decision back on the variables."""
+    for key, variable in variables.items():
+        variable.varValue = remembered.get(key, 0.0)
+
+
 def solve_monthly_schedule(
     employees: list[SchedulingEmployee],
     competences: list[SchedulingCompetence],
@@ -649,9 +749,10 @@ def solve_monthly_schedule(
             (work_date, duty_recovery(competence_id, work_date))
         )
     for employee in employees:
+        elsewhere = dict(employee.external_commitments)
         for work_date in employee.externally_scheduled_dates:
             commitments.setdefault(employee.id, []).append(
-                (work_date, foreign_recovery(work_date))
+                (work_date, elsewhere.get(work_date, foreign_recovery(work_date)))
             )
 
     problem = LpProblem("ambulance_monthly_schedule", LpMinimize)
@@ -760,6 +861,19 @@ def solve_monthly_schedule(
                 f"rest_{employee.id}_{work_date.isoformat()}",
             )
 
+    # One duty worth of hours, averaged over everything the month asks for.
+    # It is what the hour ladder is stepped in, so that an employee working
+    # duties of ordinary length climbs it at the same rate as they climb the
+    # ladder that counts their duties.
+    demanded_duties = 0
+    demanded_hours = 0.0
+    for competence in competences:
+        for work_date in window_days:
+            required = competence.required_on(work_date)
+            demanded_duties += required
+            demanded_hours += required * competence.shift_hours_on(work_date)
+    average_duty_hours = demanded_hours / demanded_duties if demanded_duties else 0.0
+
     objective_terms: list[LpAffineExpression] = []
     crowded_windows: list[LpVariable] = []
     variables_by_user: dict[int, list[tuple[int, date, LpVariable]]] = {}
@@ -787,19 +901,25 @@ def solve_monthly_schedule(
         standard_variables: list[LpVariable] = []
         surcharge_dates: set[date] = set()
         standard_dates: set[date] = set()
+        hours_load: list[LpAffineExpression] = []
+        longest_duty: dict[date, float] = {}
         for competence_id, work_date, variable in variables_by_user[employee.id]:
-            if competences_by_id[competence_id].is_surcharge_on(work_date):
+            competence = competences_by_id[competence_id]
+            if competence.is_surcharge_on(work_date):
                 surcharge_variables.append(variable)
                 surcharge_dates.add(work_date)
             else:
                 standard_variables.append(variable)
                 standard_dates.add(work_date)
+            hours = competence.shift_hours_on(work_date)
+            hours_load.append(hours * variable)
+            longest_duty[work_date] = max(longest_duty.get(work_date, 0.0), hours)
 
         objective_terms.extend(
             _load_ladder(
                 problem,
                 f"total_{employee.id}",
-                employee_variables,
+                lpSum(employee_variables),
                 _maximum_spaced_days(candidate_dates, shortest_recovery),
                 BALANCE_UNIT_COST,
             )
@@ -808,7 +928,7 @@ def solve_monthly_schedule(
             _load_ladder(
                 problem,
                 f"surcharge_{employee.id}",
-                surcharge_variables,
+                lpSum(surcharge_variables),
                 _maximum_spaced_days(surcharge_dates, shortest_recovery),
                 _kind_unit_cost(employee.shift_preference, True),
             )
@@ -817,9 +937,21 @@ def solve_monthly_schedule(
             _load_ladder(
                 problem,
                 f"standard_{employee.id}",
-                standard_variables,
+                lpSum(standard_variables),
                 _maximum_spaced_days(standard_dates, shortest_recovery),
                 _kind_unit_cost(employee.shift_preference, False),
+            )
+        )
+        objective_terms.extend(
+            _load_ladder(
+                problem,
+                f"hours_{employee.id}",
+                lpSum(hours_load),
+                _best_spaced_value(
+                    candidate_dates, shortest_recovery, longest_duty.__getitem__
+                ),
+                HOURS_UNIT_COST,
+                average_duty_hours,
             )
         )
 
@@ -863,63 +995,73 @@ def solve_monthly_schedule(
             )
             objective_terms.append(OVER_WISH_DUTY_COST * over_wish)
 
-    objective = lpSum(objective_terms)
+    balance = lpSum(objective_terms)
 
     preferred_variables = [
         variable
         for (user_id, _competence_id, work_date), variable in variables.items()
         if work_date in preferred_dates_by_employee.get(user_id, frozenset())
     ]
-    if preferred_variables:
-        # Spreading one fixed budget over every request keeps the reward below
-        # the cheapest balance step no matter how large the month is, so the
-        # solver maximizes honored requests strictly inside the set of optimally
-        # balanced schedules.
-        preference_reward = PREFERENCE_REWARD_BUDGET / (len(preferred_variables) + 1)
-        objective -= preference_reward * lpSum(preferred_variables)
-
     soft_declined_variables = [
         variable
         for (user_id, _competence_id, work_date), variable in variables.items()
         if work_date in soft_declined_dates_by_employee.get(user_id, frozenset())
     ]
-    if soft_declined_variables:
-        decline_penalty = SOFT_DECLINE_PENALTY_BUDGET / (
-            len(soft_declined_variables) + 1
-        )
-        objective += decline_penalty * lpSum(soft_declined_variables)
-
-    if crowded_windows:
-        spread_penalty = SPREAD_PENALTY_BUDGET / (len(crowded_windows) + 1)
-        objective += spread_penalty * lpSum(crowded_windows)
-
-    problem += objective
-    problem.solve(
-        PULP_CBC_CMD(
-            msg=False,
-            timeLimit=settings.SCHEDULE_SOLVER_TIME_LIMIT_SECONDS,
-        )
+    wishes = (
+        CROWDED_WINDOW_PENALTY * lpSum(crowded_windows)
+        + SOFT_DECLINE_PENALTY * lpSum(soft_declined_variables)
+        - PREFERRED_DAY_REWARD * lpSum(preferred_variables)
     )
 
-    solver_status = LpStatus[problem.status]
-    if solver_status == "Not Solved":
-        raise ScheduleGenerationError(
-            "Schedule generation exceeded the configured time limit.",
-            [
-                {
-                    "code": "solver_timeout",
-                    "time_limit_seconds": settings.SCHEDULE_SOLVER_TIME_LIMIT_SECONDS,
-                }
-            ],
-        )
-    if solver_status != "Optimal":
+    # First pass: the fairest roster the month allows, with nobody's wishes
+    # in the way. It is solved on its own because that is a question with
+    # coarse answers -- one duty, one hour -- which a solver settles quickly.
+    deadline = float(settings.SCHEDULE_SOLVER_TIME_LIMIT_SECONDS)
+    started = perf_counter()
+    problem.setObjective(balance)
+    _run_solver(problem, deadline)
+    if not _has_solution(problem):
+        if problem.status == LpStatusNotSolved:
+            raise ScheduleGenerationError(
+                "Schedule generation ran out of time before it found any schedule.",
+                [
+                    {
+                        "code": "solver_timeout",
+                        "time_limit_seconds": (
+                            settings.SCHEDULE_SOLVER_TIME_LIMIT_SECONDS
+                        ),
+                    }
+                ],
+            )
         raise ScheduleGenerationError(
             "No feasible schedule satisfies all coverage, availability, and rotation constraints.",
             [{"code": "constraint_conflict"}],
         )
+    balanced = _snapshot(variables)
+    reached = value(balance)
+
+    # Second pass: the wishes, with the balance just reached written into the
+    # model as a rule of its own. Asking the question this way is what makes
+    # the promise exact -- no number of honored requests can buy a less
+    # balanced roster, because a less balanced roster is no longer allowed --
+    # and it is also what keeps the search honest, because the wishes are now
+    # the only thing left to decide.
+    if wishes and reached is not None:
+        problem += (
+            balance <= reached + _BALANCE_LOCK_TOLERANCE + abs(reached) * 1e-7,
+            "balance_reached",
+        )
+        problem.setObjective(wishes)
+        remaining = max(1.0, deadline - (perf_counter() - started))
+        _run_solver(problem, remaining)
+        if not _has_solution(problem):
+            # The wishes are a courtesy; the balanced roster is the answer.
+            _restore(variables, balanced)
 
     assignments = [
-        GeneratedAssignment(user_id=user_id, competence_id=competence_id, work_date=work_date)
+        GeneratedAssignment(
+            user_id=user_id, competence_id=competence_id, work_date=work_date
+        )
         for (user_id, competence_id, work_date), variable in variables.items()
         if value(variable) is not None and value(variable) > 0.5
     ]
@@ -954,6 +1096,59 @@ def _slot_value(
     if row is None:
         return fallback
     return getattr(row, attribute)
+
+
+def _foreign_recovery_reader(
+    db: Session, ambulance_ids: set[int], first: date, last: date
+) -> Callable[[int, int, date], int]:
+    """Read how much rest a duty at another workplace earns its holder.
+
+    An employee lent to a second workplace comes back needing whatever rest
+    that workplace asks for, not whatever this one would have asked. The
+    answer lives in the other workplace's own selected scenario and its own
+    day-of-rest calendar, so that is where it is read from; a workplace that
+    has no scenario yet falls back to the usual one day.
+    """
+    slots_by_competence: dict[int, dict[int, CompetenceWeekdayRequirement]] = {}
+    rest_days_by_ambulance: dict[int, set[date]] = {}
+    for other_id in sorted(ambulance_ids):
+        rest_days_by_ambulance[other_id] = rest_days_between(db, other_id, first, last)
+        scenario = get_selected_scenario(db, other_id)
+        if scenario is None:
+            continue
+        requirement_rows = (
+            db.query(CompetenceWeekdayRequirement)
+            .join(
+                Competence,
+                Competence.id == CompetenceWeekdayRequirement.competence_id,
+            )
+            .filter(
+                CompetenceWeekdayRequirement.scenario_id == scenario.id,
+                Competence.ambulance_id == other_id,
+            )
+            .all()
+        )
+        for row in requirement_rows:
+            slots_by_competence.setdefault(row.competence_id, {})[row.weekday] = row
+
+    def recovery_days(
+        ambulance_id: int, competence_id: int, work_date: date
+    ) -> int:
+        slot = (
+            SPECIAL_DAY_SLOT
+            if work_date in rest_days_by_ambulance.get(ambulance_id, set())
+            else work_date.weekday()
+        )
+        return int(
+            _slot_value(
+                slots_by_competence.get(competence_id, {}),
+                slot,
+                "recovery_days",
+                DEFAULT_RECOVERY_DAYS,
+            )
+        )
+
+    return recovery_days
 
 
 def generate_ambulance_monthly_schedule(
@@ -1062,12 +1257,20 @@ def generate_ambulance_monthly_schedule(
     externally_scheduled_dates: dict[int, set[date]] = {
         user_id: set() for user_id in user_ids
     }
+    external_commitments: dict[int, list[tuple[date, int]]] = {
+        user_id: [] for user_id in user_ids
+    }
     adjacent_assignments: set[tuple[int, int, date]] = set()
     if user_ids:
         # A long recovery reaches further than one day, so duties on either
         # side of the month are read as far out as any of them can reach.
         external_schedule_rows = (
-            db.query(Schedule.user_id, Schedule.work_date)
+            db.query(
+                Schedule.user_id,
+                Schedule.ambulance_id,
+                Schedule.competence_id,
+                Schedule.work_date,
+            )
             .filter(
                 Schedule.user_id.in_(user_ids),
                 Schedule.ambulance_id != ambulance_id,
@@ -1076,8 +1279,17 @@ def generate_ambulance_monthly_schedule(
             )
             .all()
         )
-        for user_id, work_date in external_schedule_rows:
+        foreign_recovery_days = _foreign_recovery_reader(
+            db,
+            {row[1] for row in external_schedule_rows},
+            start - margin,
+            end + margin,
+        )
+        for user_id, other_id, competence_id, work_date in external_schedule_rows:
             externally_scheduled_dates[user_id].add(work_date)
+            external_commitments[user_id].append(
+                (work_date, foreign_recovery_days(other_id, competence_id, work_date))
+            )
 
         boundary_rows = (
             db.query(Schedule.user_id, Schedule.competence_id, Schedule.work_date)
@@ -1107,6 +1319,7 @@ def generate_ambulance_monthly_schedule(
             soft_declined_dates=frozenset(soft_declined_dates[user.id]),
             max_shifts_per_month=user.max_shifts_per_month,
             shift_preference=user.shift_preference or ANY_PREFERENCE,
+            external_commitments=tuple(external_commitments[user.id]),
         )
         for user in user_rows
     ]
@@ -1153,6 +1366,16 @@ def generate_ambulance_monthly_schedule(
                     SPECIAL_DAY_SLOT,
                     "recovery_days",
                     DEFAULT_RECOVERY_DAYS,
+                ),
+                weekday_shift_hours=tuple(
+                    _slot_value(slots, weekday, "shift_hours", DEFAULT_SHIFT_HOURS)
+                    for weekday in range(7)
+                ),
+                special_day_shift_hours=_slot_value(
+                    slots,
+                    SPECIAL_DAY_SLOT,
+                    "shift_hours",
+                    DEFAULT_SHIFT_HOURS,
                 ),
             )
         )

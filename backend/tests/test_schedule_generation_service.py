@@ -703,6 +703,36 @@ class ScheduleGenerationBalanceTests(unittest.TestCase):
 
         self.assertEqual(sorted(surcharged.values()), [2, 2, 3, 3])
 
+    def test_balances_the_hours_and_not_only_the_number_of_duties(self) -> None:
+        """A long duty weighs more than a short one when the load is shared."""
+        employees = [_employee(index, competence_ids=frozenset({1})) for index in range(1, 3)]
+        competence = SchedulingCompetence(
+            id=1,
+            name="Triage",
+            required_count=1,
+            # Mondays and Wednesdays only, and a Monday lasts three times
+            # as long as a Wednesday.
+            weekday_required_counts=(1, 0, 1, 0, 0, 0, 0),
+            weekday_shift_hours=(12.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0),
+        )
+        assignments = solve_monthly_schedule(
+            employees,
+            [competence],
+            month=8,
+            year=2026,
+        )
+
+        hours = Counter()
+        for item in assignments:
+            hours[item.user_id] += competence.shift_hours_on(item.work_date)
+        workload = Counter(item.user_id for item in assignments)
+
+        # Five Mondays and four Wednesdays: 76 hours over two people, which
+        # the duty counts alone would happily split 60 to 16.
+        self.assertEqual(len(assignments), 9)
+        self.assertEqual(sorted(workload.values()), [4, 5])
+        self.assertLessEqual(max(hours.values()) - min(hours.values()), 8)
+
 
 class ScheduleGenerationRecoveryTests(unittest.TestCase):
     """Verify the rest a duty earns under the workplace's own settings."""
@@ -1213,6 +1243,88 @@ class ScheduleGenerationLoadingTests(unittest.TestCase):
         self.assertEqual(result.assignment_count, 31)
         self.assertGreater(mondays[wants_surcharge.id], mondays[wants_standard.id])
         self.assertLessEqual(max(workload.values()) - min(workload.values()), 1)
+
+
+    def test_a_duty_elsewhere_earns_the_rest_that_workplace_asks_for(self) -> None:
+        """A borrowed employee comes back when the other workplace says so."""
+        target = Ambulance(name="Target", is_active=True)
+        lender = Ambulance(name="Lender", is_active=True)
+        users = [User(email=f"lent{index}@example.com", is_active=True) for index in range(3)]
+        self.db.add_all([target, lender, *users])
+        self.db.flush()
+
+        target_competence = Competence(
+            name="Triage", required_count=1, ambulance_id=target.id, is_active=True
+        )
+        lender_competence = Competence(
+            name="Long duty", required_count=1, ambulance_id=lender.id, is_active=True
+        )
+        self.db.add_all([target_competence, lender_competence])
+        self.db.flush()
+
+        # The lender asks for four days of rest after its duty; this
+        # workplace asks for one after its own, and has no say over the
+        # other one.
+        lender_scenario = CompetenceScenario(
+            name="Lender scenario",
+            ambulance_id=lender.id,
+            is_selected=True,
+            is_active=True,
+        )
+        self.db.add(lender_scenario)
+        self.db.flush()
+        self.db.add_all(
+            [
+                CompetenceWeekdayRequirement(
+                    competence_id=lender_competence.id,
+                    scenario_id=lender_scenario.id,
+                    weekday=weekday,
+                    required_count=1,
+                    recovery_days=4,
+                )
+                for weekday in range(8)
+            ]
+        )
+        self.db.add_all(
+            [
+                UserAmbulance(user_id=user.id, ambulance_id=target.id, is_active=True)
+                for user in users
+            ]
+            + [
+                UserCompetence(
+                    user_id=user.id, competence_id=target_competence.id, is_active=True
+                )
+                for user in users
+            ]
+        )
+        borrowed = users[0]
+        self.db.add(
+            Schedule(
+                user_id=borrowed.id,
+                ambulance_id=lender.id,
+                competence_id=lender_competence.id,
+                work_date=date(2026, 8, 10),
+                is_active=True,
+            )
+        )
+        self.db.commit()
+
+        result = generate_ambulance_monthly_schedule(
+            self.db,
+            target.id,
+            month=8,
+            year=2026,
+        )
+
+        resting = {date(2026, 8, day) for day in (10, 11, 12, 13, 14)}
+        borrowed_days = {
+            entry.work_date for entry in result.entries if entry.user_id == borrowed.id
+        }
+        self.assertEqual(result.assignment_count, 31)
+        self.assertFalse(borrowed_days & resting)
+        # Blocked for five days, not idle for the month: the rest ends
+        # where the lender says it ends.
+        self.assertGreaterEqual(len(borrowed_days), 8)
 
 
 if __name__ == "__main__":

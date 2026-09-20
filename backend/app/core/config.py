@@ -14,9 +14,12 @@ class Settings(BaseSettings):
     COOKIE_SECURE: bool = os.getenv("COOKIE_SECURE", "false").lower() == "true"
     AUTO_SEED: bool = os.getenv("AUTO_SEED", "false").lower() == "true"
     SEED_CONFIG: str = os.getenv("SEED_CONFIG", "config_1")
+    # Two hours. The solver keeps the best schedule it has found the whole
+    # time, so the limit is how long it may keep looking for a better one,
+    # not how long a usable answer takes.
     SCHEDULE_SOLVER_TIME_LIMIT_SECONDS: int = max(
         1,
-        int(os.getenv("SCHEDULE_SOLVER_TIME_LIMIT_SECONDS", "30")),
+        int(os.getenv("SCHEDULE_SOLVER_TIME_LIMIT_SECONDS", "7200")),
     )
     SCHEDULE_GENERATION_MAX_CONCURRENCY: int = max(
         1,
