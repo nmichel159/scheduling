@@ -384,10 +384,13 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
                 );
                 const rest = new Set(restDays[index]);
 
-                // A day of rest has no weekday, so no square on the strip
-                // could mean the day its break ends. The number itself is
-                // the whole answer here.
+                // A day of rest has no weekday, so the strip cannot be
+                // read as Monday to Sunday. It is read as the days after
+                // the duty instead: the figure stands on the left, on the
+                // day of rest itself, and the squares to its right are the
+                // days that follow it.
                 if (isSpecialDay(item.weekday)) {
+                  const days = clampRecoveryDays(item.recovery_days);
                   return (
                     <div
                       className="ceditor-recovery-row is-special"
@@ -396,42 +399,54 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
                       <span className="ceditor-recovery-label">
                         {t('special_days.column_short')}
                       </span>
-                      <div className="ceditor-recovery-plain">
-                        <input
-                          className="ceditor-grid-input"
-                          type="number"
-                          min="0"
-                          max={MAX_RECOVERY_DAYS}
-                          step="1"
-                          value={item.recovery_days}
-                          aria-label={t('scenarios.recovery_row', {
-                            day: t('special_days.column_short'),
-                          })}
-                          onChange={(e) =>
-                            setField(
-                              'recovery_days',
-                              item.weekday,
-                              e.target.value,
-                              false
-                            )
-                          }
-                          onBlur={() =>
-                            setField(
-                              'recovery_days',
-                              item.weekday,
-                              clampRecoveryDays(item.recovery_days),
-                              false
-                            )
-                          }
-                        />
-                        <span className="ceditor-grid-hint">
-                          {t('special_days.recovery_hint')}
-                        </span>
+                      <div
+                        className="ceditor-track is-offsets"
+                        role="group"
+                        aria-label={t('scenarios.recovery_row', {
+                          day: t('special_days.column_short'),
+                        })}
+                      >
+                        <div className="ceditor-slot is-source">
+                          <em>{t('special_days.column_short')}</em>
+                          <b aria-hidden="true">🧍</b>
+                        </div>
+                        {Array.from(
+                          { length: MAX_RECOVERY_DAYS + 1 },
+                          (_unused, offset) => offset + 1
+                        ).map((offset) => (
+                          <button
+                            type="button"
+                            key={offset}
+                            className={[
+                              'ceditor-slot',
+                              offset === days + 1 ? 'is-target' : '',
+                              offset <= days ? 'is-rest' : '',
+                            ]
+                              .join(' ')
+                              .trim()}
+                            aria-pressed={offset === days + 1}
+                            aria-label={t('scenarios.recovery_days', {
+                              count: offset - 1,
+                            })}
+                            title={t('scenarios.recovery_days', {
+                              count: offset - 1,
+                            })}
+                            onClick={() =>
+                              setField(
+                                'recovery_days',
+                                item.weekday,
+                                offset - 1,
+                                false
+                              )
+                            }
+                          >
+                            <em>{`+${offset}`}</em>
+                            <b aria-hidden="true" />
+                          </button>
+                        ))}
                       </div>
                       <span className="ceditor-recovery-value">
-                        {t('scenarios.recovery_days', {
-                          count: clampRecoveryDays(item.recovery_days),
-                        })}
+                        {t('scenarios.recovery_days', { count: days })}
                       </span>
                     </div>
                   );

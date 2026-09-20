@@ -255,20 +255,17 @@
   gap: 4px;
 }
 
-/* The day of rest has no weekday to point at, so its row carries a plain
-   number where the others carry the track. */
+/* The day of rest is not part of the week, so its row stands off the
+   others -- and its track is one square longer: the duty square on the
+   left plus every day that can follow it. */
 .ceditor-recovery-row.is-special {
   border-top: 1px solid var(--border);
   padding-top: 8px;
 }
 
-.ceditor-recovery-plain {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.ceditor-track.is-offsets {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
 }
-
-.ceditor-recovery-plain .ceditor-grid-input { max-width: 68px; }
 
 .ceditor-slot {
   display: flex;
@@ -355,8 +352,7 @@
     grid-template-columns: 1fr auto;
     gap: 4px 8px;
   }
-  .ceditor-track,
-  .ceditor-recovery-plain { grid-column: 1 / -1; }
+  .ceditor-track { grid-column: 1 / -1; }
   .ceditor-recovery-value { text-align: left; }
   .ceditor-recovery-row + .ceditor-recovery-row {
     border-top: 1px solid var(--border);
