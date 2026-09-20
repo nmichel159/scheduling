@@ -112,8 +112,9 @@ const requirementMap = (column) =>
     ])
   );
 
-/** Drop emptied groups and order everything by the first day it covers, so
- *  the rows always read Mon -> Sun no matter how they were assembled. */
+/** Drop emptied groups and order everything by the first slot it covers, so
+ *  the rows always read Mon -> Sun -> day of rest no matter how they were
+ *  assembled. */
 const sortDayGroups = (groups) =>
   groups
     .filter((group) => group.weekdays.length > 0)
@@ -129,11 +130,20 @@ const signatureForWeekday = (columns, weekday) =>
     .map((column) => `${column.id}:${requirementMap(column).get(weekday)}`)
     .join('|');
 
-/** Collapse weekdays whose complete competence-demand vectors are identical. */
+/** Collapse slots whose complete competence-demand vectors are identical.
+ *
+ *  The day of rest takes part like any other slot: a row exists to say
+ *  "these slots want these numbers", so a holiday that wants exactly what
+ *  the week wants belongs on the week's row and a separate row for it
+ *  would be a distinction without a difference. It only splits off once
+ *  its numbers actually differ. What keeps it legible is the layout, not
+ *  the grouping — it sits in a slot of its own behind a fence and never
+ *  joins the run of weekdays into one pill.
+ */
 export const groupWeekdaysByRequirements = (columns) => {
   if (columns.length === 0) return [];
   const bySignature = new Map();
-  ISO_WEEKDAYS.forEach((weekday) => {
+  REQUIREMENT_SLOTS.forEach((weekday) => {
     const signature = signatureForWeekday(columns, weekday);
     const current = bySignature.get(signature);
     if (current) current.weekdays.push(weekday);

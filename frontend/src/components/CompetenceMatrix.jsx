@@ -1,7 +1,11 @@
 import { useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { ISO_WEEKDAYS, requiredCountForGroup } from '../utils/competenceRequirements';
+import {
+  REQUIREMENT_SLOTS,
+  SPECIAL_DAY_SLOT,
+  requiredCountForGroup,
+} from '../utils/competenceRequirements';
 import EmployeeDetailDialog from './EmployeeDetailDialog';
 import './CompetenceMatrix.css';
 
@@ -23,17 +27,19 @@ import './CompetenceMatrix.css';
  *
  * The "Potrebný počet" header rows are READ-ONLY here: they spell out,
  * per day-group (e.g. Po–Pi vs So–Ne), how many people with that
- * competence the ambulance needs on those days. Changing those numbers
- * (and regrouping days) belongs to the competence-scenario screen — this
- * screen is only about who can do what, and the compact table above the
- * grid is there for orientation, not for editing. Each group still
- * carries a full seven-slot week track and fills in only the days it
- * owns, so Monday sits at the same x in every row and a group reads as
- * one connected pill.
+ * competence the ambulance needs on those days. The eighth slot of each
+ * row is the day of rest — what a public holiday wants, whatever weekday
+ * it lands on. A row exists per distinct set of numbers, so the day of
+ * rest shares the week's row until it asks for something else. Changing
+ * those numbers (and regrouping days) belongs to the competence-scenario
+ * screen — this screen is only about who can do what, and the compact
+ * table above the grid is there for orientation, not for editing. See
+ * `renderRequiredRow` for how a row is laid out.
  *
  * Props:
  * - columns: [{ id, name, description }] — competences of the ambulance
- * - dayGroups: [{ id, weekdays }] — groups the required counts are shown for
+ * - dayGroups: [{ id, weekdays }] — slot groups the required counts are shown
+ *   for; `weekdays` may include SPECIAL_DAY_SLOT alongside real weekdays
  * - rows: [{ user_id, email, full_name, competenceDays: { [competenceId]: number[] } }] — draft state.
  *   competenceDays[competenceId] holds the ISO weekdays (0=Po..6=Ne) on which
  *   that employee holds that competence; a missing/empty entry means "not assigned".
@@ -224,6 +230,83 @@ const CompetenceMatrix = ({
     };
   };
 
+  /* One row of the requirement block: the slots that want the same numbers,
+   * then those numbers, one per competence.
+   *
+   * Every row lays out all eight slots and fills in only the ones it owns,
+   * the rest staying as faint dots: Monday therefore keeps the same x down
+   * the whole block (the week reads vertically too), and the days of one
+   * group join into a single pill through the is-start/is-end rounding
+   * instead of scattering into separate chips.
+   *
+   * The eighth slot is the day of rest, and it shares a row with the week
+   * whenever it wants the same numbers — a row is a statement about counts,
+   * so one split off to repeat them would say nothing. What keeps it from
+   * passing for a weekday is the layout: it stands behind a fence, carries
+   * its own mark, and keeps both rounded ends however the days beside it
+   * are grouped. That is also why the run is measured over the weekdays
+   * alone — Sunday has to close the pill even when the day of rest sits on
+   * the same row.
+   */
+  const renderRequiredRow = (group, index) => {
+    const groupSlots = new Set(group.weekdays);
+    const inWeekRun = (slot) =>
+      slot >= 0 && slot < SPECIAL_DAY_SLOT && groupSlots.has(slot);
+    return (
+      <tr
+        key={group.id}
+        className={`cmatrix-required-row ${index % 2 === 1 ? 'is-alt' : ''}`.trim()}
+      >
+        <th className="cmatrix-corner cmatrix-required-label">
+          <div className="cmatrix-day-track">
+            {REQUIREMENT_SLOTS.map((slot) => {
+              const special = slot === SPECIAL_DAY_SLOT;
+              if (!groupSlots.has(slot)) {
+                return (
+                  <span
+                    key={slot}
+                    className={`cmatrix-day-empty ${special ? 'is-special' : ''}`.trim()}
+                    aria-hidden="true"
+                  />
+                );
+              }
+              return (
+                <span
+                  key={slot}
+                  className={[
+                    'cmatrix-day',
+                    special ? 'is-special' : '',
+                    special || !inWeekRun(slot - 1) ? 'is-start' : '',
+                    special || !inWeekRun(slot + 1) ? 'is-end' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  title={special ? t('special_days.column_hint') : undefined}
+                >
+                  {special
+                    ? t('special_days.column_short')
+                    : t(`workload.days.${slot}`)}
+                </span>
+              );
+            })}
+          </div>
+        </th>
+        {columns.map((c) => (
+          <th key={c.id} className="cmatrix-required-cell">
+            <div
+              className="cmatrix-required-fill"
+              title={t('competences.required_count')}
+            >
+              <span className="cmatrix-required-number">
+                {requiredOf(c, group)}
+              </span>
+            </div>
+          </th>
+        ))}
+      </tr>
+    );
+  };
+
   return (
     <section className="cmatrix">
       <div className={`cmatrix-scroll ${loading ? 'is-loading' : ''}`}>
@@ -293,59 +376,8 @@ const CompetenceMatrix = ({
                 </th>
               ))}
             </tr>
-            {columns.length > 0 && dayGroups.map((group, index) => {
-              const groupDays = new Set(group.weekdays);
-              return (
-                <tr
-                  className={`cmatrix-required-row ${index % 2 === 1 ? 'is-alt' : ''}`}
-                  key={group.id}
-                >
-                  <th className="cmatrix-corner cmatrix-required-label">
-                    {/* Full week track: every row lays out all seven slots and
-                      * fills only the days it owns, so Monday keeps the same x
-                      * in every row and the days of one group join into a
-                      * single pill via the is-start/is-end rounding. */}
-                    <div className="cmatrix-day-track">
-                      {ISO_WEEKDAYS.map((weekday) => {
-                        if (!groupDays.has(weekday)) {
-                          return (
-                            <span
-                              key={weekday}
-                              className="cmatrix-day-empty"
-                              aria-hidden="true"
-                            />
-                          );
-                        }
-                        const className = [
-                          'cmatrix-day',
-                          groupDays.has(weekday - 1) ? '' : 'is-start',
-                          groupDays.has(weekday + 1) ? '' : 'is-end',
-                        ]
-                          .filter(Boolean)
-                          .join(' ');
-                        return (
-                          <span key={weekday} className={className}>
-                            {t(`workload.days.${weekday}`)}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </th>
-                  {columns.map((c) => (
-                    <th key={c.id} className="cmatrix-required-cell">
-                      <div
-                        className="cmatrix-required-fill"
-                        title={t('competences.required_count')}
-                      >
-                        <span className="cmatrix-required-number">
-                          {requiredOf(c, group)}
-                        </span>
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              );
-            })}
+            {columns.length > 0 &&
+              dayGroups.map((group, index) => renderRequiredRow(group, index))}
           </thead>
           <tbody>
             {visibleRows.length === 0 ? (

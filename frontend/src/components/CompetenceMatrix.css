@@ -184,6 +184,9 @@
   font-weight: 600;
   font-size: 0.85rem;
   color: var(--text-h);
+  /* Clips the day-of-rest fence below to exactly this cell, so the fence
+     can overreach instead of being measured against the cell's padding. */
+  overflow: hidden;
 }
 
 /* Each day-group requirement row (e.g. Po–Ne vs Št–Pi–So) sits on its own
@@ -201,15 +204,20 @@
 }
 
 /* One row per day-group, but every row lays out the whole week as seven
- * equal slots and fills in only the days that group owns; the rest stay as
- * faint dots. Monday therefore sits at the same x in every row (the week
- * reads vertically as well), and the days of one group join into a single
- * pill instead of scattering into separate chips — which used to wrap onto
- * a second line in this ~190px column and leave the counts beside them
- * visually stranded on another line. */
+ * equal slots — plus an eighth for the day of rest — and fills in only the
+ * slots that row owns; the rest stay as faint dots. Monday therefore sits
+ * at the same x in every row (the week reads vertically as well), and the
+ * days of one group join into a single pill instead of scattering into
+ * separate chips — which used to wrap onto a second line in this ~190px
+ * column and leave the counts beside them visually stranded on another
+ * line. */
 .cmatrix-day-track {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  /* The eighth column is pinned rather than `auto`: each row is its own
+     grid, so an intrinsic width would come out ~30px on the day-of-rest
+     row and ~3px (a bare dot) on every other one, sliding the whole week
+     sideways from row to row. 11px of fence plus a weekday's own width. */
+  grid-template-columns: repeat(7, 1fr) 42px;
   align-items: center;
   min-height: 34px;
 }
@@ -225,6 +233,28 @@
   width: 3px;
   height: 3px;
   border-radius: 50%;
+  background: var(--border);
+}
+
+/* The day of rest is not a day of the week, so the eighth slot stands off
+   the track behind a hairline rather than being shaded like a weekend —
+   the same fence the competence screen draws around it. Every row draws
+   it, filled or empty, so it runs the whole height of the block and the
+   rows below read as being about the same eighth slot.
+   It deliberately overshoots its cell top and bottom: the label cell clips
+   it, so the line always reaches the row's rules however the track is
+   padded, and consecutive rows join across them. */
+.cmatrix-day-track > .is-special {
+  position: relative;
+  margin-left: 11px;
+}
+.cmatrix-day-track > .is-special::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: -60px;
+  bottom: -60px;
+  width: 1px;
   background: var(--border);
 }
 
@@ -255,6 +285,17 @@
   border-right-width: 1px;
   border-top-right-radius: 999px;
   border-bottom-right-radius: 999px;
+}
+
+/* Filled, the eighth slot is a pill of its own even when it shares a row
+   with the week: the week's pills are runs of days joined end to end, this
+   one is a single mark standing alone, so it takes the accent at full
+   strength instead of the run's lighter border. That, the fence and the
+   two rounded ends are what stop a day of rest on the week's row from
+   reading as an eighth weekday. */
+.cmatrix-day.is-special {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 16%, var(--background));
 }
 
 .cmatrix-required-cell {
@@ -310,8 +351,9 @@
 
 .cmatrix-row { min-width: 220px; }
 
-/* Seven slots at ~31px plus the cell's own 14px side padding. */
-.cmatrix-corner { min-width: 248px; }
+/* Seven slots at ~31px, the fenced-off eighth at 42px, and the cell's own
+   14px side padding. */
+.cmatrix-corner { min-width: 288px; }
 
 .cmatrix-corner { background: var(--background); }
 
