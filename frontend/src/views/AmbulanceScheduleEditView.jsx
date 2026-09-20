@@ -112,7 +112,9 @@ const AmbulanceScheduleEditView = () => {
   const [confirmState, setConfirmState] = useState(null);
   const [draggedShift, setDraggedShift] = useState(null);
   const [dragOverDate, setDragOverDate] = useState(null);
-  const [scheduleView, setScheduleView] = useState('calendar');
+  // Only the planner is on screen for now; the calendar and list branches
+  // below stay put so the switcher can come back without a rewrite.
+  const scheduleView = 'planner';
   // ISO dates this workplace rests on, for the year on screen. A duty on one
   // of them is staffed and paid from the competence's day-of-rest column
   // rather than from the weekday it lands on, which is how the generator
@@ -355,12 +357,6 @@ const AmbulanceScheduleEditView = () => {
     () => [0, 1, 2, 3, 4, 5, 6].map((i) => t(`workload.days.${i}`)),
     [t]
   );
-  const viewLabels = {
-    calendar: t('schedule_edit.view_calendar'),
-    list: t('schedule_edit.view_list'),
-    planner: t('schedule_edit.view_planner'),
-    switcher: t('schedule_edit.view_switcher'),
-  };
 
 
   /* --- Shift editor: derived selection state --- */
@@ -833,43 +829,6 @@ const AmbulanceScheduleEditView = () => {
           aria-label={t('schedule_edit.next_month')}
         >
           ›
-        </button>
-      </div>
-
-      <div
-        className="schedule-view-switch"
-        role="group"
-        aria-label={viewLabels.switcher}
-      >
-        <button
-          type="button"
-          className={`schedule-view-switch-button ${
-            scheduleView === 'calendar' ? 'is-active' : ''
-          }`}
-          onClick={() => setScheduleView('calendar')}
-          aria-pressed={scheduleView === 'calendar'}
-        >
-          {viewLabels.calendar}
-        </button>
-        <button
-          type="button"
-          className={`schedule-view-switch-button ${
-            scheduleView === 'list' ? 'is-active' : ''
-          }`}
-          onClick={() => setScheduleView('list')}
-          aria-pressed={scheduleView === 'list'}
-        >
-          {viewLabels.list}
-        </button>
-        <button
-          type="button"
-          className={`schedule-view-switch-button ${
-            scheduleView === 'planner' ? 'is-active' : ''
-          }`}
-          onClick={() => setScheduleView('planner')}
-          aria-pressed={scheduleView === 'planner'}
-        >
-          {viewLabels.planner}
         </button>
       </div>
 
