@@ -7,7 +7,7 @@ import {
 import { fetchAmbulanceSchedule } from '../services/scheduleService';
 import { fetchSpecialDays } from '../services/specialDayService';
 import { useWorkplace } from '../hooks/workplaceContext';
-import { formatShortName } from '../utils/formatEmployeeName';
+import { formatNameStyle } from '../utils/formatEmployeeName';
 import { downloadCsv, downloadXlsx } from '../utils/tableExport';
 import { downloadSchedulePdf } from '../utils/schedulePdf';
 import './SchedulePrintView.css';
@@ -17,6 +17,12 @@ const isoDate = (year, month, day) => `${year}-${pad(month + 1)}-${pad(day)}`;
 const isoWeekday = (dateObj) => (dateObj.getDay() + 6) % 7;
 
 const MONTHS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+
+/* How a name may be written on the sheet, in the order the toolbar offers it:
+   the initial and the surname, the whole name without its academic titles,
+   and the name exactly as it is on record. Shorter is narrower, so the fit
+   search will usually find a larger type size for the first of them. */
+const NAME_STYLES = ['short', 'full', 'titles'];
 const YEAR_SPAN = 2;
 
 /* A4 in millimetres, and the margin the page rule reserves on every side. The
@@ -218,7 +224,7 @@ const SchedulePrintView = () => {
   const nameOf = useCallback(
     (shift) => {
       const full = shift.user_full_name || shift.user_email || '';
-      return nameStyle === 'full' ? full : formatShortName(full) || full;
+      return formatNameStyle(full, nameStyle);
     },
     [nameStyle]
   );
@@ -293,10 +299,7 @@ const SchedulePrintView = () => {
           });
           return {
             key: person.userId,
-            label:
-              nameStyle === 'full'
-                ? person.fullName
-                : formatShortName(person.fullName) || person.fullName,
+            label: formatNameStyle(person.fullName, nameStyle),
             sub: null,
             muted: false,
             cells,
@@ -614,20 +617,16 @@ const SchedulePrintView = () => {
           </div>
 
           <div className="sprint-seg" role="group" aria-label={t('schedule_print.names')}>
-            <button
-              type="button"
-              className={nameStyle === 'short' ? 'is-active' : ''}
-              onClick={() => setNameStyle('short')}
-            >
-              {t('schedule_print.names_short')}
-            </button>
-            <button
-              type="button"
-              className={nameStyle === 'full' ? 'is-active' : ''}
-              onClick={() => setNameStyle('full')}
-            >
-              {t('schedule_print.names_full')}
-            </button>
+            {NAME_STYLES.map((style) => (
+              <button
+                key={style}
+                type="button"
+                className={nameStyle === style ? 'is-active' : ''}
+                onClick={() => setNameStyle(style)}
+              >
+                {t(`schedule_print.names_${style}`)}
+              </button>
+            ))}
           </div>
         </div>
       </div>

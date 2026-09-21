@@ -63,3 +63,20 @@ export function formatShortName(fullName) {
   const surname = parts[parts.length - 1];
   return `${firstInitial}. ${surname}`;
 }
+
+/**
+ * The three ways a name is written on the printed rota.
+ *
+ * 'short'  -> "P. Novák"                     (initial + surname, no titles)
+ * 'full'   -> "Peter Novák"                  (whole name, titles stripped)
+ * 'titles' -> "MUDr. Peter Novák, PhD."      (exactly as it is on record)
+ *
+ * An unknown style is read as 'short', and a name that a style would empty
+ * falls back to what was given, so a square never comes out blank.
+ */
+export function formatNameStyle(fullName, style) {
+  if (!fullName) return '';
+  if (style === 'titles') return fullName;
+  if (style === 'full') return stripTitles(fullName) || fullName;
+  return formatShortName(fullName) || fullName;
+}
