@@ -155,6 +155,16 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
+/* The one control here that needs naming: a bare number in the bar would not
+   say what it counts. */
+.sprint-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
 .sprint-actions {
   display: flex;
   align-items: center;
@@ -173,8 +183,15 @@
   overflow: hidden;
 }
 
+/* Each shown sheet is placed on the stage by hand (see the view): a scaled
+   sheet still claims its full A4 in the flow, so two of them would stand a
+   page apart with nothing in between. */
 .sprint-sheet {
   --sprint-font: 9px;
+
+  position: absolute;
+  top: 0;
+  left: 0;
 
   box-sizing: border-box;
   transform-origin: top left;
@@ -190,6 +207,15 @@
      unless the page says it carries meaning. */
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+}
+
+/* The sheet the fit search measures: the whole month at once, off the side of
+   the screen. It is laid out for real -- hidden, not display:none, since a box
+   that is not laid out has no height to read. */
+.sprint-measure {
+  left: -10000px;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .sprint-sheet.is-loading {
@@ -256,11 +282,16 @@
    and the wrap stops claiming the leftover space, so the content stacks from
    the top of the body and its real height can simply be read off the bottom
    of the last thing in it. */
-.sprint-sheet.is-measuring .sprint-table {
+/* The same two rules serve the last sheet of several, which holds only what
+   the pages before it left over: stretching those rows down a whole page
+   would end the month in rows three centimetres tall. */
+.sprint-sheet.is-measuring .sprint-table,
+.sprint-sheet.is-loose .sprint-table {
   height: auto;
 }
 
-.sprint-sheet.is-measuring .sprint-table-wrap {
+.sprint-sheet.is-measuring .sprint-table-wrap,
+.sprint-sheet.is-loose .sprint-table-wrap {
   flex: 0 0 auto;
 }
 
@@ -377,16 +408,30 @@
     visibility: visible !important;
   }
 
+  /* Nothing is measured while printing, and a hidden sheet that still took a
+     page would print a blank one. */
+  .sprint-measure {
+    display: none !important;
+  }
+
+  /* The sheets go back into the flow, one page box each, and the stage is
+     lifted into the corner of the first: with every ancestor left static and
+     untransformed, that corner is the printable area itself. */
   .sprint-sheet {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
+    position: static !important;
     transform: none !important;
     box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  .sprint-sheet + .sprint-sheet {
+    break-before: page;
   }
 
   .sprint-stage {
-    position: static !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
     height: auto !important;
     overflow: visible !important;
   }

@@ -32,11 +32,21 @@ const PAGE_MARGIN_MM = 8;
 const A4_SHORT_MM = 210;
 const A4_LONG_MM = 297;
 
-/* The one rule the sheet may not break is fitting on a single A4, so the type
-   size is not chosen but found: the table is laid out, measured against the
-   page, and the size halved in on until the largest one that still fits is
-   known. Eight steps land within a twentieth of a pixel of it, which is finer
-   than any printer resolves. */
+/* How many sheets the month may be spread over. One is the default and the
+   usual answer -- a rota split across pages is a rota nobody trusts -- but a
+   roster of forty people on a thirty-one day month has to choose between a
+   second sheet and type nobody can read, and that is the reader's choice to
+   make, not ours. */
+const PAGE_OPTIONS = [1, 2, 3, 4, 5, 6];
+
+/* Pixels left between two sheets in the preview, so a second page reads as a
+   second sheet of paper rather than as more of the first. */
+const PAGE_GAP_PX = 16;
+
+/* The type size is not chosen but found: the table is laid out, measured
+   against the page, and the size halved in on until the largest one that
+   still fits the page budget is known. Eight steps land within a twentieth of
+   a pixel of it, which is finer than any printer resolves. */
 const MIN_FONT_PX = 3;
 const MAX_FONT_PX = 13;
 const FIT_STEPS = 8;
@@ -61,8 +71,11 @@ const slugify = (value) =>
  * The schedule is worked out on screen but it is lived with on paper — pinned
  * to a wall, carried to a ward round, handed over at a shift change. That is
  * one table: a row per day, a column per competence, names in the squares.
- * Its only hard requirement is that a month never runs onto a second sheet,
- * because a rota split across two pages is a rota nobody trusts.
+ * It wants to be one sheet -- a rota split across pages is a rota nobody
+ * trusts -- so one sheet is what it is asked for by default, and the type size
+ * is found rather than chosen to keep that promise. A month too big to keep it
+ * legibly can be given more sheets in the toolbar, and the same search then
+ * spends them on larger type and cuts the table where the pages end.
  *
  * The same month leaves in three ways, which are three different jobs rather
  * than three formats of one: the printed sheet for the wall, the spreadsheet
@@ -92,6 +105,7 @@ const SchedulePrintView = () => {
   const [layout, setLayout] = useState('competences');
   const [orientation, setOrientation] = useState('portrait');
   const [nameStyle, setNameStyle] = useState('short');
+  const [pageBudget, setPageBudget] = useState(1);
 
   const [shifts, setShifts] = useState([]);
   const [competences, setCompetences] = useState([]);
@@ -106,7 +120,12 @@ const SchedulePrintView = () => {
   const tableRef = useRef(null);
   const legendRef = useRef(null);
   const stageRef = useRef(null);
-  const [preview, setPreview] = useState({ scale: 1, height: 0 });
+  const [preview, setPreview] = useState({ scale: 1, height: 0, pageHeight: 0 });
+
+  /* What the fit search settled on: the type size, and the rows each sheet
+     carries. Until it has run once the whole month sits on one page, which is
+     also what a month that fits ends up with. */
+  const [fit, setFit] = useState({ fontPx: MIN_FONT_PX, pages: [] });
 
   // Only the newest load may publish: switching month or workplace leaves the
   // previous request in flight, and a slower earlier answer would otherwise
@@ -415,7 +434,8 @@ const SchedulePrintView = () => {
           legend: table.legend,
           firstColumnShare: table.firstColumnShare,
         },
-        orientation
+        orientation,
+        pageBudget
       );
     } catch {
       setError(t('schedule_print.pdf_error'));
@@ -434,44 +454,84 @@ const SchedulePrintView = () => {
   useLayoutEffect(() => {
     const sheet = sheetRef.current;
     const body = bodyRef.current;
-    if (!sheet || !body) return;
+    const tableEl = tableRef.current;
+    if (!sheet || !body || !tableEl) return;
 
-    /* The table is measured at its natural height, not stretched to the page:
-       a stretched table reports the height it was given however much it holds,
-       so every size would look like a fit. */
-    sheet.classList.add('is-measuring');
+    /* One measurement of the whole month at one type size: how tall each row
+       stands, and how much of the page is left for rows once the repeated
+       heading and the legend have taken theirs.
 
-    /* What the content actually occupies, which is not what the box it sits in
-       reports: a container's scrolled height never falls below its own, so it
-       can say "too tall" but never "room to spare" -- and room to spare is
-       exactly what a page that must close on the last row needs to know. */
-    const contentHeight = () => {
-      const last = legendRef.current ?? tableRef.current;
-      if (!last) return 0;
-      return last.getBoundingClientRect().bottom - body.getBoundingClientRect().top;
+       The measuring sheet is never stretched, so a row reports the height its
+       own content needs rather than the share of the page it was handed --
+       which is the only height a split can be worked out from. */
+    const measure = (fontPx) => {
+      sheet.style.setProperty('--sprint-font', `${fontPx}px`);
+      // Reading the geometry flushes the layout the line above dirtied.
+      const tableBottom = tableEl.getBoundingClientRect().bottom;
+      const legendBlock = legendRef.current
+        ? legendRef.current.getBoundingClientRect().bottom - tableBottom
+        : 0;
+      const headHeight = tableEl.tHead?.getBoundingClientRect().height ?? 0;
+      const rowHeights = [...(tableEl.tBodies[0]?.rows ?? [])].map(
+        (row) => row.getBoundingClientRect().height
+      );
+      return {
+        rowHeights,
+        headHeight,
+        /* Every sheet repeats the heading row and carries the legend, so the
+           room a page has for rows is the same on all of them. */
+        rowSpace: body.clientHeight - FIT_SLACK_PX - legendBlock - headHeight,
+        widthFits: tableEl.offsetWidth <= body.clientWidth,
+      };
+    };
+
+    /* The rows dealt out page by page, each page taking rows until the next
+       one would not close on it. A row taller than a whole page still has to
+       go somewhere, so it takes a page of its own -- which pushes the count
+       over the budget and hands the search the smaller size it needs. */
+    const paginate = ({ rowHeights, rowSpace }) => {
+      const pages = [[]];
+      let used = 0;
+      rowHeights.forEach((height, index) => {
+        if (used > 0 && used + height > rowSpace) {
+          pages.push([]);
+          used = 0;
+        }
+        pages[pages.length - 1].push(index);
+        used += height;
+      });
+      return pages;
     };
 
     let low = MIN_FONT_PX;
     let high = MAX_FONT_PX;
-    let best = MIN_FONT_PX;
+    let best = null;
+    let bestSize = MIN_FONT_PX;
     for (let step = 0; step < FIT_STEPS; step += 1) {
       const mid = (low + high) / 2;
-      sheet.style.setProperty('--sprint-font', `${mid}px`);
-      // Reading the geometry flushes the layout the line above dirtied.
-      const fits =
-        contentHeight() <= body.clientHeight - FIT_SLACK_PX &&
-        (tableRef.current?.offsetWidth ?? 0) <= body.clientWidth;
-      if (fits) {
-        best = mid;
+      const measured = measure(mid);
+      const pages = measured.rowSpace > 0 ? paginate(measured) : null;
+      if (pages && pages.length <= pageBudget && measured.widthFits) {
+        best = pages;
+        bestSize = mid;
         low = mid;
       } else {
         high = mid;
       }
     }
 
-    sheet.style.setProperty('--sprint-font', `${best}px`);
-    sheet.classList.remove('is-measuring');
-  }, [table, sheetWidthMm, sheetHeightMm, loading]);
+    if (!best) best = paginate(measure(MIN_FONT_PX));
+
+    setFit({
+      fontPx: bestSize,
+      pages: best.map((indexes) => indexes.map((index) => table.rows[index])),
+    });
+  }, [table, sheetWidthMm, sheetHeightMm, pageBudget, loading]);
+
+  /* Before the search has run -- the first paint, and any paint where the
+     month has just changed underneath it -- the whole table is shown as one
+     page, which is what a month that fits ends up as anyway. */
+  const pages = fit.pages.length ? fit.pages : [table.rows];
 
   /* The sheet is laid out at its true printed size and only shown smaller, so
      every measurement above is taken on the paper's own geometry. */
@@ -483,16 +543,114 @@ const SchedulePrintView = () => {
     const measure = () => {
       const natural = sheet.offsetWidth;
       const scale = natural ? Math.min(1, stage.clientWidth / natural) : 1;
-      setPreview({ scale, height: sheet.offsetHeight * scale });
+      const pageHeight = sheet.offsetHeight * scale;
+      setPreview({
+        scale,
+        pageHeight,
+        height: pageHeight * pages.length + PAGE_GAP_PX * (pages.length - 1),
+      });
     };
 
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(stage);
     return () => observer.disconnect();
-  }, [sheetWidthMm, sheetHeightMm]);
+  }, [sheetWidthMm, sheetHeightMm, pages.length]);
 
   /* ---------------------------------------------------------------- render */
+
+  /**
+   * One A4 sheet, carrying the rows it was given.
+   *
+   * The measuring sheet and the sheets on screen are the same markup on
+   * purpose: a size found on a table laid out one way tells you nothing about
+   * a table laid out another.
+   */
+  const renderSheet = (
+    rows,
+    { ref, className = '', key, measuring = false, loose = false, index = 0 }
+  ) => (
+    <div
+      key={key}
+      ref={ref}
+      className={`sprint-sheet ${className} ${loose ? 'is-loose' : ''} ${
+        loading ? 'is-loading' : ''
+      }`}
+      style={{
+        width: `${sheetWidthMm}mm`,
+        height: `${sheetHeightMm}mm`,
+        ...(measuring
+          ? {}
+          : {
+              transform: `scale(${preview.scale})`,
+              '--sprint-font': `${fit.fontPx}px`,
+              /* A sheet is laid out at A4 and only drawn smaller, and a
+                 transform leaves the space the untransformed box claimed. So
+                 the sheets are placed on the stage themselves, at the height
+                 they are actually drawn. */
+              top: index * (preview.pageHeight + PAGE_GAP_PX),
+            }),
+      }}
+    >
+      <div className="sprint-sheet-head">
+        <h2>{active?.name}</h2>
+        <span>{`${monthLabel} ${year}`}</span>
+      </div>
+
+      <div className="sprint-sheet-body" ref={measuring ? bodyRef : undefined}>
+        <div className="sprint-table-wrap">
+          <table
+            ref={measuring ? tableRef : undefined}
+            className={`sprint-table is-${layout}`}
+            style={{
+              minWidth: `calc(${table.minFirstEm}em + ${table.columns.length} * ${table.minColumnEm}em)`,
+            }}
+          >
+            <thead>
+              <tr>
+                <th className="sprint-first">{table.firstHead}</th>
+                {table.columns.map((column) => (
+                  <th key={column.key} className={column.muted ? 'is-muted' : ''}>
+                    {column.label}
+                    {column.sub && <em>{column.sub}</em>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.key} className={row.muted ? 'is-muted' : ''}>
+                  <th className="sprint-first">
+                    {row.label}
+                    {row.sub && <em>{row.sub}</em>}
+                  </th>
+                  {row.cells.map((cell, index) => (
+                    <td
+                      key={table.columns[index].key}
+                      className={table.columns[index].muted ? 'is-muted' : ''}
+                    >
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {table.legend.length > 0 && (
+          <ul className="sprint-legend" ref={measuring ? legendRef : undefined}>
+            {table.legend.map((item) => (
+              <li key={item.key}>
+                <b>{item.marker}</b>
+                {item.label}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
 
   if (workplacesLoading) {
     return (
@@ -616,6 +774,21 @@ const SchedulePrintView = () => {
             </button>
           </div>
 
+          <label className="sprint-field">
+            {t('schedule_print.pages')}
+            <select
+              className="sprint-select"
+              value={pageBudget}
+              onChange={(event) => setPageBudget(Number(event.target.value))}
+            >
+              {PAGE_OPTIONS.map((count) => (
+                <option key={count} value={count}>
+                  {count}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <div className="sprint-seg" role="group" aria-label={t('schedule_print.names')}>
             {NAME_STYLES.map((style) => (
               <button
@@ -632,73 +805,31 @@ const SchedulePrintView = () => {
       </div>
 
       <div className="sprint-stage" ref={stageRef} style={{ height: preview.height }}>
-        <div
-          className={`sprint-sheet ${loading ? 'is-loading' : ''}`}
-          ref={sheetRef}
-          style={{
-            width: `${sheetWidthMm}mm`,
-            height: `${sheetHeightMm}mm`,
-            transform: `scale(${preview.scale})`,
-          }}
-        >
-          <div className="sprint-sheet-head">
-            <h2>{active?.name}</h2>
-            <span>{`${monthLabel} ${year}`}</span>
-          </div>
+        {/* The sheet the fit search reads: the whole month at once, at its
+            natural height, off the side of the screen. It is measured rather
+            than shown, because the sheets that are shown have already been
+            cut to the size it found and could not tell anyone what the next
+            size down would cost. */}
+        {renderSheet(table.rows, {
+          ref: sheetRef,
+          className: 'sprint-measure is-measuring',
+          key: 'measure',
+          measuring: true,
+        })}
 
-          <div className="sprint-sheet-body" ref={bodyRef}>
-            <div className="sprint-table-wrap">
-              <table
-                ref={tableRef}
-                className={`sprint-table is-${layout}`}
-                style={{
-                  minWidth: `calc(${table.minFirstEm}em + ${table.columns.length} * ${table.minColumnEm}em)`,
-                }}
-              >
-                <thead>
-                  <tr>
-                    <th className="sprint-first">{table.firstHead}</th>
-                    {table.columns.map((column) => (
-                      <th key={column.key} className={column.muted ? 'is-muted' : ''}>
-                        {column.label}
-                        {column.sub && <em>{column.sub}</em>}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {table.rows.map((row) => (
-                    <tr key={row.key} className={row.muted ? 'is-muted' : ''}>
-                      <th className="sprint-first">
-                        {row.label}
-                        {row.sub && <em>{row.sub}</em>}
-                      </th>
-                      {row.cells.map((cell, index) => (
-                        <td
-                          key={table.columns[index].key}
-                          className={table.columns[index].muted ? 'is-muted' : ''}
-                        >
-                          {cell}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {table.legend.length > 0 && (
-              <ul className="sprint-legend" ref={legendRef}>
-                {table.legend.map((item) => (
-                  <li key={item.key}>
-                    <b>{item.marker}</b>
-                    {item.label}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
+        {pages.map((rows, index) =>
+          renderSheet(rows, {
+            key: `page-${index}`,
+            /* Only a month that came out on one page is spread down it. The
+               last of several holds whatever the pages before it left, and
+               stretching those few rows over a whole sheet would say the
+               month ends in rows three centimetres tall. */
+            index,
+            loose: pages.length > 1 && index === pages.length - 1,
+            /* The legend explains the squares, so it belongs on every sheet
+               somebody might be holding. */
+          })
+        )}
       </div>
     </div>
   );
