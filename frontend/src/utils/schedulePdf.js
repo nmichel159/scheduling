@@ -17,9 +17,11 @@ import boldFontUrl from '../assets/fonts/DejaVuSans-Bold-latin.ttf?url';
  *
  * The second is that the page size is fixed and the type is not: the table is
  * laid out, the pages it produced are counted, and the size is halved in on
- * until the largest one that still leaves a single page is found -- the same
- * rule the screen follows, reached the same way, because "one sheet" is the
- * one promise this output makes.
+ * until the largest one that still stays inside the page budget is found --
+ * the same rule the screen follows, reached the same way. The budget is one
+ * sheet unless the reader asks for more, because a rota that is read off a
+ * wall wants to be one page, and a roster too big for one wants to be legible
+ * more than it wants to be single.
  */
 
 /* The printable area, matching what the preview lays out: the page rule's
@@ -206,11 +208,12 @@ const renderTable = async (doc, autoTable, sheet, fontSizePt, options) => {
   const finalY = drawn.finalY;
   return {
     finalY,
+    pages: doc.getNumberOfPages(),
     /* Where the body starts, so a later pass can work out how much taller its
        rows would have to be to reach the foot of the page. */
     bodyTop: (drawn.settings?.startY ?? startY) + (drawn.head?.[0]?.height ?? 0),
     fits:
-      doc.getNumberOfPages() === 1 &&
+      doc.getNumberOfPages() <= options.maxPages &&
       finalY + legendHeight + BOTTOM_SLACK_MM <= pageHeight - MARGIN_Y_MM,
   };
 };
@@ -230,13 +233,18 @@ const drawLegend = (doc, legend, startY, lineHeight) => {
  * `sheet` is the print screen's own table model: { title, period, firstHead,
  * columns: [{label, sub, muted}], rows: [{label, sub, muted, cells}],
  * legend: [{marker, label}], firstColumnShare }.
+ *
+ * `maxPages` is how many sheets the reader is willing to spend; the type is
+ * made as large as that many pages allow.
  */
-export async function buildSchedulePdf(sheet, orientation = 'portrait') {
+export async function buildSchedulePdf(sheet, orientation = 'portrait', maxPages = 1) {
   const [{ jsPDF }, { default: autoTable }, fonts] = await Promise.all([
     import('jspdf'),
     import('jspdf-autotable'),
     loadFonts(),
   ]);
+
+  const pageBudget = Math.max(1, Math.round(maxPages) || 1);
 
   const build = async (fontSizePt, minCellHeight) => {
     const doc = new jsPDF({ orientation, unit: 'mm', format: 'a4' });
@@ -247,6 +255,7 @@ export async function buildSchedulePdf(sheet, orientation = 'portrait') {
     const legend = legendLayout(doc, sheet, fontSizePt, pageWidth - 2 * MARGIN_X_MM);
     const result = await renderTable(doc, autoTable, sheet, fontSizePt, {
       legendHeight: legend.height,
+      maxPages: pageBudget,
       minCellHeight,
       pageWidth,
       pageHeight,
@@ -283,7 +292,11 @@ export async function buildSchedulePdf(sheet, orientation = 'portrait') {
      If stretching costs a page after all -- rounding, or a row that grows a
      line rather than a millimetre -- the unstretched sheet stands. One page is
      the promise; filling it is only a courtesy. */
-  const rowCount = sheet.rows.length;
+  /* Only a sheet that came out on one page is stretched. Spread over several,
+     the last page holds whatever the ones before it left, and stretching its
+     handful of rows over a whole sheet would say the month ends in rows three
+     centimetres tall. */
+  const rowCount = best.pages === 1 ? sheet.rows.length : 0;
   const footLine = best.pageHeight - MARGIN_Y_MM - BOTTOM_SLACK_MM - best.legend.height;
   if (rowCount > 0 && footLine - best.finalY > 1) {
     const stretched = await build(bestSize, (footLine - best.bodyTop) / rowCount);
@@ -295,7 +308,12 @@ export async function buildSchedulePdf(sheet, orientation = 'portrait') {
 }
 
 /** Build the sheet and hand it to the browser as a downloaded file. */
-export async function downloadSchedulePdf(filename, sheet, orientation = 'portrait') {
-  const doc = await buildSchedulePdf(sheet, orientation);
+export async function downloadSchedulePdf(
+  filename,
+  sheet,
+  orientation = 'portrait',
+  maxPages = 1
+) {
+  const doc = await buildSchedulePdf(sheet, orientation, maxPages);
   doc.save(filename);
 }

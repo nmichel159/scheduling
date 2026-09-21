@@ -559,6 +559,7 @@
     "names_short": "Short",
     "names_full": "Full names",
     "names_titles": "With titles",
+    "pages": "Pages",
     "pdf": "Download PDF",
     "pdf_building": "Preparing PDF...",
     "pdf_error": "Could not create the PDF.",
