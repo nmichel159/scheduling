@@ -831,10 +831,48 @@ const AmbulanceScheduleEditView = () => {
     draftCompetenceId != null && eligibleEmployees.length === 0;
   const monthNavigationDisabled = loading || generating || saving || approving;
 
+  /* The month on screen and the arrows either side of it. In the planner it
+   * leads the generate toolbar rather than sitting in the bar above: the bar
+   * shares its line with the workplace's name, and with the stepper in it
+   * the "Cancel changes" button that appears on the first edit pushed the
+   * buttons onto a second line -- moving the whole people calendar down
+   * under the pointer that had just clicked it. */
+  const monthStepper = (
+    <div
+      className="schedule-edit-month-navigation"
+      role="group"
+      aria-label={monthLabel}
+    >
+      <button
+        type="button"
+        className="btn btn-ghost btn-icon btn-sm"
+        onClick={() => changeMonth(-1)}
+        disabled={monthNavigationDisabled}
+        aria-label={t('schedule_edit.previous_month')}
+        title={t('schedule_edit.previous_month')}
+      >
+        <ChevronLeftIcon />
+      </button>
+      <span className="schedule-edit-topbar-month" aria-live="polite">
+        {monthLabel}
+      </span>
+      <button
+        type="button"
+        className="btn btn-ghost btn-icon btn-sm"
+        onClick={() => changeMonth(1)}
+        disabled={monthNavigationDisabled}
+        aria-label={t('schedule_edit.next_month')}
+        title={t('schedule_edit.next_month')}
+      >
+        <ChevronLeftIcon className="schedule-edit-chevron-next" />
+      </button>
+    </div>
+  );
+
   /* What you are looking at on the left -- the workplace, whether it is saved
-   * and approved -- and what you can do to it on the right: the month stepper
-   * and the save and approve buttons. On a narrow column the two halves wrap
-   * under each other instead of squeezing.
+   * and approved -- and what you can do to it on the right: save and approve.
+   * On a narrow column the two halves wrap under each other instead of
+   * squeezing.
    *
    * It is built here rather than rendered in place because the planner puts
    * it somewhere else: there the day matrix owns the left column and has to
@@ -862,31 +900,7 @@ const AmbulanceScheduleEditView = () => {
       </div>
 
       <div className="schedule-edit-controls">
-        <div className="schedule-edit-month-navigation">
-          <button
-            type="button"
-            className="btn btn-ghost btn-icon btn-sm"
-            onClick={() => changeMonth(-1)}
-            disabled={monthNavigationDisabled}
-            aria-label={t('schedule_edit.previous_month')}
-            title={t('schedule_edit.previous_month')}
-          >
-            <ChevronLeftIcon />
-          </button>
-          <span className="schedule-edit-topbar-month" aria-live="polite">
-            {monthLabel}
-          </span>
-          <button
-            type="button"
-            className="btn btn-ghost btn-icon btn-sm"
-            onClick={() => changeMonth(1)}
-            disabled={monthNavigationDisabled}
-            aria-label={t('schedule_edit.next_month')}
-            title={t('schedule_edit.next_month')}
-          >
-            <ChevronLeftIcon className="schedule-edit-chevron-next" />
-          </button>
-        </div>
+        {scheduleView !== 'planner' && monthStepper}
 
         <div className="schedule-edit-topbar-actions">
           {/* Only worth a place in the bar while there is something to
@@ -1122,6 +1136,7 @@ const AmbulanceScheduleEditView = () => {
           {scheduleView === 'planner' && (
             <SchedulePlannerView
               header={topbar}
+              period={monthStepper}
               year={view.y}
               month={view.m}
               today={today}

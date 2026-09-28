@@ -1,174 +1,90 @@
-/* --- Printing the month: the A4 sheet itself, shown at whatever scale fits --- */
+/* --- Printing the month: the A4 sheet itself, shown at whatever scale fits ---
+
+   The page chrome -- header, buttons, fields, segmented toggles, the toolbar
+   card -- is the shared set from styles/ui.css. This file lays out the
+   toolbar, the desk the sheets lie on, and the sheet itself, which is paper
+   and stays black on white in either theme. */
 
 .sprint {
   max-width: 1400px;
-  margin: 0 auto;
-  text-align: left;
 }
 
-.sprint-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.sprint-title {
-  margin: 0;
-  font-size: 1.5rem;
-  color: var(--text-h);
-}
-
-.sprint-banner {
-  border: 1px solid var(--border);
-  background: var(--primary-background);
-  border-radius: 8px;
-  padding: 10px 14px;
+.sprint-alert {
   margin-bottom: 16px;
-  font-size: 0.85rem;
+}
+
+/* Holds its width while the label swaps for the "preparing" one, so the row
+   of buttons does not shuffle sideways mid-click. */
+.sprint-pdf {
+  min-width: 10.5em;
+}
+
+/* On the filled button the shared spinner's ring would be accent on accent. */
+.spinner.sprint-pdf-spinner {
+  width: 14px;
+  height: 14px;
+  border-color: color-mix(in srgb, var(--on-primary) 35%, transparent);
+  border-top-color: var(--on-primary);
 }
 
 /* ---------- toolbar ----------
 
-   Two rows, because the two things done here are not the same thing: the head
-   carries what leaves the screen (PDF, and the two file formats behind it),
-   the bar underneath carries what the sheet looks like. Keeping them apart is
-   what stops the row of controls reading as one undifferentiated strip. */
+   What the sheet looks like: the month, then its shape. Every control has
+   its small label above it, so a bare "1" or a pair of toggles says what it
+   chooses. */
 
 .sprint-bar {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 12px;
-  margin-bottom: 18px;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  align-items: flex-end;
+  gap: 14px 16px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
 }
 
-.sprint-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+.field.sprint-field {
+  flex: none;
+  gap: 5px;
+}
+
+.sprint-field .field-label {
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+  font-weight: 550;
+}
+
+.select.sprint-select {
+  width: auto;
+  min-width: 88px;
+}
+
+.select.sprint-select-pages {
+  min-width: 72px;
+}
+
+.sprint-field .segmented {
+  height: var(--control-h);
+  box-sizing: border-box;
 }
 
 /* Separates the month from the sheet's shape; drops out once the bar wraps,
    where a vertical rule between two stacked rows means nothing. */
 .sprint-divider {
-  width: 1px;
   align-self: stretch;
-  min-height: 24px;
+  width: 1px;
+  margin: 2px 2px 0;
   background: var(--border);
 }
 
-.sprint-select,
-.sprint-btn {
+/* ---------- the desk ----------
+   A quiet surface for the paper to lie on, so a white sheet reads as a sheet
+   in the light theme too. Deliberately unpositioned -- see the print rules. */
+
+.sprint-desk {
+  padding: 28px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
-  color: var(--text-h);
-  font: inherit;
-  font-size: 0.9rem;
-  padding: 7px 12px;
-  line-height: 1.2;
-}
-
-.sprint-select {
-  cursor: pointer;
-}
-
-.sprint-select:hover,
-.sprint-seg:hover {
-  border-color: var(--primary);
-}
-
-.sprint-btn {
-  cursor: pointer;
-}
-
-.sprint-btn:hover:not(:disabled) {
-  border-color: var(--primary);
-}
-
-.sprint-btn:disabled,
-.sprint-seg button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-/* The one action the page exists for, so it is the only filled control here. */
-.sprint-btn-primary {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: #fff;
-  font-weight: 600;
-  /* Holds its width while the label swaps for the "preparing" one, so the row
-     of buttons does not shuffle sideways mid-click. */
-  min-width: 10em;
-}
-
-.sprint-btn-primary:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
-
-.sprint-select:focus-visible,
-.sprint-btn:focus-visible,
-.sprint-seg button:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-
-/* A track with the chosen option lifted out of it: the choice reads at a
-   glance without a label having to name what is being chosen. */
-.sprint-seg {
-  display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--primary-background);
-  padding: 2px;
-  gap: 2px;
-}
-
-.sprint-seg button {
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  font-size: 0.85rem;
-  padding: 5px 12px;
-  line-height: 1.2;
-  cursor: pointer;
-}
-
-.sprint-seg button:hover:not(:disabled):not(.is-active) {
-  color: var(--text-h);
-}
-
-.sprint-seg button.is-active {
-  background: var(--background);
-  color: var(--text-h);
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-}
-
-/* The one control here that needs naming: a bare number in the bar would not
-   say what it counts. */
-.sprint-field {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
-  color: var(--text);
-}
-
-.sprint-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
 }
 
 /* ---------- the sheet ----------
@@ -201,7 +117,8 @@
   padding: 4mm 5mm;
   background: #fff;
   color: #111;
-  box-shadow: var(--shadow);
+  /* A hairline plus a soft drop: on the dark desk the shadow alone is lost. */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06), var(--shadow);
   font-family: var(--sans);
   /* Weekends are told apart by shading, which browsers drop from a printout
      unless the page says it carries meaning. */
@@ -378,12 +295,49 @@
 }
 
 @media (max-width: 768px) {
-  .sprint-head {
-    align-items: flex-start;
-  }
-
   .sprint-divider {
     display: none;
+  }
+
+  .sprint-desk {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 560px) {
+  .sprint-bar {
+    padding: 12px;
+  }
+
+  /* Month and year share the first line; each toggle then gets a line of
+     its own, stretched so its options split the width evenly. */
+  .field.sprint-field {
+    flex: 1 1 100%;
+  }
+
+  label.field.sprint-field {
+    flex: 1 1 40%;
+  }
+
+  .select.sprint-select {
+    width: 100%;
+  }
+
+  .sprint-field .segmented {
+    display: flex;
+  }
+
+  .sprint-field .segmented > button {
+    flex: 1;
+    padding: 0 8px;
+  }
+
+  .sprint .page-actions {
+    width: 100%;
+  }
+
+  .sprint .page-actions .btn {
+    flex: 1;
   }
 }
 
@@ -392,19 +346,29 @@
    Everything but the sheet is hidden rather than removed, so no ancestor
    collapses and the sheet keeps the box it was measured in. It is then lifted
    to the corner of the page box: with every ancestor left static and untransformed,
-   that corner is the printable area itself. */
+   that corner is the printable area itself.
+
+   Every rule that reaches outside the sheet is scoped to a document that has
+   the print stage in it. This stylesheet is bundled with the whole app, and
+   unscoped, `body *` hid every other screen from the printer too -- Ctrl+P on
+   the dashboard printed a blank page. */
 
 @media print {
-  body {
-    background: #fff;
+  /* Paper is white whatever the theme: with background graphics switched on,
+     the dark theme's page colour printed as a black frame round the sheet. */
+  html:has(.sprint-stage),
+  html:has(.sprint-stage) body {
+    background: #fff !important;
+    color-scheme: light !important;
   }
 
-  body * {
+  body:has(.sprint-stage) * {
     visibility: hidden !important;
   }
 
-  .sprint-sheet,
-  .sprint-sheet * {
+  /* As specific as the rule above, or it would lose to it. */
+  body:has(.sprint-stage) .sprint-sheet,
+  body:has(.sprint-stage) .sprint-sheet * {
     visibility: visible !important;
   }
 
@@ -436,9 +400,9 @@
     overflow: visible !important;
   }
 
-  .app-container,
-  .main-area,
-  .content,
+  body:has(.sprint-stage) .app-container,
+  body:has(.sprint-stage) .main-area,
+  body:has(.sprint-stage) .content,
   .sprint {
     overflow: visible !important;
   }

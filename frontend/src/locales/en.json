@@ -398,7 +398,7 @@
   },
   "statistics": {
     "title": "Statistics",
-    "subtitle": "Duties and people over the whole year.",
+    "subtitle": "Duties and people over the whole year",
     "year_nav": "Year selection",
     "loading": "Loading the statistics…",
     "load_error": "The statistics could not be loaded.",
@@ -574,6 +574,13 @@
     "send_failed": "Sending failed.",
     "not_configured": "Mail sending is not configured.",
     "no_selection": "Nobody is selected.",
+    "subtitle": "Email the employees of the chosen workplaces a link to fill in their schedule.",
+    "body": "Message text",
+    "send_confirm_title": "Send the request?",
+    "selected_count": "Selected: {{people}}",
+    "pick_hint": "Pick the recipients from the list of workplaces.",
+    "show_members": "Show employees",
+    "hide_members": "Hide employees",
     "load_error": "Could not load the data."
   },
   "schedule_print": {
@@ -596,6 +603,7 @@
     "pdf": "Download PDF",
     "pdf_building": "Preparing PDF...",
     "pdf_error": "Could not create the PDF.",
+    "subtitle": "A preview of the A4 sheet. The type is sized so the month fits the chosen number of pages.",
     "xlsx": "Excel",
     "csv": "CSV",
     "date": "Date",

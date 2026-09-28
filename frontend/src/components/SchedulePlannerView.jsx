@@ -80,7 +80,11 @@ const CELL_BORDER = 1;
 const LABEL_TILT = Math.SQRT1_2; // sin(45°) === cos(45°)
 const MIN_LABEL_WIDTH = 60;
 const MAX_LABEL_WIDTH = 320;
-const LABEL_PADDING = 8;
+/* Air above the tilted names, and room for their own line height, which
+   leans upwards with them: without it the top of the longest name was cut
+   off by the edge of the scrolling pane. Kept equal to the 20px in
+   --planner-head-h in the stylesheet. */
+const LABEL_PADDING = 20;
 
 /**
  * Third schedule mode — the planner.
@@ -127,9 +131,11 @@ const LABEL_PADDING = 8;
  *   above the planner because the demand matrix has to start at the very top
  *   of the page; the bar therefore sits in the right column, beside the
  *   matrix instead of over it.
+ * - period — the page's month stepper, which leads the generate toolbar.
  */
 const SchedulePlannerView = ({
   header,
+  period,
   year,
   month,
   today,
@@ -766,6 +772,8 @@ const SchedulePlannerView = ({
 
           <div className="card planner-toolbar">
             <div className="planner-toolbar-row">
+              {period}
+
               <div className="planner-toolbar-actions">
                 {onGenerate && (
                   <button

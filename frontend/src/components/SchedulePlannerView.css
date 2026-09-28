@@ -176,10 +176,12 @@
      label tilted 45 degrees claims its own length x sin(45) above the table,
      and the same again to the right of the last column. */
   --planner-label-w: 120px;
-  --planner-head-h: calc(var(--planner-label-w) * 0.7072 + 8px);
+  --planner-head-h: calc(var(--planner-label-w) * 0.7072 + 20px);
   border-collapse: separate;
   border-spacing: 0;
-  margin-right: calc(var(--planner-label-w) * 0.7072);
+  /* The name's own line height leans out past its length once tilted, hence
+     the extra em on top of the length itself. */
+  margin-right: calc(var(--planner-label-w) * 0.7072 + 1em);
 }
 
 /* The opaque backing is on the group, not on the individual header cells. The
@@ -404,7 +406,12 @@
 
 /* --- right: person x day grid --- */
 
+/* As wide as the card, with the days taking whatever the names and the two
+   totals leave: on a laptop that is about 16px a day, which still holds a
+   dot and a two-digit date, and the whole month fits without the pane
+   scrolling sideways. On a wide screen the days simply get roomier. */
 .planner-people-table {
+  width: 100%;
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -422,7 +429,7 @@
   position: sticky;
   left: 0;
   z-index: 1;
-  min-width: 112px;
+  min-width: 100px;
   max-width: 150px;
   overflow: hidden;
   padding: 3px 10px 3px 2px;
@@ -459,8 +466,7 @@
 }
 
 .planner-people-dayhead {
-  width: 21px;
-  min-width: 21px;
+  min-width: 15px;
   padding: 2px 0 4px;
   color: var(--text-h);
   font-size: 0.6875rem;
@@ -470,7 +476,9 @@
 
 .planner-people-daynum {
   display: block;
+  font-size: 0.65625rem;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 .planner-people-dayname {
@@ -549,8 +557,9 @@
 
 .planner-people-dot {
   display: inline-block;
-  width: 10px;
-  height: 10px;
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   vertical-align: middle;
   pointer-events: none;

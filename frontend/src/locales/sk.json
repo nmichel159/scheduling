@@ -398,7 +398,7 @@
   },
   "statistics": {
     "title": "Štatistiky",
-    "subtitle": "Služby a ľudia za celý rok.",
+    "subtitle": "Služby a ľudia za celý rok",
     "year_nav": "Výber roka",
     "loading": "Načítavam štatistiky…",
     "load_error": "Štatistiky sa nepodarilo načítať.",
@@ -576,6 +576,13 @@
     "send_failed": "Odoslanie zlyhalo.",
     "not_configured": "Odosielanie e-mailov nie je nastavené.",
     "no_selection": "Nie je vybraný nikto.",
+    "subtitle": "Pošlite zamestnancom vybraných pracovísk e-mail s odkazom na vyplnenie rozvrhu.",
+    "body": "Text správy",
+    "send_confirm_title": "Odoslať výzvu?",
+    "selected_count": "Vybraní: {{people}}",
+    "pick_hint": "Vyberte príjemcov zo zoznamu pracovísk.",
+    "show_members": "Zobraziť zamestnancov",
+    "hide_members": "Skryť zamestnancov",
     "load_error": "Nepodarilo sa načítať dáta."
   },
   "schedule_print": {
@@ -598,6 +605,7 @@
     "pdf": "Stiahnuť PDF",
     "pdf_building": "Pripravujem PDF...",
     "pdf_error": "PDF sa nepodarilo vytvoriť.",
+    "subtitle": "Náhľad hárku A4. Písmo sa prispôsobí tak, aby sa mesiac zmestil na zvolený počet strán.",
     "xlsx": "Excel",
     "csv": "CSV",
     "date": "Dátum",
