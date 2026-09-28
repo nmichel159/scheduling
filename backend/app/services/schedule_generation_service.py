@@ -134,8 +134,8 @@ HOURS_UNIT_COST = 4
 OVER_WISH_DUTY_COST = 1000.0
 
 # What one person above a role's required count costs. Overstaffing is not
-# forbidden, only priced like a broken monthly wish. A role with no count
-# set has no ceiling and is never charged.
+# forbidden, only priced like a broken monthly wish. A count of zero is the
+# exception: that role gets nobody that day, strictly.
 OVERSTAFF_DUTY_COST = 1000.0
 
 # --- Day wishes -----------------------------------------------------------
@@ -933,8 +933,8 @@ def solve_monthly_schedule(
                 f"coverage_{competence.id}_{work_date.isoformat()}",
             )
             # More people than asked for is allowed but paid for. A role
-            # with no count set has no ceiling, so its surplus is free.
-            if competence.required_on(work_date) > 0 and coverage_variables:
+            # asking for zero gets no variables at all, so zero stays zero.
+            if coverage_variables:
                 overstaff_terms.append(
                     OVERSTAFF_DUTY_COST * (lpSum(coverage_variables) - demand)
                 )
@@ -1140,7 +1140,8 @@ def solve_monthly_schedule(
                     )
                     spread_terms.append((spread_unit / gap) * close)
 
-        if employee.max_shifts_per_month is not None:
+        # Zero or nothing entered means no limit.
+        if employee.max_shifts_per_month:
             over_wish = LpVariable(f"over_wish_{employee.id}", lowBound=0)
             problem += (
                 over_wish

@@ -486,7 +486,7 @@ const EmployeesView = () => {
                   const name = e.full_name || e.email;
                   const fill = stats.max > 0 ? Math.min(1, stats.shifts / stats.max) : 0;
                   let meterState = '';
-                  if (stats.max == null) meterState = 'is-open';
+                  if (!stats.max) meterState = 'is-open';
                   else if (stats.shifts > stats.max) meterState = 'is-over';
                   else if (stats.shifts === stats.max) meterState = 'is-full';
                   /* The chip the list is narrowed to goes first, so it is

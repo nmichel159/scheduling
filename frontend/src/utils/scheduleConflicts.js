@@ -310,7 +310,8 @@ export function analyzeScheduleConflicts({
   contextByUser.forEach((entry, userId) => {
     const max = entry.max_shifts_per_month;
     const count = ownCount.get(userId) || 0;
-    if (max != null && count > max) {
+    // Zero or nothing entered means no limit.
+    if (max && count > max) {
       const list = dutiesByUser.get(userId)?.filter((duty) => duty.shift) || [];
       add('over_wish', {
         key: String(userId),
@@ -339,10 +340,11 @@ export function analyzeScheduleConflicts({
       const required = requiredOf(competence.id, dateStr);
       const filled = filledByCell.get(key) || 0;
       if (filled === required) return;
-      // No count set means no ceiling: any number of people is fine there.
-      if (required === 0) return;
       add(filled < required ? 'understaffed' : 'overstaffed', {
         key,
+        // Zero is a hard "nobody works this role today"; a surplus over a
+        // real count is only a penalty.
+        ...(required === 0 ? { severity: 'error' } : {}),
         date: dateStr,
         competenceId: competence.id,
         filled,
@@ -426,7 +428,7 @@ export function analyzeScheduleConflicts({
     const max = contextByUser.get(userId)?.max_shifts_per_month;
     const alreadyCounted = others.length !== (dutiesByUser.get(userId) || []).length;
     const load = (ownCount.get(userId) || 0) + (alreadyCounted ? 0 : 1);
-    if (max != null && load > max) found.push({ type: 'over_wish', count: load, max });
+    if (max && load > max) found.push({ type: 'over_wish', count: load, max });
 
     if (reason === SOFT_DECLINE_REASON) found.push({ type: 'soft_decline' });
     return found.map((item) => ({ ...item, severity: CONFLICT_SEVERITY[item.type] }));
