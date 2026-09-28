@@ -102,6 +102,7 @@ export function analyzeScheduleConflicts({
   competences,
   restDays,
   context,
+  fromDate = null,
 }) {
   const slotsById = new Map(
     competences.map((competence) => [
@@ -352,6 +353,16 @@ export function analyzeScheduleConflicts({
         demandCells: [key],
       });
     });
+  }
+
+  // Only the days that are still generated count. Days already worked may
+  // follow a different scenario, and nothing done now can change them.
+  if (fromDate) {
+    const kept = conflicts.filter(
+      (conflict) => !conflict.date || (conflict.secondDate ?? conflict.date) >= fromDate
+    );
+    conflicts.length = 0;
+    conflicts.push(...kept);
   }
 
   const typeOrder = new Map(CONFLICT_TYPES.map((type, index) => [type, index]));

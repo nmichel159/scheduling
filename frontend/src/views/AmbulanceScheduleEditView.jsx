@@ -330,6 +330,24 @@ const AmbulanceScheduleEditView = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shifts, competenceMap]);
 
+  /* The first date the manager may still change: tomorrow, or the 1st for a
+   * month that has not started yet. Today and every day before it are already
+   * worked or being worked, so neither Clear nor the solver may touch them —
+   * regenerating a running month rewrites its remainder, not its history.
+   * null means the whole displayed month lies in the past. */
+  const firstEditableDate = useMemo(() => {
+    const monthStart = new Date(view.y, view.m, 1);
+    const monthEnd = new Date(view.y, view.m + 1, 0);
+    const tomorrow = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() + 1
+    );
+    const from = tomorrow > monthStart ? tomorrow : monthStart;
+    if (from > monthEnd) return null;
+    return isoDate(from.getFullYear(), from.getMonth(), from.getDate());
+  }, [today, view.m, view.y]);
+
   /* Every rule the month on screen breaks. Worked out from the edited
    * shifts, so a click in the planner shows or clears its conflict at once,
    * before anything is saved. */
@@ -344,8 +362,19 @@ const AmbulanceScheduleEditView = () => {
         competences: legend,
         restDays,
         context: scheduleContext,
+        fromDate: firstEditableDate,
       }),
-    [view.y, view.m, selectedId, shifts, employees, legend, restDays, scheduleContext]
+    [
+      view.y,
+      view.m,
+      selectedId,
+      shifts,
+      employees,
+      legend,
+      restDays,
+      scheduleContext,
+      firstEditableDate,
+    ]
   );
 
   const cells = useMemo(() => buildMonthCells(view.y, view.m), [view.y, view.m]);
@@ -367,24 +396,6 @@ const AmbulanceScheduleEditView = () => {
       }),
     [i18n.language]
   );
-
-  /* The first date the manager may still change: tomorrow, or the 1st for a
-   * month that has not started yet. Today and every day before it are already
-   * worked or being worked, so neither Clear nor the solver may touch them —
-   * regenerating a running month rewrites its remainder, not its history.
-   * null means the whole displayed month lies in the past. */
-  const firstEditableDate = useMemo(() => {
-    const monthStart = new Date(view.y, view.m, 1);
-    const monthEnd = new Date(view.y, view.m + 1, 0);
-    const tomorrow = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate() + 1
-    );
-    const from = tomorrow > monthStart ? tomorrow : monthStart;
-    if (from > monthEnd) return null;
-    return isoDate(from.getFullYear(), from.getMonth(), from.getDate());
-  }, [today, view.m, view.y]);
 
   // ISO dates sort lexicographically, so a plain string compare separates the
   // editable tail of the month from its locked head.
