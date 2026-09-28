@@ -1,0 +1,177 @@
+/* --- Constraints: how strictly one workplace applies each scheduling rule ---
+
+   Four cards, one per group, and one row per rule. The rows share a single
+   column grid across every card, so a strict/penalized toggle and a weight
+   sit in the same place wherever the eye moves down the page. A strict row
+   dims its weight rather than dropping it: the number is still the one the
+   rule will use the moment it is penalized again. Page header, cards,
+   badges, the segmented toggle and the inputs come from ui.css. */
+
+.cons-head-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.cons-alert {
+  margin-bottom: 16px;
+}
+
+.cons-groups {
+  display: grid;
+  gap: 16px;
+  max-width: 920px;
+  transition: opacity var(--duration) var(--ease);
+}
+
+.cons-groups.is-loading {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.cons-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* name | mode | weight | reset */
+.cons-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 232px 148px 32px;
+  align-items: center;
+  gap: 10px 16px;
+  box-sizing: border-box;
+  min-height: 52px;
+  padding: 8px 16px 8px 20px;
+  border-bottom: 1px solid var(--border);
+  transition: background-color var(--duration) var(--ease);
+}
+
+.cons-row:last-child {
+  border-bottom: none;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.cons-row:hover {
+  background: var(--surface-2);
+}
+
+/* An edit not yet saved is marked on the row it belongs to, so a page of
+   fourteen rules still says at a glance which ones the save will send. */
+.cons-row.is-changed {
+  box-shadow: inset 3px 0 0 var(--primary);
+  background: var(--primary-background);
+}
+
+.cons-name {
+  color: var(--text-h);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.cons-mode {
+  display: flex;
+  align-items: center;
+}
+
+.cons-toggle {
+  width: 100%;
+}
+
+.cons-toggle > button {
+  flex: 1;
+}
+
+.cons-badge {
+  height: 26px;
+  padding: 0 10px;
+  color: var(--text-p);
+}
+
+.cons-badge.is-strict {
+  background: var(--surface-3);
+  color: var(--text-h);
+}
+
+.cons-weight {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cons-weight-label {
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.cons-weight-input {
+  width: 92px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cons-row.is-strict .cons-weight {
+  opacity: 0.5;
+}
+
+.cons-reset {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+  .cons-row {
+    grid-template-columns: minmax(0, 1fr) auto 32px;
+    grid-template-areas:
+      'name name name'
+      'mode weight reset';
+    padding: 12px 14px 12px 16px;
+  }
+
+  .cons-name {
+    grid-area: name;
+  }
+
+  .cons-mode {
+    grid-area: mode;
+  }
+
+  .cons-weight {
+    grid-area: weight;
+  }
+
+  .cons-reset {
+    grid-area: reset;
+  }
+
+  .cons-toggle {
+    width: auto;
+  }
+}
+
+@media (max-width: 420px) {
+  /* Out of sight but still the field's name for a screen reader. */
+  .cons-weight-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .cons-weight-input {
+    width: 76px;
+  }
+
+  .cons-toggle > button {
+    padding: 0 9px;
+  }
+}

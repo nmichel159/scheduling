@@ -4,6 +4,11 @@ Ako je zostavená úloha zmiešaného celočíselného programovania (MILP), kto
 rieši `schedule_generation_service.solve_monthly_schedule`. Jedna úloha, dva
 prechody, jedna ambulancia, jeden kalendárny mesiac.
 
+Čo je tu opísané, je model s **predvolenými ohraničeniami**. Každé pracovisko
+si časť z nich môže zmeniť na obrazovke Ohraničenia — prepnúť medzi
+striktným a penalizovaným a nastaviť váhu. Ako sa tým model mení, je v
+oddiele 6.
+
 ---
 
 ## 1. Premenné
@@ -24,7 +29,8 @@ ju vytvoriť a zakázať podmienkou, a zároveň to zmenšuje model:
 | `k ∉ z.competence_ids` | zamestnanec kompetenciu nemá |
 | `d` je mimo generovacieho okna (`generate_from`) | deň už je odslúžený |
 | požiadavka na `k` v deň `d` je nula | nikto tam netreba |
-| `d ∈ z.unavailable_dates` | tvrdá neprítomnosť (dovolenka, PN) |
+| `d ∈ z.unavailable_dates` a daný druh neprítomnosti je striktný | nemôže, dovolenka, služobná cesta |
+| `d ∈ z.soft_declined_dates` a „nechcem“ je striktné | predvolene nie je |
 | `d` koliduje so záväzkom, ktorý už zamestnanec má | viď nižšie |
 
 Záväzok je služba, ktorú už niekomu dlží a model ju nemení: ručne vložená
@@ -47,6 +53,7 @@ na celé číslo. Solver tým pádom nemusí na žiadnej z nich vetviť.
 | `level_<rebrík>_<stupeň>` | ⟨0, 1⟩ | jeden stupeň rebríka záťaže |
 | `over_wish_<z>` | ⟨0, ∞) | koľko služieb nad mesačné želanie |
 | `close_<z>_<d>_<g>` | ⟨0, 1⟩ | zamestnanec `z` slúži aj `d`, aj `d+g` |
+| `rest_breach_<z>_<d>` | ⟨0, ∞) | koľko odpočinkov sa v deň `d` prekrýva (len pri penalizovanom odpočinku) |
 
 ---
 
@@ -273,7 +280,7 @@ minúty dokazuje, že o chlp lepšia neexistuje. Druhý prechod preto dostáva
 absolútnu toleranciu optimality:
 
 ```
-WISH_OPTIMALITY_TOLERANCE = SPREAD_BUDGET = 1,0
+tolerancia = min(váha rozostupu, 0,1 · najlacnejšie denné želanie) = 1,0
 ```
 
 Riešenie takto blízko optimu **nemôže mať nesplnené denné želanie** — jedno
@@ -312,3 +319,45 @@ rozpismi, ktoré sú **už rovnako dobré vo všetkom ostatnom**.
 5. Ak druhý prechod nedobehne, obnoví sa snímka prvého. Želania sú láskavosť;
    vyrovnaný rozpis je odpoveď.
 6. Výstup sa deterministicky zoradí podľa dňa, kompetencie a zamestnanca.
+
+---
+
+## 6. Nastaviteľné ohraničenia
+
+Zoznam ohraničení s ich druhom a predvolenou hodnotou je v
+`constraint_setting_service.CONSTRAINTS`. Pracovisko si ukladá len to, čo
+zmenilo (`constraint_settings`), a generátor ho číta ako `ConstraintPolicy`.
+
+| Ohraničenie | Druh | Striktné | Penalizované |
+|---|---|---|---|
+| Plné obsadenie role, jedna rola za deň, kompetencia, iné pracovisko v ten deň | pevné | vždy | — |
+| Nemôže, dovolenka, služobná cesta | prepínateľné | premenná nevznikne | `váha · x` v prvom prechode |
+| Odpočinok po službe | prepínateľné | podmienka 2.2 | 2.2 sa rozdelí, viď nižšie |
+| Mesačné maximum | prepínateľné | `Σ x ≤ max(želanie, ručne vložené)` | 3.1 s váhou namiesto 1000 |
+| Nadpočet v role | prepínateľné | pokrytie ako rovnosť | `váha · (Σ x − požiadavka)` |
+| Vyváženosť | len váha | — | všetky štyri rebríky × `váha / 4` |
+| Nechcem | prepínateľné | premenná nevznikne | 3.3 s váhou namiesto 10 |
+| Chcem | len váha | — | 3.3 s váhou namiesto 10 |
+| Rozostup | len váha | — | rozpočet z 3.5 namiesto 1,0 |
+
+Váha 0 člen z modelu vypustí úplne.
+
+**Penalizovaný odpočinok.** Podmienka 2.2 sa rozdelí na dve. Jedna služba
+denne ostáva tvrdá (`Σ x[z, ·, d] ≤ 1`); odpočinok dostane premennú
+`rest_breach[z, d]`, o ktorú sa pravá strana smie zdvihnúť, a každá jej
+jednotka stojí váhu odpočinku. Platí sa teda za každý deň, v ktorom sa
+odpočinky dvoch služieb prekrývajú. Záväzky mimo modelu (služby tesne za
+hranicou mesiaca a na inom pracovisku) už premenné nevyraďujú; každá
+premenná, ktorá by s nimi kolidovala, nesie cenu `váha · počet spoločných
+dní`. Všetko, čo ráta, koľko sa dá najviac odslúžiť — výška rebríkov,
+rozostup, kolízie ručných služieb — vtedy ráta, akoby služba odpočinok
+nedávala, a kontrola kapacity vynechá kontroly susedných dní.
+
+**Poradie síl sa nemení.** Penalizované neprítomnosti a odpočinok idú do
+prvého prechodu vedľa mesačného maxima a nadpočtu, takže pri predvolenej
+váhe 1000 prebijú každý krok vyrovnanosti. „Nechcem“, „chcem“ a rozostup
+ostávajú v druhom prechode pod uzamknutou vyrovnanosťou — žiadna ich váha
+nekúpi menej vyrovnaný rozpis.
+
+Keď rozpis nevyjde a pracovisko sprísnilo niečo, čo je predvolene len
+penalizované, `constraint_conflict` to vymenuje v `tightened_constraints`.

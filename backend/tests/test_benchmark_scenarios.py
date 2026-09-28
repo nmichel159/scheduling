@@ -57,8 +57,8 @@ class BenchmarkScenarioCoverageTests(unittest.TestCase):
         }
 
         self.assertEqual(benchmarked_routes, application_get_routes)
-        self.assertEqual(len(benchmarked_routes), 47)
-        self.assertEqual(len(application_operations), 98)
+        self.assertEqual(len(benchmarked_routes), 48)
+        self.assertEqual(len(application_operations), 101)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ import {
   AdminIcon,
   ChevronLeftIcon,
   CompetenceIcon,
+  ConstraintsIcon,
   EmployeesIcon,
   HomeIcon,
   LimitsIcon,
@@ -65,6 +66,7 @@ const SECTIONS = [
       { to: '/departments', labelKey: 'sidebar.departments', Icon: WorkplaceIcon },
       { to: '/employees', labelKey: 'sidebar.employees', Icon: EmployeesIcon },
       { to: '/competences', labelKey: 'sidebar.competences', Icon: CompetenceIcon },
+      { to: '/constraints', labelKey: 'sidebar.constraints', Icon: ConstraintsIcon },
       // Špeciálne dni patria adminovi — rozvrhár ich vidí, ale needituje.
       // Adminovi sa vypíšu v jeho sekcii, tu by boli druhýkrát.
       {

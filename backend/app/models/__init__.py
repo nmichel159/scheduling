@@ -9,6 +9,7 @@ from app.models.unavailability import Unavailability
 from app.models.schedule import Schedule
 from app.models.special_day import SpecialDay
 from app.models.schedule_mail import ScheduleMailDispatch, ScheduleMailRecipient
+from app.models.constraint_setting import ConstraintSetting
 from app.models.audit import AuditLog
 from app.models.seed_version import SeedVersion
 from app.models.automatic_schedule_generation_run import AutomaticScheduleGenerationRun
@@ -25,6 +26,7 @@ __all__ = [
     "SpecialDay",
     "ScheduleMailRecipient",
     "ScheduleMailDispatch",
+    "ConstraintSetting",
     "AuditLog",
     "UserRole",
     "UserAmbulance",

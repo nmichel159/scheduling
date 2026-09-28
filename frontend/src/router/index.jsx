@@ -9,6 +9,7 @@ import DepartmentsView from '../views/DepartmentsView';
 import EmployeesView from '../views/EmployeesView';
 import CompetenceManagerView from '../views/CompetenceManagerView';
 import SpecialDaysView from '../views/SpecialDaysView';
+import ConstraintsView from '../views/ConstraintsView';
 import ScheduleMailView from '../views/ScheduleMailView';
 import AdminView from '../views/AdminView';
 import ScheduleOverviewView from '../views/ScheduleOverviewView';
@@ -94,6 +95,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole flag="hasManager">
             <CompetenceManagerView />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "/constraints",
+        element: (
+          <RequireRole flag="hasManager">
+            <ConstraintsView />
           </RequireRole>
         ),
       },

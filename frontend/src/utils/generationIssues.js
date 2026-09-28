@@ -56,6 +56,17 @@ export const formatGenerationIssue = (issue, t) => {
   if (issue.code === 'no_active_employees') {
     return t('schedule_edit.generate_no_employees');
   }
+  // Rules the workplace made strict although they are penalties by default
+  // are the likeliest cause, so the conflict names them.
+  const tightened = Array.isArray(issue.tightened_constraints)
+    ? issue.tightened_constraints
+    : [];
+  if (issue.code === 'constraint_conflict' && tightened.length > 0) {
+    return `${t('schedule_edit.generate_constraint_conflict')} ${t(
+      'schedule_edit.generate_tightened',
+      { names: tightened.map((code) => t(`constraints.names.${code}`)).join(', ') }
+    )}`;
+  }
   return t('schedule_edit.generate_constraint_conflict');
 };
 

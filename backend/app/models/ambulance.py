@@ -58,6 +58,11 @@ class Ambulance(Base):
         back_populates="ambulance",
         cascade="all, delete-orphan",
     )
+    constraint_settings = relationship(
+        "ConstraintSetting",
+        back_populates="ambulance",
+        cascade="all, delete-orphan",
+    )
     manager = relationship("User", back_populates="managed_ambulances")
 
     # Proxies for direct collection manipulation

@@ -13,6 +13,7 @@ export const WORKPLACE_SCOPED_PATHS = [
   '/departments',
   '/employees',
   '/competences',
+  '/constraints',
   '/special-days',
 ];
 

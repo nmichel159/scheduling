@@ -65,7 +65,8 @@
     "employees": "Employees",
     "special_days": "Special days",
     "schedule_mail": "Fill-in request",
-    "schedule_print": "Print schedule"
+    "schedule_print": "Print schedule",
+    "constraints": "Constraints"
   },
   "workplace": {
     "loading": "Loading workplaces...",
@@ -391,7 +392,8 @@
         "rest": "Resting: {{dates}}",
         "over_wish": "Over the wish: {{count}}/{{max}}"
       }
-    }
+    },
+    "generate_tightened": "Strict: {{names}}."
   },
   "schedule_overview": {
     "title": "Schedule overview",
@@ -643,5 +645,42 @@
     "csv": "CSV",
     "date": "Date",
     "employee": "Employee"
+  },
+  "constraints": {
+    "title": "Constraints",
+    "strict": "Strict",
+    "penalized": "Penalized",
+    "weight": "Weight",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "save_error": "The changes could not be saved.",
+    "load_error": "The constraints could not be loaded.",
+    "discard": "Discard changes",
+    "reset_all": "Defaults",
+    "reset_one": "Back to default",
+    "unsaved_warning": "You have unsaved constraint changes, leave anyway?",
+    "groups": {
+      "fixed": "Fixed rules",
+      "absence": "Absence and rest",
+      "load": "Workload",
+      "wish": "Wishes"
+    },
+    "names": {
+      "coverage": "Role fully staffed",
+      "one_role_per_day": "One role a day",
+      "qualification": "Qualified staff only",
+      "other_workplace": "Duty at another workplace",
+      "unavailable": "Cannot",
+      "vacation": "Vacation",
+      "business_trip": "Business trip",
+      "rest": "Rest after a duty",
+      "max_shifts": "Monthly duty maximum",
+      "overstaff": "Overstaffed role",
+      "balance": "Workload balance",
+      "soft_decline": "Rather not",
+      "preferred": "Want to work",
+      "spread": "Duty spacing"
+    }
   }
 }

@@ -274,3 +274,29 @@ export const ChevronRightIcon = (props) => (
     <path d="M9.5 6.5 15 12l-5.5 5.5" />
   </Icon>
 );
+
+/** Ohraničenia — posuvníky: pravidlá sa nastavujú, nie vypisujú. */
+export const ConstraintsIcon = (props) => (
+  <Icon {...props}>
+    <path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1" />
+    <circle cx="15" cy="7" r="2" />
+    <circle cx="9" cy="12" r="2" />
+    <circle cx="17" cy="17" r="2" />
+  </Icon>
+);
+
+/** Zámok — pravidlo, ktoré sa nedá zmeniť. */
+export const LockIcon = (props) => (
+  <Icon {...props}>
+    <rect x="5.4" y="10.6" width="13.2" height="9.4" rx="2" />
+    <path d="M8.4 10.6V8a3.6 3.6 0 0 1 7.2 0v2.6" />
+  </Icon>
+);
+
+/** Späť na predvolené — šípka proti smeru hodín. */
+export const ResetIcon = (props) => (
+  <Icon {...props}>
+    <path d="M4.6 12a7.4 7.4 0 1 0 2.2-5.2" />
+    <path d="M4.4 4.6v3.8h3.8" />
+  </Icon>
+);

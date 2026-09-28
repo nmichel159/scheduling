@@ -202,6 +202,50 @@ Four properties of the profile are worth knowing before you change it:
 `config_2` is the older, smaller profile (`ambulancia1`..`ambulancia4` and four
 urgent workplaces) and is kept for tests and for comparison.
 
+### Scheduling rules per workplace
+
+**Ohraničenia** (`/constraints`) lists every rule the schedule generator
+knows, for the workplace chosen in the header, and says how hard each one is.
+A rule is one of three kinds, and the screen offers exactly the controls its
+kind allows:
+
+| Kind | Rules | What can be set |
+| --- | --- | --- |
+| Fixed | role fully staffed, one role a day, qualified staff only, no duty on a day worked at another workplace | nothing -- always strict |
+| Switchable | cannot, vacation, business trip, rest after a duty, monthly duty maximum, overstaffed role, "rather not" | strict or penalized, and the weight |
+| Penalty-only | workload balance, "want to work", duty spacing | the weight |
+
+*Strict* means the generator never breaks the rule; if the month cannot be
+staffed without breaking it, generation fails with the conflict instead.
+*Penalized* means it may, and every breach costs the weight: one duty on an
+absence, one day of overlapping rest, one duty over the monthly maximum, one
+person over a role's count. Duty spacing and balance cannot be strict at all
+-- there is no such thing as strictly even or strictly spread out, only more or
+less of it.
+
+The weights are compared only within the pass they are solved in. The first
+pass settles the absences, the rest, the monthly maximum, overstaffing and the
+balance; the second settles the day wishes and the spacing **under the balance
+the first one reached**. However high "rather not" or "want to work" is set,
+it therefore never buys a less balanced roster -- it only ranks against the
+other wish and the spacing. The defaults are the model the generator used
+before the rules could be set:
+
+| Rule | Default | Weight |
+| --- | --- | --- |
+| cannot, vacation, business trip, rest | strict | 1000 when penalized |
+| monthly duty maximum, overstaffed role | penalized | 1000 |
+| workload balance | penalized | 4 (the price of the first duty; each further one costs more) |
+| "rather not", "want to work" | penalized | 10 |
+| duty spacing | penalized | 1 (the most it may cost one employee in a month) |
+
+A workplace stores only what it changed; a rule set back to its default loses
+its row, so a default changed in code reaches every workplace that never
+touched it. When a generation fails and the workplace made a rule strict that
+is penalized by default, the error names it -- it is the likeliest thing to
+undo. The model behind all of this is described in
+`backend/app/services/schedule_generation_model.md`.
+
 ### Mailing schedules to the clinics
 
 A clinic does not log in: the people who need the finished month read it in a

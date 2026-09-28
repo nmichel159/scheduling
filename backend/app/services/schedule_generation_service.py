@@ -14,17 +14,27 @@ because a less balanced roster is no longer allowed -- and it is also what
 makes it quick, because neither pass has to weigh a whole hour of fairness
 against a fraction of somebody's preference.
 
+How hard most of the rules below are is the workplace's own choice: a
+switchable rule is either a hard constraint or a penalty with a weight, and
+a penalty-only rule has a weight and nothing else. The rules, their kinds
+and their defaults are listed in ``constraint_setting_service``; with the
+defaults the model is the one described here.
+
 What each pass is made of, from the strongest term to the weakest:
 
-1. Hard constraints -- at least the required coverage, availability, one duty a day, the recovery
-   the workplace configured for each duty (and, for a duty worked at another
-   workplace, the recovery that one configured), and every manually placed
-   duty. A manual placement outranks all the others: the manager may put
-   anybody anywhere, even one person into two roles on one day, and the
-   solver keeps it and plans only the rest of the month around it.
-2. The monthly wish. A duty past what an employee said they want costs
-   :data:`OVER_WISH_DUTY_COST`, far above any balance step, so it happens
-   only when the month cannot be staffed otherwise.
+1. Hard constraints -- at least the required coverage, a qualification for
+   every duty, one duty a day and none on a day worked at another
+   workplace, and every manually placed duty. By default also availability
+   and the recovery the workplace configured for each duty (and, for a duty
+   worked at another workplace, the recovery that one configured). A manual
+   placement outranks all the others: the manager may put anybody anywhere,
+   even one person into two roles on one day, and the solver keeps it and
+   plans only the rest of the month around it.
+2. The penalized rules of the first pass: a duty past what an employee said
+   they want, a person more than a role asks for, and -- where the
+   workplace made them penalties -- a duty on an absence or inside another
+   duty's rest. Each costs its weight, far above any balance step by
+   default, so it happens only when the month cannot be staffed otherwise.
 3. The balance. Four convex load ladders per employee -- all duties,
    surcharged duties, ordinary ones, and the hours behind them all -- so
    that neither the total, nor either kind, nor the time it takes piles up
@@ -79,6 +89,20 @@ from app.models.competence_weekday_requirement import (
     default_is_surcharge,
 )
 from app.services.competence_scenario_service import get_selected_scenario
+from app.services.constraint_setting_service import (
+    BALANCE,
+    BUSINESS_TRIP,
+    MAX_SHIFTS,
+    OVERSTAFF,
+    PREFERRED,
+    REST,
+    SOFT_DECLINE,
+    SPREAD,
+    UNAVAILABLE,
+    VACATION,
+    ConstraintPolicy,
+    load_constraint_policy,
+)
 from app.services.special_day_service import rest_days_between
 from app.models.schedule import Schedule
 from app.models.unavailability import Unavailability
@@ -94,6 +118,13 @@ PREFERRED_UNAVAILABILITY_REASON = "PREFERRED"
 #: Marked by an employee who would rather not work a day but still can.
 #: Unlike every other reason, it does not block an assignment.
 SOFT_DECLINE_UNAVAILABILITY_REASON = "SOFT_DECLINE"
+
+#: Which rule an absence falls under, by the reason it was recorded with.
+#: Any other reason -- including none -- is a plain "cannot".
+ABSENCE_RULE_BY_REASON = {
+    "VACATION": VACATION,
+    "BUSINESS_TRIP": BUSINESS_TRIP,
+}
 
 #: The duty-kind wishes an employee can express, as stored on the user.
 SURCHARGE_PREFERENCE = "surcharge"
@@ -127,25 +158,18 @@ DISPREFERRED_KIND_UNIT_COST = 5
 #: rest of the roster is not measured against.
 HOURS_UNIT_COST = 4
 
-# What one duty above an employee's monthly wish costs. The wish is a wish,
-# not a cap: exceeding it stays feasible, but at a price far above any
-# balance step, so the solver only does it when the month cannot be staffed
-# otherwise.
-OVER_WISH_DUTY_COST = 1000.0
-
-# What one person above a role's required count costs. Overstaffing is not
-# forbidden, only priced like a broken monthly wish. A count of zero is the
-# exception: that role gets nobody that day, strictly.
-OVERSTAFF_DUTY_COST = 1000.0
+# The monthly wish and overstaffing are penalties by default, and what a
+# breach costs is the workplace's weight (``constraint_setting_service``).
+# The default for both is far above any balance step, so the solver only
+# breaks them when the month cannot be staffed otherwise. A role count of
+# zero is never overstaffed: that role gets nobody that day, strictly.
 
 # --- Day wishes -----------------------------------------------------------
 # The wishes are not weighed against the balance at all: they are settled in
 # a second pass, once the balance the first pass reached has been written
 # into the model as a constraint. A wish therefore cannot buy a less
-# balanced roster however many of them there are, and these weights only say
-# how the wishes rank against each other.
-PREFERRED_DAY_REWARD = 10.0
-SOFT_DECLINE_PENALTY = 10.0
+# balanced roster however many of them there are, and their weights only say
+# how the wishes rank against each other and against the spread.
 
 # --- Spread ---------------------------------------------------------------
 # A gap is not a variable of the model -- the variables say which days are
@@ -161,19 +185,18 @@ SOFT_DECLINE_PENALTY = 10.0
 # cost is already negligible, and every further day of reach costs the
 # second pass real time, because it is one more flag per employee per day.
 SPREAD_HORIZON_DAYS = 7
-#: What the whole spread term may cost one employee at worst, against ten
-#: for a single day wish. Every employee's unit is scaled so their own worst
-#: case lands here, which is what stops a heavily loaded month from
-#: outbidding the days people actually asked for.
-SPREAD_BUDGET = 1.0
-
-#: How far above the true optimum the second pass may stop. A roster this
-#: close cannot be missing a day wish -- one of those is worth ten -- so
-#: what the tolerance gives up is at most a fraction of one employee's
-#: spread. What it buys is the difference between a pass that ends in
-#: seconds and one that spends its whole budget proving that a barely
-#: better arrangement of gaps does not exist.
-WISH_OPTIMALITY_TOLERANCE = SPREAD_BUDGET
+#: The spread's weight is what the whole spread term may cost one employee
+#: at worst, against ten for a single day wish by default. Every employee's
+#: unit is scaled so their own worst case lands there, which is what stops a
+#: heavily loaded month from outbidding the days people actually asked for.
+#:
+#: How far above the true optimum the second pass may stop is the smaller
+#: of that weight and this share of the cheapest day wish. A roster this
+#: close cannot be missing a day wish, so what the tolerance gives up is at
+#: most a fraction of one employee's spread. What it buys is the difference
+#: between a pass that ends in seconds and one that spends its whole budget
+#: proving that a barely better arrangement of gaps does not exist.
+WISH_TOLERANCE_SHARE = 0.1
 
 
 @dataclass(frozen=True)
@@ -279,6 +302,9 @@ class SchedulingEmployee:
     #: earns it. A date missing from here is still an absence; it just falls
     #: back to the longest rest this workplace would have asked for.
     external_commitments: tuple[tuple[date, int], ...] = ()
+    #: Which rule each of ``unavailable_dates`` falls under -- a vacation, a
+    #: business trip, or a plain "cannot". A date missing here is the last.
+    absence_rules: tuple[tuple[date, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -358,6 +384,11 @@ def _index_schedule_variables(
     )
 
 
+def _absence_rule(reason: str | None) -> str:
+    """Which switchable rule an absence recorded with this reason falls under."""
+    return ABSENCE_RULE_BY_REASON.get((reason or "").strip().upper(), UNAVAILABLE)
+
+
 def _is_hard_unavailability(reason: str | None) -> bool:
     """Return whether an availability record must block schedule generation.
 
@@ -409,7 +440,7 @@ def _maximum_spaced_days(
     return int(_best_spaced_value(candidate_dates, recovery_of, lambda _date: 1.0))
 
 
-def _kind_unit_cost(preference: str, is_surcharge: bool) -> int:
+def _kind_unit_cost(preference: str, is_surcharge: bool) -> float:
     """What one more duty of a kind costs an employee at the margin."""
     if preference == SURCHARGE_PREFERENCE:
         return PREFERRED_KIND_UNIT_COST if is_surcharge else DISPREFERRED_KIND_UNIT_COST
@@ -423,7 +454,7 @@ def _load_ladder(
     name: str,
     load: LpAffineExpression,
     maximum: float,
-    unit_cost: int,
+    unit_cost: float,
     step_size: float = 1.0,
 ) -> list[LpAffineExpression]:
     """Charge an ever-growing price for each further piece of one load.
@@ -434,7 +465,7 @@ def _load_ladder(
     account for a load is always to fill the lowest levels first, and no
     integrality has to be imposed to get there.
     """
-    if maximum <= 0 or step_size <= 0:
+    if maximum <= 0 or step_size <= 0 or unit_cost <= 0:
         return []
     steps = int(ceil(maximum / step_size - 1e-9))
     if steps <= 0:
@@ -494,6 +525,21 @@ def _doubled_fixed_duties(
     return sum(count - 1 for count in per_user.values() if count > 1)
 
 
+def _shared_rest_days(
+    first: date, first_rest: int, second: date, second_rest: int
+) -> int:
+    """Days on which two duties' rests overlap, each counted with its day.
+
+    A duty holds its own day and the rest after it. Two duties that keep
+    their rest never share one of those days; how many they share is how
+    badly the later one cut into the rest of the earlier, which is what a
+    penalized rest is charged by.
+    """
+    start = max(first, second)
+    end = min(first + timedelta(days=first_rest), second + timedelta(days=second_rest))
+    return max(0, (end - start).days + 1)
+
+
 def _clashing_fixed_duties(
     fixed_assignments: Iterable[tuple[int, int, date]],
     recovery_of: Callable[[int, date], int],
@@ -526,8 +572,14 @@ def _detect_capacity_issues(
     days: list[date],
     variable_index: ScheduleVariableIndex | None = None,
     fixed_assignments: frozenset[tuple[int, int, date]] = frozenset(),
+    rest_is_strict: bool = True,
 ) -> list[dict[str, object]]:
-    """Find obvious daily and rest-day capacity conflicts."""
+    """Find obvious daily and rest-day capacity conflicts.
+
+    The rest-day checks only hold while the rest is a hard rule. Where the
+    workplace made it a penalty, two neighbouring days may share people, and
+    there is nothing to report about them.
+    """
     index = variable_index or _index_schedule_variables(variables)
     fixed_counts = _fixed_counts(fixed_assignments)
     fixed_by_date: dict[date, list[tuple[int, int]]] = {}
@@ -569,7 +621,7 @@ def _detect_capacity_issues(
                     }
                 )
 
-    if issues:
+    if issues or not rest_is_strict:
         return issues
 
     # Two neighbouring days can only be checked together when a duty on the
@@ -725,13 +777,17 @@ def solve_monthly_schedule(
     fixed_assignments: frozenset[tuple[int, int, date]] = frozenset(),
     generate_from: date | None = None,
     time_budget_seconds: float | None = None,
+    constraints: ConstraintPolicy | None = None,
 ) -> list[GeneratedAssignment]:
     """Solve one monthly ambulance schedule as a binary MILP.
 
-    The model guarantees full daily coverage, employee availability, at most
-    one role per employee per day, and the rest each duty earns under the
-    workplace's own recovery settings. What the objective weighs, and in what
-    order, is described at the top of this module.
+    The model guarantees full daily coverage, qualified staff, at most one
+    role per employee per day and no duty on a day worked elsewhere. By
+    default it also guarantees employee availability and the rest each duty
+    earns under the workplace's own recovery settings; ``constraints`` may
+    turn those into penalties, and the penalties into hard rules. What the
+    objective weighs, and in what order, is described at the top of this
+    module.
 
     Args:
         employees: Active ambulance employees with qualifications and absences.
@@ -750,6 +806,9 @@ def solve_monthly_schedule(
             month already half worked can be regenerated from tomorrow on.
         time_budget_seconds: How long the two passes together may search. The
             server's own limit applies when it is not given.
+        constraints: How strictly the workplace applies each rule, and what a
+            breach of a penalized one costs. Every rule follows its default
+            when it is not given.
 
     Returns:
         A deterministic, sorted list of generated assignments.
@@ -812,12 +871,25 @@ def solve_monthly_schedule(
             [{"code": "no_active_employees"}],
         )
 
+    policy = constraints or ConstraintPolicy.default()
+    rest_is_strict = policy.is_strict(REST)
+    rest_weight = policy.weight(REST)
+
     def duty_recovery(competence_id: int, work_date: date) -> int:
         """Rest earned by one duty, for a competence that may be another's."""
         competence = competences_by_id.get(competence_id)
         if competence is None:
             return DEFAULT_RECOVERY_DAYS
         return competence.recovery_days_on(work_date)
+
+    def binding_recovery(competence_id: int, work_date: date) -> int:
+        """The rest a duty is certain to get: all of it, or none if penalized.
+
+        A penalized rest may be broken, so everything that counts what an
+        employee could possibly work -- the ladders, the spread, the clashes
+        among manual placements -- counts as if a duty earned no rest.
+        """
+        return duty_recovery(competence_id, work_date) if rest_is_strict else 0
 
     def foreign_recovery(work_date: date) -> int:
         """Rest assumed after a duty worked at another workplace.
@@ -833,51 +905,78 @@ def solve_monthly_schedule(
 
     # Every duty an employee already owes somebody, with the rest it earns:
     # duties placed by hand, duties just outside the month, and duties worked
-    # at another workplace.
+    # at another workplace. The last two are not variables of the model, so
+    # a penalized rest has to be charged against them duty by duty.
     commitments: dict[int, list[tuple[date, int]]] = {}
+    outside_commitments: dict[int, list[tuple[date, int]]] = {}
     for user_id, competence_id, work_date in fixed_assignments:
         commitments.setdefault(user_id, []).append(
             (work_date, duty_recovery(competence_id, work_date))
         )
     for user_id, competence_id, work_date in adjacent_assignments:
-        commitments.setdefault(user_id, []).append(
-            (work_date, duty_recovery(competence_id, work_date))
-        )
+        owed = (work_date, duty_recovery(competence_id, work_date))
+        commitments.setdefault(user_id, []).append(owed)
+        outside_commitments.setdefault(user_id, []).append(owed)
     for employee in employees:
         elsewhere = dict(employee.external_commitments)
         for work_date in employee.externally_scheduled_dates:
-            commitments.setdefault(employee.id, []).append(
-                (work_date, elsewhere.get(work_date, foreign_recovery(work_date)))
-            )
+            owed = (work_date, elsewhere.get(work_date, foreign_recovery(work_date)))
+            commitments.setdefault(employee.id, []).append(owed)
+            outside_commitments.setdefault(employee.id, []).append(owed)
 
     problem = LpProblem("ambulance_monthly_schedule", LpMinimize)
     variables: dict[tuple[int, int, date], LpVariable] = {}
+    # What the penalized absences and rest cost, charged in the first pass
+    # beside the balance so that they outrank it.
+    breach_terms: list[LpAffineExpression] = []
+    soft_decline_is_strict = policy.is_strict(SOFT_DECLINE)
 
     for employee in sorted(employees, key=lambda item: item.id):
         owed = commitments.get(employee.id, [])
+        outside = outside_commitments.get(employee.id, [])
+        absence_rule_of = dict(employee.absence_rules)
         for competence in sorted(competences, key=lambda item: item.id):
             if competence.id not in employee.competence_ids:
                 continue
             for work_date in window_days:
                 if competence.required_on(work_date) == 0:
                     continue
+                absence: str | None = None
                 if work_date in employee.unavailable_dates:
+                    absence = absence_rule_of.get(work_date, UNAVAILABLE)
+                    if policy.is_strict(absence):
+                        continue
+                if soft_decline_is_strict and work_date in employee.soft_declined_dates:
                     continue
                 recovery = competence.recovery_days_on(work_date)
                 if any(
                     # The duty already owed falls on this very day, still
                     # holds it in rest, or starts before this duty's own rest
-                    # has run out.
+                    # has run out. Only the first is certain; the others hold
+                    # while the rest is a hard rule.
                     owed_date == work_date
-                    or owed_date < work_date <= owed_date + timedelta(days=owed_rest)
-                    or work_date < owed_date <= work_date + timedelta(days=recovery)
+                    or rest_is_strict
+                    and (
+                        owed_date < work_date <= owed_date + timedelta(days=owed_rest)
+                        or work_date < owed_date <= work_date + timedelta(days=recovery)
+                    )
                     for owed_date, owed_rest in owed
                 ):
                     continue
-                variables[(employee.id, competence.id, work_date)] = LpVariable(
+                variable = LpVariable(
                     f"assign_{employee.id}_{competence.id}_{work_date.isoformat()}",
                     cat="Binary",
                 )
+                variables[(employee.id, competence.id, work_date)] = variable
+                if absence is not None and policy.weight(absence) > 0:
+                    breach_terms.append(policy.weight(absence) * variable)
+                if not rest_is_strict and rest_weight > 0:
+                    broken = sum(
+                        _shared_rest_days(work_date, recovery, owed_date, owed_rest)
+                        for owed_date, owed_rest in outside
+                    )
+                    if broken:
+                        breach_terms.append(rest_weight * broken * variable)
 
     # A manual placement overrides every soft filter above: the manager has
     # already decided, so it gets a variable even on a day the employee did
@@ -907,6 +1006,7 @@ def solve_monthly_schedule(
         window_days,
         variable_index,
         fixed_assignments,
+        rest_is_strict,
     )
     if capacity_issues:
         raise ScheduleGenerationError(
@@ -921,6 +1021,8 @@ def solve_monthly_schedule(
         )
 
     fixed_counts = _fixed_counts(fixed_assignments)
+    overstaff_is_strict = policy.is_strict(OVERSTAFF)
+    overstaff_weight = policy.weight(OVERSTAFF)
     overstaff_terms: list[LpAffineExpression] = []
     for work_date in window_days:
         for competence in competences:
@@ -928,16 +1030,16 @@ def solve_monthly_schedule(
                 (competence.id, work_date), []
             )
             demand = _demand(competence, work_date, fixed_counts)
+            coverage = lpSum(coverage_variables)
             problem += (
-                lpSum(coverage_variables) >= demand,
+                coverage == demand if overstaff_is_strict else coverage >= demand,
                 f"coverage_{competence.id}_{work_date.isoformat()}",
             )
-            # More people than asked for is allowed but paid for. A role
-            # asking for zero gets no variables at all, so zero stays zero.
-            if coverage_variables:
-                overstaff_terms.append(
-                    OVERSTAFF_DUTY_COST * (lpSum(coverage_variables) - demand)
-                )
+            # More people than asked for is allowed but paid for, unless the
+            # workplace forbade it. A role asking for zero gets no variables
+            # at all, so zero stays zero either way.
+            if coverage_variables and not overstaff_is_strict and overstaff_weight > 0:
+                overstaff_terms.append(overstaff_weight * (coverage - demand))
 
     # One rule covers both "one duty a day" and "a duty earns its rest": on
     # any given day an employee may start a duty, or still be recovering from
@@ -948,6 +1050,10 @@ def solve_monthly_schedule(
     # a duty inside the rest of another. The bound then rises to however many
     # of them the day holds, which keeps them and still leaves no room for a
     # generated duty beside them.
+    #
+    # A penalized rest splits the rule in two. One duty a day stays hard; the
+    # rest gets a breach variable that lifts the bound and is paid for, so
+    # every day on which two duties' rests overlap costs the rest's weight.
     for employee in employees:
         for work_date in days:
             recovering = [
@@ -973,17 +1079,34 @@ def solve_monthly_schedule(
             if len(keys) < 2:
                 continue
             placed = sum(1 for key in keys if key in fixed_assignments)
-            problem += (
-                lpSum(variables[key] for key in keys) <= max(1, placed),
-                f"rest_{employee.id}_{work_date.isoformat()}",
-            )
+            if rest_is_strict:
+                problem += (
+                    lpSum(variables[key] for key in keys) <= max(1, placed),
+                    f"rest_{employee.id}_{work_date.isoformat()}",
+                )
+                continue
+            if len(working) > 1:
+                placed_working = sum(1 for key in working if key in fixed_assignments)
+                problem += (
+                    lpSum(variables[key] for key in working) <= max(1, placed_working),
+                    f"one_role_{employee.id}_{work_date.isoformat()}",
+                )
+            if recovering and rest_weight > 0:
+                breach = LpVariable(
+                    f"rest_breach_{employee.id}_{work_date.isoformat()}", lowBound=0
+                )
+                problem += (
+                    lpSum(variables[key] for key in keys) <= max(1, placed) + breach,
+                    f"rest_{employee.id}_{work_date.isoformat()}",
+                )
+                breach_terms.append(rest_weight * breach)
 
     # The ladders below are as tall as the most an employee can work while
     # every duty keeps its rest. A clashing manual placement is one more duty
     # than that allows, so each of them adds its own step.
     clashing_by_user: dict[int, list[tuple[int, date]]] = {}
     for user_id, competence_id, work_date in _clashing_fixed_duties(
-        fixed_assignments, duty_recovery
+        fixed_assignments, binding_recovery
     ):
         clashing_by_user.setdefault(user_id, []).append((competence_id, work_date))
 
@@ -999,6 +1122,14 @@ def solve_monthly_schedule(
             demanded_duties += required
             demanded_hours += required * competence.shift_hours_on(work_date)
     average_duty_hours = demanded_hours / demanded_duties if demanded_duties else 0.0
+
+    # The balance weight scales all four ladders together; at its default
+    # every ladder costs exactly what the constants above say.
+    balance_scale = policy.weight(BALANCE) / BALANCE_UNIT_COST
+    spread_weight = policy.weight(SPREAD)
+    max_shifts_is_strict = policy.is_strict(MAX_SHIFTS)
+    max_shifts_weight = policy.weight(MAX_SHIFTS)
+    placed_by_user = Counter(user_id for user_id, _competence_id, _date in fixed_assignments)
 
     objective_terms: list[LpAffineExpression] = []
     spread_terms: list[LpAffineExpression] = []
@@ -1017,7 +1148,7 @@ def solve_monthly_schedule(
         def shortest_recovery(work_date: date, employee_id: int = employee.id) -> int:
             """The least rest any duty open to this employee that day earns."""
             return min(
-                duty_recovery(competence_id, work_date)
+                binding_recovery(competence_id, work_date)
                 for competence_id in variable_index.competence_ids_by_user_date[
                     (employee_id, work_date)
                 ]
@@ -1059,7 +1190,7 @@ def solve_monthly_schedule(
                 lpSum(employee_variables),
                 _maximum_spaced_days(candidate_dates, shortest_recovery)
                 + len(clashing),
-                BALANCE_UNIT_COST,
+                BALANCE_UNIT_COST * balance_scale,
             )
         )
         objective_terms.extend(
@@ -1069,7 +1200,7 @@ def solve_monthly_schedule(
                 lpSum(surcharge_variables),
                 _maximum_spaced_days(surcharge_dates, shortest_recovery)
                 + clashing_surcharge,
-                _kind_unit_cost(employee.shift_preference, True),
+                _kind_unit_cost(employee.shift_preference, True) * balance_scale,
             )
         )
         objective_terms.extend(
@@ -1080,7 +1211,7 @@ def solve_monthly_schedule(
                 _maximum_spaced_days(standard_dates, shortest_recovery)
                 + len(clashing)
                 - clashing_surcharge,
-                _kind_unit_cost(employee.shift_preference, False),
+                _kind_unit_cost(employee.shift_preference, False) * balance_scale,
             )
         )
         objective_terms.extend(
@@ -1092,7 +1223,7 @@ def solve_monthly_schedule(
                     candidate_dates, shortest_recovery, longest_duty.__getitem__
                 )
                 + clashing_hours,
-                HOURS_UNIT_COST,
+                HOURS_UNIT_COST * balance_scale,
                 average_duty_hours,
             )
         )
@@ -1109,7 +1240,7 @@ def solve_monthly_schedule(
         # have no upper bound either: a day a person was put into two roles
         # by hand pushes its pairs to two.
         capacity = _maximum_spaced_days(candidate_dates, shortest_recovery)
-        if capacity > 0:
+        if capacity > 0 and spread_weight > 0:
             # Each duty bounds at most one charged pair per gap length, so
             # the whole term cannot exceed a full roster's worth of the
             # steepest charges. Dividing the budget by that is what keeps
@@ -1117,7 +1248,7 @@ def solve_monthly_schedule(
             worst_case = capacity * sum(
                 1.0 / gap for gap in range(1, SPREAD_HORIZON_DAYS + 1)
             )
-            spread_unit = SPREAD_BUDGET / worst_case
+            spread_unit = spread_weight / worst_case
             for earlier in sorted(candidate_dates):
                 earliest_allowed = shortest_recovery(earlier) + 1
                 for gap in range(earliest_allowed, SPREAD_HORIZON_DAYS + 1):
@@ -1140,17 +1271,25 @@ def solve_monthly_schedule(
                     )
                     spread_terms.append((spread_unit / gap) * close)
 
-        # Zero or nothing entered means no limit.
+        # Zero or nothing entered means no limit. A strict limit still keeps
+        # every duty the manager placed by hand, however many there are.
         if employee.max_shifts_per_month:
-            over_wish = LpVariable(f"over_wish_{employee.id}", lowBound=0)
-            problem += (
-                over_wish
-                >= lpSum(employee_variables) - employee.max_shifts_per_month,
-                f"wish_{employee.id}",
-            )
-            objective_terms.append(OVER_WISH_DUTY_COST * over_wish)
+            if max_shifts_is_strict:
+                problem += (
+                    lpSum(employee_variables)
+                    <= max(employee.max_shifts_per_month, placed_by_user[employee.id]),
+                    f"wish_{employee.id}",
+                )
+            elif max_shifts_weight > 0:
+                over_wish = LpVariable(f"over_wish_{employee.id}", lowBound=0)
+                problem += (
+                    over_wish
+                    >= lpSum(employee_variables) - employee.max_shifts_per_month,
+                    f"wish_{employee.id}",
+                )
+                objective_terms.append(max_shifts_weight * over_wish)
 
-    balance = lpSum(objective_terms) + lpSum(overstaff_terms)
+    balance = lpSum(objective_terms) + lpSum(overstaff_terms) + lpSum(breach_terms)
 
     preferred_variables = [
         variable
@@ -1162,10 +1301,25 @@ def solve_monthly_schedule(
         for (user_id, _competence_id, work_date), variable in variables.items()
         if work_date in soft_declined_dates_by_employee.get(user_id, frozenset())
     ]
-    wishes = (
-        lpSum(spread_terms)
-        + SOFT_DECLINE_PENALTY * lpSum(soft_declined_variables)
-        - PREFERRED_DAY_REWARD * lpSum(preferred_variables)
+    # A strict "rather not" leaves no such duty to pay for but the ones placed
+    # by hand, and those are not the solver's to move.
+    soft_decline_weight = 0.0 if soft_decline_is_strict else policy.weight(SOFT_DECLINE)
+    preferred_weight = policy.weight(PREFERRED)
+    # A weight of zero leaves its wish out altogether, so a workplace that
+    # silenced every wish and the spread skips the second pass entirely.
+    wish_terms: list[LpAffineExpression] = list(spread_terms)
+    if soft_decline_weight > 0:
+        wish_terms.append(soft_decline_weight * lpSum(soft_declined_variables))
+    if preferred_weight > 0:
+        wish_terms.append(-preferred_weight * lpSum(preferred_variables))
+    wishes = lpSum(wish_terms)
+    day_wish_weights = [
+        weight for weight in (soft_decline_weight, preferred_weight) if weight > 0
+    ]
+    wish_tolerance = min(
+        ([spread_weight] if spread_weight > 0 else [])
+        + [WISH_TOLERANCE_SHARE * weight for weight in day_wish_weights],
+        default=None,
     )
 
     # First pass: the fairest roster the month allows, with nobody's wishes
@@ -1192,7 +1346,14 @@ def solve_monthly_schedule(
             )
         raise ScheduleGenerationError(
             "No feasible schedule satisfies all coverage, availability, and rotation constraints.",
-            [{"code": "constraint_conflict"}],
+            [
+                {
+                    "code": "constraint_conflict",
+                    # Rules the workplace made strict although they are
+                    # penalties by default -- the likeliest thing to undo.
+                    "tightened_constraints": policy.tightened(),
+                }
+            ],
         )
     balanced = _snapshot(variables)
     reached = value(balance)
@@ -1210,7 +1371,7 @@ def solve_monthly_schedule(
         )
         problem.setObjective(wishes)
         remaining = max(1.0, deadline - (perf_counter() - started))
-        _run_solver(problem, remaining, close_enough=WISH_OPTIMALITY_TOLERANCE)
+        _run_solver(problem, remaining, close_enough=wish_tolerance)
         if not _has_solution(problem):
             # The wishes are a courtesy; the balanced roster is the answer.
             _restore(variables, balanced)
@@ -1388,6 +1549,7 @@ def generate_ambulance_monthly_schedule(
             qualifications[user_id].add(competence_id)
 
     unavailable_dates: dict[int, set[date]] = {user_id: set() for user_id in user_ids}
+    absence_rules: dict[int, dict[date, str]] = {user_id: {} for user_id in user_ids}
     preferred_dates: dict[int, set[date]] = {user_id: set() for user_id in user_ids}
     soft_declined_dates: dict[int, set[date]] = {user_id: set() for user_id in user_ids}
     if user_ids:
@@ -1407,6 +1569,7 @@ def generate_ambulance_monthly_schedule(
         for user_id, unavailable_date, reason in unavailability_rows:
             if _is_hard_unavailability(reason):
                 unavailable_dates[user_id].add(unavailable_date)
+                absence_rules[user_id][unavailable_date] = _absence_rule(reason)
             elif reason == SOFT_DECLINE_UNAVAILABILITY_REASON:
                 soft_declined_dates[user_id].add(unavailable_date)
             else:
@@ -1478,6 +1641,7 @@ def generate_ambulance_monthly_schedule(
             max_shifts_per_month=user.max_shifts_per_month,
             shift_preference=user.shift_preference or ANY_PREFERENCE,
             external_commitments=tuple(external_commitments[user.id]),
+            absence_rules=tuple(sorted(absence_rules[user.id].items())),
         )
         for user in user_rows
     ]
@@ -1547,6 +1711,7 @@ def generate_ambulance_monthly_schedule(
         frozenset(fixed_entries or ()),
         generate_from,
         time_budget_seconds,
+        load_constraint_policy(db, ambulance_id),
     )
     users_by_id = {user.id: user for user in user_rows}
     competences_by_id = {competence.id: competence for competence in competence_rows}

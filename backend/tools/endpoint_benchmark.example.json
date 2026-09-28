@@ -127,6 +127,12 @@
       "expected_status": 200
     },
     {
+      "name": "ambulance_constraints",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/constraints",
+      "expected_status": 200
+    },
+    {
       "name": "competence_employees_page",
       "method": "GET",
       "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/competences/${BENCHMARK_COMPETENCE_ID}/employees",

@@ -65,7 +65,8 @@
     "employees": "Zamestnanci",
     "special_days": "Špeciálne dni",
     "schedule_mail": "Výzva mailom",
-    "schedule_print": "Tlač rozvrhu"
+    "schedule_print": "Tlač rozvrhu",
+    "constraints": "Ohraničenia"
   },
   "workplace": {
     "loading": "Načítavam pracoviská...",
@@ -392,7 +393,8 @@
         "rest": "Odpočinok: {{dates}}",
         "over_wish": "Nad želanie: {{count}}/{{max}}"
       }
-    }
+    },
+    "generate_tightened": "Striktné: {{names}}."
   },
   "schedule_overview": {
     "title": "Prehľad rozvrhov",
@@ -646,5 +648,42 @@
     "csv": "CSV",
     "date": "Dátum",
     "employee": "Zamestnanec"
+  },
+  "constraints": {
+    "title": "Ohraničenia",
+    "strict": "Striktné",
+    "penalized": "Penalizované",
+    "weight": "Váha",
+    "save": "Uložiť",
+    "saving": "Ukladám…",
+    "saved": "Uložené",
+    "save_error": "Zmeny sa nepodarilo uložiť.",
+    "load_error": "Ohraničenia sa nepodarilo načítať.",
+    "discard": "Zahodiť zmeny",
+    "reset_all": "Predvolené",
+    "reset_one": "Vrátiť na predvolené",
+    "unsaved_warning": "Máte neuložené zmeny ohraničení, naozaj chcete odísť?",
+    "groups": {
+      "fixed": "Pevné pravidlá",
+      "absence": "Neprítomnosť a odpočinok",
+      "load": "Záťaž",
+      "wish": "Želania"
+    },
+    "names": {
+      "coverage": "Plné obsadenie role",
+      "one_role_per_day": "Jedna rola za deň",
+      "qualification": "Len s kompetenciou",
+      "other_workplace": "Služba na inom pracovisku",
+      "unavailable": "Nemôže",
+      "vacation": "Dovolenka",
+      "business_trip": "Služobná cesta",
+      "rest": "Odpočinok po službe",
+      "max_shifts": "Mesačné maximum služieb",
+      "overstaff": "Nadpočet v role",
+      "balance": "Vyváženosť záťaže",
+      "soft_decline": "Nechcem",
+      "preferred": "Chcem",
+      "spread": "Rozostup služieb"
+    }
   }
 }
