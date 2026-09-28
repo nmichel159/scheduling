@@ -43,6 +43,11 @@ const PAGE_OPTIONS = [1, 2, 3, 4, 5, 6];
    second sheet of paper rather than as more of the first. */
 const PAGE_GAP_PX = 16;
 
+/* How far the preview can be brought closer to or pushed away from the reader,
+   as a multiple of the size that fits the desk. At 1 the sheet fills the desk's
+   width; past it the desk scrolls. */
+const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
+
 /* The type size is not chosen but found: the table is laid out, measured
    against the page, and the size halved in on until the largest one that
    still fits the page budget is known. Eight steps land within a twentieth of
@@ -106,6 +111,7 @@ const SchedulePrintView = () => {
   const [orientation, setOrientation] = useState('portrait');
   const [nameStyle, setNameStyle] = useState('short');
   const [pageBudget, setPageBudget] = useState(1);
+  const [zoom, setZoom] = useState(1);
 
   const [shifts, setShifts] = useState([]);
   const [competences, setCompetences] = useState([]);
@@ -120,9 +126,11 @@ const SchedulePrintView = () => {
   const tableRef = useRef(null);
   const legendRef = useRef(null);
   const stageRef = useRef(null);
+  const scrollRef = useRef(null);
   const [preview, setPreview] = useState({
     scale: 1,
     height: 0,
+    width: 0,
     pageHeight: 0,
     left: 0,
   });
@@ -556,28 +564,52 @@ const SchedulePrintView = () => {
   /* The sheet is laid out at its true printed size and only shown smaller, so
      every measurement above is taken on the paper's own geometry. */
   useLayoutEffect(() => {
-    const stage = stageRef.current;
+    const scroller = scrollRef.current;
     const sheet = sheetRef.current;
-    if (!stage || !sheet) return undefined;
+    if (!scroller || !sheet) return undefined;
 
     const measure = () => {
       const natural = sheet.offsetWidth;
-      const scale = natural ? Math.min(1, stage.clientWidth / natural) : 1;
+      const room = scroller.clientWidth;
+      const fitScale = natural ? Math.min(1, room / natural) : 1;
+      const scale = fitScale * zoom;
       const pageHeight = sheet.offsetHeight * scale;
       setPreview({
         scale,
         pageHeight,
         height: pageHeight * pages.length + PAGE_GAP_PX * (pages.length - 1),
+        width: Math.max(room, natural * scale),
         // A sheet narrower than the desk sits in the middle of it.
-        left: Math.max(0, (stage.clientWidth - natural * scale) / 2),
+        left: Math.max(0, (room - natural * scale) / 2),
       });
     };
 
     measure();
     const observer = new ResizeObserver(measure);
-    observer.observe(stage);
+    observer.observe(scroller);
     return () => observer.disconnect();
-  }, [sheetWidthMm, sheetHeightMm, pages.length, stageShown]);
+  }, [sheetWidthMm, sheetHeightMm, pages.length, stageShown, zoom]);
+
+  const zoomIndex = ZOOM_STEPS.indexOf(zoom);
+  const zoomBy = (direction) =>
+    setZoom(ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, zoomIndex + direction))]);
+
+  /* Ctrl + wheel over the desk zooms the sheet rather than the whole page. */
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return undefined;
+    const onWheel = (event) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      const direction = event.deltaY < 0 ? 1 : -1;
+      setZoom((current) => {
+        const index = ZOOM_STEPS.indexOf(current);
+        return ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, index + direction))];
+      });
+    };
+    scroller.addEventListener('wheel', onWheel, { passive: false });
+    return () => scroller.removeEventListener('wheel', onWheel);
+  }, [stageShown]);
 
   /* ---------------------------------------------------------------- render */
 
@@ -860,13 +892,52 @@ const SchedulePrintView = () => {
             ))}
           </select>
         </label>
+
+        <div className="field sprint-field">
+          <span className="field-label" id="sprint-zoom-label">
+            {t('schedule_print.zoom')}
+          </span>
+          <div className="segmented sprint-zoom" role="group" aria-labelledby="sprint-zoom-label">
+            <button
+              type="button"
+              aria-label={t('schedule_print.zoom_out')}
+              title={t('schedule_print.zoom_out')}
+              disabled={zoomIndex <= 0}
+              onClick={() => zoomBy(-1)}
+            >
+              −
+            </button>
+            <button
+              type="button"
+              title={t('schedule_print.zoom_reset')}
+              aria-pressed={zoom === 1}
+              onClick={() => setZoom(1)}
+            >
+              {`${Math.round(zoom * 100)} %`}
+            </button>
+            <button
+              type="button"
+              aria-label={t('schedule_print.zoom_in')}
+              title={t('schedule_print.zoom_in')}
+              disabled={zoomIndex >= ZOOM_STEPS.length - 1}
+              onClick={() => zoomBy(1)}
+            >
+              +
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* The desk the sheets lie on. It must stay unpositioned: the print
           rules lift the stage to the corner of the page, and a positioned
           ancestor would become the box it is lifted to instead. */}
       <div className="sprint-desk">
-        <div className="sprint-stage" ref={stageRef} style={{ height: preview.height }}>
+        <div className="sprint-scroll" ref={scrollRef}>
+        <div
+          className="sprint-stage"
+          ref={stageRef}
+          style={{ height: preview.height, width: preview.width || undefined }}
+        >
           {/* The sheet the fit search reads: the whole month at once, at its
               natural height, off the side of the screen. It is measured rather
               than shown, because the sheets that are shown have already been
@@ -892,6 +963,7 @@ const SchedulePrintView = () => {
                  somebody might be holding. */
             })
           )}
+        </div>
         </div>
       </div>
     </div>

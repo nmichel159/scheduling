@@ -94,6 +94,17 @@
    is what lets the fit measurement be taken on the paper's own geometry
    instead of on a screen-sized approximation of it. */
 
+/* Scrolls the sheet once it is zoomed past the desk. Unpositioned, like the
+   desk, for the print rules. */
+.sprint-scroll {
+  overflow: auto;
+  max-height: 80vh;
+}
+
+.sprint-zoom > button {
+  min-width: 2.4em;
+}
+
 .sprint-stage {
   position: relative;
   overflow: hidden;
@@ -396,6 +407,7 @@
     position: absolute !important;
     top: 0 !important;
     left: 0 !important;
+    width: auto !important;
     height: auto !important;
     overflow: visible !important;
   }
@@ -403,7 +415,12 @@
   body:has(.sprint-stage) .app-container,
   body:has(.sprint-stage) .main-area,
   body:has(.sprint-stage) .content,
+  .sprint-scroll,
   .sprint {
     overflow: visible !important;
+  }
+
+  .sprint-scroll {
+    max-height: none !important;
   }
 }
