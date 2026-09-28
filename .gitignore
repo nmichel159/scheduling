@@ -30,5 +30,8 @@ Thumbs.db
 .DS_Store
 *.log
 
+# 7. LOKÁLNE NASTAVENIA NÁSTROJOV
+.claude/
+
 
 .vs/
