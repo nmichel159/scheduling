@@ -379,7 +379,7 @@
   .sidebar .nav-section-title { padding: 6px 10px 4px; height: auto; overflow: visible; }
   .sidebar .sidebar-nav { scrollbar-width: thin; }
   .sidebar .nav-toggle { display: none; }  /* zatvára sa cez ☰ v hlavičke a backdrop */
-  .sidebar .nav-kbd { display: none; }     /* Ctrl+K na dotykovom displeji nedáva zmysel */
+  .sidebar:not(.is-rail) .nav-kbd { display: none; } /* Ctrl+K na dotykovom displeji nedáva zmysel */
 }
 
 @media (prefers-reduced-motion: reduce) {

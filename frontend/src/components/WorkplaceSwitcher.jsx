@@ -15,6 +15,10 @@ const initialsOf = (name) =>
     .join('')
     .toUpperCase() || '?';
 
+/** "Detska" has to find "Detská" too -- lower-case, accents stripped. */
+const normalize = (value) =>
+  (value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
 /** Above this many workplaces the list stops being scannable by eye. */
 const FILTER_THRESHOLD = 7;
 
@@ -58,10 +62,10 @@ const WorkplaceSwitcher = () => {
   // departments page used to draw, kept because "urgentný príjem" is staffed
   // from the other rosters and reads as a different kind of thing.
   const groups = useMemo(() => {
-    const needle = filter.trim().toLowerCase();
+    const needle = normalize(filter.trim());
     const matching = needle
       ? workplaces.filter((w) =>
-          `${w.name} ${w.description || ''}`.toLowerCase().includes(needle)
+          normalize(`${w.name} ${w.description || ''}`).includes(needle)
         )
       : workplaces;
     const regular = matching.filter((w) => !w.isurgent);
