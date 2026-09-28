@@ -286,3 +286,14 @@ class FillRequestTests(ScheduleMailTests):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_fill_request_period_follows_the_deadline_day():
+    from datetime import date
+
+    from app.services.schedule_mail_service import fill_request_period
+
+    assert fill_request_period(date(2026, 10, 5)) == (11, 2026, date(2026, 10, 20))
+    assert fill_request_period(date(2026, 10, 20)) == (11, 2026, date(2026, 10, 20))
+    assert fill_request_period(date(2026, 10, 21)) == (12, 2026, date(2026, 11, 20))
+    assert fill_request_period(date(2026, 12, 21)) == (2, 2027, date(2027, 1, 20))

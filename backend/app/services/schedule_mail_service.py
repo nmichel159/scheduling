@@ -454,7 +454,25 @@ def list_dispatches(
 # --------------------------------------------------------------------------
 
 
-FILL_REQUEST_SUBJECT = "Vyplňte si rozvrh"
+#: Day of the month by which employees are asked to have filled in the
+#: following month; the schedule is built after it.
+FILL_REQUEST_DEADLINE_DAY = 20
+
+
+def fill_request_period(today: date | None = None) -> tuple[int, int, date]:
+    """Which month the request is about and by when it is due.
+
+    Sent on or before the deadline day, it asks about next month with this
+    month's deadline; sent later, that month is already being scheduled, so
+    it asks about the month after and gives next month's deadline.
+    """
+    today = today or date.today()
+    step = 1 if today.day <= FILL_REQUEST_DEADLINE_DAY else 2
+    index = today.year * 12 + today.month - 1
+    target_year, target_month = divmod(index + step, 12)
+    deadline_year, deadline_month = divmod(index + step - 1, 12)
+    deadline = date(deadline_year, deadline_month + 1, FILL_REQUEST_DEADLINE_DAY)
+    return target_month + 1, target_year, deadline
 
 
 def list_fill_request_groups(db: Session, manager: User) -> list[dict]:
@@ -485,19 +503,26 @@ def list_fill_request_groups(db: Session, manager: User) -> list[dict]:
     return groups
 
 
-def fill_request_template() -> dict:
-    """The default message, with the sign-in link already in it.
+def fill_request_template(today: date | None = None) -> dict:
+    """The default message, dated for the month it asks about.
 
     The scheduler edits this before sending, so it is a starting point,
     not a fixed format -- the only thing the send really needs is an
     address list.
     """
+    month, year, deadline = fill_request_period(today)
+    period = _period_label(month, year)
+    due = f"{deadline.day}. {deadline.month}. {deadline.year}"
     return {
-        "subject": FILL_REQUEST_SUBJECT,
+        "subject": f"Vyplnenie obmedzení na {period} – do {due}",
         "body": (
             "Dobrý deň,\n\n"
-            "prosím, vyplňte si rozvrh.\n\n"
-            f"{settings.APP_URL}\n"
+            f"prosím, vyplňte si obmedzenia, dovolenky a želania na {period} "
+            f"najneskôr do {due}.\n\n"
+            "Po tomto termíne začneme pripravovať rozpis služieb a neskoršie "
+            "zmeny už nemusia byť zohľadnené.\n\n"
+            f"{settings.APP_URL}\n\n"
+            "Ďakujem."
         ),
     }
 
