@@ -8,6 +8,7 @@ import QuickJump from './QuickJump';
 import SettingsDialog from './SettingsDialog';
 import {
   AdminIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   CompetenceIcon,
   ConstraintsIcon,
@@ -43,6 +44,11 @@ const QUICK_JUMP_KEYS = IS_MAC ? '⌘K' : 'Ctrl K';
  * Sekcie podľa rolí. `Icon` sekcie je ikona, ktorá ju zastupuje v raile;
  * `flag` je príznak z useRoles(). Položka môže mať `unless` — príznak, pri
  * ktorom sa v danej sekcii nevypíše, lebo ju vypisuje sekcia vyššie.
+ *
+ * Rozvrhár má tri sekcie podľa toho, ako často do nich chodí: denná práca,
+ * nastavenie kliniky (raz a hotovo) a pravidlá, podľa ktorých sa rozpis
+ * počíta. Sekcie s `collapsible` sú v rozbalenej lište štandardne zbalené,
+ * aj keď je v nich práve otvorená obrazovka — vtedy sa zvýrazní ich nadpis.
  */
 const SECTIONS = [
   {
@@ -56,16 +62,35 @@ const SECTIONS = [
     ],
   },
   {
-    id: 'manager',
+    id: 'daily',
     flag: 'hasManager',
-    titleKey: 'sidebar.section_manager',
-    Icon: WorkplaceIcon,
+    titleKey: 'sidebar.section_daily',
+    Icon: TeamScheduleIcon,
     items: [
       { to: '/ambulances/schedule', labelKey: 'sidebar.ambulance_schedule', Icon: TeamScheduleIcon },
       { to: '/ambulances/print', labelKey: 'sidebar.schedule_print', Icon: PrintIcon },
+      { to: '/ambulances/mail', labelKey: 'sidebar.schedule_mail', Icon: MailIcon },
+    ],
+  },
+  {
+    id: 'clinic',
+    flag: 'hasManager',
+    titleKey: 'sidebar.section_clinic',
+    Icon: WorkplaceIcon,
+    collapsible: true,
+    items: [
       { to: '/departments', labelKey: 'sidebar.departments', Icon: WorkplaceIcon },
       { to: '/employees', labelKey: 'sidebar.employees', Icon: EmployeesIcon },
       { to: '/competences', labelKey: 'sidebar.competences', Icon: CompetenceIcon },
+    ],
+  },
+  {
+    id: 'rules',
+    flag: 'hasManager',
+    titleKey: 'sidebar.section_rules',
+    Icon: ConstraintsIcon,
+    collapsible: true,
+    items: [
       { to: '/constraints', labelKey: 'sidebar.constraints', Icon: ConstraintsIcon },
       // Špeciálne dni patria adminovi — rozvrhár ich vidí, ale needituje.
       // Adminovi sa vypíšu v jeho sekcii, tu by boli druhýkrát.
@@ -75,7 +100,6 @@ const SECTIONS = [
         Icon: SpecialDaysIcon,
         unless: 'hasAdmin',
       },
-      { to: '/ambulances/mail', labelKey: 'sidebar.schedule_mail', Icon: MailIcon },
     ],
   },
   {
@@ -147,14 +171,22 @@ const Sidebar = ({ open, onToggle, onClose }) => {
 
   const sections = useMemo(() => {
     const allowed = { hasEmployee, hasManager, hasAdmin, hasAnalyst };
-    return SECTIONS.filter((section) => allowed[section.flag]).map((section) => ({
-      ...section,
-      title: t(section.titleKey),
-      items: section.items
-        .filter((item) => !item.unless || !allowed[item.unless])
-        .map((item) => ({ ...item, label: t(item.labelKey) })),
-    }));
+    return SECTIONS.filter((section) => allowed[section.flag])
+      .map((section) => ({
+        ...section,
+        title: t(section.titleKey),
+        items: section.items
+          .filter((item) => !item.unless || !allowed[item.unless])
+          .map((item) => ({ ...item, label: t(item.labelKey) })),
+      }))
+      .filter((section) => section.items.length > 0);
   }, [hasEmployee, hasManager, hasAdmin, hasAnalyst, t]);
+
+  /** Zbaliteľné sekcie, ktoré používateľ rozbalil: `id -> otvorená`. Nič
+   *  sa neukladá, takže po načítaní stránky sú zase všetky zbalené. */
+  const [sectionOpen, setSectionOpen] = useState({});
+
+  const isSectionOpen = (section) => !section.collapsible || Boolean(sectionOpen[section.id]);
 
   /** Plochý zoznam pre rýchly skok — už prefiltrovaný podľa rolí. */
   const jumpItems = useMemo(
@@ -331,12 +363,36 @@ const Sidebar = ({ open, onToggle, onClose }) => {
             const isFlyoutOpen = flyout?.id === section.id;
 
             if (!railMode) {
+              const open = isSectionOpen(section);
               return (
                 <div className="nav-section" key={section.id}>
-                  <div className="nav-section-title">
-                    <span className="label">{section.title}</span>
-                  </div>
-                  {section.items.map((item) => renderNavLink(item))}
+                  {section.collapsible ? (
+                    <button
+                      type="button"
+                      className={`nav-section-title nav-section-toggle ${
+                        sectionActive && !open ? 'is-current' : ''
+                      }`}
+                      aria-expanded={open}
+                      aria-controls={`nav-section-${section.id}`}
+                      onClick={() =>
+                        setSectionOpen((current) => ({ ...current, [section.id]: !open }))
+                      }
+                    >
+                      <span className="label">{section.title}</span>
+                      <ChevronDownIcon
+                        className={`nav-section-chevron ${open ? '' : 'is-collapsed'}`}
+                      />
+                    </button>
+                  ) : (
+                    <div className="nav-section-title">
+                      <span className="label">{section.title}</span>
+                    </div>
+                  )}
+                  {open && (
+                    <div className="nav-section-items" id={`nav-section-${section.id}`}>
+                      {section.items.map((item) => renderNavLink(item))}
+                    </div>
+                  )}
                 </div>
               );
             }

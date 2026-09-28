@@ -115,6 +115,57 @@
   color: var(--secondary);
 }
 
+.nav-section-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Zbaliteľná sekcia: celý riadok nadpisu je tlačidlo, šípka na konci. */
+.nav-section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav-section-toggle:hover .label,
+.nav-section-toggle:hover .nav-section-chevron {
+  color: var(--text-h);
+}
+
+/* Zbalená sekcia, v ktorej je otvorená obrazovka: nadpis prevezme farbu
+   aktívnej položky, ktorú zbalenie schovalo. */
+.nav-section-toggle.is-current .label,
+.nav-section-toggle.is-current .nav-section-chevron {
+  color: var(--primary);
+}
+
+.nav-section-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.nav-section-chevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--secondary);
+  transition: transform var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+
+.nav-section-chevron.is-collapsed {
+  transform: rotate(-90deg);
+}
+
 /* ---------- položky ---------- */
 
 .nav-item {
