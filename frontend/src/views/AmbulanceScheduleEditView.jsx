@@ -18,6 +18,7 @@ import SchedulePlannerView from '../components/SchedulePlannerView';
 import CompetenceCoverage from '../components/CompetenceCoverage';
 import ConfirmDialog from '../components/ConfirmDialog';
 import GenerationProgressDialog from '../components/GenerationProgressDialog';
+import { ChevronLeftIcon, CloseIcon } from '../components/NavIcons';
 import {
   displayedGenerationSeconds,
   formatDurationSeconds,
@@ -117,7 +118,8 @@ const AmbulanceScheduleEditView = () => {
   const [generationMessage, setGenerationMessage] = useState(null);
   // How long the solver may keep looking for a better schedule, in seconds.
   const [timeBudget, setTimeBudget] = useState(DEFAULT_TIME_BUDGET_SECONDS);
-  // Pending confirmation dialog: { message, onConfirm, onCancel }.
+  // Pending confirmation dialog: { title, message, details, tone,
+  // confirmLabel, cancelLabel, onConfirm, onCancel }.
   const [confirmState, setConfirmState] = useState(null);
   const [draggedShift, setDraggedShift] = useState(null);
   const [dragOverDate, setDragOverDate] = useState(null);
@@ -284,7 +286,9 @@ const AmbulanceScheduleEditView = () => {
   useEffect(() => {
     if (blocker.state !== 'blocked') return;
     setConfirmState({
+      title: t('schedule_edit.unsaved'),
       message: t('schedule_edit.unsaved_warning'),
+      tone: 'danger',
       onConfirm: () => {
         setConfirmState(null);
         blocker.proceed();
@@ -322,6 +326,16 @@ const AmbulanceScheduleEditView = () => {
     });
     return formatter.format(new Date(view.y, view.m, 1));
   }, [view.y, view.m, i18n.language]);
+
+  const editorDateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(i18n.language === 'en' ? 'en-GB' : 'sk-SK', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      }),
+    [i18n.language]
+  );
 
   /* The first date the manager may still change: tomorrow, or the 1st for a
    * month that has not started yet. Today and every day before it are already
@@ -500,7 +514,9 @@ const AmbulanceScheduleEditView = () => {
       return;
     }
     setConfirmState({
+      title: t('schedule_edit.unsaved'),
       message: t('schedule_edit.unsaved_warning'),
+      tone: 'danger',
       onConfirm: () => {
         setConfirmState(null);
         applyChange();
@@ -562,6 +578,7 @@ const AmbulanceScheduleEditView = () => {
       month: monthLabel,
     });
     setConfirmState({
+      title: t('schedule_edit.generate_confirm_title'),
       message: isDirty
         ? `${warning} ${t('schedule_edit.generate_confirm_unsaved')}`
         : warning,
@@ -592,10 +609,12 @@ const AmbulanceScheduleEditView = () => {
     if (firstEditableDate == null) return;
     if (!shifts.some((shift) => isEditableDate(shift.work_date))) return;
     setConfirmState({
+      title: t('schedule_edit.clear_confirm_title'),
       message: t('schedule_edit.clear_confirm', {
         ambulance: selected?.name || '',
         month: monthLabel,
       }),
+      tone: 'danger',
       confirmLabel: t('schedule_edit.clear'),
       cancelLabel: t('schedule_edit.editor_cancel'),
       onConfirm: () => {
@@ -704,7 +723,6 @@ const AmbulanceScheduleEditView = () => {
       setOriginalShifts(fresh);
       setGenerationMessage(null);
     } catch (err) {
-       
       console.error('[schedule save]', err?.response?.status, err?.response?.data ?? err);
       setError(t('schedule_edit.save_error'));
     } finally {
@@ -747,6 +765,7 @@ const AmbulanceScheduleEditView = () => {
   const handleApprove = () => {
     if (!selectedId || loading || isDirty || isApproved || shifts.length === 0) return;
     setConfirmState({
+      title: t('schedule_edit.approve_confirm_title'),
       message: t('schedule_edit.approve_warning'),
       confirmLabel: t('schedule_edit.approve'),
       onConfirm: () => {
@@ -762,8 +781,14 @@ const AmbulanceScheduleEditView = () => {
       setShifts(originalShifts);
       return;
     }
+    // Nothing is being left here, so the "leave without saving?" wording of
+    // the navigation guard would ask the wrong question.
     setConfirmState({
-      message: t('schedule_edit.unsaved_warning'),
+      title: t('schedule_edit.cancel'),
+      message: t('schedule_edit.discard_confirm'),
+      tone: 'danger',
+      confirmLabel: t('schedule_edit.discard'),
+      cancelLabel: t('schedule_edit.keep_editing'),
       onConfirm: () => {
         setConfirmState(null);
         setShifts(originalShifts);
@@ -776,7 +801,10 @@ const AmbulanceScheduleEditView = () => {
   if (workplacesLoading) {
     return (
       <div className="schedule-edit">
-        <p>{t('schedule_edit.loading')}</p>
+        <div className="empty-state" role="status">
+          <span className="spinner" aria-hidden="true" />
+          {t('schedule_edit.loading')}
+        </div>
       </div>
     );
   }
@@ -784,11 +812,12 @@ const AmbulanceScheduleEditView = () => {
   if (!selected) {
     return (
       <div className="schedule-edit">
-        <p>
+        <div className="card empty-state">
+          <span className="empty-state-title">{t('schedule_edit.title')}</span>
           {workplacesError
             ? t('schedule_edit.load_ambulances_error')
             : t('schedule_edit.no_ambulances')}
-        </p>
+        </div>
       </div>
     );
   }
@@ -800,10 +829,12 @@ const AmbulanceScheduleEditView = () => {
   const canSaveEditor = draftCompetenceId != null && draftUserId != null;
   const showNoEligibleUsers =
     draftCompetenceId != null && eligibleEmployees.length === 0;
+  const monthNavigationDisabled = loading || generating || saving || approving;
 
-  /* The bar is one row: what you are looking at on the left, what you can do
-   * to it on the right. It used to be two stacked rows, which read a little
-   * calmer but cost some fifty pixels of height.
+  /* What you are looking at on the left -- the workplace, whether it is saved
+   * and approved -- and what you can do to it on the right: the month stepper
+   * and the save and approve buttons. On a narrow column the two halves wrap
+   * under each other instead of squeezing.
    *
    * It is built here rather than rendered in place because the planner puts
    * it somewhere else: there the day matrix owns the left column and has to
@@ -811,88 +842,92 @@ const AmbulanceScheduleEditView = () => {
    * above the people calendar instead of lying across the whole width. */
   const topbar = (
     <div className="schedule-edit-topbar">
-      <h1 className="schedule-edit-topbar-name">{selected.name}</h1>
-
-      <div className="schedule-edit-state">
-        <span
-          className={`schedule-edit-pill ${isDirty ? 'is-dirty' : 'is-clean'}`}
-        >
-          <span className="schedule-edit-pill-dot" aria-hidden="true" />
-          {isDirty ? t('schedule_edit.unsaved') : t('schedule_edit.saved')}
-        </span>
-        <span
-          className={`schedule-edit-pill ${
-            isApproved ? 'is-approved' : 'is-draft'
-          }`}
-        >
-          <span className="schedule-edit-pill-dot" aria-hidden="true" />
-          {isApproved
-            ? t('schedule_edit.approved')
-            : t('schedule_edit.not_approved')}
-        </span>
+      <div className="schedule-edit-identity">
+        <p className="page-eyebrow">{t('schedule_edit.title')}</p>
+        <div className="schedule-edit-title-row">
+          <h1 className="page-title schedule-edit-topbar-name" title={selected.name}>
+            {selected.name}
+          </h1>
+          <div className="schedule-edit-state">
+            <span className={`badge badge-dot ${isDirty ? 'badge-warning' : ''}`}>
+              {isDirty ? t('schedule_edit.unsaved') : t('schedule_edit.saved')}
+            </span>
+            <span className={`badge badge-dot ${isApproved ? 'badge-success' : ''}`}>
+              {isApproved
+                ? t('schedule_edit.approved')
+                : t('schedule_edit.not_approved')}
+            </span>
+          </div>
+        </div>
       </div>
 
-      <div className="schedule-edit-month-navigation">
-        <button
-          type="button"
-          className="schedule-edit-month-button"
-          onClick={() => changeMonth(-1)}
-          disabled={loading || generating || saving || approving}
-          aria-label={t('schedule_edit.previous_month')}
-        >
-          ‹
-        </button>
-        <span className="schedule-edit-topbar-month">{monthLabel}</span>
-        <button
-          type="button"
-          className="schedule-edit-month-button"
-          onClick={() => changeMonth(1)}
-          disabled={loading || generating || saving || approving}
-          aria-label={t('schedule_edit.next_month')}
-        >
-          ›
-        </button>
-      </div>
-
-      <div className="schedule-edit-topbar-actions">
-        {/* Only worth a place in the bar while there is something to
-            throw away; permanently greyed out it just took room. */}
-        {isDirty && (
+      <div className="schedule-edit-controls">
+        <div className="schedule-edit-month-navigation">
           <button
             type="button"
-            className="schedule-edit-btn schedule-edit-btn-cancel"
-            onClick={handleCancel}
-            disabled={approving}
+            className="btn btn-ghost btn-icon btn-sm"
+            onClick={() => changeMonth(-1)}
+            disabled={monthNavigationDisabled}
+            aria-label={t('schedule_edit.previous_month')}
+            title={t('schedule_edit.previous_month')}
           >
-            {t('schedule_edit.cancel')}
+            <ChevronLeftIcon />
           </button>
-        )}
-        <button
-          type="button"
-          className="schedule-edit-btn schedule-edit-btn-primary"
-          onClick={handleSave}
-          disabled={!isDirty || saving || approving}
-        >
-          {saving ? t('schedule_edit.saving') : t('schedule_edit.save')}
-        </button>
-        <button
-          type="button"
-          className="schedule-edit-btn schedule-edit-btn-approve"
-          onClick={handleApprove}
-          disabled={
-            loading ||
-            isDirty ||
-            isApproved ||
-            shifts.length === 0 ||
-            saving ||
-            generating ||
-            approving
-          }
-        >
-          {approving
-            ? t('schedule_edit.approving')
-            : t('schedule_edit.approve')}
-        </button>
+          <span className="schedule-edit-topbar-month" aria-live="polite">
+            {monthLabel}
+          </span>
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon btn-sm"
+            onClick={() => changeMonth(1)}
+            disabled={monthNavigationDisabled}
+            aria-label={t('schedule_edit.next_month')}
+            title={t('schedule_edit.next_month')}
+          >
+            <ChevronLeftIcon className="schedule-edit-chevron-next" />
+          </button>
+        </div>
+
+        <div className="schedule-edit-topbar-actions">
+          {/* Only worth a place in the bar while there is something to
+              throw away; permanently greyed out it just took room. */}
+          {isDirty && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={handleCancel}
+              disabled={saving || approving}
+            >
+              {t('schedule_edit.cancel')}
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-primary schedule-edit-save"
+            onClick={handleSave}
+            disabled={!isDirty || saving || approving}
+          >
+            {saving ? t('schedule_edit.saving') : t('schedule_edit.save')}
+          </button>
+          <button
+            type="button"
+            className="btn schedule-edit-approve"
+            onClick={handleApprove}
+            disabled={
+              loading ||
+              isDirty ||
+              isApproved ||
+              shifts.length === 0 ||
+              saving ||
+              generating ||
+              approving
+            }
+          >
+            {approving
+              ? t('schedule_edit.approving')
+              : t('schedule_edit.approve')}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -900,11 +935,31 @@ const AmbulanceScheduleEditView = () => {
   return (
     <div className="schedule-edit">
       {error && (
-        <div className="schedule-edit-banner schedule-edit-banner-error">{error}</div>
+        <div className="alert alert-danger schedule-edit-alert" role="alert">
+          <span className="schedule-edit-alert-text">{error}</span>
+          <button
+            type="button"
+            className="schedule-edit-alert-close"
+            onClick={() => setError(null)}
+            aria-label={t('schedule_edit.close')}
+            title={t('schedule_edit.close')}
+          >
+            <CloseIcon />
+          </button>
+        </div>
       )}
       {generationMessage && (
-        <div className="schedule-edit-banner schedule-edit-banner-success">
-          {generationMessage}
+        <div className="alert alert-success schedule-edit-alert" role="status">
+          <span className="schedule-edit-alert-text">{generationMessage}</span>
+          <button
+            type="button"
+            className="schedule-edit-alert-close"
+            onClick={() => setGenerationMessage(null)}
+            aria-label={t('schedule_edit.close')}
+            title={t('schedule_edit.close')}
+          >
+            <CloseIcon />
+          </button>
         </div>
       )}
 
@@ -922,7 +977,7 @@ const AmbulanceScheduleEditView = () => {
           <div className="schedule-edit-generate-panel">
             <button
               type="button"
-              className="schedule-edit-btn schedule-edit-btn-generate"
+              className="btn btn-primary btn-block"
               onClick={handleGenerate}
               disabled={
                 loading ||
@@ -938,7 +993,7 @@ const AmbulanceScheduleEditView = () => {
             </button>
             <button
               type="button"
-              className="schedule-edit-btn schedule-edit-btn-clear"
+              className="btn btn-block"
               onClick={handleClear}
               disabled={
                 loading ||
@@ -987,7 +1042,8 @@ const AmbulanceScheduleEditView = () => {
 
               const dateStr = isoDate(view.y, view.m, day);
               const dayShifts = shiftsByDate[dateStr] || [];
-              const isToday = day === today.getDate();
+              const isToday =
+                dateStr === isoDate(today.getFullYear(), today.getMonth(), today.getDate());
               const isDragOver = dragOverDate === dateStr;
 
               return (
@@ -1049,8 +1105,9 @@ const AmbulanceScheduleEditView = () => {
                               handleRemoveShift(shift.id);
                             }}
                             title={t('schedule_edit.remove_shift')}
+                            aria-label={t('schedule_edit.remove_shift')}
                           >
-                            ✕
+                            <CloseIcon />
                           </button>
                         </div>
                       );
@@ -1134,46 +1191,54 @@ const AmbulanceScheduleEditView = () => {
 
       {editingShift && (
         <div
-          className="schedule-edit-competence-popup-overlay"
+          className="dialog-overlay"
           onClick={(e) => {
             if (e.target === e.currentTarget) setEditingShift(null);
           }}
         >
           <div
-            className="schedule-edit-competence-popup schedule-edit-editor-popup"
+            className="dialog dialog-sm schedule-edit-editor"
             role="dialog"
             aria-modal="true"
+            aria-labelledby="schedule-edit-editor-title"
           >
-            <div className="schedule-edit-competence-popup-header">
-              <div className="schedule-edit-popup-title-row">
-                <span>{editorTitle}</span>
-                <span className="schedule-edit-editor-date">{editingShift.work_date}</span>
+            <div className="dialog-header">
+              <div>
+                <h2 id="schedule-edit-editor-title" className="dialog-title">
+                  {editorTitle}
+                </h2>
+                <p className="dialog-description">
+                  {editorDateFormatter.format(
+                    new Date(`${editingShift.work_date}T00:00:00`)
+                  )}
+                </p>
               </div>
               <button
                 type="button"
-                className="schedule-edit-competence-popup-close"
+                className="dialog-close"
                 onClick={() => setEditingShift(null)}
                 title={t('schedule_edit.close')}
+                aria-label={t('schedule_edit.close')}
               >
-                ✕
+                <CloseIcon />
               </button>
             </div>
 
-            <div className="schedule-edit-editor-body">
-              <div className="schedule-edit-editor-field is-centered">
-                <span className="schedule-edit-editor-label">
+            <div className="dialog-body schedule-edit-editor-body">
+              <div className="field">
+                <span className="field-label" id="schedule-edit-role-label">
                   {t('schedule_edit.competence_label')}
                 </span>
-                {/* Single-choice role picker. Rendered as square boxes laid out
-                    side by side; `type="radio"` guarantees only one role can be
+                {/* Single-choice role picker. Rendered as boxes laid out side
+                    by side; `type="radio"` guarantees only one role can be
                     active at a time. Clicking the active one clears it again. */}
                 <div
                   className="schedule-edit-role-options"
                   role="radiogroup"
-                  aria-label={t('schedule_edit.competence_label')}
+                  aria-labelledby="schedule-edit-role-label"
                 >
                   {legend.length === 0 && (
-                    <small className="schedule-edit-editor-hint">
+                    <small className="field-hint">
                       {t('schedule_edit.legend_empty')}
                     </small>
                   )}
@@ -1200,6 +1265,7 @@ const AmbulanceScheduleEditView = () => {
                         <span
                           className="schedule-edit-editor-swatch"
                           style={{ backgroundColor: competenceColor(c.id) }}
+                          aria-hidden="true"
                         />
                         <span className="schedule-edit-role-name">{c.name}</span>
                       </label>
@@ -1208,12 +1274,10 @@ const AmbulanceScheduleEditView = () => {
                 </div>
               </div>
 
-              <label className="schedule-edit-editor-field">
-                <span className="schedule-edit-editor-label">
-                  {t('schedule_edit.user_label')}
-                </span>
+              <label className="field">
+                <span className="field-label">{t('schedule_edit.user_label')}</span>
                 <select
-                  className="schedule-edit-editor-select"
+                  className="select"
                   value={draftUserId ?? ''}
                   onChange={(e) => {
                     const raw = e.target.value;
@@ -1233,34 +1297,33 @@ const AmbulanceScheduleEditView = () => {
                   ))}
                 </select>
                 {showNoEligibleUsers && (
-                  <small className="schedule-edit-editor-hint is-warn">
+                  <small className="field-hint schedule-edit-editor-warning">
                     {t('schedule_edit.no_eligible_users')}
                   </small>
                 )}
               </label>
             </div>
 
-            <div className="schedule-edit-editor-footer">
+            <div className="dialog-footer schedule-edit-editor-footer">
               {!editorIsNew && (
                 <button
                   type="button"
-                  className="schedule-edit-btn schedule-edit-btn-danger"
+                  className="btn btn-danger-outline schedule-edit-editor-delete"
                   onClick={handleEditorDelete}
                 >
                   {t('schedule_edit.delete_shift')}
                 </button>
               )}
-              <div className="schedule-edit-editor-footer-spacer" />
               <button
                 type="button"
-                className="schedule-edit-btn"
+                className="btn"
                 onClick={() => setEditingShift(null)}
               >
                 {t('schedule_edit.editor_cancel')}
               </button>
               <button
                 type="button"
-                className="schedule-edit-btn schedule-edit-btn-primary"
+                className="btn btn-primary"
                 onClick={handleEditorSave}
                 disabled={!canSaveEditor}
               >
@@ -1272,6 +1335,8 @@ const AmbulanceScheduleEditView = () => {
       )}
       <ConfirmDialog
         open={!!confirmState}
+        title={confirmState?.title}
+        tone={confirmState?.tone}
         message={confirmState?.message}
         details={confirmState?.details}
         confirmLabel={confirmState?.confirmLabel || t('schedule_edit.leave_anyway')}

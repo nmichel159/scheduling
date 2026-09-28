@@ -1,16 +1,13 @@
 /* Editable ambulance schedule.
-   No page header — a compact top action bar sits directly above the calendar.
-   Left column: ambulance list + weekly staffing table (CompetenceCoverage),
-   which also carries the competence colour map.
-   Day cells hold colored, draggable employee chips (color = competence).
+   No separate page header — the action bar (workplace, state, month, save)
+   travels into the planner's right column, beside the day matrix.
+   The calendar mode (currently switched off) keeps a left rail with the
+   generate button and the weekly staffing table (CompetenceCoverage), and
+   day cells holding coloured, draggable employee chips (colour = competence).
 
-   Uses this app's real design tokens (see src/index.css):
-     --background         page / input background
-     --code-background     solid card / popup / dropdown background
-     --border               hairline border
-     --text / --text-h     body text / high-emphasis text (mute with opacity, not a separate var)
-     --primary              accent (borders, primary buttons, focus)
-*/
+   Buttons, badges, alerts, fields and the shift editor's dialog shell are the
+   shared ones from styles/ui.css; colours come from the tokens in
+   src/index.css. What is left here is the layout of this screen. */
 
 .schedule-edit {
   display: flex;
@@ -19,20 +16,45 @@
      so a vertical scrollbar is acceptable. Horizontal scrolling is not:
      that is handled by minmax(0, 1fr) on the grid columns below. */
   min-height: 0;
-  overflow-x: hidden;
-  padding: 0;
+  min-width: 0;
   gap: 12px;
 }
 
-.schedule-edit-banner {
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-size: 0.9rem;
+/* --- Alerts above the planner (error / generation result) --- */
+
+.schedule-edit-alert {
+  align-items: center;
 }
-.schedule-edit-banner-error {
-  background: rgba(239, 83, 80, 0.15);
-  border: 1px solid rgba(239, 83, 80, 0.5);
+
+.schedule-edit-alert-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.schedule-edit-alert-close {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  margin: -4px -6px -4px 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-p);
+  cursor: pointer;
+  transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+
+.schedule-edit-alert-close:hover {
+  background: color-mix(in srgb, var(--text-h) 8%, transparent);
   color: var(--text-h);
+}
+
+.schedule-edit-alert-close svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* --- Layout: side column + calendar --- */
@@ -46,9 +68,6 @@
   align-items: start;
   min-height: 0;
 }
-.schedule-edit-layout.is-single {
-  grid-template-columns: 272px minmax(0, 1fr);
-}
 
 /* Planner mode drops the left rail: it carries its own generate button and
    its demand matrix already states the required head-counts, so the rail
@@ -60,265 +79,156 @@
 /* The side column stays pinned while the calendar scrolls past it. */
 .schedule-edit-side {
   position: sticky;
-  top: 0;
+  top: 72px;
   align-self: start;
-  max-height: calc(100svh - 48px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-}
-
-.schedule-edit-side {
   display: flex;
   flex-direction: column;
   gap: 16px;
   flex-shrink: 0;
+  max-height: calc(100svh - 96px);
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .schedule-edit-generate-panel {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  padding: 12px;
+  gap: 8px;
+  padding: 14px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-}
-
-.schedule-edit-btn-generate {
-  width: 100%;
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-  font-weight: 600;
-}
-
-.schedule-edit-btn-generate:not(:disabled):hover {
-  filter: brightness(1.1);
-}
-
-/* Secondary next to Generate: it destroys work, so it never looks primary. */
-.schedule-edit-btn-clear {
-  width: 100%;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .schedule-edit-generate-hint {
-  font-size: 0.78rem;
-  line-height: 1.35;
-  color: var(--text-h);
-  opacity: 0.65;
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+  line-height: 1.4;
 }
-
-.schedule-edit-banner-success {
-  background: rgba(76, 175, 80, 0.12);
-  border: 1px solid rgba(76, 175, 80, 0.5);
-  color: var(--text-h);
-}
-
-/* --- Top action bar (replaces the old page header + bottom bar) --- */
 
 .schedule-edit-detail {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
   min-height: 0;
 }
 
-/* One line: what you are looking at on the left, what you can do to it on the
-   right. It was two stacked rows, which read a little calmer but cost about
-   fifty pixels of height — and the planner directly underneath divides
-   whatever height is left between the days of the month, so the bar giving a
-   row back to every day is worth more than the extra line of air.
-   On a narrow window the groups wrap instead of squeezing. */
+/* --- The action bar ---
+   Left: which workplace, and whether its month is saved and approved.
+   Right: the month stepper, then the buttons. On a narrow column the two
+   halves wrap under each other instead of squeezing. */
+
 .schedule-edit-topbar {
-  flex-shrink: 0;
   display: flex;
-  align-items: center;
-  gap: 6px 12px;
   flex-wrap: wrap;
-  padding: 5px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 16px;
+  min-width: 0;
+  padding: 2px 0 4px;
+}
+
+.schedule-edit-identity {
   min-width: 0;
 }
 
-/* Everything from the month stepper rightwards is a control; it travels
-   together to the right edge, away from the name and its state. */
-.schedule-edit-month-navigation {
-  display: inline-flex;
+.schedule-edit-title-row {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  margin-left: auto;
-}
-
-.schedule-edit-month-button {
-  width: 24px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--background);
-  color: var(--text-h);
-  cursor: pointer;
-  font: inherit;
-  font-size: 1.15rem;
-  line-height: 1;
-  padding-bottom: 2px; /* optically centre the chevron glyph in the square */
-}
-
-.schedule-edit-month-button:not(:disabled):hover {
-  border-color: var(--primary);
-}
-
-.schedule-edit-month-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+  gap: 6px 12px;
+  min-width: 0;
 }
 
 .schedule-edit-topbar-name {
-  margin: 0;
-  font-weight: 700;
-  font-size: 0.98rem;
-  line-height: 1.3;
-  max-width: 22ch;
-  color: var(--text-h);
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* --- State pills (saved? approved?) ---
-   Passive information, so it sits in the identity row rather than among the
-   buttons, where the two loose labels used to read as captions for whichever
-   button happened to follow them. */
+/* --- State badges (saved? approved?) ---
+   Passive information, so they sit beside the name rather than among the
+   buttons, where two loose labels used to read as captions for whichever
+   button happened to follow them. Neutral states carry no colour: only
+   "unsaved" asks for an action, and only "approved" reports one completed. */
 
 .schedule-edit-state {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
 }
 
-.schedule-edit-pill {
+.schedule-edit-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-left: auto;
+}
+
+/* The stepper reads as one control: a bordered track with the month between
+   its two arrows, the same height as the buttons next to it. */
+.schedule-edit-month-navigation {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 9px 2px 8px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  white-space: nowrap;
+  gap: 2px;
+  height: var(--control-h);
+  padding: 0 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+  box-sizing: border-box;
 }
 
-.schedule-edit-pill-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
+.schedule-edit-month-navigation .btn {
+  width: 28px;
+  height: 28px;
 }
 
-/* Neutral states carry no colour: only "unsaved" asks for an action, and only
-   "approved" reports one completed. */
-.schedule-edit-pill.is-clean,
-.schedule-edit-pill.is-draft {
-  color: var(--text-h);
-  background: color-mix(in srgb, var(--background) 90%, var(--text) 10%);
-  opacity: 0.75;
-}
-
-.schedule-edit-pill.is-dirty {
-  color: #b26a00;
-  background: rgba(255, 167, 38, 0.16);
-}
-
-.schedule-edit-pill.is-approved {
-  color: #2e7d32;
-  background: rgba(76, 175, 80, 0.14);
-}
-
-:root[data-theme='dark'] .schedule-edit-pill.is-dirty {
-  color: #ffb74d;
-}
-
-:root[data-theme='dark'] .schedule-edit-pill.is-approved {
-  color: #81c784;
+.schedule-edit-chevron-next {
+  transform: scaleX(-1);
 }
 
 .schedule-edit-topbar-month {
-  min-width: 8.6em;
-  text-align: center;
-  font-size: 0.86rem;
-  font-weight: 600;
+  min-width: 8.8em;
   color: var(--text-h);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
   text-transform: capitalize;
+  white-space: nowrap;
 }
 
 .schedule-edit-topbar-actions {
   display: flex;
-  align-items: center;
-  gap: 6px;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
-/* Toolbar buttons are smaller than the same class elsewhere: the whole bar is
-   one line now, and page-sized padding on it would set the bar's height on
-   its own. */
-.schedule-edit-topbar-actions .schedule-edit-btn {
-  font-size: 0.82rem;
-  padding: 5px 11px;
+/* Holds its width while the label swaps for "Saving...", so the buttons do
+   not shuffle sideways mid-click. */
+.schedule-edit-save {
+  min-width: 6.5em;
 }
 
-/* Same reasoning for the view switch, which sits in the same line. */
-.schedule-edit-topbar .schedule-view-switch-button {
-  padding: 4px 9px;
-  font-size: 0.78rem;
+/* Approving is the step that publishes the month, so it keeps the success
+   colour -- but as an outline: only one filled button per bar. */
+.schedule-edit-approve:not(:disabled) {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 45%, transparent);
 }
 
-.schedule-edit-btn {
-  font: inherit;
-  font-size: 0.9rem;
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: var(--background);
-  color: var(--text-h);
-}
-.schedule-edit-btn:hover:not(:disabled) {
-  border-color: var(--secondary);
-}
-.schedule-edit-btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-.schedule-edit-btn-primary {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
-.schedule-edit-btn-primary:not(:disabled):hover {
-  filter: brightness(1.1);
-  border-color: var(--primary);
-}
-.schedule-edit-btn-approve {
-  color: #2e9d62;
-  border-color: rgba(46, 157, 98, 0.6);
-}
-.schedule-edit-btn-approve:not(:disabled):hover {
-  background: rgba(46, 157, 98, 0.1);
-  border-color: #2e9d62;
-}
-.schedule-edit-btn-danger {
-  color: #ef5350;
-  border-color: rgba(239, 83, 80, 0.6);
-  background: var(--background);
-}
-.schedule-edit-btn-danger:not(:disabled):hover {
-  background: rgba(239, 83, 80, 0.1);
+.schedule-edit-approve:hover:not(:disabled) {
+  border-color: var(--success);
+  background: var(--success-background);
 }
 
 /* --- Calendar grid --- */
@@ -341,39 +251,44 @@
   gap: 6px;
   min-width: 0;
 }
+
 .schedule-edit-grid.is-loading {
   opacity: 0.6;
   pointer-events: none;
 }
 
 .schedule-edit-grid-head {
-  text-align: center;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-h);
-  opacity: 0.6;
   padding: 6px 0;
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .schedule-edit-cell {
   /* Grows with its chips — the row height follows the fullest day. */
-  min-height: 110px;
-  min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 6px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-height: 110px;
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
 }
+
 .schedule-edit-cell-empty {
   border-color: transparent;
+  background: transparent;
 }
+
 .schedule-edit-cell.is-today {
   border-color: var(--primary);
 }
+
 .schedule-edit-cell.is-drag-over {
   border-color: var(--primary);
   background: var(--primary-background);
@@ -388,37 +303,38 @@
 }
 
 .schedule-edit-cell-daynum {
-  font-size: 0.85rem;
-  font-weight: 600;
   color: var(--text-h);
+  font-size: var(--fs-sm);
+  font-weight: 600;
 }
 
 .schedule-edit-cell-add {
-  width: 20px;
-  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px dashed var(--border);
-  border-radius: 6px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--text-h);
+  color: var(--text-p);
+  font: inherit;
+  font-size: var(--fs-base);
+  line-height: 1;
   opacity: 0;
   cursor: pointer;
-  font: inherit;
-  font-size: 0.9rem;
-  line-height: 1;
-  padding: 0;
   transition: opacity 0.12s, border-color 0.12s, color 0.12s;
 }
+
 .schedule-edit-cell:hover .schedule-edit-cell-add,
 .schedule-edit-cell-add:focus-visible {
-  opacity: 0.7;
+  opacity: 1;
 }
+
 .schedule-edit-cell-add:hover {
   border-color: var(--primary);
   color: var(--primary);
-  opacity: 1;
 }
 
 /* --- Employee chips --- */
@@ -436,14 +352,16 @@
   align-items: center;
   gap: 4px;
   padding: 4px 6px;
-  border-radius: 6px;
   border-left: 3px solid transparent;
+  border-radius: var(--radius-sm);
   cursor: grab;
   user-select: none;
 }
+
 .schedule-edit-shift:active {
   cursor: grabbing;
 }
+
 /* Subtle marker on chips created in the current editing session
    (they carry a temp id until the next successful save). */
 .schedule-edit-shift.is-new {
@@ -460,40 +378,39 @@
 
 .schedule-edit-shift-name {
   display: block;
-  font-size: 0.8rem;
-  /* Names are now short ("P. Priezvisko"), so a touch of negative tracking
-     keeps them compact and consistent-looking across chips. */
-  letter-spacing: -0.1px;
-  color: var(--text-h);
   overflow: hidden;
+  color: var(--text-h);
+  font-size: var(--fs-sm);
+  /* Names are short ("P. Priezvisko"), so a touch of negative tracking keeps
+     them compact and consistent-looking across chips. */
+  letter-spacing: -0.1px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 /* Custom tooltip: full name incl. titles. Appears after a short dwell
-   (rather than instantly) so it doesn't flicker on quick mouse passes,
-   and is styled with the app's own tokens instead of the native browser
-   tooltip. */
+   (rather than instantly) so it doesn't flicker on quick mouse passes. */
 .schedule-edit-shift-tooltip {
   position: absolute;
   left: 0;
   bottom: calc(100% + 6px);
+  z-index: 30;
   max-width: 260px;
   padding: 5px 9px;
   border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--code-background);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
   color: var(--text-h);
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   white-space: nowrap;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
   transform: translateY(3px);
   transition: opacity 0.12s ease, transform 0.12s ease, visibility 0s linear 0.12s;
-  z-index: 30;
 }
+
 .schedule-edit-shift-name-wrap:hover .schedule-edit-shift-tooltip {
   opacity: 1;
   visibility: visible;
@@ -502,174 +419,62 @@
 }
 
 .schedule-edit-shift-remove {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
   border: none;
+  border-radius: var(--radius-xs);
   background: none;
-  font: inherit;
-  font-size: 0.7rem;
-  line-height: 1;
-  color: var(--text-h);
+  color: var(--text-p);
   opacity: 0;
   cursor: pointer;
-  padding: 2px;
-  border-radius: 4px;
 }
-.schedule-edit-shift:hover .schedule-edit-shift-remove {
-  opacity: 0.6;
+
+.schedule-edit-shift-remove svg {
+  width: 12px;
+  height: 12px;
 }
+
+.schedule-edit-shift:hover .schedule-edit-shift-remove,
+.schedule-edit-shift-remove:focus-visible {
+  opacity: 1;
+}
+
 .schedule-edit-shift-remove:hover {
-  opacity: 1;
-  color: #ef5350;
+  color: var(--danger);
 }
 
-/* --- Popup shell (shared by the shift editor) --- */
-
-.schedule-edit-competence-popup-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  z-index: 1000;
-}
-
-.schedule-edit-competence-popup {
-  width: 100%;
-  max-width: 380px;
-  background: var(--code-background);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-  overflow: hidden;
-}
-
-.schedule-edit-competence-popup-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: var(--text-h);
-}
-
-.schedule-edit-competence-popup-close {
-  border: none;
-  background: none;
-  font: inherit;
-  color: var(--text-h);
-  opacity: 0.6;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  line-height: 1;
-}
-.schedule-edit-competence-popup-close:hover {
-  opacity: 1;
-}
-
-.schedule-edit-competence-popup-list {
-  list-style: none;
-  margin: 0;
-  padding: 8px 0;
-}
-
-.schedule-edit-competence-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  font-size: 0.9rem;
-  color: var(--text-h);
-}
-
-/* --- Shift editor popup (compose person + competence for a given day) --- */
-/* Everything sits close together: date sits right under the header divider,
-   then the two fields follow with a tight, consistent rhythm. */
-
-.schedule-edit-popup-title-row {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
-}
-
-.schedule-edit-editor-date {
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: var(--text-h);
-  opacity: 0.5;
-  letter-spacing: 0.04em;
-}
+/* --- Shift editor (dialog shell from styles/ui.css) --- */
 
 .schedule-edit-editor-body {
-  padding: 12px 16px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.schedule-edit-editor-field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-/* The role picker block is centered as a whole: label above, boxes below. */
-.schedule-edit-editor-field.is-centered {
-  align-items: center;
-  text-align: center;
-}
-
-.schedule-edit-editor-label {
-  font-size: 0.75rem;
-  color: var(--text-h);
-  opacity: 0.65;
-  font-weight: 600;
-}
-
-.schedule-edit-editor-select-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 16px;
 }
 
 .schedule-edit-editor-swatch {
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
   flex-shrink: 0;
 }
 
-.schedule-edit-editor-select {
-  flex: 1;
-  font: inherit;
-  font-size: 0.9rem;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--background);
-  color: var(--text-h);
-  min-width: 0;
-}
-.schedule-edit-editor-select:focus {
-  outline: none;
-  border-color: var(--primary);
-}
-.schedule-edit-editor-select:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.schedule-edit-editor-warning {
+  color: var(--warning);
 }
 
-/* --- Role picker: square single-choice boxes laid out side by side --- */
+/* The delete button stands apart from the two that close the dialog. */
+.schedule-edit-editor-delete {
+  margin-right: auto;
+}
+
+/* --- Role picker: single-choice boxes laid out side by side --- */
 
 .schedule-edit-role-options {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -678,30 +483,34 @@
 .schedule-edit-role-option {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 7px 11px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
+  gap: 8px;
+  height: var(--control-h);
+  padding: 0 12px 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
   cursor: pointer;
   user-select: none;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color var(--duration) var(--ease), background-color var(--duration) var(--ease);
+  box-sizing: border-box;
 }
+
 .schedule-edit-role-option:hover {
-  border-color: var(--primary);
+  border-color: var(--primary-border);
 }
+
 .schedule-edit-role-option.is-checked {
   border-color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  background: var(--primary-background);
 }
 
 /* The native input stays focusable for the keyboard but is visually hidden. */
 .schedule-edit-role-input {
   position: absolute;
-  opacity: 0;
   width: 0;
   height: 0;
   margin: 0;
+  opacity: 0;
 }
 
 .schedule-edit-role-box {
@@ -709,80 +518,73 @@
   width: 16px;
   height: 16px;
   flex-shrink: 0;
-  border: 1.5px solid var(--border);
-  border-radius: 4px;
-  background: var(--background);
-  transition: border-color 0.15s, background 0.15s;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  transition: border-color var(--duration) var(--ease), background-color var(--duration) var(--ease);
+  box-sizing: border-box;
 }
+
 .schedule-edit-role-option.is-checked .schedule-edit-role-box {
-  border-color: var(--primary);
-  background: var(--primary);
+  border: 5px solid var(--primary);
+  background: var(--on-primary);
 }
-/* Check mark, drawn only when the box is selected. */
-.schedule-edit-role-option.is-checked .schedule-edit-role-box::after {
-  content: '';
-  position: absolute;
-  left: 4.5px;
-  top: 1px;
-  width: 4px;
-  height: 8px;
-  border: solid #fff;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
+
 .schedule-edit-role-input:focus-visible + .schedule-edit-role-box {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
 }
 
 .schedule-edit-role-name {
-  font-size: 0.88rem;
   color: var(--text-h);
+  font-size: var(--fs-sm);
+  font-weight: 500;
   white-space: nowrap;
-}
-
-.schedule-edit-editor-hint {
-  font-size: 0.72rem;
-  color: var(--text-h);
-  opacity: 0.6;
-}
-.schedule-edit-editor-hint.is-warn {
-  color: #d99a2b;
-  opacity: 1;
-}
-
-.schedule-edit-editor-footer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--border);
-}
-
-.schedule-edit-editor-footer-spacer {
-  flex: 1;
 }
 
 /* --- Responsive --- */
 
 @media (max-width: 900px) {
-  .schedule-edit-layout,
-  .schedule-edit-layout.is-single {
-    grid-template-columns: 1fr;
+  .schedule-edit-layout {
+    grid-template-columns: minmax(0, 1fr);
   }
+
   .schedule-edit-side {
     position: static;
-    max-height: none;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: flex-start;
+    max-height: none;
     overflow: visible;
   }
-  .coverage {
+
+  .schedule-edit-side .coverage {
     flex: 1;
     min-width: 248px;
   }
+
   .schedule-edit-cell-add {
-    opacity: 0.7;
+    opacity: 1;
+  }
+}
+
+/* On a phone the controls take the whole width: the stepper on its own line
+   stretched edge to edge, the buttons sharing the line under it. */
+@media (max-width: 560px) {
+  .schedule-edit-controls {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .schedule-edit-month-navigation {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+
+  .schedule-edit-topbar-actions {
+    flex: 1 1 100%;
+  }
+
+  .schedule-edit-topbar-actions .btn {
+    flex: 1;
   }
 }

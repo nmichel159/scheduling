@@ -21,6 +21,8 @@
   "dashboard": {
     "overview": "Personal overview",
     "greeting": "Hello, {{name}}",
+    "greeting_anonymous": "Hello!",
+    "open_schedule": "Full schedule",
     "subtitle": "Your duties and current overview in one place.",
     "next_shift": "Next duty",
     "no_next_shift": "You have no upcoming duty scheduled.",
@@ -146,6 +148,7 @@
     "save": "Save",
     "saved": "Saved",
     "save_error": "Saving failed",
+    "unsaved": "Unsaved changes",
     "unsaved_warning": "You have unsaved changes, do you really want to leave?",
     "leave_anyway": "Leave without saving",
     "stay": "Stay"
@@ -188,7 +191,10 @@
     "deleted": "Workplace deleted",
     "confirm_delete_named": "Really delete workplace {{name}}?",
     "leave_anyway": "Delete",
-    "stay": "Cancel"
+    "stay": "Cancel",
+    "edit_title": "Edit workplace",
+    "delete_title": "Delete workplace?",
+    "close": "Close"
   },
   "role_management": {
     "title": "Role management",
@@ -242,6 +248,7 @@
     "empty": "You have no shifts scheduled this month.",
     "shift_count": "Shifts this month: {{count}}",
     "ambulance_fallback": "Workplace #{{id}}",
+    "page_subtitle": "Your approved duties, month by month.",
     "previous_month": "Previous month",
     "next_month": "Next month",
     "current_month": "Current month"
@@ -345,9 +352,17 @@
     "planner_person_no_competence": "This employee holds no competence in this workplace.",
     "generate_fixed_over_requirement": "{{date}} – {{competence}}: {{fixed}} placed, {{required}} required.",
     "generate_fixed_rest_conflict": "{{firstDate}} and {{secondDate}}: the placed duties leave no rest day in between.",
-    "generate_fixed_unknown": "{{date}}: a placed duty cannot be assigned in this workplace."
+    "generate_fixed_unknown": "{{date}}: a placed duty cannot be assigned in this workplace.",
+    "generate_confirm_title": "Generate the schedule?",
+    "clear_confirm_title": "Clear the schedule?",
+    "approve_confirm_title": "Approve the schedule?",
+    "discard_confirm": "All unsaved changes to the schedule will be discarded.",
+    "discard": "Discard changes",
+    "keep_editing": "Keep editing"
   },
   "schedule_overview": {
+    "title": "Schedule overview",
+    "subtitle": "Where every workplace's schedule stands for the chosen month.",
     "loading": "Loading the overview…",
     "load_error": "The schedule overview could not be loaded.",
     "empty": "There are no active workplaces.",
@@ -382,6 +397,9 @@
     "cancel": "Cancel"
   },
   "statistics": {
+    "title": "Statistics",
+    "subtitle": "Duties and people over the whole year.",
+    "year_nav": "Year selection",
     "loading": "Loading the statistics…",
     "load_error": "The statistics could not be loaded.",
     "no_data": "No duties are recorded for this year.",

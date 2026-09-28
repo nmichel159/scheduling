@@ -2,20 +2,10 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchMySchedule } from '../services/scheduleService';
 import { fetchMyAssignedAmbulances } from '../services/ambulanceService';
+import ShiftCalendar from '../components/ShiftCalendar';
+import PeriodStepper from '../components/PeriodStepper';
+import { localeFor } from '../utils/calendar';
 import './ScheduleView.css';
-
-/* Local calendar helpers — same shape as the ones in WorkloadView. Kept
- * local on purpose so this view can ship without touching that file; if a
- * third calendar view ever appears, pull them into src/utils/calendar.js. */
-
-/** Zero-pad a number to two digits. */
-const pad = (n) => String(n).padStart(2, '0');
-
-/** Build an ISO date string from year, month index (0-11) and day. */
-const isoDate = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
-
-/** ISO weekday index: 0=Monday ... 6=Sunday. */
-const isoWeekday = (dateObj) => (dateObj.getDay() + 6) % 7;
 
 /** Months since year zero, so two calendar months can be compared as numbers. */
 const monthIndex = (year, month) => year * 12 + month;
@@ -26,17 +16,6 @@ const monthIndex = (year, month) => year * 12 + month;
 const EARLIEST_MONTH_INDEX = monthIndex(2000, 0);
 const LATEST_MONTH_INDEX = monthIndex(2100, 11);
 
-/** Flat array of day numbers for a month grid (null = filler cell). */
-function buildMonthCells(year, month) {
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const offset = isoWeekday(new Date(year, month, 1));
-  const cells = [];
-  for (let i = 0; i < offset; i += 1) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d += 1) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
-  return cells;
-}
-
 /**
  * Read-only monthly schedule for the logged-in employee (role 1).
  *
@@ -44,6 +23,8 @@ function buildMonthCells(year, month) {
  * worked and forward into the ones already planned. The backend returns only
  * manager-approved schedule packages, so a month whose schedule is still a
  * draft shows up as empty rather than as a promise.
+ *
+ * The grid itself is ShiftCalendar, the same one the dashboard shows.
  */
 const ScheduleView = () => {
   const { t, i18n } = useTranslation();
@@ -85,6 +66,9 @@ const ScheduleView = () => {
         setAmbulanceNames(byId);
       }
     } catch {
+      // Without this the previous month's duties would stay on screen under
+      // the new month's name.
+      setShifts([]);
       setError(t('schedule.load_error'));
     } finally {
       setLoading(false);
@@ -104,20 +88,13 @@ const ScheduleView = () => {
     return map;
   }, [shifts]);
 
-  const cells = useMemo(() => buildMonthCells(view.y, view.m), [view.y, view.m]);
-
   const monthLabel = useMemo(() => {
-    const formatter = new Intl.DateTimeFormat(i18n.language === 'en' ? 'en-GB' : 'sk-SK', {
+    const formatter = new Intl.DateTimeFormat(localeFor(i18n.language), {
       month: 'long',
       year: 'numeric',
     });
     return formatter.format(new Date(view.y, view.m, 1));
   }, [view.y, view.m, i18n.language]);
-
-  const dayLabels = useMemo(
-    () => [0, 1, 2, 3, 4, 5, 6].map((i) => t(`workload.days.${i}`)),
-    [t]
-  );
 
   const labelFor = (shift) =>
     ambulanceNames[shift.ambulance_id] || t('schedule.ambulance_fallback', { id: shift.ambulance_id });
@@ -133,94 +110,55 @@ const ScheduleView = () => {
   };
 
   return (
-    <div className="schedule">
-      <header className="schedule-head">
-        <h1 className="schedule-title">{t('schedule.title')}</h1>
-        <div className="schedule-month-navigation">
-          <button
-            type="button"
-            className="schedule-month-button"
-            onClick={() => changeMonth(-1)}
-            disabled={viewMonthIndex <= EARLIEST_MONTH_INDEX}
-            aria-label={t('schedule.previous_month')}
-          >
-            ‹
-          </button>
-          <span className="schedule-monthlabel">{monthLabel}</span>
-          <button
-            type="button"
-            className="schedule-month-button"
-            onClick={() => changeMonth(1)}
-            disabled={viewMonthIndex >= LATEST_MONTH_INDEX}
-            aria-label={t('schedule.next_month')}
-          >
-            ›
-          </button>
-          {/* Months run far in both directions now, so after browsing half a
-              year back there is no cheap way home without this. */}
-          {!isCurrentMonth && (
-            <button
-              type="button"
-              className="schedule-month-today"
-              onClick={() => changeMonth(null)}
-            >
-              {t('schedule.current_month')}
-            </button>
-          )}
+    <div className="page schedule">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">{t('schedule.title')}</h1>
+          <p className="page-subtitle">{t('schedule.page_subtitle')}</p>
+        </div>
+        <div className="page-actions">
+          {/* Months run far in both directions, so after browsing half a
+              year back there is no cheap way home without "current month". */}
+          <PeriodStepper
+            label={monthLabel}
+            onPrevious={() => changeMonth(-1)}
+            onNext={() => changeMonth(1)}
+            previousLabel={t('schedule.previous_month')}
+            nextLabel={t('schedule.next_month')}
+            previousDisabled={viewMonthIndex <= EARLIEST_MONTH_INDEX}
+            nextDisabled={viewMonthIndex >= LATEST_MONTH_INDEX}
+            todayLabel={isCurrentMonth ? null : t('schedule.current_month')}
+            onToday={() => changeMonth(null)}
+            groupLabel={t('workload.month_nav')}
+          />
         </div>
       </header>
 
       {error && (
-        <div className="schedule-banner schedule-banner-error">
-          {error}{' '}
-          <button type="button" className="schedule-linkbtn" onClick={load}>
+        <div className="alert alert-danger schedule-alert" role="alert">
+          <span>{error}</span>
+          <button type="button" className="alert-action" onClick={load}>
             {t('schedule.retry')}
           </button>
         </div>
       )}
 
       {!loading && !error && shifts.length === 0 && (
-        <div className="schedule-banner">{t('schedule.empty')}</div>
+        <div className="alert alert-info schedule-alert">{t('schedule.empty')}</div>
       )}
 
-      <div className={`schedule-grid ${loading ? 'is-loading' : ''}`}>
-        {dayLabels.map((label) => (
-          <div key={label} className="schedule-grid-head">
-            {label}
-          </div>
-        ))}
-        {cells.map((day, idx) => {
-          if (day == null) {
-            return <div key={`e${idx}`} className="schedule-cell schedule-cell-empty" />;
-          }
-          const dateStr = isoDate(view.y, view.m, day);
-          const dayShifts = byDate[dateStr] || [];
-          const isToday =
-            view.y === today.getFullYear() &&
-            view.m === today.getMonth() &&
-            day === today.getDate();
-          return (
-            <div
-              key={dateStr}
-              className={`schedule-cell ${dayShifts.length > 0 ? 'has-shift' : ''} ${
-                isToday ? 'is-today' : ''
-              }`}
-            >
-              <span className="schedule-cell-daynum">{day}</span>
-              {dayShifts.map((s) => (
-                <span key={s.id} className="schedule-shift" title={labelFor(s)}>
-                  <span className="schedule-shift-ambulance">{labelFor(s)}</span>
-                  {s.competence_name && (
-                    <span className="schedule-shift-competence">{s.competence_name}</span>
-                  )}
-                </span>
-              ))}
-            </div>
-          );
-        })}
+      <div className="card schedule-card">
+        <ShiftCalendar
+          year={view.y}
+          month={view.m}
+          shiftsByDate={byDate}
+          labelFor={labelFor}
+          today={today}
+          loading={loading}
+          label={monthLabel}
+        />
+        <p className="schedule-footer">{t('schedule.shift_count', { count: shifts.length })}</p>
       </div>
-
-      <p className="schedule-footer">{t('schedule.shift_count', { count: shifts.length })}</p>
     </div>
   );
 };

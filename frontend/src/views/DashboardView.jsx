@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { fetchMyAssignedAmbulances } from '../services/ambulanceService';
 import {
@@ -7,19 +8,25 @@ import {
   fetchMySchedule,
   fetchMyWorkedScheduleStatistics,
 } from '../services/scheduleService';
+import ShiftCalendar from '../components/ShiftCalendar';
+import { ChevronRightIcon, MyScheduleIcon } from '../components/NavIcons';
+import { capitalizeFirst, localeFor } from '../utils/calendar';
 import './DashboardView.css';
 
-const pad = (value) => String(value).padStart(2, '0');
-const isoDate = (year, month, day) => `${year}-${pad(month + 1)}-${pad(day)}`;
-const isoWeekday = (date) => (date.getDay() + 6) % 7;
+/** The signed-in user as LoginView stored it, or null if there is none or
+ *  it cannot be read. */
+const readStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem('user') || 'null');
+  } catch {
+    return null;
+  }
+};
 
-function buildMonthCells(year, month) {
-  const cells = Array(isoWeekday(new Date(year, month, 1))).fill(null);
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  for (let day = 1; day <= daysInMonth; day += 1) cells.push(day);
-  while (cells.length % 7 !== 0) cells.push(null);
-  return cells;
-}
+/** Whom to greet: the full name, else the part of the e-mail before the @.
+ *  An account without a name used to be greeted with a bare "Ahoj,". */
+const greetingName = (user) =>
+  user?.full_name?.trim() || user?.email?.split('@')[0]?.trim() || '';
 
 const DashboardView = () => {
   const { t, i18n } = useTranslation();
@@ -33,8 +40,7 @@ const DashboardView = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const userString = localStorage.getItem('user');
-  const user = userString ? JSON.parse(userString) : null;
+  const user = useMemo(readStoredUser, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,115 +91,126 @@ const DashboardView = () => {
     return grouped;
   }, [schedule]);
 
-  const cells = useMemo(
-    () => buildMonthCells(view.year, view.month),
-    [view.year, view.month]
+  const locale = localeFor(i18n.language);
+  const monthLabel = capitalizeFirst(
+    new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(
+      new Date(view.year, view.month, 1)
+    )
   );
-  const dayLabels = useMemo(
-    () => [0, 1, 2, 3, 4, 5, 6].map((day) => t(`workload.days.${day}`)),
-    [t]
-  );
-  const locale = i18n.language === 'en' ? 'en-GB' : 'sk-SK';
-  const monthLabel = new Intl.DateTimeFormat(locale, {
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(view.year, view.month, 1));
   const dateLabel = (dateString) =>
-    new Intl.DateTimeFormat(locale, {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    }).format(new Date(`${dateString}T00:00:00`));
+    capitalizeFirst(
+      new Intl.DateTimeFormat(locale, {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }).format(new Date(`${dateString}T00:00:00`))
+    );
   const shiftLabel = (shift) =>
     ambulanceNames[shift.ambulance_id] ||
     t('schedule.ambulance_fallback', { id: shift.ambulance_id });
 
-  if (!user) return <p className="dashboard-login-needed">{t('dashboard.login_needed')}</p>;
+  if (!user) {
+    return (
+      <div className="page">
+        <p className="empty-state">{t('dashboard.login_needed')}</p>
+      </div>
+    );
+  }
+
+  const name = greetingName(user);
+
+  /** A figure, or a shimmer while the first answer is still on its way. */
+  const statValue = (value) => {
+    if (value != null) return value;
+    return loading ? <span className="skeleton dashboard-stat-skeleton" /> : '–';
+  };
 
   return (
-    <main className="dashboard">
-      <header className="dashboard-header">
+    <div className="page dashboard">
+      <header className="page-header">
         <div>
-          <p className="dashboard-eyebrow">{t('dashboard.overview')}</p>
-          <h1>{t('dashboard.greeting', { name: user.full_name })}</h1>
-          <p className="dashboard-subtitle">{t('dashboard.subtitle')}</p>
+          <p className="page-eyebrow">{t('dashboard.overview')}</p>
+          <h1 className="page-title">
+            {name ? t('dashboard.greeting', { name }) : t('dashboard.greeting_anonymous')}
+          </h1>
+          <p className="page-subtitle">{t('dashboard.subtitle')}</p>
         </div>
-        <span className="dashboard-month">{monthLabel}</span>
       </header>
 
       {error && (
-        <div className="dashboard-error">
-          {error}{' '}
-          <button type="button" onClick={load}>{t('dashboard.retry')}</button>
+        <div className="alert alert-danger dashboard-alert" role="alert">
+          <span>{error}</span>
+          <button type="button" className="alert-action" onClick={load}>
+            {t('dashboard.retry')}
+          </button>
         </div>
       )}
 
       <section className={`dashboard-summary ${loading ? 'is-loading' : ''}`}>
-        <article className="dashboard-card dashboard-next-shift">
-          <span className="dashboard-card-icon" aria-hidden="true">◷</span>
-          <div>
+        <article className="card dashboard-card dashboard-next-shift">
+          <span className="dashboard-card-icon" aria-hidden="true">
+            <MyScheduleIcon className="" />
+          </span>
+          <div className="dashboard-next-shift-body">
             <p className="dashboard-card-label">{t('dashboard.next_shift')}</p>
             {nextShift ? (
               <>
-                <h2 className="dashboard-next-shift-date">{dateLabel(nextShift.work_date)}</h2>
-                <p>{shiftLabel(nextShift)}{nextShift.competence_name ? ` · ${nextShift.competence_name}` : ''}</p>
+                <p className="dashboard-next-shift-date">{dateLabel(nextShift.work_date)}</p>
+                <p className="dashboard-next-shift-meta">
+                  {shiftLabel(nextShift)}
+                  {nextShift.competence_name ? ` · ${nextShift.competence_name}` : ''}
+                </p>
               </>
+            ) : loading ? (
+              <span className="skeleton dashboard-next-shift-skeleton" />
             ) : (
-              <h2>{t('dashboard.no_next_shift')}</h2>
+              <p className="dashboard-next-shift-empty">{t('dashboard.no_next_shift')}</p>
             )}
           </div>
         </article>
 
-        <article className="dashboard-card dashboard-stat-card">
+        <article className="card dashboard-card dashboard-stat">
           <p className="dashboard-card-label">{t('dashboard.planned_shifts')}</p>
-          <strong>{monthlyStatistics?.scheduled_shift_count ?? '–'}</strong>
-          <span>{t('dashboard.this_month')}</span>
+          <strong className="dashboard-stat-value">
+            {statValue(monthlyStatistics?.scheduled_shift_count)}
+          </strong>
+          <span className="dashboard-stat-hint">{t('dashboard.this_month')}</span>
         </article>
 
-        <article className="dashboard-card dashboard-stat-card">
+        <article className="card dashboard-card dashboard-stat">
           <p className="dashboard-card-label">{t('dashboard.worked_days')}</p>
-          <strong>{workedStatistics?.worked_day_count ?? '–'}</strong>
-          <span>{t('dashboard.until_today')}</span>
+          <strong className="dashboard-stat-value">
+            {statValue(workedStatistics?.worked_day_count)}
+          </strong>
+          <span className="dashboard-stat-hint">{t('dashboard.until_today')}</span>
         </article>
       </section>
 
-      <section className={`dashboard-calendar-card ${loading ? 'is-loading' : ''}`}>
-        <div className="dashboard-calendar-heading">
+      <section className="card dashboard-calendar">
+        <header className="card-header">
           <div>
-            <h2>{t('dashboard.schedule_title')}</h2>
-            <p>{t('dashboard.schedule_subtitle')}</p>
+            <h2 className="card-title">{t('dashboard.schedule_title')}</h2>
+            <p className="card-subtitle">{monthLabel}</p>
           </div>
-          <span>{monthLabel}</span>
-        </div>
-
-        <div className="dashboard-calendar" aria-label={t('dashboard.schedule_title')}>
-          {dayLabels.map((label) => (
-            <div key={label} className="dashboard-calendar-day-label">{label}</div>
-          ))}
-          {cells.map((day, index) => {
-            if (day == null) return <div key={`empty-${index}`} className="dashboard-calendar-empty" />;
-            const date = isoDate(view.year, view.month, day);
-            const shifts = shiftsByDate[date] || [];
-            const isToday =
-              day === today.getDate() &&
-              view.month === today.getMonth() &&
-              view.year === today.getFullYear();
-            return (
-              <div key={date} className={`dashboard-calendar-cell ${isToday ? 'is-today' : ''}`}>
-                <span className="dashboard-calendar-day-number">{day}</span>
-                {shifts.map((shift) => (
-                  <span key={shift.id} className="dashboard-calendar-shift" title={shiftLabel(shift)}>
-                    <b>{shiftLabel(shift)}</b>
-                    {shift.competence_name && <small>{shift.competence_name}</small>}
-                  </span>
-                ))}
-              </div>
-            );
-          })}
+          <Link to="/schedule" className="btn btn-sm">
+            {t('dashboard.open_schedule')}
+            <ChevronRightIcon className="" />
+          </Link>
+        </header>
+        <div className="dashboard-calendar-body">
+          <ShiftCalendar
+            year={view.year}
+            month={view.month}
+            shiftsByDate={shiftsByDate}
+            labelFor={shiftLabel}
+            today={today}
+            loading={loading}
+            label={t('dashboard.schedule_title')}
+          />
         </div>
       </section>
-    </main>
+    </div>
   );
 };
 

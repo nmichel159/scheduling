@@ -1,286 +1,347 @@
-.workload {
-  max-width: 960px;
-  margin: 0 auto;
-  text-align: left;
+/* Restriction calendar (WorkloadCalendar). Used as a page on /workload and
+   embedded in the manager's availability dialog, so nothing here hangs off
+   the page wrapper — every rule starts from a .workload-* class. */
+
+/* --- Day states ------------------------------------------------------------
+   none            neutral
+   preferred       green   - I want this day
+   soft-decline    amber   - I would rather not, but I can
+   unavailable     red     - I cannot
+   vacation        blue    - leave
+   business-trip   magenta - business trip
+   Each state sets --wl (fills and borders) and --wl-text (text on a tint).
+   Four come from the status tokens; business trip has no status of its own,
+   so it carries a literal pair, one per theme. */
+
+.workload-calendar {
+  --wl-business-trip: #c026d3;
+  --wl-business-trip-text: #a21caf;
 }
 
-.workload-head {
+:root[data-theme='dark'] .workload-calendar {
+  --wl-business-trip: #d946ef;
+  --wl-business-trip-text: #f0abfc;
+}
+
+.workload-calendar .is-preferred {
+  --wl: var(--success-solid);
+  --wl-text: var(--success);
+}
+
+.workload-calendar .is-soft-decline {
+  --wl: var(--warning-solid);
+  --wl-text: var(--warning);
+}
+
+.workload-calendar .is-unavailable {
+  --wl: var(--danger-solid);
+  --wl-text: var(--danger);
+}
+
+.workload-calendar .is-vacation {
+  --wl: var(--info-solid);
+  --wl-text: var(--info);
+}
+
+.workload-calendar .is-business-trip {
+  --wl: var(--wl-business-trip);
+  --wl-text: var(--wl-business-trip-text);
+}
+
+/* --- Controls --- */
+
+.workload-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+/* Legend on the left, the monthly wish on the right. */
+.workload-card-top {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.workload-title {
-  margin: 0;
-  font-size: 1.5rem;
-  color: var(--text-h);
-}
-
-.workload-monthnav {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 4px;
-  background: var(--code-background);
-}
-
-.workload-monthlabel {
-  min-width: 150px;
-  text-align: center;
-  font-weight: 600;
-  color: var(--text-h);
-  font-variant-numeric: tabular-nums;
-  text-transform: capitalize;
-}
-
-.workload-navbtn {
-  border: none;
-  background: none;
-  font: inherit;
-  font-size: 1.2rem;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  cursor: pointer;
-  color: var(--text-h);
-}
-.workload-navbtn:hover { background: var(--primary-background); }
-
-.workload-banner {
-  border: 1px solid var(--border);
-  background: var(--primary-background);
-  border-radius: 8px;
-  padding: 10px 14px;
+  gap: 12px 24px;
   margin-bottom: 16px;
-  font-size: 0.85rem;
 }
-.workload-banner-error { border-color: #c0463c; }
-.workload-linkbtn {
-  border: none;
-  background: none;
-  color: var(--primary);
-  cursor: pointer;
-  font: inherit;
-  text-decoration: underline;
-  padding: 0;
-}
-
-/* --- calendar grid --- */
-.workload-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-  transition: opacity 0.15s ease;
-}
-.workload-grid.is-loading { opacity: 0.5; pointer-events: none; }
-
-.workload-grid-head {
-  text-align: center;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 4px 0;
-}
-
-.workload-cell {
-  position: relative;
-  min-height: 68px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--code-background);
-  padding: 8px;
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  transition: border-color 0.12s ease, background-color 0.12s ease;
-}
-.workload-cell:hover:not(:disabled) { border-color: var(--primary); }
-.workload-cell:disabled { cursor: default; opacity: 0.65; }
-.workload-cell-empty {
-  border: none;
-  background: none;
-  cursor: default;
-  min-height: 0;
-}
-/* --- Day cells ------------------------------------------------------------
-   is-none           neutral, grey (default look)
-   is-preferred      green  - I want this day
-   is-soft-decline   amber  - I would rather not, but I can
-   is-unavailable    red    - I cannot
-   is-vacation       blue   - leave
-   is-business-trip  purple - business trip
-   Colors are literals rather than tokens: the theme has no semantic palette
-   for these, and they must read the same in light and dark. */
-
-.workload-cell.is-preferred {
-  background: rgba(102, 187, 106, 0.18);
-  border-color: rgba(102, 187, 106, 0.75);
-}
-.workload-cell.is-preferred:hover:not(:disabled) {
-  border-color: #66bb6a;
-  background: rgba(102, 187, 106, 0.26);
-}
-.workload-cell.is-preferred .workload-cell-mark { color: #66bb6a; }
-
-.workload-cell.is-soft-decline {
-  background: rgba(255, 167, 38, 0.18);
-  border-color: rgba(255, 167, 38, 0.75);
-}
-.workload-cell.is-soft-decline:hover:not(:disabled) {
-  border-color: #ffa726;
-  background: rgba(255, 167, 38, 0.26);
-}
-.workload-cell.is-soft-decline .workload-cell-mark { color: #ef8f00; }
-
-.workload-cell.is-unavailable {
-  background: rgba(239, 83, 80, 0.18);
-  border-color: rgba(239, 83, 80, 0.75);
-}
-.workload-cell.is-unavailable:hover:not(:disabled) {
-  border-color: #ef5350;
-  background: rgba(239, 83, 80, 0.26);
-}
-.workload-cell.is-unavailable .workload-cell-mark { color: #ef5350; }
-
-.workload-cell.is-vacation {
-  background: rgba(66, 165, 245, 0.18);
-  border-color: rgba(66, 165, 245, 0.75);
-}
-.workload-cell.is-vacation:hover:not(:disabled) {
-  border-color: #42a5f5;
-  background: rgba(66, 165, 245, 0.26);
-}
-.workload-cell.is-vacation .workload-cell-mark { color: #1e88e5; }
-
-.workload-cell.is-business-trip {
-  background: rgba(171, 71, 188, 0.18);
-  border-color: rgba(171, 71, 188, 0.75);
-}
-.workload-cell.is-business-trip:hover:not(:disabled) {
-  border-color: #ab47bc;
-  background: rgba(171, 71, 188, 0.26);
-}
-.workload-cell.is-business-trip .workload-cell-mark { color: #ab47bc; }
-
-.workload-cell.is-today { border-width: 2px; }
-
-.workload-cell-daynum { font-size: 0.8rem; font-weight: 700; }
-.workload-cell.is-today .workload-cell-daynum { color: var(--primary); }
-
-.workload-cell-mark {
-  position: absolute;
-  right: 10px;
-  bottom: 6px;
-  font-size: 1.1rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-/* --- Legend --- */
-
-.workload-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin: 4px 0 12px;
-  font-size: 0.78rem;
-  opacity: 0.85;
-}
-
-.workload-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.workload-legend-swatch {
-  width: 13px;
-  height: 13px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.workload-legend-swatch.is-preferred {
-  background: rgba(102, 187, 106, 0.18);
-  border-color: rgba(102, 187, 106, 0.75);
-}
-.workload-legend-swatch.is-soft-decline {
-  background: rgba(255, 167, 38, 0.18);
-  border-color: rgba(255, 167, 38, 0.75);
-}
-.workload-legend-swatch.is-unavailable {
-  background: rgba(239, 83, 80, 0.18);
-  border-color: rgba(239, 83, 80, 0.75);
-}
-.workload-legend-swatch.is-vacation {
-  background: rgba(66, 165, 245, 0.18);
-  border-color: rgba(66, 165, 245, 0.75);
-}
-.workload-legend-swatch.is-business-trip {
-  background: rgba(171, 71, 188, 0.18);
-  border-color: rgba(171, 71, 188, 0.75);
-}
-.workload-legend-swatch.is-none {
-  background: var(--code-background);
-}
-
-.workload-footer {
-  margin-top: 14px;
-  font-size: 0.8rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-}
-
-/* --- Monthly duty wish ---
-   Sits in the header next to the month navigation: it is set about as often
-   as the month is changed, and both belong to the calendar as a whole. */
 
 .workload-wish {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-left: auto;
-  font-size: 0.85rem;
 }
 
-.workload-wish-label { font-weight: 600; }
+.workload-wish-label {
+  color: var(--text-p);
+  font-size: var(--fs-sm);
+  font-weight: 550;
+  white-space: nowrap;
+}
 
-.workload-wish-input {
-  width: 84px;
-  padding: 6px 10px;
+.workload-wish-input.input {
+  width: 104px;
+}
+
+.workload-alert {
+  margin-bottom: 14px;
+}
+
+/* --- Card around legend + grid --- */
+
+.workload-card {
+  padding: 16px 20px 18px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--code-background);
-  color: inherit;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.workload-calendar.is-embedded .workload-card {
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+}
+
+/* --- Legend --- */
+
+.workload-legend,
+.workload-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+
+.workload-legend-item,
+.workload-footer-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.workload-legend-swatch {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  box-sizing: border-box;
+}
+
+.workload-calendar [class*='is-'] > .workload-legend-swatch {
+  border-color: color-mix(in srgb, var(--wl, var(--border-strong)) 70%, transparent);
+  background: color-mix(in srgb, var(--wl, var(--surface)) 22%, var(--surface));
+}
+
+.workload-legend-item.is-none .workload-legend-swatch {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+.workload-footer {
+  margin-top: 14px;
+  color: var(--text-p);
+}
+
+.workload-footer strong {
+  color: var(--text-h);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Calendar grid --- */
+
+.workload-grid-head,
+.workload-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.workload-grid-head {
+  margin-bottom: 6px;
+}
+
+.workload-grid-head span {
+  color: var(--secondary);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.workload-grid {
+  transition: opacity var(--duration) var(--ease);
+}
+
+.workload-grid.is-loading {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.workload-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 4px;
+  min-width: 0;
+  min-height: 76px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-h);
   font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition:
+    border-color var(--duration) var(--ease),
+    background-color var(--duration) var(--ease),
+    box-shadow var(--duration) var(--ease);
 }
 
-
-.workload-toast {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--text-h);
-  color: var(--background);
-  border-radius: 999px;
-  padding: 9px 18px;
-  font-size: 0.85rem;
-  z-index: 300;
+.workload-cell.is-weekend {
+  background: color-mix(in srgb, var(--surface-2) 70%, var(--surface));
 }
 
-@media (max-width: 768px) {
-  .workload-cell { min-height: 48px; padding: 5px; }
-  .workload-cell-mark { font-size: 0.9rem; right: 6px; bottom: 4px; }
-  .workload-monthlabel { min-width: 120px; }
+.workload-cell:hover:not(:disabled) {
+  border-color: var(--secondary);
+}
+
+.workload-cell:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+.workload-cell:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* A marked day is tinted with its state colour. */
+.workload-cell:not(.is-none) {
+  border-color: color-mix(in srgb, var(--wl) 55%, var(--surface));
+  background: color-mix(in srgb, var(--wl) 13%, var(--surface));
+}
+
+.workload-cell:not(.is-none):hover:not(:disabled) {
+  border-color: var(--wl);
+  background: color-mix(in srgb, var(--wl) 20%, var(--surface));
+}
+
+.workload-cell-empty {
+  min-height: 0;
+}
+
+.workload-cell-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.workload-cell-daynum {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  color: var(--text-h);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  box-sizing: border-box;
+}
+
+.workload-cell.is-today .workload-cell-daynum {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.workload-cell-mark {
+  width: 18px;
+  height: 18px;
+  margin: 3px 2px 0 0;
+  flex-shrink: 0;
+  color: var(--wl-text);
+}
+
+.workload-cell-state {
+  overflow: hidden;
+  padding: 0 4px 2px;
+  color: var(--wl-text);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Narrow grids (phones, the manager's dialog): the mark carries the state,
+   the word would not fit. */
+@media (max-width: 900px) {
+  .workload-cell-state {
+    display: none;
+  }
+
+  .workload-cell {
+    min-height: 60px;
+  }
+}
+
+.workload-calendar.is-embedded .workload-cell-state {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .workload-card {
+    padding: 14px 12px;
+  }
+
+  .workload-grid-head,
+  .workload-grid {
+    gap: 4px;
+  }
+
+  .workload-cell {
+    min-height: 50px;
+    padding: 3px;
+  }
+
+  .workload-cell-top {
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .workload-cell-daynum {
+    min-width: 22px;
+    height: 22px;
+    font-size: 0.6875rem;
+  }
+
+  .workload-cell-mark {
+    width: 15px;
+    height: 15px;
+    margin: 1px 0 0;
+  }
+
+  .workload-legend {
+    gap: 6px 12px;
+    font-size: var(--fs-xs);
+  }
+
+  .workload-wish {
+    flex: 1;
+    justify-content: space-between;
+  }
 }

@@ -1,0 +1,28 @@
+/* Inverted pill at the bottom of the screen: the one element that should
+   stand out from every surface, in either theme. */
+.app-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 1100;
+  max-width: calc(100vw - 32px);
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  background: var(--text-h);
+  color: var(--surface);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  transform: translateX(-50%);
+  animation: app-toast-in 0.18s var(--ease);
+  box-sizing: border-box;
+}
+
+@keyframes app-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}

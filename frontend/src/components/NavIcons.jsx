@@ -267,3 +267,10 @@ export const PersonIcon = (props) => (
     <path d="M5.2 20.2c.5-3.9 3.3-6.2 6.8-6.2s6.3 2.3 6.8 6.2" />
   </Icon>
 );
+
+/** Ďalej — šípka doprava (pár k ChevronLeftIcon). */
+export const ChevronRightIcon = (props) => (
+  <Icon {...props}>
+    <path d="M9.5 6.5 15 12l-5.5 5.5" />
+  </Icon>
+);

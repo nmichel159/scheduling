@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import './GenerationProgressDialog.css';
 
 /**
@@ -10,6 +10,8 @@ import './GenerationProgressDialog.css';
  */
 const GenerationProgressBody = ({ title, body, estimateLabel, elapsedLabel }) => {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const titleId = useId();
+  const bodyId = useId();
 
   useEffect(() => {
     const startedAt = Date.now();
@@ -21,23 +23,33 @@ const GenerationProgressBody = ({ title, body, estimateLabel, elapsedLabel }) =>
   }, []);
 
   return (
-    <div className="generation-progress-overlay">
+    <div className="dialog-overlay generation-progress-overlay">
       <div
-        className="generation-progress"
+        className="dialog dialog-sm generation-progress"
         role="dialog"
         aria-modal="true"
         aria-busy="true"
-        aria-live="polite"
+        aria-labelledby={titleId}
+        aria-describedby={bodyId}
       >
-        <div className="generation-progress-spinner" aria-hidden="true" />
-        <h2 className="generation-progress-title">{title}</h2>
-        <p className="generation-progress-body">{body}</p>
-        <div className="generation-progress-track" aria-hidden="true">
-          <span className="generation-progress-bar" />
-        </div>
-        <div className="generation-progress-meta">
-          {estimateLabel && <span>{estimateLabel}</span>}
-          <span>{elapsedLabel(elapsedSeconds)}</span>
+        <div className="dialog-body generation-progress-content">
+          <span className="generation-progress-spinner" aria-hidden="true" />
+          <h2 id={titleId} className="dialog-title generation-progress-title">
+            {title}
+          </h2>
+          <p id={bodyId} className="generation-progress-body">
+            {body}
+          </p>
+          <div className="generation-progress-track" aria-hidden="true">
+            <span className="generation-progress-bar" />
+          </div>
+          {/* The dialog is announced once, through its title and
+              description. The counter is kept out of any live region: read
+              out every second it would drown everything else. */}
+          <div className="generation-progress-meta">
+            {estimateLabel && <span>{estimateLabel}</span>}
+            <span aria-live="off">{elapsedLabel(elapsedSeconds)}</span>
+          </div>
         </div>
       </div>
     </div>

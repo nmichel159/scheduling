@@ -1,175 +1,60 @@
-.departments {
-  max-width: 960px;
-  margin: 0 auto;
-  text-align: left;
+/* --- Departments (one workplace's employee x competence table) ---
+ * The page chrome (header, buttons, alerts) comes from styles/ui.css; the
+ * table itself is CompetenceMatrix.css. What is left here is the header's
+ * workplace line, the loading state and the toast. */
+
+.departments-heading {
+  min-width: 0;
 }
 
-.departments-title {
-  margin: 0 0 20px;
-  font-size: 1.5rem;
-  color: var(--text-h);
-}
-
-.departments-banner {
-  border: 1px solid var(--border);
-  background: var(--primary-background);
-  border-radius: 8px;
-  padding: 10px 14px;
-  margin-bottom: 16px;
-  font-size: 0.85rem;
-}
-
-.departments-layout {
-  display: grid;
-  grid-template-columns: 240px 1fr;
-  gap: 16px;
-  align-items: start;
-}
-
-/* Pracovisko sa vyberá v hlavičke, stránka je preto jeden stĺpec. */
-.departments-layout.is-single {
-  grid-template-columns: 1fr;
-}
-
-/* --- right column: employees --- */
-.departments-detail {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--code-background);
-  padding: 16px;
-}
-
-.departments-detail-head {
+/* Názov pracoviska a jeho popis v podnadpise: názov je to, čo sa práve
+   upravuje, popis len dopĺňa, preto je tlmenejší. */
+.departments-subtitle {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  align-items: baseline;
+  gap: 2px 10px;
 }
 
-.departments-detail-title { margin: 0; font-size: 1.1rem; color: var(--text-h); }
-.departments-count { font-size: 0.8rem; }
-
-/* Popis kliniky v hlavičke detailu (zobrazuje sa pri jednej klinike). */
-.departments-detail-desc {
-  margin: 4px 0 0;
-  font-size: 0.85rem;
-  opacity: 0.75;
-}
-
-.departments-add {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-.departments-add select {
-  flex: 1;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
-  font: inherit;
-  font-size: 0.85rem;
-  background: var(--background);
+.departments-workplace {
   color: var(--text-h);
-  min-width: 0;
-}
-
-.departments-btn {
-  border: 1px solid var(--border);
-  background: var(--background);
-  color: var(--text-h);
-  border-radius: 8px;
-  padding: 8px 14px;
-  font: inherit;
-  font-size: 0.85rem;
   font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
 }
-.departments-btn:hover { border-color: var(--secondary); }
-.departments-btn-primary {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
-.departments-btn-primary:hover { opacity: 0.9; }
-.departments-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.departments-btn-primary.is-dirty {
-  box-shadow: 0 0 0 3px var(--primary-background);
-}
-.departments-btn-danger {
-  background: #c0463c;
-  border-color: #c0463c;
-  color: #fff;
-}
-.departments-btn-outline-danger {
-  background: none;
-  border-color: #c0463c;
-  color: #c0463c;
-}
-.departments-btn-outline-danger:hover { background: rgba(192, 70, 60, 0.12); }
 
-.departments-employees {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  transition: opacity 0.15s ease;
+.departments-desc {
+  color: var(--text-p);
 }
-.departments-employees.is-loading { opacity: 0.5; pointer-events: none; }
 
-.departments-employee {
+.departments-alert {
+  margin-bottom: 16px;
+}
+
+.departments-state {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
-  padding: 10px 12px;
-}
-.departments-employee-info {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-.departments-employee-name { font-weight: 600; color: var(--text-h); }
-.departments-employee-email {
-  font-size: 0.75rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  gap: 10px;
+  padding: 32px 0;
+  color: var(--text-p);
+  font-size: var(--fs-base);
 }
 
-.departments-confirm {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.8rem;
-}
-
-.departments-empty {
-  font-size: 0.85rem;
-  padding: 10px 2px;
-}
-
+/* `translate` rather than `transform`, so the pop-in animation (which
+   animates transform) does not knock the toast off centre. Above the
+   dialogs, because the profile dialog's errors are reported here. */
 .departments-toast {
   position: fixed;
-  bottom: 20px;
   left: 50%;
-  transform: translateX(-50%);
+  bottom: 24px;
+  z-index: 1100;
+  translate: -50% 0;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
   background: var(--text-h);
-  color: var(--background);
-  border-radius: 999px;
-  padding: 9px 18px;
-  font-size: 0.85rem;
-  z-index: 300;
-}
-
-@media (max-width: 768px) {
-  .departments-layout { grid-template-columns: 1fr; }
+  color: var(--surface);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--fs-sm);
+  font-weight: 550;
+  animation: ui-pop-in 0.18s var(--ease);
 }

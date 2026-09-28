@@ -1,179 +1,28 @@
-/* Read-only monthly schedule. Deliberately mirrors WorkloadView.css so the
- * two calendars feel like one component to the user — the cells are taller
- * here because they carry shift chips instead of a single mark. */
+/* Read-only monthly schedule. The grid is ShiftCalendar (shared with the
+ * dashboard) and the header is the shared page header, so this file only
+ * frames the calendar. */
 
-.schedule {
-  max-width: 960px;
-  margin: 0 auto;
-  text-align: left;
-}
-
-.schedule-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.schedule-title {
-  margin: 0;
-  font-size: 1.5rem;
-  color: var(--text-h);
-}
-
-.schedule-monthlabel {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 6px 16px;
-  background: var(--code-background);
-  font-weight: 600;
-  color: var(--text-h);
-  font-variant-numeric: tabular-nums;
-  text-transform: capitalize;
-}
-
-.schedule-banner {
-  border: 1px solid var(--border);
-  background: var(--primary-background);
-  border-radius: 8px;
-  padding: 10px 14px;
+.schedule-alert {
   margin-bottom: 16px;
-  font-size: 0.85rem;
-}
-.schedule-banner-error { border-color: #c0463c; }
-.schedule-linkbtn {
-  border: none;
-  background: none;
-  color: var(--primary);
-  cursor: pointer;
-  font: inherit;
-  text-decoration: underline;
-  padding: 0;
 }
 
-/* --- calendar grid --- */
-.schedule-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-  transition: opacity 0.15s ease;
-}
-.schedule-grid.is-loading { opacity: 0.5; }
-
-.schedule-grid-head {
-  text-align: center;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 4px 0;
-}
-
-.schedule-cell {
-  min-height: 84px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--code-background);
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-.schedule-cell-empty {
-  border: none;
-  background: none;
-  min-height: 0;
-}
-.schedule-cell.has-shift { border-color: var(--primary); }
-.schedule-cell.is-today { border-width: 2px; }
-
-.schedule-cell-daynum { font-size: 0.8rem; font-weight: 700; }
-.schedule-cell.is-today .schedule-cell-daynum { color: var(--primary); }
-
-/* One chip per shift; a day can hold several. */
-.schedule-shift {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  background: var(--primary-background);
-  border-radius: 6px;
-  padding: 4px 6px;
-  font-size: 0.7rem;
-  line-height: 1.25;
-  min-width: 0;
-}
-.schedule-shift-ambulance {
-  font-weight: 600;
-  color: var(--text-h);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.schedule-shift-competence {
-  opacity: 0.8;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.schedule-card {
+  padding: 16px 20px 14px;
 }
 
 .schedule-footer {
-  margin-top: 14px;
-  font-size: 0.8rem;
+  margin-top: 12px;
+  color: var(--text-p);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 768px) {
-  .schedule-cell { min-height: 64px; padding: 5px; }
-  .schedule-shift { font-size: 0.62rem; padding: 3px 4px; }
-}
+@media (max-width: 560px) {
+  .schedule-card {
+    padding: 12px 10px 12px;
+  }
 
-.schedule-month-navigation {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.schedule-month-button {
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  background: var(--code-background);
-  color: var(--text-h);
-  cursor: pointer;
-  font: inherit;
-  font-size: 1.1rem;
-}
-
-.schedule-month-button:hover:not(:disabled) {
-  border-color: var(--primary);
-}
-
-.schedule-month-button:disabled {
-  cursor: default;
-  opacity: 0.4;
-}
-
-/* Shown only while the view has wandered off the running month. */
-.schedule-month-today {
-  margin-left: 2px;
-  padding: 4px 9px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--background);
-  color: var(--text-h);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.75rem;
-  line-height: 1.3;
-  white-space: nowrap;
-}
-
-.schedule-month-today:hover {
-  border-color: var(--primary);
+  .schedule-footer {
+    padding: 0 4px;
+  }
 }
