@@ -22,7 +22,10 @@
 
 /* --- Alerts above the planner (error / generation result) --- */
 
-.schedule-edit-alert {
+/* Compound selectors wherever a shared class is adjusted: the router pulls
+   every view in ahead of styles/ui.css, so a bare class here would lose to
+   the shared rule of the same weight. */
+.alert.schedule-edit-alert {
   align-items: center;
 }
 
@@ -186,7 +189,7 @@
   box-sizing: border-box;
 }
 
-.schedule-edit-month-navigation .btn {
+.schedule-edit-month-navigation .btn.btn-icon {
   width: 28px;
   height: 28px;
 }
@@ -221,12 +224,12 @@
 
 /* Approving is the step that publishes the month, so it keeps the success
    colour -- but as an outline: only one filled button per bar. */
-.schedule-edit-approve:not(:disabled) {
+.btn.schedule-edit-approve:not(:disabled) {
   color: var(--success);
   border-color: color-mix(in srgb, var(--success) 45%, transparent);
 }
 
-.schedule-edit-approve:hover:not(:disabled) {
+.btn.schedule-edit-approve:hover:not(:disabled) {
   border-color: var(--success);
   background: var(--success-background);
 }
@@ -461,7 +464,7 @@
   flex-shrink: 0;
 }
 
-.schedule-edit-editor-warning {
+.field-hint.schedule-edit-editor-warning {
   color: var(--warning);
 }
 

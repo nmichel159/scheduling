@@ -46,7 +46,10 @@
   gap: 8px;
 }
 
-.planner-time-budget {
+/* Compound selectors wherever a shared class is adjusted: the router pulls
+   every view in ahead of styles/ui.css, so a bare class here would lose to
+   the shared rule of the same weight. */
+.select.planner-time-budget {
   width: auto;
   min-width: 96px;
 }
@@ -641,13 +644,13 @@
   font-size: var(--fs-xs);
 }
 
-.planner-popover-close {
+.dialog-close.planner-popover-close {
   width: 26px;
   height: 26px;
   margin: -3px -3px 0 0;
 }
 
-.planner-popover-close svg {
+.dialog-close.planner-popover-close svg {
   width: 16px;
   height: 16px;
 }
