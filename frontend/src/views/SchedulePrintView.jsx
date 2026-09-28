@@ -590,9 +590,73 @@ const SchedulePrintView = () => {
     return () => observer.disconnect();
   }, [sheetWidthMm, sheetHeightMm, pages.length, stageShown, zoom]);
 
-  const zoomIndex = ZOOM_STEPS.indexOf(zoom);
-  const zoomBy = (direction) =>
-    setZoom(ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, zoomIndex + direction))]);
+  /* Where a zoom was asked for, so the point under the pointer stays under it
+     once the sheet has been redrawn at the new scale. */
+  const zoomAnchor = useRef(null);
+  const previewRef = useRef(preview);
+  previewRef.current = preview;
+  const anchorAt = (event) => {
+    const scroller = scrollRef.current;
+    const { left, scale } = previewRef.current;
+    const box = scroller.getBoundingClientRect();
+    const x = event.clientX - box.left;
+    const y = event.clientY - box.top;
+    zoomAnchor.current = {
+      x,
+      y,
+      sheetX: (scroller.scrollLeft + x - left) / scale,
+      sheetY: (scroller.scrollTop + y) / scale,
+    };
+  };
+
+  useLayoutEffect(() => {
+    const anchor = zoomAnchor.current;
+    const scroller = scrollRef.current;
+    if (!anchor || !scroller) return;
+    zoomAnchor.current = null;
+    scroller.scrollLeft = anchor.sheetX * preview.scale + preview.left - anchor.x;
+    scroller.scrollTop = anchor.sheetY * preview.scale - anchor.y;
+  }, [preview]);
+
+  /* A double click brings the sheet up close at the point clicked, and a
+     second one puts it back to fit the desk. */
+  const handleDoubleClick = (event) => {
+    anchorAt(event);
+    setZoom((current) => (current === 1 ? 2 : 1));
+  };
+
+  /* Dragging the sheet moves it around the desk, like paper under a hand. */
+  const drag = useRef(null);
+  const [dragging, setDragging] = useState(false);
+  const handlePointerDown = (event) => {
+    if (event.button !== 0) return;
+    const scroller = scrollRef.current;
+    drag.current = {
+      x: event.clientX,
+      y: event.clientY,
+      left: scroller.scrollLeft,
+      top: scroller.scrollTop,
+      moved: false,
+    };
+  };
+  const handlePointerMove = (event) => {
+    const start = drag.current;
+    if (!start) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (!start.moved) {
+      if (Math.abs(dx) + Math.abs(dy) < 4) return;
+      start.moved = true;
+      setDragging(true);
+      scrollRef.current.setPointerCapture?.(event.pointerId);
+    }
+    scrollRef.current.scrollLeft = start.left - dx;
+    scrollRef.current.scrollTop = start.top - dy;
+  };
+  const endDrag = () => {
+    drag.current = null;
+    setDragging(false);
+  };
 
   /* Ctrl + wheel over the desk zooms the sheet rather than the whole page. */
   useEffect(() => {
@@ -601,6 +665,7 @@ const SchedulePrintView = () => {
     const onWheel = (event) => {
       if (!event.ctrlKey) return;
       event.preventDefault();
+      anchorAt(event);
       const direction = event.deltaY < 0 ? 1 : -1;
       setZoom((current) => {
         const index = ZOOM_STEPS.indexOf(current);
@@ -892,47 +957,23 @@ const SchedulePrintView = () => {
             ))}
           </select>
         </label>
-
-        <div className="field sprint-field">
-          <span className="field-label" id="sprint-zoom-label">
-            {t('schedule_print.zoom')}
-          </span>
-          <div className="segmented sprint-zoom" role="group" aria-labelledby="sprint-zoom-label">
-            <button
-              type="button"
-              aria-label={t('schedule_print.zoom_out')}
-              title={t('schedule_print.zoom_out')}
-              disabled={zoomIndex <= 0}
-              onClick={() => zoomBy(-1)}
-            >
-              −
-            </button>
-            <button
-              type="button"
-              title={t('schedule_print.zoom_reset')}
-              aria-pressed={zoom === 1}
-              onClick={() => setZoom(1)}
-            >
-              {`${Math.round(zoom * 100)} %`}
-            </button>
-            <button
-              type="button"
-              aria-label={t('schedule_print.zoom_in')}
-              title={t('schedule_print.zoom_in')}
-              disabled={zoomIndex >= ZOOM_STEPS.length - 1}
-              onClick={() => zoomBy(1)}
-            >
-              +
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* The desk the sheets lie on. It must stay unpositioned: the print
           rules lift the stage to the corner of the page, and a positioned
           ancestor would become the box it is lifted to instead. */}
       <div className="sprint-desk">
-        <div className="sprint-scroll" ref={scrollRef}>
+        <div
+          className={`sprint-scroll ${zoom > 1 ? 'is-zoomed' : ''} ${
+            dragging ? 'is-dragging' : ''
+          }`}
+          ref={scrollRef}
+          onDoubleClick={handleDoubleClick}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+        >
         <div
           className="sprint-stage"
           ref={stageRef}

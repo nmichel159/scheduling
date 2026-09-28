@@ -101,8 +101,17 @@
   max-height: 80vh;
 }
 
-.sprint-zoom > button {
-  min-width: 2.4em;
+.sprint-scroll {
+  cursor: zoom-in;
+  user-select: none;
+}
+
+.sprint-scroll.is-zoomed {
+  cursor: grab;
+}
+
+.sprint-scroll.is-dragging {
+  cursor: grabbing;
 }
 
 .sprint-stage {
