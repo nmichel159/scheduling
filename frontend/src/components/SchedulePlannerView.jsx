@@ -920,7 +920,7 @@ const SchedulePlannerView = ({
                             let state = 'idle';
                             if (filled === 0 && required > 0) state = 'needed';
                             else if (filled > 0 && filled < required) state = 'partial';
-                            else if (filled > required) state = 'over';
+                            else if (required > 0 && filled > required) state = 'over';
                             else if (filled > 0) state = 'complete';
 
                             // A single required duty reads best as a dot: the square
