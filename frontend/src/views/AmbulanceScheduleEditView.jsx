@@ -18,7 +18,8 @@ import SchedulePlannerView from '../components/SchedulePlannerView';
 import CompetenceCoverage from '../components/CompetenceCoverage';
 import ConfirmDialog from '../components/ConfirmDialog';
 import GenerationProgressDialog from '../components/GenerationProgressDialog';
-import { ChevronLeftIcon, CloseIcon } from '../components/NavIcons';
+import PeriodStepper from '../components/PeriodStepper';
+import { CloseIcon } from '../components/NavIcons';
 import {
   displayedGenerationSeconds,
   formatDurationSeconds,
@@ -829,44 +830,30 @@ const AmbulanceScheduleEditView = () => {
   const canSaveEditor = draftCompetenceId != null && draftUserId != null;
   const showNoEligibleUsers =
     draftCompetenceId != null && eligibleEmployees.length === 0;
-  const monthNavigationDisabled = loading || generating || saving || approving;
+  const isCurrentMonth =
+    view.y === today.getFullYear() && view.m === today.getMonth();
 
-  /* The month on screen and the arrows either side of it. In the planner it
-   * leads the generate toolbar rather than sitting in the bar above: the bar
-   * shares its line with the workplace's name, and with the stepper in it
-   * the "Cancel changes" button that appears on the first edit pushed the
-   * buttons onto a second line -- moving the whole people calendar down
-   * under the pointer that had just clicked it. */
+  /* The month on screen, the arrows either side of it, and -- once the view
+   * has wandered off it -- the way back to the running month. The same
+   * stepper every other month screen pages with.
+   *
+   * In the planner it leads the generate toolbar rather than sitting in the
+   * bar above: the bar shares its line with the workplace's name, and with
+   * the stepper in it the "Cancel changes" button that appears on the first
+   * edit pushed the buttons onto a second line -- moving the whole people
+   * calendar down under the pointer that had just clicked it. */
   const monthStepper = (
-    <div
-      className="schedule-edit-month-navigation"
-      role="group"
-      aria-label={monthLabel}
-    >
-      <button
-        type="button"
-        className="btn btn-ghost btn-icon btn-sm"
-        onClick={() => changeMonth(-1)}
-        disabled={monthNavigationDisabled}
-        aria-label={t('schedule_edit.previous_month')}
-        title={t('schedule_edit.previous_month')}
-      >
-        <ChevronLeftIcon />
-      </button>
-      <span className="schedule-edit-topbar-month" aria-live="polite">
-        {monthLabel}
-      </span>
-      <button
-        type="button"
-        className="btn btn-ghost btn-icon btn-sm"
-        onClick={() => changeMonth(1)}
-        disabled={monthNavigationDisabled}
-        aria-label={t('schedule_edit.next_month')}
-        title={t('schedule_edit.next_month')}
-      >
-        <ChevronLeftIcon className="schedule-edit-chevron-next" />
-      </button>
-    </div>
+    <PeriodStepper
+      label={monthLabel}
+      onPrevious={() => changeMonth(-1)}
+      onNext={() => changeMonth(1)}
+      previousLabel={t('schedule_edit.previous_month')}
+      nextLabel={t('schedule_edit.next_month')}
+      disabled={loading || generating || saving || approving}
+      todayLabel={isCurrentMonth ? null : t('schedule_edit.current_month')}
+      onToday={() => changeMonth(null)}
+      groupLabel={t('workload.month_nav')}
+    />
   );
 
   /* What you are looking at on the left -- the workplace, whether it is saved

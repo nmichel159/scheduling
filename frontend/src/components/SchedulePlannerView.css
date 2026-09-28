@@ -911,4 +911,23 @@
   .planner-missing {
     margin-left: 0;
   }
+
+  /* The month gets a line of its own, stretched edge to edge, so the arrows
+     sit at the two ends where a thumb finds them. */
+  .planner-toolbar-row > .period-stepper {
+    flex: 1 1 100%;
+  }
+
+  .planner-toolbar-row > .period-stepper .period-stepper-control {
+    flex: 1;
+    min-width: 0;
+    justify-content: space-between;
+  }
+
+  /* Its usual fixed width would push the arrow past the card's edge once
+     the "current month" button stands beside it; stretched, it needs none. */
+  .planner-toolbar-row > .period-stepper .period-stepper-label {
+    flex: 1;
+    min-width: 0;
+  }
 }

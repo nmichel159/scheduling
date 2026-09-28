@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import ConfirmDialog from '../components/ConfirmDialog';
+import Toast from '../components/Toast';
+import { ChevronDownIcon, MailIcon } from '../components/NavIcons';
+import { useToast } from '../hooks/useToast';
 import {
   fetchFillRequestGroups,
   fetchFillRequestTemplate,
@@ -30,6 +33,10 @@ const memberKey = (group, employee) =>
  * The message itself is editable. A default is offered with the sign-in
  * link already in it, but a send that cannot be taken back should show
  * exactly what goes out, and the wording changes from month to month.
+ *
+ * A successful send is confirmed by a passing toast; a failed one stays on
+ * the page beside the button until the next attempt, because "mail is not
+ * configured" is not something to read in the three seconds a toast lasts.
  */
 const ScheduleMailView = () => {
   const { t } = useTranslation();
@@ -43,12 +50,10 @@ const ScheduleMailView = () => {
   const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sendAsked, setSendAsked] = useState(false);
-  const [toast, setToast] = useState(null);
-
-  const notify = (message) => {
-    setToast(message);
-    setTimeout(() => setToast(null), 3200);
-  };
+  const [sendError, setSendError] = useState(null);
+  // The shared hook: it clears its timer on unmount, and a newer message
+  // restarts the clock instead of being cut short by the older one's timer.
+  const [toast, notify] = useToast(3200);
 
   const load = useCallback(async () => {
     const [groupList, template] = await Promise.all([
@@ -85,7 +90,11 @@ const ScheduleMailView = () => {
   const groupState = (group) => {
     const keys = group.employees.map((item) => memberKey(group, item));
     const picked = keys.filter((key) => selectedKeys.includes(key));
-    return { keys, all: keys.length > 0 && picked.length === keys.length };
+    return {
+      keys,
+      picked: picked.length,
+      all: keys.length > 0 && picked.length === keys.length,
+    };
   };
 
   const toggleGroup = (group) => {
@@ -117,6 +126,7 @@ const ScheduleMailView = () => {
 
   const handleSend = async () => {
     setSendAsked(false);
+    setSendError(null);
     setBusy(true);
     try {
       await sendFillRequest(
@@ -127,7 +137,7 @@ const ScheduleMailView = () => {
       setSelectedKeys([]);
       notify(t('schedule_mail.sent'));
     } catch (error) {
-      notify(
+      setSendError(
         refusalCode(error) === 'no_recipients'
           ? t('schedule_mail.no_selection')
           : error?.response?.status === 503
@@ -140,7 +150,14 @@ const ScheduleMailView = () => {
   };
 
   if (!loaded) {
-    return <div className="smail"><p>{t('departments.loading')}</p></div>;
+    return (
+      <div className="page smail">
+        <div className="empty-state" role="status">
+          <span className="spinner" aria-hidden="true" />
+          {t('departments.loading')}
+        </div>
+      </div>
+    );
   }
 
   const canSend =
@@ -149,107 +166,176 @@ const ScheduleMailView = () => {
     subject.trim().length > 0 &&
     body.trim().length > 0;
 
+  const membersLabel = (open) =>
+    open ? t('schedule_mail.hide_members') : t('schedule_mail.show_members');
+
   return (
-    <div className="smail">
-      <h1 className="smail-title">{t('schedule_mail.title')}</h1>
+    <div className="page smail">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">{t('schedule_mail.title')}</h1>
+          <p className="page-subtitle">{t('schedule_mail.subtitle')}</p>
+        </div>
+      </header>
 
-      {loadError && <div className="smail-banner">{t('schedule_mail.load_error')}</div>}
+      {loadError && (
+        <div className="alert alert-danger smail-alert" role="alert">
+          {t('schedule_mail.load_error')}
+        </div>
+      )}
 
-      <section className="smail-card">
-        <h2>{t('schedule_mail.recipients')}</h2>
-        {groups.length === 0 ? (
-          <p className="smail-note">{t('schedule_mail.no_groups')}</p>
-        ) : (
-          <ul className="smail-groups">
-            {groups.map((group) => {
-              const { all } = groupState(group);
-              const open = openGroups.includes(group.ambulance_id);
-              return (
-                <li key={group.ambulance_id} className="smail-group">
-                  <div className="smail-group-head">
-                    <label className="smail-check">
-                      <input
-                        type="checkbox"
-                        checked={all}
-                        onChange={() => toggleGroup(group)}
-                      />
-                      <span className="smail-email">{group.ambulance_name}</span>
-                    </label>
-                    <button
-                      type="button"
-                      className="smail-btn"
-                      aria-expanded={open}
-                      onClick={() => toggleGroupOpen(group.ambulance_id)}
-                    >
-                      {open ? '−' : '+'}
-                    </button>
-                  </div>
-                  {open && (
-                    <ul className="smail-list smail-group-list">
-                      {group.employees.map((employee) => (
-                        <li key={employee.user_id}>
-                          <label className="smail-check">
-                            <input
-                              type="checkbox"
-                              checked={selectedKeys.includes(
-                                memberKey(group, employee)
-                              )}
-                              onChange={() =>
-                                toggleMember(memberKey(group, employee))
-                              }
-                            />
-                            <span className="smail-email">
-                              {employee.full_name || employee.email}
-                            </span>
-                            <em className="smail-label">{employee.email}</em>
-                          </label>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
+      <div className="smail-layout">
+        <section className="card smail-recipients" aria-labelledby="smail-recipients-title">
+          <div className="card-header">
+            <h2 id="smail-recipients-title" className="card-title">
+              {t('schedule_mail.recipients')}
+            </h2>
+            <span
+              className={`badge ${selectedPeople.length > 0 ? 'badge-primary' : ''}`}
+              aria-live="polite"
+            >
+              {t('schedule_mail.selected_count', { people: selectedPeople.length })}
+            </span>
+          </div>
 
-        {selectedPeople.length > 0 && (
-          <p className="smail-note smail-selected">
-            {selectedPeople.map((person) => person.name).join(', ')}
-          </p>
-        )}
-      </section>
+          {groups.length === 0 ? (
+            <p className="empty-state smail-empty">{t('schedule_mail.no_groups')}</p>
+          ) : (
+            <ul className="smail-groups">
+              {groups.map((group) => {
+                const { all, picked } = groupState(group);
+                const open = openGroups.includes(group.ambulance_id);
+                const listId = `smail-group-${group.ambulance_id}`;
+                return (
+                  <li key={group.ambulance_id} className="smail-group">
+                    <div className="smail-group-head">
+                      <label className="smail-check smail-group-check">
+                        <input
+                          type="checkbox"
+                          checked={all}
+                          /* Part of the group ticked: the box says so instead
+                             of looking simply empty. */
+                          ref={(element) => {
+                            if (element) element.indeterminate = picked > 0 && !all;
+                          }}
+                          disabled={group.employees.length === 0}
+                          onChange={() => toggleGroup(group)}
+                        />
+                        <span className="smail-group-name">{group.ambulance_name}</span>
+                      </label>
+                      <span className="smail-group-count">
+                        {picked}/{group.employees.length}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-icon btn-sm smail-group-toggle"
+                        aria-expanded={open}
+                        aria-controls={listId}
+                        aria-label={`${group.ambulance_name}: ${membersLabel(open)}`}
+                        title={membersLabel(open)}
+                        onClick={() => toggleGroupOpen(group.ambulance_id)}
+                      >
+                        <ChevronDownIcon className={open ? 'is-open' : ''} />
+                      </button>
+                    </div>
+                    {open && (
+                      <ul id={listId} className="smail-members">
+                        {group.employees.map((employee) => (
+                          <li key={employee.user_id}>
+                            <label className="smail-check smail-member">
+                              <input
+                                type="checkbox"
+                                checked={selectedKeys.includes(
+                                  memberKey(group, employee)
+                                )}
+                                onChange={() =>
+                                  toggleMember(memberKey(group, employee))
+                                }
+                              />
+                              <span className="smail-member-text">
+                                <span className="smail-member-name">
+                                  {employee.full_name || employee.email}
+                                </span>
+                                {employee.full_name && (
+                                  <span className="smail-member-email">
+                                    {employee.email}
+                                  </span>
+                                )}
+                              </span>
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
 
-      <section className="smail-card">
-        <h2>{t('schedule_mail.message')}</h2>
-        <input
-          type="text"
-          className="smail-input smail-subject-input"
-          aria-label={t('schedule_mail.subject')}
-          maxLength={300}
-          value={subject}
-          onChange={(event) => setSubject(event.target.value)}
-        />
-        <textarea
-          className="smail-textarea"
-          aria-label={t('schedule_mail.message')}
-          rows={8}
-          maxLength={5000}
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-        />
-        <button
-          type="button"
-          className="smail-btn smail-btn-primary"
-          disabled={!canSend}
-          onClick={() => setSendAsked(true)}
-        >
-          {t('schedule_mail.send')}
-        </button>
-      </section>
+        <section className="card smail-message" aria-labelledby="smail-message-title">
+          <div className="card-header">
+            <h2 id="smail-message-title" className="card-title">
+              {t('schedule_mail.message')}
+            </h2>
+          </div>
+
+          <div className="card-pad smail-fields">
+            <label className="field">
+              <span className="field-label">{t('schedule_mail.subject')}</span>
+              <input
+                type="text"
+                className="input"
+                maxLength={300}
+                value={subject}
+                onChange={(event) => setSubject(event.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">{t('schedule_mail.body')}</span>
+              <textarea
+                className="textarea smail-textarea"
+                rows={10}
+                maxLength={5000}
+                value={body}
+                onChange={(event) => setBody(event.target.value)}
+              />
+            </label>
+
+            {sendError && (
+              <div className="alert alert-danger" role="alert">
+                {sendError}
+              </div>
+            )}
+          </div>
+
+          <div className="smail-footer">
+            <p className="smail-summary">
+              {selectedPeople.length > 0
+                ? selectedPeople.map((person) => person.name).join(', ')
+                : t('schedule_mail.pick_hint')}
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary smail-send"
+              disabled={!canSend}
+              onClick={() => setSendAsked(true)}
+            >
+              {busy ? (
+                <span className="spinner smail-send-spinner" aria-hidden="true" />
+              ) : (
+                <MailIcon className="" />
+              )}
+              {t('schedule_mail.send')}
+            </button>
+          </div>
+        </section>
+      </div>
 
       <ConfirmDialog
         open={sendAsked}
+        title={t('schedule_mail.send_confirm_title')}
         message={t('schedule_mail.send_confirm')}
         details={selectedPeople.map((person) => person.address).join(', ')}
         confirmLabel={t('schedule_mail.send')}
@@ -258,7 +344,7 @@ const ScheduleMailView = () => {
         onCancel={() => setSendAsked(false)}
       />
 
-      {toast && <div className="smail-toast" role="status">{toast}</div>}
+      <Toast message={toast} />
     </div>
   );
 };

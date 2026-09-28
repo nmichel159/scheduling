@@ -35,6 +35,9 @@ const inkOn = (hex) => {
    page scrolls past it anyway, and squashing 31 rows into what is left under
    the controls would only make them too small to tap. */
 const STACKED_QUERY = '(max-width: 1100px)';
+/* Stacked row height: easy to tap, and two pixels short of the widest row so
+   seven competences and their tilted names still fit a phone's width. */
+const STACKED_ROW_HEIGHT = 24;
 
 /* The competence picker is a fixed-position panel anchored next to the cell
    that opened it, so these have to be known here to keep it inside the
@@ -405,7 +408,7 @@ const SchedulePlannerView = ({
       const perRow =
         Math.floor((room - headHeight) / daysInMonth) - CELL_BORDER;
       const rowHeight = Math.min(
-        MAX_ROW_HEIGHT,
+        stacked ? STACKED_ROW_HEIGHT : MAX_ROW_HEIGHT,
         Math.max(MIN_ROW_HEIGHT, perRow || MIN_ROW_HEIGHT)
       );
 

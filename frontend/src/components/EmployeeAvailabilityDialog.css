@@ -9,6 +9,11 @@
   max-width: 640px;
 }
 
+/* Focused on open only to take the focus off the page behind it. */
+.dialog.availdlg:focus {
+  outline: none;
+}
+
 .dialog-header.availdlg-head {
   align-items: center;
   padding-bottom: 16px;

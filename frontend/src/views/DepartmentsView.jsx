@@ -19,6 +19,8 @@ import { useWorkplace, useWorkplaceSwitchGuard } from '../hooks/workplaceContext
 import CompetenceMatrix from '../components/CompetenceMatrix';
 import ConfirmDialog from '../components/ConfirmDialog';
 import EmployeeDetailDialog from '../components/EmployeeDetailDialog';
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 import {
   ISO_WEEKDAYS,
   fingerprintCompetenceRequirements,
@@ -91,7 +93,7 @@ const DepartmentsView = () => {
     error: workplacesError,
     forbidden,
   } = useWorkplace();
-  const [toast, setToast] = useState(null);
+  const [toast, notify] = useToast();
 
   const [rows, setRows] = useState([]);
   const [originalRows, setOriginalRows] = useState([]);
@@ -104,16 +106,6 @@ const DepartmentsView = () => {
   const [confirmState, setConfirmState] = useState(null);
   const [profile, setProfile] = useState(null); // { userId, settings }
   const [openingProfile, setOpeningProfile] = useState(null); // user id
-
-  /* One timer for the toast: a second message restarts it instead of being
-   * wiped by the first message's timeout a moment after it appears. */
-  const toastTimer = useRef(null);
-  const notify = useCallback((msg) => {
-    clearTimeout(toastTimer.current);
-    setToast(msg);
-    toastTimer.current = setTimeout(() => setToast(null), 2400);
-  }, []);
-  useEffect(() => () => clearTimeout(toastTimer.current), []);
 
   // Only the newest table request may write state: switching workplaces
   // quickly must not let a slower, older answer land on the new one.
@@ -528,11 +520,7 @@ const DepartmentsView = () => {
         />
       )}
 
-      {toast && (
-        <div className="departments-toast" role="status">
-          {toast}
-        </div>
-      )}
+      <Toast message={toast} />
 
       <EmployeeDetailDialog
         key={profile ? profile.userId : 'none'}

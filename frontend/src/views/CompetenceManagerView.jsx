@@ -14,6 +14,8 @@ import { useWorkplace } from '../hooks/workplaceContext';
 import ConfirmDialog from '../components/ConfirmDialog';
 import CompetenceEditorDialog from '../components/CompetenceEditorDialog';
 import { ChevronLeftIcon, PlusIcon, TrashIcon } from '../components/NavIcons';
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 import {
   REQUIREMENT_SLOTS,
   SPECIAL_DAY_SLOT,
@@ -119,7 +121,7 @@ const CompetenceManagerView = () => {
   const [legendAt, setLegendAt] = useState(null);
   const [viewedId, setViewedId] = useState(null);
 
-  const [toast, setToast] = useState(null);
+  const [toast, notify] = useToast();
   const [creatingScenario, setCreatingScenario] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState(null);
   const [renaming, setRenaming] = useState(null); // { id, name }
@@ -127,16 +129,6 @@ const CompetenceManagerView = () => {
   const [savingCompetence, setSavingCompetence] = useState(false);
   const [deleteScenarioTarget, setDeleteScenarioTarget] = useState(null);
   const [deleteCompetenceTarget, setDeleteCompetenceTarget] = useState(null);
-
-  /* One timer for the toast: a second message restarts it instead of being
-   * wiped by the first message's timeout a moment after it appears. */
-  const toastTimer = useRef(null);
-  const notify = useCallback((msg) => {
-    clearTimeout(toastTimer.current);
-    setToast(msg);
-    toastTimer.current = setTimeout(() => setToast(null), 2400);
-  }, []);
-  useEffect(() => () => clearTimeout(toastTimer.current), []);
 
   const loadScenarios = useCallback(async () => {
     if (selectedId == null) return;
@@ -964,11 +956,7 @@ const CompetenceManagerView = () => {
         </div>
       )}
 
-      {toast && (
-        <div className="cmanager-toast" role="status">
-          {toast}
-        </div>
-      )}
+      <Toast message={toast} />
 
       <CompetenceEditorDialog
         key={editorTarget === 'new' ? 'new' : (editorTarget?.id ?? 'closed')}

@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { SHIFT_PREFERENCE } from '../services/employeeService';
@@ -114,6 +114,19 @@ const EmployeeDetailDialog = ({
   const [picked, setPicked] = useState(() => competences.map((c) => c.id));
   const titleId = useId();
 
+  /* A modal takes the focus while it is open — otherwise Tab keeps walking
+   * the page behind the overlay — and hands it back to whatever opened it. */
+  const dialogRef = useRef(null);
+  const isOpen = !!employee;
+  useLayoutEffect(() => {
+    if (!isOpen) return undefined;
+    const opener = document.activeElement;
+    dialogRef.current?.focus();
+    return () => {
+      if (opener && document.body.contains(opener)) opener.focus();
+    };
+  }, [isOpen]);
+
   useLayoutEffect(() => {
     if (!employee) return;
     const handleKeyDown = (e) => {
@@ -165,8 +178,10 @@ const EmployeeDetailDialog = ({
       }}
     >
       <div
+        ref={dialogRef}
         className="dialog empdlg"
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby={titleId}
       >

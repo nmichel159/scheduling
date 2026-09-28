@@ -504,29 +504,6 @@
   font-size: var(--fs-sm);
 }
 
-/* ---------- toast ---------- */
-
-/* `translate` rather than `transform`, so the pop-in animation (which
-   animates transform) does not knock the toast off centre. Above the
-   dialogs, because a failed save in the editor is reported here. */
-.cmanager-toast {
-  position: fixed;
-  left: 50%;
-  bottom: 24px;
-  z-index: 1100;
-  translate: -50% 0;
-  max-width: calc(100vw - 32px);
-  box-sizing: border-box;
-  padding: 10px 16px;
-  border-radius: var(--radius-md);
-  background: var(--text-h);
-  color: var(--surface);
-  box-shadow: var(--shadow-lg);
-  font-size: var(--fs-sm);
-  font-weight: 550;
-  animation: ui-pop-in 0.18s var(--ease);
-}
-
 @media (max-width: 1100px) {
   .cmanager-columns {
     grid-template-columns: minmax(0, 1fr);

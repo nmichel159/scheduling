@@ -1,7 +1,7 @@
 /* --- Departments (one workplace's employee x competence table) ---
  * The page chrome (header, buttons, alerts) comes from styles/ui.css; the
  * table itself is CompetenceMatrix.css. What is left here is the header's
- * workplace line, the loading state and the toast. */
+ * workplace line and the loading state. */
 
 .departments-heading {
   min-width: 0;
@@ -36,25 +36,4 @@
   padding: 32px 0;
   color: var(--text-p);
   font-size: var(--fs-base);
-}
-
-/* `translate` rather than `transform`, so the pop-in animation (which
-   animates transform) does not knock the toast off centre. Above the
-   dialogs, because the profile dialog's errors are reported here. */
-.departments-toast {
-  position: fixed;
-  left: 50%;
-  bottom: 24px;
-  z-index: 1100;
-  translate: -50% 0;
-  max-width: calc(100vw - 32px);
-  box-sizing: border-box;
-  padding: 10px 16px;
-  border-radius: var(--radius-md);
-  background: var(--text-h);
-  color: var(--surface);
-  box-shadow: var(--shadow-lg);
-  font-size: var(--fs-sm);
-  font-weight: 550;
-  animation: ui-pop-in 0.18s var(--ease);
 }

@@ -152,7 +152,7 @@
 .cmatrix-scroll {
   /* Tall enough to work in, short enough that the page header and its
      Save button stay on screen while the table scrolls. */
-  max-height: max(360px, calc(100svh - 240px));
+  max-height: max(360px, calc(100svh - 272px));
   overflow: auto;
   overscroll-behavior: contain;
   transition: opacity var(--duration) var(--ease);
@@ -417,13 +417,19 @@
   cursor: pointer;
 }
 
-/* The ellipsis needs a real inline box; a bare text node inside a flex
- * button becomes an anonymous item and won't truncate. */
+/* A long name ("MUDr. Henrieta Janíková - Sallaiová") takes a second line
+ * rather than an ellipsis; only a third is cut. The clamp needs a real box
+ * of its own — a bare text node inside a flex button becomes an anonymous
+ * item and won't clamp. */
 .cmatrix-row-name-text {
+  display: -webkit-box;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .cmatrix-row-name:hover .cmatrix-row-name-text {

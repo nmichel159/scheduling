@@ -132,9 +132,22 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
   const nameRef = useRef(null);
   const titleId = useId();
 
+  /* Focus the name once, when the dialog opens, and give the focus back to
+   * whatever opened it on close. This must not share an effect with the
+   * Escape handler below: `onCancel` is a new function on every render of
+   * the parent, and re-running the focus with it pulled the caret back to
+   * the name while the user was typing in another field. */
   useEffect(() => {
     if (!open) return undefined;
+    const opener = document.activeElement;
     nameRef.current?.focus();
+    return () => {
+      if (opener && document.body.contains(opener)) opener.focus();
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return undefined;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onCancel();
     };

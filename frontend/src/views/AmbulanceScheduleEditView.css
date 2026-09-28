@@ -174,41 +174,6 @@
   margin-left: auto;
 }
 
-/* The stepper reads as one control: a bordered track with the month between
-   its two arrows, the same height as the buttons next to it. */
-.schedule-edit-month-navigation {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  height: var(--control-h);
-  padding: 0 2px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow-xs);
-  box-sizing: border-box;
-}
-
-.schedule-edit-month-navigation .btn.btn-icon {
-  width: 28px;
-  height: 28px;
-}
-
-.schedule-edit-chevron-next {
-  transform: scaleX(-1);
-}
-
-.schedule-edit-topbar-month {
-  min-width: 8.8em;
-  color: var(--text-h);
-  font-size: var(--fs-base);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  text-transform: capitalize;
-  white-space: nowrap;
-}
-
 .schedule-edit-topbar-actions {
   display: flex;
   flex-wrap: wrap;
@@ -570,16 +535,20 @@
   }
 }
 
-/* On a phone the controls take the whole width: the stepper on its own line
-   stretched edge to edge, the buttons sharing the line under it. */
+/* On a phone the controls take the whole width, the buttons sharing the line
+   evenly (the planner does the same for the month stepper in its toolbar). */
 @media (max-width: 560px) {
   .schedule-edit-controls {
     width: 100%;
     margin-left: 0;
   }
 
-  .schedule-edit-month-navigation {
+  .schedule-edit-controls > .period-stepper {
     flex: 1 1 100%;
+  }
+
+  .schedule-edit-controls > .period-stepper .period-stepper-control {
+    flex: 1;
     justify-content: space-between;
   }
 

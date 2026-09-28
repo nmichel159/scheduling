@@ -9,6 +9,11 @@
   max-width: 520px;
 }
 
+/* Focused on open only to take the focus off the page behind it. */
+.dialog.empdlg:focus {
+  outline: none;
+}
+
 .dialog-header.empdlg-head {
   align-items: center;
   padding-bottom: 16px;
