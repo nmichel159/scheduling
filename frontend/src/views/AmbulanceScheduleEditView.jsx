@@ -351,6 +351,27 @@ const AmbulanceScheduleEditView = () => {
   /* Every rule the month on screen breaks. Worked out from the edited
    * shifts, so a click in the planner shows or clears its conflict at once,
    * before anything is saved. */
+  /* ISO dates whose duties differ from the loaded month: the days being
+   * edited by hand right now. */
+  const editedDates = useMemo(() => {
+    const signature = (list) => {
+      const byDate = new Map();
+      list.forEach((shift) => {
+        const key = `${shift.user_id}:${shift.competence_id}`;
+        byDate.set(shift.work_date, [...(byDate.get(shift.work_date) || []), key]);
+      });
+      byDate.forEach((keys, date) => byDate.set(date, keys.sort().join('|')));
+      return byDate;
+    };
+    const now = signature(shifts);
+    const before = signature(originalShifts);
+    const dates = new Set();
+    new Set([...now.keys(), ...before.keys()]).forEach((date) => {
+      if (now.get(date) !== before.get(date)) dates.add(date);
+    });
+    return dates;
+  }, [shifts, originalShifts]);
+
   const conflictReport = useMemo(
     () =>
       analyzeScheduleConflicts({
@@ -363,6 +384,7 @@ const AmbulanceScheduleEditView = () => {
         restDays,
         context: scheduleContext,
         fromDate: firstEditableDate,
+        editedDates,
       }),
     [
       view.y,
@@ -374,6 +396,7 @@ const AmbulanceScheduleEditView = () => {
       restDays,
       scheduleContext,
       firstEditableDate,
+      editedDates,
     ]
   );
 

@@ -751,8 +751,8 @@ const SchedulePlannerView = ({
 
   /* ---------- what the open person can do that day ---------- */
 
-  /* Every competence of the workplace, the ones the person does not hold
-     included -- they are marked, not hidden. What a pick would break is split
+  /* The competences the person holds -- plus any they already sit on without
+     holding it, so it can still be taken off. What a pick would break is split
      in two: whatever holds for every row (an absence, the rest, a duty
      elsewhere) is said once under the name, and only what differs from one
      competence to the next stays on its row. */
@@ -760,24 +760,26 @@ const SchedulePlannerView = ({
     if (!openPerson) return { rows: [], shared: [] };
     const dayShifts = shiftsByDate[openPerson.dateStr] || [];
     const userId = openPerson.employee.user_id;
-    const rows = competences.map((competence) => {
+    const rows = competences.flatMap((competence) => {
       const mine = dayShifts.find(
         (s) => s.user_id === userId && s.competence_id === competence.id
       );
-      return {
+      const warnings = conflictReport
+        ? conflictReport.forCandidate(
+            userId,
+            openPerson.dateStr,
+            competence.id,
+            mine?.id ?? null
+          )
+        : [];
+      if (!mine && warnings.some((item) => item.type === 'unqualified')) return [];
+      return [{
         competence,
         shift: mine || null,
-        warnings: conflictReport
-          ? conflictReport.forCandidate(
-              userId,
-              openPerson.dateStr,
-              competence.id,
-              mine?.id ?? null
-            )
-          : [],
+        warnings,
         filled: dayShifts.filter((s) => s.competence_id === competence.id).length,
         required: requiredFor(competence.id, openPerson.day.slot),
-      };
+      }];
     });
     // Shared means said the same way on every row: "already on" names the
     // other roles, which differ from row to row, so it never moves up.
