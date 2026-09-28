@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../hooks/useTheme';
 import { setTheme } from '../theme';
-import { MonitorIcon, MoonIcon, SunIcon } from './NavIcons';
+import { CloseIcon, MonitorIcon, MoonIcon, SunIcon } from './NavIcons';
 import './SettingsDialog.css';
 
 /** Názvy jazykov sa neprekladajú — "Slovenčina" hľadá aj ten, kto má appku v angličtine. */
@@ -43,31 +43,32 @@ const SettingsDialog = ({ open, onClose }) => {
 
   return (
     <div
-      className="settings-overlay"
+      className="dialog-overlay"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="settings-dialog"
+        className="dialog dialog-sm settings-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-dialog-title"
       >
-        <header className="settings-head">
-          <h2 id="settings-dialog-title">{t('settings.title')}</h2>
+        <header className="dialog-header">
+          <h2 id="settings-dialog-title" className="dialog-title">{t('settings.title')}</h2>
           <button
             type="button"
             ref={closeRef}
-            className="settings-close"
+            className="dialog-close"
             onClick={onClose}
             aria-label={t('settings.close')}
             title={t('settings.close')}
           >
-            ×
+            <CloseIcon className="" />
           </button>
         </header>
 
+        <div className="dialog-body">
         <section className="settings-group">
           <p className="settings-group-title">{t('settings.language')}</p>
           <div className="settings-options">
@@ -107,6 +108,7 @@ const SettingsDialog = ({ open, onClose }) => {
           </div>
           <p className="settings-group-hint">{t('settings.theme_system_hint')}</p>
         </section>
+        </div>
       </div>
     </div>
   );

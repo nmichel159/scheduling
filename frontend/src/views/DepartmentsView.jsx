@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useBlocker } from 'react-router-dom';
 import {
@@ -19,6 +19,8 @@ import { useWorkplace, useWorkplaceSwitchGuard } from '../hooks/workplaceContext
 import CompetenceMatrix from '../components/CompetenceMatrix';
 import ConfirmDialog from '../components/ConfirmDialog';
 import EmployeeDetailDialog from '../components/EmployeeDetailDialog';
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 import {
   ISO_WEEKDAYS,
   fingerprintCompetenceRequirements,
@@ -91,7 +93,7 @@ const DepartmentsView = () => {
     error: workplacesError,
     forbidden,
   } = useWorkplace();
-  const [toast, setToast] = useState(null);
+  const [toast, notify] = useToast();
 
   const [rows, setRows] = useState([]);
   const [originalRows, setOriginalRows] = useState([]);
@@ -105,10 +107,9 @@ const DepartmentsView = () => {
   const [profile, setProfile] = useState(null); // { userId, settings }
   const [openingProfile, setOpeningProfile] = useState(null); // user id
 
-  const notify = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2400);
-  };
+  // Only the newest table request may write state: switching workplaces
+  // quickly must not let a slower, older answer land on the new one.
+  const loadSeq = useRef(0);
 
   const isDirty = useMemo(
     () =>
@@ -125,6 +126,7 @@ const DepartmentsView = () => {
 
   const loadTable = useCallback(async () => {
     if (selectedId == null) return;
+    const seq = ++loadSeq.current;
     setTableLoading(true);
     try {
       const [tableResult, compsResult, usersResult] = await Promise.allSettled([
@@ -132,6 +134,7 @@ const DepartmentsView = () => {
         fetchCompetences(selectedId),
         fetchAllUsers(),
       ]);
+      if (seq !== loadSeq.current) return;
       if (tableResult.status === 'rejected') throw tableResult.reason;
       if (compsResult.status === 'rejected') throw compsResult.reason;
 
@@ -160,6 +163,7 @@ const DepartmentsView = () => {
         notify(t('departments.load_error'));
       }
     } catch {
+      if (seq !== loadSeq.current) return;
       setRows([]);
       setOriginalRows([]);
       setColumns([]);
@@ -167,9 +171,9 @@ const DepartmentsView = () => {
       setDayGroups([]);
       notify(t('departments.load_error'));
     } finally {
-      setTableLoading(false);
+      if (seq === loadSeq.current) setTableLoading(false);
     }
-  }, [selectedId, t]);
+  }, [selectedId, t, notify]);
 
   useEffect(() => {
     loadTable();
@@ -275,6 +279,9 @@ const DepartmentsView = () => {
   const persist = async (draftRows, profileWrite = null) => {
     if (selectedId == null || saving) return;
     setSaving(true);
+    // A step that fails does not stop the rest, but it must not end in
+    // "Saved" either -- that toast would replace the error a moment later.
+    let failed = false;
     try {
       const originalIds = new Set(originalRows.map((r) => r.user_id));
       const currentIds = new Set(draftRows.map((r) => r.user_id));
@@ -287,7 +294,7 @@ const DepartmentsView = () => {
           await addEmployeeToAmbulance(selectedId, row.user_id);
         } catch {
           failedAdds.add(row.user_id);
-          notify(t('departments.action_error'));
+          failed = true;
         }
       }
 
@@ -295,7 +302,7 @@ const DepartmentsView = () => {
         try {
           await removeEmployeeFromAmbulance(selectedId, row.user_id);
         } catch {
-          notify(t('departments.action_error'));
+          failed = true;
         }
       }
 
@@ -339,7 +346,7 @@ const DepartmentsView = () => {
               weekday_requirements: weekdayRequirements,
             });
           } catch {
-            notify(t('competences.action_error'));
+            failed = true;
           }
         }
       }
@@ -352,13 +359,13 @@ const DepartmentsView = () => {
             profileWrite.settings
           );
         } catch {
-          notify(t('departments.action_error'));
+          failed = true;
         }
       }
 
       await loadTable();
       setProfile(null);
-      notify(t('departments.saved'));
+      notify(failed ? t('departments.action_error') : t('departments.saved'));
     } catch {
       notify(t('departments.save_error'));
     } finally {
@@ -428,14 +435,23 @@ const DepartmentsView = () => {
   /* ---------- render ---------- */
 
   if (loading) {
-    return <div className="departments"><p>{t('departments.loading')}</p></div>;
+    return (
+      <div className="page departments">
+        <p className="departments-state">
+          <span className="spinner" aria-hidden="true" />
+          {t('departments.loading')}
+        </p>
+      </div>
+    );
   }
 
   if (forbidden || (!loading && ambulances.length === 0)) {
     return (
-      <div className="departments">
-        <h1 className="departments-title">{t('departments.title')}</h1>
-        <div className="departments-banner">
+      <div className="page departments">
+        <header className="page-header">
+          <h1 className="page-title">{t('departments.title')}</h1>
+        </header>
+        <div className="alert alert-info">
           {forbidden ? t('departments.forbidden') : t('departments.no_ambulances')}
         </div>
       </div>
@@ -449,54 +465,62 @@ const DepartmentsView = () => {
     : [];
 
   return (
-    <div className="departments">
-      <h1 className="departments-title">{t('departments.title')}</h1>
+    <div className="page departments">
+      {/* Pracovisko sa vyberá v hlavičke, stránka je preto jeden stĺpec:
+        * názov, popis pracoviska a Uložiť hore, tabuľka pod tým. */}
+      <header className="page-header">
+        <div className="departments-heading">
+          <h1 className="page-title">{t('departments.title')}</h1>
+          {selected && (
+            <p className="page-subtitle departments-subtitle">
+              <span className="departments-workplace">{selected.name}</span>
+              {selected.description && (
+                <span className="departments-desc">{selected.description}</span>
+              )}
+            </p>
+          )}
+        </div>
+        {selected && (
+          <div className="page-actions">
+            {isDirty && (
+              <span className="badge badge-warning badge-dot">
+                {t('departments.unsaved')}
+              </span>
+            )}
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!isDirty || saving}
+              onClick={handleSave}
+            >
+              {t('departments.save')}
+            </button>
+          </div>
+        )}
+      </header>
 
       {workplacesError && (
-        <div className="departments-banner">{t('departments.load_error')}</div>
-      )}
-
-      <div className="departments-layout is-single">
-        <section className="departments-detail">
-          {selected && (
-            <>
-              <header className="departments-detail-head">
-                <h2 className="departments-detail-title">{selected.name}</h2>
-                {selected.description && (
-                  <p className="departments-detail-desc">{selected.description}</p>
-                )}
-                <button
-                  type="button"
-                  className={`departments-btn departments-btn-primary ${isDirty ? 'is-dirty' : ''}`}
-                  disabled={!isDirty || saving}
-                  onClick={handleSave}
-                >
-                  {t('departments.save')}
-                </button>
-              </header>
-
-              <CompetenceMatrix
-                columns={columns}
-                dayGroups={dayGroups}
-                rows={rows}
-                allUsers={allUsers}
-                loading={tableLoading}
-                onToggleDay={toggleDay}
-                onToggleWeek={toggleWeek}
-                onAddRow={addRow}
-                onRemoveRow={removeRow}
-                onOpenProfile={openProfile}
-              />
-            </>
-          )}
-        </section>
-      </div>
-
-      {toast && (
-        <div className="departments-toast" role="status">
-          {toast}
+        <div className="alert alert-danger departments-alert" role="alert">
+          {t('departments.load_error')}
         </div>
       )}
+
+      {selected && (
+        <CompetenceMatrix
+          columns={columns}
+          dayGroups={dayGroups}
+          rows={rows}
+          allUsers={allUsers}
+          loading={tableLoading}
+          onToggleDay={toggleDay}
+          onToggleWeek={toggleWeek}
+          onAddRow={addRow}
+          onRemoveRow={removeRow}
+          onOpenProfile={openProfile}
+        />
+      )}
+
+      <Toast message={toast} />
 
       <EmployeeDetailDialog
         key={profile ? profile.userId : 'none'}
@@ -514,6 +538,7 @@ const DepartmentsView = () => {
         message={confirmState?.message}
         confirmLabel={t('departments.leave_anyway')}
         cancelLabel={t('departments.stay')}
+        tone="danger"
         onConfirm={confirmState?.onConfirm}
         onCancel={confirmState?.onCancel}
       />

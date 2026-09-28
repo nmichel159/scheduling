@@ -120,7 +120,21 @@ const SchedulePrintView = () => {
   const tableRef = useRef(null);
   const legendRef = useRef(null);
   const stageRef = useRef(null);
-  const [preview, setPreview] = useState({ scale: 1, height: 0, pageHeight: 0 });
+  const [preview, setPreview] = useState({
+    scale: 1,
+    height: 0,
+    pageHeight: 0,
+    left: 0,
+  });
+
+  /* Whether the stage is on screen at all. While the workplaces load, or when
+     there are none, the view returns early and the stage does not exist, so
+     the layout effects below have nothing to measure. They list this among
+     their dependencies to run again once it appears: before, nothing else
+     they depend on changed at that moment, the preview kept the height of 0
+     it started with, and a page opened straight on this address showed no
+     sheet at all. */
+  const stageShown = !workplacesLoading && !forbidden && workplaces.length > 0;
 
   /* What the fit search settled on: the type size, and the rows each sheet
      carries. Until it has run once the whole month sits on one page, which is
@@ -526,7 +540,7 @@ const SchedulePrintView = () => {
       fontPx: bestSize,
       pages: best.map((indexes) => indexes.map((index) => table.rows[index])),
     });
-  }, [table, sheetWidthMm, sheetHeightMm, pageBudget, loading]);
+  }, [table, sheetWidthMm, sheetHeightMm, pageBudget, loading, stageShown]);
 
   /* Before the search has run -- the first paint, and any paint where the
      month has just changed underneath it -- the whole table is shown as one
@@ -548,6 +562,8 @@ const SchedulePrintView = () => {
         scale,
         pageHeight,
         height: pageHeight * pages.length + PAGE_GAP_PX * (pages.length - 1),
+        // A sheet narrower than the desk sits in the middle of it.
+        left: Math.max(0, (stage.clientWidth - natural * scale) / 2),
       });
     };
 
@@ -555,7 +571,7 @@ const SchedulePrintView = () => {
     const observer = new ResizeObserver(measure);
     observer.observe(stage);
     return () => observer.disconnect();
-  }, [sheetWidthMm, sheetHeightMm, pages.length]);
+  }, [sheetWidthMm, sheetHeightMm, pages.length, stageShown]);
 
   /* ---------------------------------------------------------------- render */
 
@@ -589,6 +605,7 @@ const SchedulePrintView = () => {
                  the sheets are placed on the stage themselves, at the height
                  they are actually drawn. */
               top: index * (preview.pageHeight + PAGE_GAP_PX),
+              left: preview.left,
             }),
       }}
     >
@@ -654,17 +671,22 @@ const SchedulePrintView = () => {
 
   if (workplacesLoading) {
     return (
-      <div className="sprint">
-        <p>{t('schedule_print.loading')}</p>
+      <div className="page sprint">
+        <div className="empty-state" role="status">
+          <span className="spinner" aria-hidden="true" />
+          {t('schedule_print.loading')}
+        </div>
       </div>
     );
   }
 
   if (forbidden || workplaces.length === 0) {
     return (
-      <div className="sprint">
-        <h1 className="sprint-title">{t('schedule_print.title')}</h1>
-        <div className="sprint-banner">
+      <div className="page sprint">
+        <header className="page-header">
+          <h1 className="page-title">{t('schedule_print.title')}</h1>
+        </header>
+        <div className={`alert ${forbidden ? 'alert-danger' : 'alert-info'}`}>
           {forbidden ? t('departments.forbidden') : t('departments.no_ambulances')}
         </div>
       </div>
@@ -672,16 +694,22 @@ const SchedulePrintView = () => {
   }
 
   return (
-    <div className="sprint">
+    <div className="page sprint">
       <style>{`@page { size: A4 ${orientation}; margin: ${PAGE_MARGIN_MM}mm; }`}</style>
 
-      <header className="sprint-head">
-        <h1 className="sprint-title">{t('schedule_print.title')}</h1>
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">{t('schedule_print.title')}</h1>
+          <p className="page-subtitle">{t('schedule_print.subtitle')}</p>
+        </div>
 
-        <div className="sprint-actions">
+        {/* What leaves the screen. The toolbar under it carries what the
+            sheet looks like; keeping the two apart is what stops the row of
+            controls reading as one undifferentiated strip. */}
+        <div className="page-actions">
           <button
             type="button"
-            className="sprint-btn"
+            className="btn"
             disabled={loading}
             onClick={handleXlsx}
           >
@@ -689,7 +717,7 @@ const SchedulePrintView = () => {
           </button>
           <button
             type="button"
-            className="sprint-btn"
+            className="btn"
             disabled={loading}
             onClick={handleCsv}
           >
@@ -697,22 +725,27 @@ const SchedulePrintView = () => {
           </button>
           <button
             type="button"
-            className="sprint-btn sprint-btn-primary"
+            className="btn btn-primary sprint-pdf"
             disabled={loading || buildingPdf}
             onClick={handlePdf}
           >
+            {buildingPdf && <span className="spinner sprint-pdf-spinner" aria-hidden="true" />}
             {buildingPdf ? t('schedule_print.pdf_building') : t('schedule_print.pdf')}
           </button>
         </div>
       </header>
 
-      {error && <div className="sprint-banner">{error}</div>}
+      {error && (
+        <div className="alert alert-danger sprint-alert" role="alert">
+          {error}
+        </div>
+      )}
 
-      <div className="sprint-bar">
-        <div className="sprint-group">
+      <div className="card sprint-bar">
+        <label className="field sprint-field">
+          <span className="field-label">{t('schedule_print.month')}</span>
           <select
-            className="sprint-select"
-            aria-label={t('schedule_print.month')}
+            className="select sprint-select"
             value={month}
             onChange={(event) => setMonth(Number(event.target.value))}
           >
@@ -722,10 +755,12 @@ const SchedulePrintView = () => {
               </option>
             ))}
           </select>
+        </label>
 
+        <label className="field sprint-field">
+          <span className="field-label">{t('schedule_print.year')}</span>
           <select
-            className="sprint-select"
-            aria-label={t('schedule_print.year')}
+            className="select sprint-select"
             value={year}
             onChange={(event) => setYear(Number(event.target.value))}
           >
@@ -735,66 +770,68 @@ const SchedulePrintView = () => {
               </option>
             ))}
           </select>
-        </div>
+        </label>
 
         <span className="sprint-divider" aria-hidden="true" />
 
-        <div className="sprint-group">
-          <div className="sprint-seg" role="group" aria-label={t('schedule_print.layout')}>
+        <div className="field sprint-field">
+          <span className="field-label" id="sprint-layout-label">
+            {t('schedule_print.layout')}
+          </span>
+          <div className="segmented" role="group" aria-labelledby="sprint-layout-label">
             <button
               type="button"
-              className={layout === 'competences' ? 'is-active' : ''}
+              aria-pressed={layout === 'competences'}
               onClick={() => setLayout('competences')}
             >
               {t('schedule_print.layout_competences')}
             </button>
             <button
               type="button"
-              className={layout === 'employees' ? 'is-active' : ''}
+              aria-pressed={layout === 'employees'}
               onClick={() => setLayout('employees')}
             >
               {t('schedule_print.layout_employees')}
             </button>
           </div>
+        </div>
 
-          <div className="sprint-seg" role="group" aria-label={t('schedule_print.orientation')}>
+        <div className="field sprint-field">
+          <span className="field-label" id="sprint-orientation-label">
+            {t('schedule_print.orientation')}
+          </span>
+          <div
+            className="segmented"
+            role="group"
+            aria-labelledby="sprint-orientation-label"
+          >
             <button
               type="button"
-              className={orientation === 'portrait' ? 'is-active' : ''}
+              aria-pressed={orientation === 'portrait'}
               onClick={() => setOrientation('portrait')}
             >
               {t('schedule_print.portrait')}
             </button>
             <button
               type="button"
-              className={orientation === 'landscape' ? 'is-active' : ''}
+              aria-pressed={orientation === 'landscape'}
               onClick={() => setOrientation('landscape')}
             >
               {t('schedule_print.landscape')}
             </button>
           </div>
+        </div>
 
-          <label className="sprint-field">
-            {t('schedule_print.pages')}
-            <select
-              className="sprint-select"
-              value={pageBudget}
-              onChange={(event) => setPageBudget(Number(event.target.value))}
-            >
-              {PAGE_OPTIONS.map((count) => (
-                <option key={count} value={count}>
-                  {count}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="sprint-seg" role="group" aria-label={t('schedule_print.names')}>
+        <div className="field sprint-field">
+          <span className="field-label" id="sprint-names-label">
+            {t('schedule_print.names')}
+          </span>
+          <div className="segmented" role="group" aria-labelledby="sprint-names-label">
             {NAME_STYLES.map((style) => (
               <button
                 key={style}
                 type="button"
-                className={nameStyle === style ? 'is-active' : ''}
+                aria-pressed={nameStyle === style}
                 onClick={() => setNameStyle(style)}
               >
                 {t(`schedule_print.names_${style}`)}
@@ -802,34 +839,54 @@ const SchedulePrintView = () => {
             ))}
           </div>
         </div>
+
+        <label className="field sprint-field">
+          <span className="field-label">{t('schedule_print.pages')}</span>
+          <select
+            className="select sprint-select sprint-select-pages"
+            value={pageBudget}
+            onChange={(event) => setPageBudget(Number(event.target.value))}
+          >
+            {PAGE_OPTIONS.map((count) => (
+              <option key={count} value={count}>
+                {count}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
-      <div className="sprint-stage" ref={stageRef} style={{ height: preview.height }}>
-        {/* The sheet the fit search reads: the whole month at once, at its
-            natural height, off the side of the screen. It is measured rather
-            than shown, because the sheets that are shown have already been
-            cut to the size it found and could not tell anyone what the next
-            size down would cost. */}
-        {renderSheet(table.rows, {
-          ref: sheetRef,
-          className: 'sprint-measure is-measuring',
-          key: 'measure',
-          measuring: true,
-        })}
+      {/* The desk the sheets lie on. It must stay unpositioned: the print
+          rules lift the stage to the corner of the page, and a positioned
+          ancestor would become the box it is lifted to instead. */}
+      <div className="sprint-desk">
+        <div className="sprint-stage" ref={stageRef} style={{ height: preview.height }}>
+          {/* The sheet the fit search reads: the whole month at once, at its
+              natural height, off the side of the screen. It is measured rather
+              than shown, because the sheets that are shown have already been
+              cut to the size it found and could not tell anyone what the next
+              size down would cost. */}
+          {renderSheet(table.rows, {
+            ref: sheetRef,
+            className: 'sprint-measure is-measuring',
+            key: 'measure',
+            measuring: true,
+          })}
 
-        {pages.map((rows, index) =>
-          renderSheet(rows, {
-            key: `page-${index}`,
-            /* Only a month that came out on one page is spread down it. The
-               last of several holds whatever the pages before it left, and
-               stretching those few rows over a whole sheet would say the
-               month ends in rows three centimetres tall. */
-            index,
-            loose: pages.length > 1 && index === pages.length - 1,
-            /* The legend explains the squares, so it belongs on every sheet
-               somebody might be holding. */
-          })
-        )}
+          {pages.map((rows, index) =>
+            renderSheet(rows, {
+              key: `page-${index}`,
+              /* Only a month that came out on one page is spread down it. The
+                 last of several holds whatever the pages before it left, and
+                 stretching those few rows over a whole sheet would say the
+                 month ends in rows three centimetres tall. */
+              index,
+              loose: pages.length > 1 && index === pages.length - 1,
+              /* The legend explains the squares, so it belongs on every sheet
+                 somebody might be holding. */
+            })
+          )}
+        </div>
       </div>
     </div>
   );

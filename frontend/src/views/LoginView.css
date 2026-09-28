@@ -1,87 +1,136 @@
 .login-wrapper {
-  min-height: 100svh;
+  position: relative;            /* kotva pre jazykový prepínač */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  text-align: center;
-  padding: 24px;
+  gap: 24px;
+  min-height: 100svh;
+  padding: 72px 16px 32px;
   box-sizing: border-box;
-  position: relative;        /* kotva pre jazykový prepínač */
+  background:
+    radial-gradient(1100px 520px at 50% -12%, var(--primary-background-strong), transparent 70%),
+    var(--background);
 }
 
-.login-content {
-    max-width: 480px;
-    margin: 0 auto;
-    width: 100%;
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  padding: 36px 32px 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  box-sizing: border-box;
+  text-align: center;
 }
 
-.subtitle {
-    margin-bottom: 48px;
-    color: var(--text);
+.login-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
 }
 
-.social-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+.login-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius);
+  object-fit: contain;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px var(--border);
 }
 
-.social-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 14px;
-    background: var(--social-bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text-h);
-    font-family: var(--sans);
-    font-size: 16px;
-    cursor: pointer;
-    transition: all 0.2s ease;
+.login-brand-name {
+  color: var(--text-h);
+  font-size: var(--fs-lg);
+  font-weight: 650;
+  letter-spacing: -0.02em;
 }
 
-    .social-button:hover {
-        border-color: var(--primary);
-        background: var(--primary-background);
-        transform: translateY(-1px);
-    }
-
-.button-icon {
-    font-family: var(--mono);
-    font-weight: bold;
-    font-size: 18px;
-    color: var(--primary);
+.login-title {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  font-weight: 650;
+  letter-spacing: -0.025em;
 }
 
-.language-selector {
-    position: absolute;
-    top: 24px;
-    right: 24px;
-    font-family: var(--mono);
-    font-size: 14px;
+.login-subtitle {
+  margin: 8px auto 28px;
+  max-width: 32ch;
+  color: var(--text-p);
+  font-size: var(--fs-base);
+  line-height: 1.5;
 }
 
-    .language-selector button {
-        background: none;
-        border: none;
-        color: var(--text);
-        cursor: pointer;
-        padding: 4px 8px;
-    }
-
-        .language-selector button.active {
-            color: var(--primary);
-            font-weight: bold;
-        }
-
-.separator {
-    color: var(--border);
+.login-error {
+  margin-bottom: 16px;
 }
 
-.footer-note {
-    margin-top: 64px;
-    font-size: 14px;
+.login-google {
+  gap: 10px;
+  font-weight: 600;
+}
+
+.login-google-logo {
+  width: 18px;
+  height: 18px;
+}
+
+.login-hint {
+  margin-top: 14px;
+  color: var(--secondary);
+  font-size: var(--fs-xs);
+}
+
+.login-footer {
+  color: var(--text-p);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+.login-footer a {
+  font-weight: 500;
+}
+
+/* SK | EN — segmented, top right */
+.login-language {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.login-language button {
+  height: 26px;
+  padding: 0 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.login-language button:hover {
+  color: var(--text-h);
+}
+
+.login-language button.is-active {
+  background: var(--primary-background);
+  color: var(--primary);
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 28px 20px 22px;
+  }
 }

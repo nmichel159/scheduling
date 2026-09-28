@@ -34,6 +34,10 @@ import './Sidebar.css';
 /** Šírka zbalenej lišty (railu) — musí sedieť s .sidebar v Sidebar.css. */
 const RAIL_WIDTH = 56;
 
+/** Na Macu je skratka ⌘K, všade inde Ctrl K. */
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const QUICK_JUMP_KEYS = IS_MAC ? '⌘K' : 'Ctrl K';
+
 /**
  * Sekcie podľa rolí. `Icon` sekcie je ikona, ktorá ju zastupuje v raile;
  * `flag` je príznak z useRoles(). Položka môže mať `unless` — príznak, pri
@@ -137,7 +141,7 @@ const Sidebar = ({ open, onToggle, onClose }) => {
   const [logoutAsked, setLogoutAsked] = useState(false);
 
   const closeTimer = useRef(null);
-  const user = useMemo(readStoredUser, []);
+  const user = useMemo(() => readStoredUser(), []);
 
   const sections = useMemo(() => {
     const allowed = { hasEmployee, hasManager, hasAdmin, hasAnalyst };
@@ -174,15 +178,16 @@ const Sidebar = ({ open, onToggle, onClose }) => {
     setUserMenu(null);
   }, []);
 
-  // Po navigácii nemá čo ostať otvorené — ani fly-out, ani menu účtu.
-  useEffect(() => {
-    closeMenus();
-  }, [pathname, closeMenus]);
-
-  // Prepnutie rail <-> rozbalené mení spôsob vykreslenia, plávajúce panely by ostali visieť.
-  useEffect(() => {
-    closeMenus();
-  }, [railMode, closeMenus]);
+  // Po navigácii nemá čo ostať otvorené — ani fly-out, ani menu účtu. Aj
+  // prepnutie rail <-> rozbalené mení spôsob vykreslenia, plávajúce panely by
+  // ostali visieť. Zatvára sa už počas renderu, nech neblikne starý stav.
+  const menusContext = `${pathname}|${railMode}`;
+  const [openedIn, setOpenedIn] = useState(menusContext);
+  if (openedIn !== menusContext) {
+    setOpenedIn(menusContext);
+    setFlyout(null);
+    setUserMenu(null);
+  }
 
   useEffect(() => () => clearTimeout(closeTimer.current), []);
 
@@ -280,7 +285,7 @@ const Sidebar = ({ open, onToggle, onClose }) => {
       <hr className="nav-menu-divider" />
       <button
         type="button"
-        className="nav-menu-item"
+        className="nav-menu-item is-danger"
         onClick={() => {
           setUserMenu(null);
           setLogoutAsked(true);
@@ -309,7 +314,7 @@ const Sidebar = ({ open, onToggle, onClose }) => {
           >
             <SearchIcon />
             <span className="label">{t('sidebar.quick_jump')}</span>
-            <kbd className="nav-kbd label">Ctrl K</kbd>
+            <kbd className="nav-kbd label">{QUICK_JUMP_KEYS}</kbd>
           </button>
 
           {/* Domov beží na "moje" endpointoch — je to zamestnanecká obrazovka. */}

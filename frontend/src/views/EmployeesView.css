@@ -1,160 +1,167 @@
-/* --- Employees roster (one workplace's people, one row each) --- */
-
-.employees {
-  max-width: 960px;
-  margin: 0 auto;
-  text-align: left;
-}
-
-.employees-title {
-  margin: 0 0 6px;
-  font-size: 1.5rem;
-  color: var(--text-h);
-}
-
-.employees-banner {
-  border: 1px solid var(--border);
-  background: var(--primary-background);
-  border-radius: 8px;
-  padding: 10px 14px;
-  margin-bottom: 16px;
-  font-size: 0.85rem;
-}
-
-.employees-panel {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--code-background);
-  padding: 16px;
-}
-
-/* Two rows rather than one: who we are looking at on top, what we are
- * looking at underneath. In one row the four controls reflowed into
- * whatever order the width allowed. */
-.employees-head {
-  display: grid;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.employees-headline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
+/* --- Employees roster (one workplace's people, one row each) ---
+ * Page chrome, buttons, fields and the sort switch come from
+ * styles/ui.css; this file lays out the roster itself. */
 
 .employees-heading {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
   min-width: 0;
 }
 
+.employees-heading .page-subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+}
+
 .employees-workplace {
-  margin: 0;
-  font-size: 1.1rem;
   color: var(--text-h);
+  font-weight: 600;
 }
 
 .employees-count {
-  font-size: 0.8rem;
-  opacity: 0.75;
+  color: var(--text-p);
+}
+
+.employees-alert {
+  margin-bottom: 16px;
+}
+
+.employees-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 0;
+  color: var(--text-p);
+  font-size: var(--fs-base);
+}
+
+/* --- month stepper (page header) --- */
+.employees-monthnav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.employees-monthlabel {
+  min-width: 132px;
+  color: var(--text-h);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.employees-next-icon {
+  transform: rotate(180deg);
+}
+
+/* --- the card: toolbar, legend, rows ---
+ * The card is a size container: how the rows fold depends on how wide the
+ * list actually is, which changes with the sidebar, not only the window. */
+.employees-card {
+  container: employees / inline-size;
 }
 
 .employees-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
+  gap: 10px 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
 }
 
-/* Same filter control as the competence matrix header, so the two screens
- * feel like one feature. */
 .employees-filter {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0 8px;
-  background: var(--background);
-  min-width: 240px;
+  position: relative;
+  flex: 1 1 260px;
+  max-width: 380px;
 }
-.employees-filter:focus-within,
-.employees-filter.is-active {
-  border-color: var(--primary);
+
+.employees-filter .input {
+  padding-right: 34px;
 }
-.employees-filter-icon {
-  width: 15px;
-  height: 15px;
-  flex: none;
-  opacity: 0.6;
-  color: var(--text-h);
-}
-.employees-filter input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: none;
-  color: var(--text-h);
-  font: inherit;
-  font-size: 0.85rem;
-  padding: 7px 0;
-}
+
 .employees-filter-clear {
-  border: none;
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
   background: none;
-  color: var(--text-h);
-  font: inherit;
-  font-size: 0.75rem;
-  line-height: 1;
-  padding: 2px 4px;
-  border-radius: 4px;
+  color: var(--secondary);
+  transform: translateY(-50%);
   cursor: pointer;
-  opacity: 0.6;
 }
-.employees-filter-clear:hover { opacity: 1; }
+
+.employees-filter-clear:hover {
+  background: var(--surface-2);
+  color: var(--text-h);
+}
 
 /* The chip that says which competence the list is narrowed to. It is a
  * button, because clicking it is how the narrowing is undone. */
 .employees-activefilter {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  margin-left: auto;
-  padding: 5px 10px;
-  border: 1px solid var(--primary);
-  border-radius: 999px;
-  background: var(--primary);
-  color: #fff;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px 0 12px;
+  border: 1px solid var(--primary-border);
+  border-radius: var(--radius-full);
+  background: var(--primary-background);
+  color: var(--primary);
   font: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--fs-sm);
+  font-weight: 600;
   cursor: pointer;
 }
-.employees-activefilter:hover { filter: brightness(1.08); }
 
-.employees-list { transition: opacity 0.15s ease; }
-.employees-list.is-loading { opacity: 0.5; pointer-events: none; }
+.employees-activefilter:hover {
+  background: var(--primary-background-strong);
+}
+
+.employees-activefilter-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.employees-sort {
+  margin-left: auto;
+}
+
+.employees-list {
+  transition: opacity var(--duration) var(--ease);
+}
+
+.employees-list.is-loading {
+  opacity: 0.55;
+  pointer-events: none;
+}
 
 .employees-rows {
   margin: 0;
   padding: 0;
   list-style: none;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
 }
-.employees-rows li + li { border-top: 1px solid var(--border); }
 
-/* The row cannot be one button any more: the competence chips inside it
- * are buttons of their own. Instead the whole row is covered by an
- * invisible button, and the chips sit above it. */
+.employees-rows > li + li {
+  border-top: 1px solid var(--border);
+}
+
+/* The row cannot be one button: the competence chips inside it are buttons
+ * of their own. Instead the whole row is covered by an invisible button,
+ * and the chips sit above it. */
 .employees-item {
   position: relative;
 }
@@ -164,122 +171,187 @@
   inset: 0;
   z-index: 0;
   width: 100%;
+  padding: 0;
   border: none;
   background: none;
-  padding: 0;
   cursor: pointer;
+  transition: background-color var(--duration) var(--ease);
 }
+
+.employees-rows > li:last-child .employees-open {
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
 .employees-open:hover {
-  background: color-mix(in srgb, var(--primary-background) 70%, transparent);
+  background: var(--surface-2);
 }
+
 .employees-open:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: -2px;
 }
-.employees-open:hover ~ .employees-row .employees-chevron { opacity: 0.9; }
+
+.employees-open:hover ~ .employees-row .employees-chevron {
+  color: var(--text-h);
+  transform: rotate(180deg) translateX(-2px);
+}
 
 /* One template for the row and for the legend above the list, so the
  * column labels stand over the numbers they name. */
 .employees-row,
 .employees-legend {
   display: grid;
-  grid-template-columns: 34px minmax(110px, 1fr) minmax(0, 1.4fr) auto 28px 16px;
+  grid-template-columns: 36px minmax(180px, 1.1fr) minmax(0, 1.5fr) auto 30px 16px;
   align-items: center;
-  gap: 12px;
-  padding: 0 14px;
+  column-gap: 14px;
+  padding: 0 16px;
 }
 
 .employees-row {
   position: relative;
   z-index: 1;
-  padding-top: 12px;
-  padding-bottom: 12px;
+  min-height: 60px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  box-sizing: border-box;
   color: var(--text-h);
   pointer-events: none; /* clicks fall through to the overlay button */
 }
 
+/* Stays under the app header while the list scrolls under it. */
 .employees-legend {
-  padding-bottom: 6px;
-}
-.employees-legend-spacer { grid-column: 1 / 4; }
-.employees-legend .employees-cell {
-  font-size: 0.6rem;
-  font-weight: 700;
+  position: sticky;
+  top: 56px;
+  z-index: 2;
+  min-height: 36px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.55;
+}
+
+.employees-legend-person {
+  grid-column: 1 / 3;
+}
+
+.employees-legend .employees-cell {
+  /* A label a few pixels wider than its column may run into the empty
+     space beside it rather than end in an ellipsis. */
+  overflow: visible;
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-overflow: clip;
 }
 
 .employees-avatar {
-  flex: none;
-  width: 34px;
-  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: var(--primary-background);
   color: var(--primary);
-  font-weight: 700;
-  font-size: 0.9rem;
+  font-size: var(--fs-xs);
+  font-weight: 650;
+  letter-spacing: 0.02em;
 }
 
 .employees-identity {
   display: flex;
   flex-direction: column;
+  gap: 1px;
   min-width: 0;
 }
-.employees-name {
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+
+.employees-name,
 .employees-email {
-  font-size: 0.78rem;
-  opacity: 0.7;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* `min-width: 0` matters: a flex item defaults to min-width:auto, so a row
- * with several long competence names would push itself wider than the list
- * and spill over its right edge instead of wrapping. */
+.employees-name {
+  color: var(--text-h);
+  font-size: var(--fs-base);
+  font-weight: 550;
+}
+
+.employees-email {
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+}
+
+/* `min-width: 0` matters: a grid item defaults to min-width:auto, so a row
+ * with long competence names would push itself wider than the list and
+ * spill over its right edge instead of wrapping. */
 .employees-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
 }
 
 .employees-tag {
-  pointer-events: auto;
-  padding: 4px 9px;
-  border: 1px solid color-mix(in srgb, var(--primary) 45%, var(--border));
-  border-radius: 999px;
-  background: var(--primary-background);
-  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  height: 22px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text);
   font: inherit;
-  font-size: 0.72rem;
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: var(--fs-xs);
+  font-weight: 550;
+  line-height: 1;
+  text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
+  pointer-events: auto;
+  transition:
+    border-color var(--duration) var(--ease),
+    color var(--duration) var(--ease),
+    background-color var(--duration) var(--ease);
 }
-.employees-tag:hover { border-color: var(--primary); }
+
+.employees-tag:hover {
+  border-color: var(--primary-border);
+  color: var(--primary);
+}
+
+.employees-tag:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
 .employees-tag.is-picked {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
+  border-color: var(--primary-border);
+  background: var(--primary-background);
+  color: var(--primary);
+  font-weight: 600;
 }
+
+/* "+N": the rest are in the profile the row opens; hovering names them. */
+.employees-tag.is-more {
+  border-color: transparent;
+  background: var(--surface-2);
+  color: var(--text-p);
+  cursor: default;
+  pointer-events: auto;
+}
+
 .employees-tag.is-empty {
-  border-color: var(--border);
   border-style: dashed;
   background: none;
-  color: var(--text);
-  font-weight: 600;
-  opacity: 0.7;
+  color: var(--secondary);
   cursor: default;
 }
 
@@ -291,210 +363,246 @@
   /* Wide enough for the widest label, because the legend uses the same
    * template: a label that does not fit its column would push the whole
    * legend sideways and stop standing over its number. */
-  grid-template-columns: 74px repeat(4, 62px);
+  grid-template-columns: 76px repeat(4, 64px);
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .employees-cell {
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: right;
-  font-size: 0.9rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
   color: var(--text-h);
+  font-size: var(--fs-base);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
-.employees-cell.is-accent { color: var(--primary); }
-.employees-cell.is-muted { opacity: 0.35; }
+
+.employees-cell.is-accent {
+  color: var(--primary);
+}
+
+/* A zero is an answer too, but a quiet one: the numbers that are there
+ * stand out from the ones that are not. */
+.employees-cell.is-muted {
+  color: var(--secondary);
+  font-weight: 500;
+}
 
 /* The first column carries the duty count against the person's own
- * monthly wish, so it gets a bar the other four do not need. */
+ * monthly wish, so it gets a bar the other four do not need. The bar hangs
+ * under the number without taking layout room, so the number stays on the
+ * same line as the four beside it. */
 .employees-meter {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+  position: relative;
+  overflow: visible;
+}
+
+.employees-row .employees-meter .employees-meter-track {
+  position: absolute;
+  right: 0;
+  bottom: -9px;
+  left: 0;
 }
 
 .employees-meter-value {
-  font-size: 1rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
   color: var(--text-h);
+  font-size: var(--fs-md);
+  font-weight: 650;
+  line-height: 1;
 }
+
 .employees-meter-max {
-  font-size: 0.8rem;
-  font-weight: 600;
-  opacity: 0.55;
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+  font-weight: 500;
 }
 
 .employees-meter-track {
   width: 100%;
   height: 4px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text) 18%, transparent);
   overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
 }
+
 .employees-meter-fill {
   display: block;
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--primary);
-  transition: width 0.2s ease;
+  transition: width 0.2s var(--ease);
 }
 
 /* No wish set, so there is nothing to fill: the number stands alone. */
-.employees-meter.is-open .employees-meter-track { visibility: hidden; }
+.employees-meter.is-open .employees-meter-track {
+  visibility: hidden;
+}
+
 /* Wish met exactly, and wish exceeded — the two states a scheduler looks
  * for when deciding who else can take a day. */
-.employees-meter.is-full .employees-meter-value { color: var(--primary); }
-.employees-meter.is-over .employees-meter-fill { background: #ef5350; }
-.employees-meter.is-over .employees-meter-value { color: #ef5350; }
+.employees-meter.is-full .employees-meter-value {
+  color: var(--primary);
+}
+
+.employees-meter.is-over .employees-meter-fill {
+  background: var(--danger-solid);
+}
+
+.employees-meter.is-over .employees-meter-value {
+  color: var(--danger);
+}
 
 /* The calendar button is the one thing in the row that is not the
  * profile: it opens the person's availability month. */
-.employees-calendar {
+.btn.employees-calendar {
+  color: var(--secondary);
   pointer-events: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: none;
-  color: var(--text-h);
-  cursor: pointer;
-  opacity: 0.45;
 }
-.employees-calendar:hover {
-  border-color: var(--primary);
+
+.btn.employees-calendar:hover:not(:disabled) {
   color: var(--primary);
-  opacity: 1;
-}
-.employees-calendar-icon {
-  width: 17px;
-  height: 17px;
 }
 
 .employees-chevron {
-  flex: none;
   width: 16px;
   height: 16px;
+  color: var(--secondary);
   transform: rotate(180deg);
-  opacity: 0.35;
+  transition:
+    transform var(--duration) var(--ease),
+    color var(--duration) var(--ease);
 }
 
-.employees-empty {
-  margin: 0;
-  padding: 14px 4px;
-  font-size: 0.85rem;
-  opacity: 0.75;
-}
-
-/* --- month stepper and sort switch --- */
-.employees-switch {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
-}
-
-.employees-switch-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 0;
-  border-radius: 6px;
-  padding: 6px 12px;
-  background: transparent;
-  color: var(--text-h);
-  opacity: 0.65;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.82rem;
-}
-.employees-switch-button:hover { opacity: 1; }
-.employees-switch-button.is-active {
-  background: var(--primary);
-  color: #fff;
-  opacity: 1;
-}
-
-.employees-month {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.employees-month-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--background);
-  color: var(--text-h);
-  font: inherit;
-  line-height: 1;
-  padding: 6px;
-  cursor: pointer;
-}
-.employees-month-button:hover:not(:disabled) { border-color: var(--primary); }
-.employees-month-button:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.employees-month-icon {
-  width: 16px;
-  height: 16px;
-}
-.employees-month-icon.is-next { transform: rotate(180deg); }
-
-.employees-monthlabel {
-  min-width: 128px;
-  text-align: center;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-h);
-}
-
-.employees-month-today {
-  border: none;
-  background: none;
-  color: var(--primary);
-  font: inherit;
-  font-size: 0.78rem;
-  padding: 4px 6px;
-  cursor: pointer;
-}
-
-@media (max-width: 860px) {
-  /* The numbers drop under the identity rather than squeezing it: on a
-   * narrow screen the row is two lines, not five columns of nothing. */
-  .employees-legend { display: none; }
-  .employees-row {
-    grid-template-columns: 34px minmax(0, 1fr) 28px 16px;
+/* Medium width: the chips drop under the name and run on under the
+ * numbers, which stay beside the name — a row is two short lines instead
+ * of one squeezed one. */
+@container employees (max-width: 900px) {
+  .employees-row,
+  .employees-legend {
+    grid-template-columns: 36px minmax(0, 1fr) auto 30px 16px;
+    row-gap: 6px;
   }
+
+  .employees-legend-tags {
+    display: none;
+  }
+
+  .employees-avatar {
+    grid-row: 1 / 3;
+  }
+
+  .employees-identity {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
   .employees-tags {
-    grid-column: 2 / 5;
+    grid-column: 2 / 4;
+    grid-row: 2;
   }
-  .employees-calendar {
+
+  .employees-stats {
     grid-column: 3;
     grid-row: 1;
   }
+
+  .btn.employees-calendar {
+    grid-column: 4;
+    grid-row: 1;
+  }
+
+  .employees-chevron {
+    grid-column: 5;
+    grid-row: 1;
+  }
+
+}
+
+/* Phone width: the numbers get a line of their own, each with its label
+ * printed beside it, since the legend above the list no longer fits. */
+@container employees (max-width: 620px) {
+  .employees-legend {
+    display: none;
+  }
+
+  .employees-row {
+    grid-template-columns: 36px minmax(0, 1fr) 30px 16px;
+    column-gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .employees-avatar {
+    grid-row: 1;
+  }
+
+  .btn.employees-calendar {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
   .employees-chevron {
     grid-column: 4;
     grid-row: 1;
   }
+
+  .employees-tags {
+    grid-column: 2 / 5;
+    grid-row: 2;
+  }
+
   .employees-stats {
     grid-column: 2 / 5;
-    justify-content: start;
+    grid-row: 3;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    margin-top: 2px;
   }
-  .employees-filter { min-width: 0; flex: 1; }
-  .employees-activefilter { margin-left: 0; }
+
+  .employees-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    font-size: var(--fs-sm);
+    text-align: left;
+  }
+
+  .employees-cell[data-label]::before {
+    content: attr(data-label);
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--text-p);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-overflow: ellipsis;
+  }
+
+  .employees-meter-value {
+    font-size: var(--fs-sm);
+    line-height: inherit;
+  }
+
+  .employees-row .employees-meter .employees-meter-track {
+    position: static;
+    width: 80%;
+    height: 3px;
+  }
+}
+
+@media (max-width: 560px) {
+  .employees-toolbar {
+    padding: 12px;
+  }
+
+  .employees-filter {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .employees-sort {
+    margin-left: 0;
+  }
 }

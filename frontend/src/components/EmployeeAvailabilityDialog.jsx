@@ -1,7 +1,9 @@
-import { useCallback, useLayoutEffect } from 'react';
+import { useCallback, useId, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import WorkloadCalendar from './WorkloadCalendar';
+import { CloseIcon } from './NavIcons';
+import { personInitials } from '../utils/personInitials';
 import {
   createEmployeeUnavailability,
   deleteEmployeeUnavailability,
@@ -32,6 +34,7 @@ import './EmployeeAvailabilityDialog.css';
  */
 const EmployeeAvailabilityDialog = ({ employee, ambulanceId, onClose }) => {
   const { t } = useTranslation();
+  const titleId = useId();
   const userId = employee ? employee.user_id : null;
 
   const fetchEntries = useCallback(
@@ -61,6 +64,19 @@ const EmployeeAvailabilityDialog = ({ employee, ambulanceId, onClose }) => {
     [ambulanceId, userId]
   );
 
+  /* A modal takes the focus while it is open — otherwise Tab keeps walking
+   * the page behind the overlay — and hands it back to whatever opened it. */
+  const dialogRef = useRef(null);
+  const isOpen = !!employee;
+  useLayoutEffect(() => {
+    if (!isOpen) return undefined;
+    const opener = document.activeElement;
+    dialogRef.current?.focus();
+    return () => {
+      if (opener && document.body.contains(opener)) opener.focus();
+    };
+  }, [isOpen]);
+
   useLayoutEffect(() => {
     if (!employee) return;
     const handleKeyDown = (e) => {
@@ -76,32 +92,42 @@ const EmployeeAvailabilityDialog = ({ employee, ambulanceId, onClose }) => {
 
   return createPortal(
     <div
-      className="availdlg-backdrop"
+      className="dialog-overlay"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="availdlg" role="dialog" aria-modal="true">
-        <header className="availdlg-head">
+      <div
+        ref={dialogRef}
+        className="dialog availdlg"
+        role="dialog"
+        tabIndex={-1}
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
+        <header className="dialog-header availdlg-head">
           <div className="availdlg-avatar" aria-hidden="true">
-            {label.trim().charAt(0).toUpperCase()}
+            {personInitials(label)}
           </div>
           <div className="availdlg-heading">
-            <h3 className="availdlg-title">{label}</h3>
-            <p className="availdlg-subtitle">{t('employees.availability')}</p>
+            <h2 id={titleId} className="dialog-title availdlg-title">
+              {label}
+            </h2>
+            <p className="dialog-description">{t('employees.availability')}</p>
           </div>
           <button
             type="button"
-            className="availdlg-close"
+            className="dialog-close"
             onClick={onClose}
             title={t('competences.close_detail')}
             aria-label={t('competences.close_detail')}
           >
-            ✕
+            <CloseIcon />
           </button>
         </header>
 
-        <div className="availdlg-body workload">
+        {/* `.workload` is what the calendar's own stylesheet hangs off. */}
+        <div className="dialog-body availdlg-body workload">
           <WorkloadCalendar
             titleLevel={4}
             fetchEntries={fetchEntries}

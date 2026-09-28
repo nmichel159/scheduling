@@ -1,6 +1,7 @@
-import { useState, useMemo, useRef, useLayoutEffect } from 'react';
+import { useState, useMemo, useRef, useLayoutEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { CheckIcon, CloseIcon, PlusIcon } from './NavIcons';
 import {
   REQUIREMENT_SLOTS,
   SPECIAL_DAY_SLOT,
@@ -21,8 +22,13 @@ import './CompetenceMatrix.css';
  * Each employee x competence cell is a single binary toggle for the
  * whole week — a person either holds the competence in this ambulance
  * or doesn't; there is no per-weekday breakdown here (that's what
- * `onToggleWeek` flips). The whole cell area is clickable (not just a
- * small inner square) — see .cmatrix-daycell in the CSS.
+ * `onToggleWeek` flips). The whole cell area is clickable (not just the
+ * small checkbox drawn in its middle) — see .cmatrix-toggle in the CSS.
+ *
+ * The filter and the "add employee" picker sit in a toolbar above the
+ * table; the table scrolls inside its own box, so its head and the name
+ * column stay in view however far a long roster or a wide codebook is
+ * scrolled.
  *
  * The "Potrebný počet" header rows are READ-ONLY here: they spell out,
  * per day-group (e.g. Po–Pi vs So–Ne), how many people with that
@@ -72,7 +78,9 @@ const CompetenceMatrix = ({
   const [filter, setFilter] = useState('');
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
   const [removingRowId, setRemovingRowId] = useState(null);
+  const listboxId = useId();
 
   /* ---------- required head-count rows (read-only) ---------- */
 
@@ -114,11 +122,31 @@ const CompetenceMatrix = ({
   const closeAdd = () => {
     setAdding(false);
     setSearch('');
+    setActiveIndex(0);
   };
 
   const handlePick = (user) => {
     onAddRow(user);
     setSearch('');
+    setActiveIndex(0);
+  };
+
+  /* The list is portaled to <body>, so Tab from the field would never reach
+   * it. The arrows walk the list instead and Enter adds the highlighted
+   * person, the way a combobox behaves. */
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (searchResults.length === 0) return;
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      setActiveIndex(
+        (prev) => (prev + step + searchResults.length) % searchResults.length
+      );
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const user = searchResults[Math.min(activeIndex, searchResults.length - 1)];
+      if (user) handlePick(user);
+    }
   };
 
   /* ---------- floating layers (dropdown + popovers) ----------
@@ -185,7 +213,10 @@ const CompetenceMatrix = ({
       }
     };
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setRemovingRowId(null);
+      if (e.key === 'Escape') {
+        setRemovingRowId(null);
+        if (document.body.contains(anchor)) anchor.focus();
+      }
     };
     document.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('keydown', handleKeyDown);
@@ -207,7 +238,22 @@ const CompetenceMatrix = ({
     setPopoverHeight(popoverElRef.current.offsetHeight);
   }, [removingRowId, popoverRect]);
 
+  /* The popover lives at the end of <body>, far from the ✕ in tab order, so
+   * it takes the focus when it opens — otherwise a keyboard user would open
+   * it and be unable to reach its buttons. */
+  useLayoutEffect(() => {
+    if (!removingRowId || !popoverRect || !popoverElRef.current) return;
+    if (popoverElRef.current.contains(document.activeElement)) return;
+    popoverElRef.current.querySelector('button')?.focus();
+  }, [removingRowId, popoverRect]);
+
   /* ---------- row removal (confirm) ---------- */
+
+  const closeRemove = () => {
+    const anchor = popoverAnchorRef.current;
+    setRemovingRowId(null);
+    if (anchor && document.body.contains(anchor)) anchor.focus();
+  };
 
   const handleRemoveRow = (userId) => {
     onRemoveRow(userId);
@@ -227,9 +273,22 @@ const CompetenceMatrix = ({
     const fitsBelow = !height || below + height <= window.innerHeight - 8;
     return {
       top: fitsBelow ? below : Math.max(8, rect.top - 6 - height),
-      left: Math.max(8, Math.min(rect.left, window.innerWidth - 276)),
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - 288)),
     };
   };
+
+  /* The picker's list hangs under the field, right edges aligned — the add
+   * control sits at the right end of the toolbar, so a list growing to the
+   * right would leave the window. */
+  const placeSuggestions = (rect) => ({
+    top: rect.bottom + 4,
+    right: Math.max(8, window.innerWidth - rect.right),
+    minWidth: rect.width,
+  });
+
+  const activeOption = adding && searchResults.length > 0
+    ? Math.min(activeIndex, searchResults.length - 1)
+    : -1;
 
   /* One row of the requirement block: the slots that want the same numbers,
    * then those numbers, one per competence.
@@ -254,11 +313,13 @@ const CompetenceMatrix = ({
     const inWeekRun = (slot) =>
       slot >= 0 && slot < SPECIAL_DAY_SLOT && groupSlots.has(slot);
     return (
-      <tr
-        key={group.id}
-        className={`cmatrix-required-row ${index % 2 === 1 ? 'is-alt' : ''}`.trim()}
-      >
-        <th className="cmatrix-corner cmatrix-required-label">
+      <tr key={group.id} className="cmatrix-required-row">
+        <th className="cmatrix-first cmatrix-required-label">
+          {index === 0 && (
+            <span className="cmatrix-required-caption">
+              {t('competences.required_count')}
+            </span>
+          )}
           <div className="cmatrix-day-track">
             {REQUIREMENT_SLOTS.map((slot) => {
               const special = slot === SPECIAL_DAY_SLOT;
@@ -309,70 +370,91 @@ const CompetenceMatrix = ({
   };
 
   return (
-    <section className="cmatrix">
-      <div className={`cmatrix-scroll ${loading ? 'is-loading' : ''}`}>
+    <section className="cmatrix card">
+      {/* Filter (left) and add (right) are deliberately two separate
+        * controls: one narrows the table, the other puts a new person
+        * into it. */}
+      <div className="cmatrix-toolbar">
+        <div className="cmatrix-filter">
+          <input
+            type="text"
+            className="input search-input"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && filter) setFilter('');
+            }}
+            placeholder={t('competences.filter_placeholder')}
+            aria-label={t('competences.filter_placeholder')}
+          />
+          {filter && (
+            <button
+              type="button"
+              className="cmatrix-filter-clear"
+              onClick={() => setFilter('')}
+              title={t('competences.clear_filter')}
+              aria-label={t('competences.clear_filter')}
+            >
+              <CloseIcon className="icon-sm" />
+            </button>
+          )}
+        </div>
+
+        <span className="cmatrix-count">
+          {filter
+            ? `${visibleRows.length} / ${rows.length}`
+            : t('departments.employee_count', { count: rows.length })}
+        </span>
+
+        <div className="cmatrix-addrow" ref={searchAnchorRef}>
+          {adding ? (
+            <input
+              type="text"
+              className="input search-input"
+              autoFocus
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setActiveIndex(0);
+              }}
+              onKeyDown={handleSearchKeyDown}
+              placeholder={t('competences.search_placeholder')}
+              aria-label={t('competences.search_placeholder')}
+              role="combobox"
+              aria-expanded={searchResults.length > 0}
+              aria-controls={listboxId}
+              aria-autocomplete="list"
+              aria-activedescendant={
+                activeOption >= 0 ? `${listboxId}-${activeOption}` : undefined
+              }
+            />
+          ) : (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setAdding(true)}
+            >
+              <PlusIcon />
+              {t('competences.add_employee')}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className={`cmatrix-scroll ${loading ? 'is-loading' : ''}`.trim()}>
         <table className="cmatrix-table">
           <thead>
-            <tr className="cmatrix-group-row">
-              <th className="cmatrix-corner">{t('competences.employee')}</th>
-              <th className="cmatrix-group-header" colSpan={competenceColSpan}>
-                <span className="cmatrix-group-title">{t('competences.title')}</span>
-              </th>
-            </tr>
-            <tr>
-              <th className="cmatrix-corner cmatrix-tools-th">
-                {/* Filter (left) and add (right) are deliberately two separate
-                  * controls: one narrows the table, the other puts a new
-                  * person into it. */}
-                <div className="cmatrix-tools">
-                  <div className={`cmatrix-filter ${filter ? 'is-active' : ''}`}>
-                    <span className="cmatrix-filter-icon" aria-hidden="true">⌕</span>
-                    <input
-                      type="text"
-                      value={filter}
-                      onChange={(e) => setFilter(e.target.value)}
-                      placeholder={t('competences.filter_placeholder')}
-                      aria-label={t('competences.filter_placeholder')}
-                    />
-                    {filter && (
-                      <button
-                        type="button"
-                        className="cmatrix-filter-clear"
-                        onClick={() => setFilter('')}
-                        title={t('competences.clear_filter')}
-                        aria-label={t('competences.clear_filter')}
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="cmatrix-addrow" ref={searchAnchorRef}>
-                    {adding ? (
-                      <input
-                        type="text"
-                        autoFocus
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder={t('competences.search_placeholder')}
-                        aria-label={t('competences.search_placeholder')}
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        className="cmatrix-addbtn cmatrix-addbtn-wide"
-                        onClick={() => setAdding(true)}
-                        title={t('competences.add_employee')}
-                      >
-                        <span className="cmatrix-addbtn-plus" aria-hidden="true">+</span>
-                        {t('competences.add_employee')}
-                      </button>
-                    )}
-                  </div>
-                </div>
+            <tr className="cmatrix-names-row">
+              <th className="cmatrix-first cmatrix-corner" scope="col">
+                {t('competences.employee')}
               </th>
               {columns.map((c) => (
-                <th key={c.id} className="cmatrix-col" title={c.description || c.name}>
+                <th
+                  key={c.id}
+                  className="cmatrix-col"
+                  scope="col"
+                  title={c.description || c.name}
+                >
                   <span className="cmatrix-colname">{c.name}</span>
                 </th>
               ))}
@@ -394,13 +476,13 @@ const CompetenceMatrix = ({
             ) : (
               visibleRows.map((r) => (
                 <tr key={r.user_id}>
-                  <th className="cmatrix-row">
+                  <th className="cmatrix-first cmatrix-row" scope="row">
                     <div className="cmatrix-row-inner">
                       <button
                         type="button"
                         className="cmatrix-row-name"
                         onClick={() => onOpenProfile(r.user_id)}
-                        title={t('competences.employee_detail')}
+                        title={`${t('competences.employee_detail')} — ${r.email}`}
                       >
                         <span className="cmatrix-row-name-text">
                           {r.full_name || r.email}
@@ -408,15 +490,15 @@ const CompetenceMatrix = ({
                       </button>
                       <button
                         type="button"
-                        className={`cmatrix-remove-btn ${removingRowId === r.user_id ? 'is-active' : ''}`}
+                        className={`cmatrix-remove-btn ${removingRowId === r.user_id ? 'is-active' : ''}`.trim()}
                         onClick={(e) => {
                           popoverAnchorRef.current = e.currentTarget;
                           setRemovingRowId(r.user_id);
                         }}
                         title={t('departments.remove')}
-                        aria-label={t('departments.remove')}
+                        aria-label={`${t('departments.remove')} — ${r.full_name || r.email}`}
                       >
-                        ✕
+                        <CloseIcon />
                       </button>
                     </div>
                   </th>
@@ -426,7 +508,7 @@ const CompetenceMatrix = ({
                       <td key={c.id} className="cmatrix-cell-td">
                         <button
                           type="button"
-                          className={`cmatrix-daycell ${assigned ? 'is-on' : ''}`}
+                          className={`cmatrix-toggle ${assigned ? 'is-on' : ''}`.trim()}
                           onClick={() => onToggleWeek(r.user_id, c.id)}
                           aria-pressed={assigned}
                           title={c.name}
@@ -435,8 +517,8 @@ const CompetenceMatrix = ({
                             competence: c.name,
                           })}
                         >
-                          <span className="cmatrix-daycell-mark" aria-hidden="true">
-                            {assigned ? '✕' : ''}
+                          <span className="cmatrix-check" aria-hidden="true">
+                            {assigned && <CheckIcon />}
                           </span>
                         </button>
                       </td>
@@ -450,21 +532,46 @@ const CompetenceMatrix = ({
       </div>
 
       {adding &&
-        searchResults.length > 0 &&
         suggestRect &&
         createPortal(
           <ul
             ref={suggestElRef}
+            id={listboxId}
+            role="listbox"
             className="cmatrix-suggestions"
-            style={{ top: suggestRect.bottom, left: suggestRect.left, minWidth: suggestRect.width }}
+            style={placeSuggestions(suggestRect)}
           >
-            {searchResults.map((u) => (
-              <li key={u.id}>
-                <button type="button" onClick={() => handlePick(u)}>
-                  {u.full_name || u.email} ({u.email})
-                </button>
+            {searchResults.length === 0 ? (
+              <li className="cmatrix-suggestions-empty" role="presentation">
+                {t('competences.no_filter_match')}
               </li>
-            ))}
+            ) : (
+              searchResults.map((u, index) => (
+                <li
+                  key={u.id}
+                  id={`${listboxId}-${index}`}
+                  role="option"
+                  aria-selected={index === activeOption}
+                >
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    // Keeps the focus in the field, so the next name can be
+                    // typed straight after a click.
+                    onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    onClick={() => handlePick(u)}
+                  >
+                    <span className="cmatrix-suggestion-name">
+                      {u.full_name || u.email}
+                    </span>
+                    {u.full_name && (
+                      <span className="cmatrix-suggestion-email">{u.email}</span>
+                    )}
+                  </button>
+                </li>
+              ))
+            )}
           </ul>,
           document.body
         )}
@@ -475,8 +582,8 @@ const CompetenceMatrix = ({
           <div
             ref={popoverElRef}
             className="cmatrix-popover"
-            role="dialog"
-            aria-modal="true"
+            role="alertdialog"
+            aria-label={t('departments.remove')}
             style={placePopover(popoverRect, popoverHeight)}
           >
             <p className="cmatrix-popover-text">
@@ -485,12 +592,12 @@ const CompetenceMatrix = ({
               })}
             </p>
             <div className="cmatrix-popover-actions">
-              <button type="button" className="departments-btn" onClick={() => setRemovingRowId(null)}>
+              <button type="button" className="btn btn-sm" onClick={closeRemove}>
                 {t('departments.cancel')}
               </button>
               <button
                 type="button"
-                className="departments-btn departments-btn-danger"
+                className="btn btn-sm btn-danger"
                 onClick={() => handleRemoveRow(removingRow.user_id)}
               >
                 {t('departments.remove')}

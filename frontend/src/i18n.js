@@ -13,8 +13,22 @@ i18n
       en: { translation: en },
       sk: { translation: sk }
     },
+    supportedLngs: ['sk', 'en'],
     fallbackLng: 'sk',
+    // The browser reports "sk-SK" / "en-US"; keep only the language so the
+    // app always runs in exactly "sk" or "en" and comparisons like
+    // i18n.language === 'sk' hold.
+    detection: {
+      convertDetectedLanguage: (lng) => lng.split('-')[0],
+    },
     interpolation: { escapeValue: false }
   });
+
+// Screen readers and hyphenation read the page language from <html lang>.
+const syncHtmlLang = (lng) => {
+  document.documentElement.lang = (lng || 'sk').split('-')[0];
+};
+syncHtmlLang(i18n.resolvedLanguage);
+i18n.on('languageChanged', syncHtmlLang);
 
 export default i18n;

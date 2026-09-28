@@ -1,14 +1,28 @@
 {
   "app_title": "Rozpisy",
+  "route_error": {
+    "not_found_code": "404",
+    "not_found_title": "Stránka sa nenašla",
+    "not_found_text": "Adresa neexistuje alebo bola presunutá.",
+    "error_title": "Niečo sa pokazilo",
+    "error_text": "Pri zobrazení tejto stránky nastala neočakávaná chyba.",
+    "home": "Späť na úvod",
+    "reload": "Načítať znova"
+  },
   "login_title": "Prihlásenie",
-  "login_subtitle": "Vyberte si spôsob prihlásenia",
-  "login_google": "Prihlásiť sa cez Google",
-  "login_facebook": "Prihlásiť sa cez Facebook",
-  "login_outlook": "Prihlásiť sa cez Outlook",
-  "need_help": "Potrebujete pomoc? Kontaktujte",
+  "login_subtitle": "Plánovanie služieb a rozpisov pracovísk na jednom mieste.",
+  "login_google": "Pokračovať cez Google",
+  "login_heading": "Vitajte späť",
+  "login_hint": "Prihláste sa svojím pracovným účtom Google.",
+  "login_error_backend": "Server je nedostupný alebo sa overenie nepodarilo. Skúste to znova o chvíľu.",
+  "login_error_google": "Prihlásenie cez Google sa nepodarilo. Skúste to znova.",
+  "login_signing_in": "Prihlasujem…",
+  "need_help": "Potrebujete pomoc? Napíšte na",
   "dashboard": {
     "overview": "Osobný prehľad",
     "greeting": "Ahoj, {{name}}",
+    "greeting_anonymous": "Ahoj!",
+    "open_schedule": "Celý rozpis",
     "subtitle": "Vaše služby a aktuálny prehľad na jednom mieste.",
     "next_shift": "Najbližšia služba",
     "no_next_shift": "Nemáte naplánovanú ďalšiu službu.",
@@ -134,6 +148,7 @@
     "save": "Uložiť",
     "saved": "Uložené",
     "save_error": "Uloženie zlyhalo",
+    "unsaved": "Neuložené zmeny",
     "unsaved_warning": "Máte neuložené zmeny, naozaj chcete odísť?",
     "leave_anyway": "Odísť bez uloženia",
     "stay": "Zostať"
@@ -176,7 +191,10 @@
     "deleted": "Pracovisko zmazané",
     "confirm_delete_named": "Naozaj zmazať pracovisko {{name}}?",
     "leave_anyway": "Zmazať",
-    "stay": "Zrušiť"
+    "stay": "Zrušiť",
+    "edit_title": "Upraviť pracovisko",
+    "delete_title": "Zmazať pracovisko?",
+    "close": "Zavrieť"
   },
   "role_management": {
     "title": "Správa rolí",
@@ -230,6 +248,7 @@
     "empty": "V tomto mesiaci nemáte naplánovanú žiadnu službu.",
     "shift_count": "Služby v mesiaci: {{count}}",
     "ambulance_fallback": "Pracovisko #{{id}}",
+    "page_subtitle": "Vaše schválené služby po mesiacoch.",
     "previous_month": "Predchádzajúci mesiac",
     "next_month": "Nasledujúci mesiac",
     "current_month": "Aktuálny mesiac"
@@ -333,9 +352,17 @@
     "planner_person_no_competence": "Tento zamestnanec nemá na tomto pracovisku kompetenciu.",
     "generate_fixed_over_requirement": "{{date}} – {{competence}}: nahodených {{fixed}}, potrebných {{required}}.",
     "generate_fixed_rest_conflict": "{{firstDate}} a {{secondDate}}: nahodené služby nedodržiavajú deň odpočinku.",
-    "generate_fixed_unknown": "{{date}}: nahodenú službu nemožno priradiť tomuto pracovisku."
+    "generate_fixed_unknown": "{{date}}: nahodenú službu nemožno priradiť tomuto pracovisku.",
+    "generate_confirm_title": "Vygenerovať rozvrh?",
+    "clear_confirm_title": "Vyčistiť rozvrh?",
+    "approve_confirm_title": "Schváliť rozvrh?",
+    "discard_confirm": "Všetky neuložené zmeny v rozpise sa zahodia.",
+    "discard": "Zahodiť zmeny",
+    "keep_editing": "Pokračovať v úpravách"
   },
   "schedule_overview": {
+    "title": "Prehľad rozvrhov",
+    "subtitle": "Stav rozvrhu každého pracoviska v zvolenom mesiaci.",
     "loading": "Načítavam prehľad…",
     "load_error": "Prehľad rozvrhov sa nepodarilo načítať.",
     "empty": "Nie sú evidované žiadne aktívne pracoviská.",
@@ -370,6 +397,9 @@
     "cancel": "Zrušiť"
   },
   "statistics": {
+    "title": "Štatistiky",
+    "subtitle": "Služby a ľudia za celý rok",
+    "year_nav": "Výber roka",
     "loading": "Načítavam štatistiky…",
     "load_error": "Štatistiky sa nepodarilo načítať.",
     "no_data": "Za tento rok nie sú evidované žiadne služby.",
@@ -486,7 +516,10 @@
     "stat_preferred": "Preferované",
     "stat_declined": "Nerád",
     "stat_blocked": "Blokované",
-    "availability": "Kalendár obsadenosti"
+    "availability": "Kalendár obsadenosti",
+    "retry": "Skúsiť znova",
+    "decrease": "Menej",
+    "increase": "Viac"
   },
   "special_days": {
     "title": "Špeciálne dni",
@@ -543,6 +576,13 @@
     "send_failed": "Odoslanie zlyhalo.",
     "not_configured": "Odosielanie e-mailov nie je nastavené.",
     "no_selection": "Nie je vybraný nikto.",
+    "subtitle": "Pošlite zamestnancom vybraných pracovísk e-mail s odkazom na vyplnenie rozvrhu.",
+    "body": "Text správy",
+    "send_confirm_title": "Odoslať výzvu?",
+    "selected_count": "Vybraní: {{people}}",
+    "pick_hint": "Vyberte príjemcov zo zoznamu pracovísk.",
+    "show_members": "Zobraziť zamestnancov",
+    "hide_members": "Skryť zamestnancov",
     "load_error": "Nepodarilo sa načítať dáta."
   },
   "schedule_print": {
@@ -565,6 +605,7 @@
     "pdf": "Stiahnuť PDF",
     "pdf_building": "Pripravujem PDF...",
     "pdf_error": "PDF sa nepodarilo vytvoriť.",
+    "subtitle": "Náhľad hárku A4. Písmo sa prispôsobí tak, aby sa mesiac zmestil na zvolený počet strán.",
     "xlsx": "Excel",
     "csv": "CSV",
     "date": "Dátum",

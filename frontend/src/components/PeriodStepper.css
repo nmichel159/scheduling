@@ -1,0 +1,74 @@
+/* Month / year stepper shared by the calendar, overview and statistics
+   screens. Sized like every other control (--control-h) so it lines up with
+   the buttons and selects it usually sits next to in a page header. */
+
+.period-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.period-stepper-control {
+  display: inline-flex;
+  align-items: center;
+  height: var(--control-h);
+  padding: 0 3px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+  box-sizing: border-box;
+}
+
+.period-stepper-arrow {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-p);
+  cursor: pointer;
+  transition:
+    background-color var(--duration) var(--ease),
+    color var(--duration) var(--ease);
+}
+
+.period-stepper-arrow:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text-h);
+}
+
+.period-stepper-arrow:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.period-stepper-arrow:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.period-stepper-arrow svg {
+  width: 16px;
+  height: 16px;
+}
+
+.period-stepper-label {
+  min-width: 9em;
+  padding: 0 6px;
+  color: var(--text-h);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.period-stepper.is-year .period-stepper-label {
+  min-width: 3.4em;
+}

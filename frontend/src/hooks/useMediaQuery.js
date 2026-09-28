@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 /**
  * Reaktívne sleduje media query. Bočná lišta sa podľa nej rozhoduje, či je
@@ -7,18 +7,16 @@ import { useEffect, useState } from 'react';
  * zaseknuté na starej hodnote.
  */
 export function useMediaQuery(query) {
-  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  const subscribe = useCallback(
+    (onChange) => {
+      const mql = window.matchMedia(query);
+      mql.addEventListener('change', onChange);
+      return () => mql.removeEventListener('change', onChange);
+    },
+    [query],
+  );
 
-  useEffect(() => {
-    const mql = window.matchMedia(query);
-    const update = (e) => setMatches(e.matches);
-
-    setMatches(mql.matches);
-    mql.addEventListener('change', update);
-    return () => mql.removeEventListener('change', update);
-  }, [query]);
-
-  return matches;
+  return useSyncExternalStore(subscribe, () => window.matchMedia(query).matches);
 }
 
 export const DESKTOP_QUERY = '(min-width: 769px)';

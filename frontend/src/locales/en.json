@@ -1,14 +1,28 @@
 {
   "app_title": "Scheduling",
-  "login_title": "Login",
-  "login_subtitle": "Select login method",
-  "login_google": "Login with Google",
-  "login_facebook": "Login with Facebook",
-  "login_outlook": "Login with Outlook",
-  "need_help": "Need help? Contact",
+  "route_error": {
+    "not_found_code": "404",
+    "not_found_title": "Page not found",
+    "not_found_text": "This address doesn't exist or has moved.",
+    "error_title": "Something went wrong",
+    "error_text": "An unexpected error occurred while showing this page.",
+    "home": "Back to start",
+    "reload": "Reload"
+  },
+  "login_title": "Sign in",
+  "login_subtitle": "Shift planning and workplace schedules in one place.",
+  "login_google": "Continue with Google",
+  "login_heading": "Welcome back",
+  "login_hint": "Sign in with your work Google account.",
+  "login_error_backend": "The server is unavailable or sign-in could not be verified. Please try again in a moment.",
+  "login_error_google": "Google sign-in failed. Please try again.",
+  "login_signing_in": "Signing in…",
+  "need_help": "Need help? Write to",
   "dashboard": {
     "overview": "Personal overview",
     "greeting": "Hello, {{name}}",
+    "greeting_anonymous": "Hello!",
+    "open_schedule": "Full schedule",
     "subtitle": "Your duties and current overview in one place.",
     "next_shift": "Next duty",
     "no_next_shift": "You have no upcoming duty scheduled.",
@@ -134,6 +148,7 @@
     "save": "Save",
     "saved": "Saved",
     "save_error": "Saving failed",
+    "unsaved": "Unsaved changes",
     "unsaved_warning": "You have unsaved changes, do you really want to leave?",
     "leave_anyway": "Leave without saving",
     "stay": "Stay"
@@ -176,7 +191,10 @@
     "deleted": "Workplace deleted",
     "confirm_delete_named": "Really delete workplace {{name}}?",
     "leave_anyway": "Delete",
-    "stay": "Cancel"
+    "stay": "Cancel",
+    "edit_title": "Edit workplace",
+    "delete_title": "Delete workplace?",
+    "close": "Close"
   },
   "role_management": {
     "title": "Role management",
@@ -230,6 +248,7 @@
     "empty": "You have no shifts scheduled this month.",
     "shift_count": "Shifts this month: {{count}}",
     "ambulance_fallback": "Workplace #{{id}}",
+    "page_subtitle": "Your approved duties, month by month.",
     "previous_month": "Previous month",
     "next_month": "Next month",
     "current_month": "Current month"
@@ -333,9 +352,17 @@
     "planner_person_no_competence": "This employee holds no competence in this workplace.",
     "generate_fixed_over_requirement": "{{date}} – {{competence}}: {{fixed}} placed, {{required}} required.",
     "generate_fixed_rest_conflict": "{{firstDate}} and {{secondDate}}: the placed duties leave no rest day in between.",
-    "generate_fixed_unknown": "{{date}}: a placed duty cannot be assigned in this workplace."
+    "generate_fixed_unknown": "{{date}}: a placed duty cannot be assigned in this workplace.",
+    "generate_confirm_title": "Generate the schedule?",
+    "clear_confirm_title": "Clear the schedule?",
+    "approve_confirm_title": "Approve the schedule?",
+    "discard_confirm": "All unsaved changes to the schedule will be discarded.",
+    "discard": "Discard changes",
+    "keep_editing": "Keep editing"
   },
   "schedule_overview": {
+    "title": "Schedule overview",
+    "subtitle": "Where every workplace's schedule stands for the chosen month.",
     "loading": "Loading the overview…",
     "load_error": "The schedule overview could not be loaded.",
     "empty": "There are no active workplaces.",
@@ -370,6 +397,9 @@
     "cancel": "Cancel"
   },
   "statistics": {
+    "title": "Statistics",
+    "subtitle": "Duties and people over the whole year",
+    "year_nav": "Year selection",
     "loading": "Loading the statistics…",
     "load_error": "The statistics could not be loaded.",
     "no_data": "No duties are recorded for this year.",
@@ -485,7 +515,10 @@
     "stat_preferred": "Preferred",
     "stat_declined": "Reluctant",
     "stat_blocked": "Blocked",
-    "availability": "Availability calendar"
+    "availability": "Availability calendar",
+    "retry": "Try again",
+    "decrease": "Fewer",
+    "increase": "More"
   },
   "special_days": {
     "title": "Special days",
@@ -541,6 +574,13 @@
     "send_failed": "Sending failed.",
     "not_configured": "Mail sending is not configured.",
     "no_selection": "Nobody is selected.",
+    "subtitle": "Email the employees of the chosen workplaces a link to fill in their schedule.",
+    "body": "Message text",
+    "send_confirm_title": "Send the request?",
+    "selected_count": "Selected: {{people}}",
+    "pick_hint": "Pick the recipients from the list of workplaces.",
+    "show_members": "Show employees",
+    "hide_members": "Hide employees",
     "load_error": "Could not load the data."
   },
   "schedule_print": {
@@ -563,6 +603,7 @@
     "pdf": "Download PDF",
     "pdf_building": "Preparing PDF...",
     "pdf_error": "Could not create the PDF.",
+    "subtitle": "A preview of the A4 sheet. The type is sized so the month fits the chosen number of pages.",
     "xlsx": "Excel",
     "csv": "CSV",
     "date": "Date",

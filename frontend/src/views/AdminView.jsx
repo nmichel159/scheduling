@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useId, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   fetchAllAmbulances,
@@ -11,6 +11,9 @@ import {
 } from '../services/ambulanceService';
 import { fetchAllRoles } from '../services/roleService';
 import ConfirmDialog from '../components/ConfirmDialog';
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
+import { ChevronDownIcon, CloseIcon, PlusIcon, TrashIcon } from '../components/NavIcons';
 import './AdminView.css';
 
 // Rola je "manažérska" (dá sa priradiť ako správca ambulancie), ak má level >= 2 —
@@ -52,7 +55,16 @@ const displayName = (user) => user.full_name || user.email;
  * value      – id vybraného manažéra ako string ('' = nepriradený)
  * onChange   – dostane nové id ako string ('' pri zrušení výberu)
  */
-const ManagerAutocomplete = ({ managers, value, onChange, placeholder, emptyLabel, clearLabel }) => {
+const ManagerAutocomplete = ({
+  managers,
+  value,
+  onChange,
+  placeholder,
+  emptyLabel,
+  clearLabel,
+  inputId,
+}) => {
+  const listId = useId();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
@@ -111,7 +123,9 @@ const ManagerAutocomplete = ({ managers, value, onChange, placeholder, emptyLabe
         e.preventDefault();
         pick(filtered[highlight]);
       }
-    } else if (e.key === 'Escape') {
+    } else if (e.key === 'Escape' && open) {
+      // Zavrie len zoznam, nie celý dialóg okolo neho.
+      e.stopPropagation();
       setOpen(false);
     }
   };
@@ -127,6 +141,7 @@ const ManagerAutocomplete = ({ managers, value, onChange, placeholder, emptyLabe
           role="combobox" zároveň prehliadaču povie, že si zoznam riadime sami.
         */}
         <input
+          id={inputId}
           type="text"
           className="admin-autocomplete-input"
           value={open ? query : selected ? displayName(selected) : query}
@@ -152,6 +167,10 @@ const ManagerAutocomplete = ({ managers, value, onChange, placeholder, emptyLabe
           role="combobox"
           aria-expanded={open}
           aria-autocomplete="list"
+          aria-controls={open ? listId : undefined}
+          aria-activedescendant={
+            open && filtered[highlight] ? `${listId}-${filtered[highlight].id}` : undefined
+          }
         />
         {selected && !open && (
           <button
@@ -161,20 +180,24 @@ const ManagerAutocomplete = ({ managers, value, onChange, placeholder, emptyLabe
             aria-label={clearLabel}
             onClick={clear}
           >
-            ×
+            <CloseIcon className="" />
           </button>
         )}
       </div>
 
       {open && (
-        <ul className="admin-autocomplete-list" role="listbox">
+        <ul className="admin-autocomplete-list" role="listbox" id={listId}>
           {filtered.length === 0 ? (
-            <li className="admin-autocomplete-empty">{emptyLabel}</li>
+            <li className="admin-autocomplete-empty" role="presentation">
+              {emptyLabel}
+            </li>
           ) : (
             filtered.map((m, i) => (
-              <li key={m.id}>
+              <li key={m.id} role="presentation">
                 <button
                   type="button"
+                  id={`${listId}-${m.id}`}
+                  tabIndex={-1}
                   role="option"
                   aria-selected={String(m.id) === String(value)}
                   className={`admin-autocomplete-option${i === highlight ? ' is-active' : ''}${
@@ -200,9 +223,17 @@ const ManagerAutocomplete = ({ managers, value, onChange, placeholder, emptyLabe
 
 /**
  * Ambulance administration view for Role 3+ (AMBULANCE_OVERSEER).
+ *
+ * Tabuľka pracovísk; nové aj existujúce pracovisko sa upravuje v jednom
+ * dialógu, takže zakladanie aj úprava majú ten istý formulár — vrátane
+ * našepkávača rozvrhára, ktorý úprava v riadku tabuľky predtým nemala.
  */
 const AdminView = () => {
   const { t } = useTranslation();
+  const dialogTitleId = useId();
+  const nameInputId = useId();
+  const descriptionInputId = useId();
+  const managerInputId = useId();
 
   const [ambulances, setAmbulances] = useState([]);
   const [managers, setManagers] = useState([]);
@@ -210,25 +241,19 @@ const AdminView = () => {
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState(null);
-  const [toast, setToast] = useState(null);
+  const [toast, notify] = useToast();
 
   const [sortKey, setSortKey] = useState('name');
   const [sortDir, setSortDir] = useState('asc');
 
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [createDraft, setCreateDraft] = useState(emptyDraft);
-  const [creating, setCreating] = useState(false);
-
-  const [editingId, setEditingId] = useState(null);
-  const [editDraft, setEditDraft] = useState(emptyDraft);
-  const [savingId, setSavingId] = useState(null);
+  // null = dialóg zatvorený; { id: null } = nové pracovisko; { id } = úprava.
+  const [editor, setEditor] = useState(null);
+  const [draft, setDraft] = useState(emptyDraft);
+  const [saving, setSaving] = useState(false);
+  // Kam vrátiť fokus po zatvorení dialógu (tlačidlo, ktoré ho otvorilo).
+  const returnFocusRef = useRef(null);
 
   const [confirmState, setConfirmState] = useState(null);
-
-  const notify = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2400);
-  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -279,11 +304,11 @@ const AdminView = () => {
 
   const managerName = useCallback(
     (managerId) => {
-      if (managerId == null) return t('admin.no_manager');
+      if (managerId == null) return null;
       const manager = managers.find((m) => m.id === managerId);
-      return manager ? displayName(manager) : t('admin.no_manager');
+      return manager ? displayName(manager) : null;
     },
-    [managers, t]
+    [managers]
   );
 
   /* ---------- sorting ---------- */
@@ -306,7 +331,7 @@ const AdminView = () => {
         case 'isurgent':
           return a.isurgent ? 1 : 0;
         case 'manager':
-          return managerName(a.managed_by_user_id).toLowerCase();
+          return (managerName(a.managed_by_user_id) || t('admin.no_manager')).toLowerCase();
         case 'description':
           return (a.description || '').toLowerCase();
         default:
@@ -320,97 +345,109 @@ const AdminView = () => {
       if (va > vb) return 1 * dir;
       return 0;
     });
-  }, [ambulances, sortKey, sortDir, managerName]);
+  }, [ambulances, sortKey, sortDir, managerName, t]);
 
-  /* ---------- create ---------- */
+  /* ---------- editor dialog ---------- */
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
-    if (!createDraft.name.trim() || creating) return;
-    setCreating(true);
-    try {
-      // Backend (POST /ambulances) prijíma manager_id priamo v tele požiadavky
-      // a overí ho cez _validate_manager(), takže ambulancia aj jej manažér
-      // vzniknú v jednej atomickej operácii — netreba druhý PUT.
-      await createAmbulance({
-        name: createDraft.name.trim(),
-        description: createDraft.description.trim() || null,
-        isurgent: createDraft.isurgent,
-        managerId: createDraft.managerId === '' ? null : Number(createDraft.managerId),
+  const openEditor = (ambulance) => {
+    returnFocusRef.current = document.activeElement;
+    if (ambulance) {
+      setEditor({ id: ambulance.id, name: ambulance.name });
+      setDraft({
+        name: ambulance.name || '',
+        description: ambulance.description || '',
+        isurgent: !!ambulance.isurgent,
+        managerId:
+          ambulance.managed_by_user_id != null ? String(ambulance.managed_by_user_id) : '',
       });
-      notify(t('admin.created'));
-      setCreateDraft(emptyDraft);
-      setShowCreateForm(false);
-      await load();
-    } catch {
-      notify(t('admin.action_error'));
-    } finally {
-      setCreating(false);
+    } else {
+      setEditor({ id: null });
+      setDraft(emptyDraft);
     }
   };
 
-  /* ---------- edit ---------- */
+  const closeEditor = useCallback(() => {
+    setEditor(null);
+    setDraft(emptyDraft);
+    returnFocusRef.current?.focus?.();
+  }, []);
 
-  const startEdit = (ambulance) => {
-    setEditingId(ambulance.id);
-    setEditDraft({
-      name: ambulance.name || '',
-      description: ambulance.description || '',
-      isurgent: !!ambulance.isurgent,
-      managerId: ambulance.managed_by_user_id != null ? String(ambulance.managed_by_user_id) : '',
-    });
-  };
+  // Escape zatvorí dialóg — ale nie, kým je nad ním otvorené potvrdenie
+  // zmazania (to má vlastný Escape) alebo kým sa ukladá.
+  useEffect(() => {
+    if (!editor) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape' && !confirmState && !saving) closeEditor();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [editor, confirmState, saving, closeEditor]);
 
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditDraft(emptyDraft);
-  };
-
-  const saveEdit = async (id) => {
-    if (!editDraft.name.trim()) return;
-    setSavingId(id);
+  const submitEditor = async (e) => {
+    e.preventDefault();
+    if (!editor || !draft.name.trim() || saving) return;
+    setSaving(true);
     try {
-      const original = ambulances.find((a) => a.id === id);
-      const originalManagerId = original?.managed_by_user_id ?? null;
-      const newManagerId = editDraft.managerId === '' ? null : Number(editDraft.managerId);
+      if (editor.id == null) {
+        // Backend (POST /ambulances) prijíma manager_id priamo v tele požiadavky
+        // a overí ho cez _validate_manager(), takže ambulancia aj jej manažér
+        // vzniknú v jednej atomickej operácii — netreba druhý PUT.
+        await createAmbulance({
+          name: draft.name.trim(),
+          description: draft.description.trim() || null,
+          isurgent: draft.isurgent,
+          managerId: draft.managerId === '' ? null : Number(draft.managerId),
+        });
+        notify(t('admin.created'));
+      } else {
+        const id = editor.id;
+        const original = ambulances.find((a) => a.id === id);
+        const originalManagerId = original?.managed_by_user_id ?? null;
+        const newManagerId = draft.managerId === '' ? null : Number(draft.managerId);
 
-      await updateAmbulance(id, {
-        name: editDraft.name.trim(),
-        description: editDraft.description.trim() || null,
-        isurgent: editDraft.isurgent,
-      });
+        await updateAmbulance(id, {
+          name: draft.name.trim(),
+          description: draft.description.trim() || null,
+          isurgent: draft.isurgent,
+        });
 
-      if (newManagerId !== originalManagerId) {
-        if (newManagerId == null) {
-          await removeManagerFromAmbulance(id);
-        } else {
-          await assignManagerToAmbulance(id, newManagerId);
+        if (newManagerId !== originalManagerId) {
+          if (newManagerId == null) {
+            await removeManagerFromAmbulance(id);
+          } else {
+            await assignManagerToAmbulance(id, newManagerId);
+          }
         }
+        notify(t('admin.saved'));
       }
-
-      notify(t('admin.saved'));
-      cancelEdit();
+      closeEditor();
       await load();
     } catch {
       notify(t('admin.action_error'));
     } finally {
-      setSavingId(null);
+      setSaving(false);
     }
   };
 
   /* ---------- delete ---------- */
 
-  const askDelete = (ambulance) => {
+  const askDelete = () => {
+    if (!editor || editor.id == null) return;
+    const { id, name } = editor;
     setConfirmState({
-      message: t('admin.confirm_delete_named', { name: ambulance.name }),
+      message: t('admin.confirm_delete_named', { name }),
       onConfirm: async () => {
         setConfirmState(null);
+        setSaving(true);
         try {
-          await deleteAmbulance(ambulance.id);
+          await deleteAmbulance(id);
           notify(t('admin.deleted'));
+          closeEditor();
           await load();
         } catch {
           notify(t('admin.action_error'));
+        } finally {
+          setSaving(false);
         }
       },
       onCancel: () => setConfirmState(null),
@@ -419,248 +456,264 @@ const AdminView = () => {
 
   /* ---------- render ---------- */
 
-  const sortIndicator = (key) => (sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
-
-  if (loading) {
-    return <div className="admin"><p>{t('admin.loading')}</p></div>;
-  }
-
-  if (forbidden) {
+  const sortHeader = (key, label, className = '') => {
+    const active = sortKey === key;
     return (
-      <div className="admin">
-        <h1 className="admin-title">{t('admin.title')}</h1>
-        <div className="admin-banner">{t('admin.forbidden')}</div>
+      <th
+        className={className}
+        aria-sort={active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+      >
+        <button
+          type="button"
+          className={`admin-sort${active ? ' is-active' : ''}`}
+          onClick={() => toggleSort(key)}
+        >
+          {label}
+          <ChevronDownIcon
+            className={`admin-sort-icon${active && sortDir === 'asc' ? ' is-asc' : ''}`}
+          />
+        </button>
+      </th>
+    );
+  };
+
+  if (loading && ambulances.length === 0 && !error) {
+    return (
+      <div className="page admin">
+        <div className="empty-state">
+          <span className="spinner" aria-hidden="true" />
+          {t('admin.loading')}
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="admin">
-      <h1 className="admin-title">{t('admin.title')}</h1>
-      <p className="admin-subtitle">{t('admin.subtitle')}</p>
-
-      {error && <div className="admin-banner">{error}</div>}
-
-      <div className="admin-toolbar">
-        <button
-          type="button"
-          className="admin-btn admin-btn-primary"
-          onClick={() => setShowCreateForm((prev) => !prev)}
-        >
-          {t('admin.add_new')}
-        </button>
+  if (forbidden) {
+    return (
+      <div className="page admin">
+        <header className="page-header">
+          <h1 className="page-title">{t('admin.title')}</h1>
+        </header>
+        <div className="alert alert-warning">{t('admin.forbidden')}</div>
       </div>
+    );
+  }
 
-      {showCreateForm && (
-        <form className="admin-create-form" onSubmit={handleCreate}>
-          <h2 className="admin-create-title">{t('admin.create_title')}</h2>
-          <div className="admin-form-row">
-            <label className="admin-form-field">
-              <span>{t('admin.name')}</span>
-              <input
-                type="text"
-                value={createDraft.name}
-                placeholder={t('admin.name_placeholder')}
-                onChange={(e) => setCreateDraft((prev) => ({ ...prev, name: e.target.value }))}
-                required
-              />
-            </label>
-            <label className="admin-form-field admin-form-field-grow">
-              <span>{t('admin.description')}</span>
-              <input
-                type="text"
-                value={createDraft.description}
-                placeholder={t('admin.description_placeholder')}
-                onChange={(e) =>
-                  setCreateDraft((prev) => ({ ...prev, description: e.target.value }))
-                }
-              />
-            </label>
-            <label className="admin-form-checkbox">
-              <input
-                type="checkbox"
-                checked={createDraft.isurgent}
-                onChange={(e) =>
-                  setCreateDraft((prev) => ({ ...prev, isurgent: e.target.checked }))
-                }
-              />
-              <span>{t('admin.isurgent')}</span>
-            </label>
-          </div>
+  const isNew = editor?.id == null;
 
-          {/* Výber manažéra už pri zakladaní ambulancie. */}
-          <div className="admin-form-row">
-            <div className="admin-form-field admin-form-field-manager">
-              <span>{t('admin.manager')}</span>
-              <ManagerAutocomplete
-                managers={managers}
-                value={createDraft.managerId}
-                onChange={(id) => setCreateDraft((prev) => ({ ...prev, managerId: id }))}
-                placeholder={t('admin.manager_placeholder')}
-                emptyLabel={t('admin.manager_no_results')}
-                clearLabel={t('admin.manager_clear')}
-              />
-              {managers.length === 0 && (
-                <small className="admin-form-hint is-warn">{t('admin.manager_empty')}</small>
-              )}
-            </div>
-          </div>
+  return (
+    <div className="page admin">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">{t('admin.title')}</h1>
+          <p className="page-subtitle">{t('admin.subtitle')}</p>
+        </div>
+        <div className="page-actions">
+          <button type="button" className="btn btn-primary" onClick={() => openEditor(null)}>
+            <PlusIcon className="" />
+            {t('admin.create_title')}
+          </button>
+        </div>
+      </header>
 
-          <div className="admin-form-actions">
-            <button
-              type="button"
-              className="admin-btn"
-              onClick={() => {
-                setShowCreateForm(false);
-                setCreateDraft(emptyDraft);
-              }}
-            >
-              {t('admin.cancel')}
-            </button>
-            <button
-              type="submit"
-              className="admin-btn admin-btn-primary"
-              disabled={creating || !createDraft.name.trim()}
-            >
-              {t('admin.create')}
-            </button>
-          </div>
-        </form>
+      {error && (
+        <div className="alert alert-danger admin-alert" role="alert">
+          <span>{error}</span>
+          <button type="button" className="alert-action" onClick={load}>
+            {t('dashboard.retry')}
+          </button>
+        </div>
       )}
 
       {ambulances.length === 0 ? (
-        <div className="admin-banner">{t('admin.no_ambulances')}</div>
+        !error && (
+          <div className="card empty-state">
+            <span className="empty-state-title">{t('admin.no_ambulances')}</span>
+          </div>
+        )
       ) : (
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th className="is-sortable" onClick={() => toggleSort('name')}>
-                  {t('admin.col_name')}
-                  {sortIndicator('name')}
-                </th>
-                <th className="is-sortable" onClick={() => toggleSort('description')}>
-                  {t('admin.col_description')}
-                  {sortIndicator('description')}
-                </th>
-                <th className="is-sortable" onClick={() => toggleSort('isurgent')}>
-                  {t('admin.col_urgent')}
-                  {sortIndicator('isurgent')}
-                </th>
-                <th className="is-sortable" onClick={() => toggleSort('manager')}>
-                  {t('admin.col_manager')}
-                  {sortIndicator('manager')}
-                </th>
-                <th>{t('admin.col_actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedAmbulances.map((a) => {
-                const isEditing = editingId === a.id;
-                return (
-                  <tr key={a.id} className={isEditing ? 'is-editing' : ''}>
-                    {isEditing ? (
-                      <>
-                        <td>
-                          <input
-                            type="text"
-                            value={editDraft.name}
-                            onChange={(e) =>
-                              setEditDraft((prev) => ({ ...prev, name: e.target.value }))
-                            }
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="text"
-                            value={editDraft.description}
-                            onChange={(e) =>
-                              setEditDraft((prev) => ({ ...prev, description: e.target.value }))
-                            }
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="checkbox"
-                            checked={editDraft.isurgent}
-                            onChange={(e) =>
-                              setEditDraft((prev) => ({ ...prev, isurgent: e.target.checked }))
-                            }
-                          />
-                        </td>
-                        <td>
-                          <select
-                            className="admin-table-select"
-                            value={editDraft.managerId}
-                            onChange={(e) =>
-                              setEditDraft((prev) => ({ ...prev, managerId: e.target.value }))
-                            }
-                          >
-                            <option value="">{t('admin.no_manager')}</option>
-                            {managers.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {displayName(m)}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="admin-actions">
-                          <button
-                            type="button"
-                            className="admin-btn admin-btn-primary"
-                            disabled={savingId === a.id || !editDraft.name.trim()}
-                            onClick={() => saveEdit(a.id)}
-                          >
-                            {t('admin.save')}
-                          </button>
-                          <button type="button" className="admin-btn" onClick={cancelEdit}>
-                            {t('admin.cancel')}
-                          </button>
-                          <button
-                            type="button"
-                            className="admin-btn admin-btn-outline-danger"
-                            onClick={() => askDelete(a)}
-                          >
-                            {t('admin.delete')}
-                          </button>
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td>{a.name}</td>
-                        <td className="admin-desc-cell">{a.description || '—'}</td>
-                        <td>{a.isurgent ? t('admin.yes') : t('admin.no')}</td>
-                        <td>{managerName(a.managed_by_user_id)}</td>
-                        <td className="admin-actions">
-                          <button
-                            type="button"
-                            className="admin-btn"
-                            onClick={() => startEdit(a)}
-                          >
-                            {t('admin.edit')}
-                          </button>
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className={`card admin-card ${loading ? 'is-loading' : ''}`}>
+          <div className="admin-table-scroll">
+            <table className="data-table admin-table">
+              <thead>
+                <tr>
+                  {sortHeader('name', t('admin.col_name'))}
+                  {sortHeader('description', t('admin.col_description'), 'admin-col-description')}
+                  {sortHeader('isurgent', t('admin.col_urgent'), 'admin-col-urgent')}
+                  {sortHeader('manager', t('admin.col_manager'))}
+                  <th className="admin-col-actions">
+                    <span className="visually-hidden">{t('admin.col_actions')}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedAmbulances.map((a) => {
+                  const manager = managerName(a.managed_by_user_id);
+                  return (
+                    <tr key={a.id}>
+                      <td className="admin-name">{a.name}</td>
+                      <td className="admin-col-description">
+                        <span className="admin-desc" title={a.description || undefined}>
+                          {a.description || <span className="admin-muted">—</span>}
+                        </span>
+                      </td>
+                      <td className="admin-col-urgent">
+                        {a.isurgent ? (
+                          <span className="badge badge-warning">{t('admin.yes')}</span>
+                        ) : (
+                          <span className="admin-muted">{t('admin.no')}</span>
+                        )}
+                      </td>
+                      <td>
+                        {manager || <span className="admin-muted">{t('admin.no_manager')}</span>}
+                      </td>
+                      <td className="admin-col-actions">
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={() => openEditor(a)}
+                          aria-label={`${t('admin.edit')}: ${a.name}`}
+                        >
+                          {t('admin.edit')}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {toast && (
-        <div className="admin-toast" role="status">
-          {toast}
+      {/* Inline rather than portaled: ConfirmDialog (delete) renders inline
+          after it and has to land on top of it. */}
+      {editor && (
+        <div
+          className="dialog-overlay"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !saving) closeEditor();
+          }}
+        >
+          <form
+            className="dialog admin-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={dialogTitleId}
+            onSubmit={submitEditor}
+          >
+            <div className="dialog-header">
+              <h2 className="dialog-title" id={dialogTitleId}>
+                {isNew ? t('admin.create_title') : t('admin.edit_title')}
+              </h2>
+              <button
+                type="button"
+                className="dialog-close"
+                onClick={closeEditor}
+                aria-label={t('admin.close')}
+                title={t('admin.close')}
+              >
+                <CloseIcon className="" />
+              </button>
+            </div>
+
+            <div className="dialog-body admin-dialog-body">
+              <div className="field">
+                <label className="field-label" htmlFor={nameInputId}>
+                  {t('admin.name')}
+                </label>
+                <input
+                  id={nameInputId}
+                  className="input"
+                  type="text"
+                  value={draft.name}
+                  placeholder={t('admin.name_placeholder')}
+                  onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="field">
+                <label className="field-label" htmlFor={descriptionInputId}>
+                  {t('admin.description')}
+                </label>
+                <input
+                  id={descriptionInputId}
+                  className="input"
+                  type="text"
+                  value={draft.description}
+                  placeholder={t('admin.description_placeholder')}
+                  onChange={(e) =>
+                    setDraft((prev) => ({ ...prev, description: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="field">
+                <label className="field-label" htmlFor={managerInputId}>
+                  {t('admin.manager')}
+                </label>
+                <ManagerAutocomplete
+                  inputId={managerInputId}
+                  managers={managers}
+                  value={draft.managerId}
+                  onChange={(id) => setDraft((prev) => ({ ...prev, managerId: id }))}
+                  placeholder={t('admin.manager_placeholder')}
+                  emptyLabel={t('admin.manager_no_results')}
+                  clearLabel={t('admin.manager_clear')}
+                />
+                {managers.length === 0 && (
+                  <span className="field-hint admin-hint-warn">{t('admin.manager_empty')}</span>
+                )}
+              </div>
+
+              <label className="admin-checkbox">
+                <input
+                  type="checkbox"
+                  checked={draft.isurgent}
+                  onChange={(e) => setDraft((prev) => ({ ...prev, isurgent: e.target.checked }))}
+                />
+                <span>{t('admin.isurgent')}</span>
+              </label>
+            </div>
+
+            <div className="dialog-footer">
+              {!isNew && (
+                <button
+                  type="button"
+                  className="btn btn-danger-outline admin-delete"
+                  onClick={askDelete}
+                  disabled={saving}
+                >
+                  <TrashIcon className="" />
+                  {t('admin.delete')}
+                </button>
+              )}
+              <button type="button" className="btn" onClick={closeEditor} disabled={saving}>
+                {t('admin.cancel')}
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={saving || !draft.name.trim()}
+              >
+                {isNew ? t('admin.create') : t('admin.save')}
+              </button>
+            </div>
+          </form>
         </div>
       )}
+
+      <Toast message={toast} />
 
       <ConfirmDialog
         open={!!confirmState}
+        title={t('admin.delete_title')}
         message={confirmState?.message}
         confirmLabel={t('admin.leave_anyway')}
         cancelLabel={t('admin.stay')}
+        tone="danger"
         onConfirm={confirmState?.onConfirm}
         onCancel={confirmState?.onCancel}
       />

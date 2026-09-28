@@ -143,6 +143,18 @@ export const SearchIcon = (props) => (
   </Icon>
 );
 
+export const MenuIcon = (props) => (
+  <Icon {...props}>
+    <path d="M4 7h16M4 12h16M4 17h16" />
+  </Icon>
+);
+
+export const CloseIcon = (props) => (
+  <Icon {...props}>
+    <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" />
+  </Icon>
+);
+
 export const ChevronLeftIcon = (props) => (
   <Icon {...props}>
     <path d="M14.5 6.5 9 12l5.5 5.5" />
@@ -223,5 +235,42 @@ export const PrintIcon = (props) => (
     <path d="M7.2 8.4V3.6h9.6v4.8" />
     <path d="M7.2 17.2H5.4A1.8 1.8 0 0 1 3.6 15.4v-4.2a2.8 2.8 0 0 1 2.8-2.8h11.2a2.8 2.8 0 0 1 2.8 2.8v4.2a1.8 1.8 0 0 1-1.8 1.8h-1.8" />
     <rect x="7.2" y="13.6" width="9.6" height="6.8" rx="1.2" />
+  </Icon>
+);
+
+/** Pridať — plus. */
+export const PlusIcon = (props) => (
+  <Icon {...props}>
+    <path d="M12 5v14M5 12h14" />
+  </Icon>
+);
+
+/** Potvrdené / zapnuté — fajka. */
+export const CheckIcon = (props) => (
+  <Icon {...props}>
+    <path d="m5 12.5 4.5 4.5L19 7.5" />
+  </Icon>
+);
+
+/** Zmazať — kôš. */
+export const TrashIcon = (props) => (
+  <Icon {...props}>
+    <path d="M4.4 6.8h15.2M9.6 6.8V4.9a1.1 1.1 0 0 1 1.1-1.1h2.6a1.1 1.1 0 0 1 1.1 1.1v1.9" />
+    <path d="m6.2 6.8.9 12.1a1.6 1.6 0 0 0 1.6 1.5h6.6a1.6 1.6 0 0 0 1.6-1.5l.9-12.1M10.2 10.8v5.6M13.8 10.8v5.6" />
+  </Icon>
+);
+
+/** Jeden človek — napr. deň, v ktorý slúži. */
+export const PersonIcon = (props) => (
+  <Icon {...props}>
+    <circle cx="12" cy="7.6" r="3.6" />
+    <path d="M5.2 20.2c.5-3.9 3.3-6.2 6.8-6.2s6.3 2.3 6.8 6.2" />
+  </Icon>
+);
+
+/** Ďalej — šípka doprava (pár k ChevronLeftIcon). */
+export const ChevronRightIcon = (props) => (
+  <Icon {...props}>
+    <path d="M9.5 6.5 15 12l-5.5 5.5" />
   </Icon>
 );

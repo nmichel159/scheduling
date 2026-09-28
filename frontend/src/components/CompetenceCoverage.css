@@ -1,33 +1,33 @@
 /* Compact weekly staffing table for the schedule editor's left rail
-   (see CompetenceCoverage.jsx). Same card shell as the panels around it:
-   1px hairline, 10px radius, no fill. Tokens from src/index.css.
+   (see CompetenceCoverage.jsx). Same card surface as the panels around it;
+   colours from the tokens in src/index.css.
 
    Everything here is sized for a ~260px column, so the day columns are
    fixed and narrow and the name column absorbs what is left. */
 
 .coverage {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 11px;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .coverage-title {
-  font-size: 0.8rem;
+  color: var(--text-p);
+  font-size: var(--fs-xs);
   font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-h);
-  opacity: 0.6;
 }
 
 .coverage-empty {
   margin: 0;
-  font-size: 0.85rem;
-  color: var(--text-h);
-  opacity: 0.6;
+  color: var(--text-p);
+  font-size: var(--fs-sm);
 }
 
 /* table-layout:fixed keeps all seven day columns exactly equal whatever the
@@ -38,7 +38,7 @@
   width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
 }
 
 .coverage-caption,
@@ -54,12 +54,11 @@
 .coverage-corner,
 .coverage-dayhead {
   padding: 0 0 4px;
-  font-size: 0.62rem;
+  color: var(--text-p);
+  font-size: 0.6875rem;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.02em;
-  color: var(--text-h);
-  opacity: 0.55;
+  text-transform: uppercase;
 }
 
 /* The header row's widths are the whole table's widths under table-layout:
@@ -80,10 +79,10 @@
 
 .coverage-name {
   padding: 3px 0;
-  font-weight: 500;
-  font-size: 0.74rem;
-  text-align: left;
   color: var(--text-h);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  text-align: left;
 }
 
 .coverage-name-inner {
@@ -97,7 +96,7 @@
 .coverage-swatch {
   width: 10px;
   height: 10px;
-  border-radius: 3px;
+  border-radius: 50%;
   flex-shrink: 0;
 }
 
@@ -116,18 +115,15 @@
 }
 
 .coverage-cell.is-zero {
-  color: var(--text);
-  opacity: 0.35;
+  color: var(--secondary);
   font-weight: 400;
 }
 
 /* Saturday and Sunday carry a different demand almost everywhere, so tint
-   them to separate the working week from the weekend at a glance. Mixed
-   towards --text rather than set to --code-background, which is identical
-   to --background in the light theme and would tint nothing. */
+   them to separate the working week from the weekend at a glance. */
 .coverage-dayhead.is-weekend,
 .coverage-cell.is-weekend {
-  background: color-mix(in srgb, var(--background) 92%, var(--text) 8%);
+  background: var(--surface-2);
 }
 
 .coverage-total-name,
@@ -137,9 +133,9 @@
 }
 
 .coverage-total-name {
-  font-size: 0.62rem;
+  color: var(--text-p);
+  font-size: 0.6875rem;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.02em;
-  opacity: 0.65;
+  text-transform: uppercase;
 }

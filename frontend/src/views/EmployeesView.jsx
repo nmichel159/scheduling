@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   fetchCompetences,
@@ -12,7 +12,8 @@ import {
 import { useWorkplace } from '../hooks/workplaceContext';
 import EmployeeDetailDialog from '../components/EmployeeDetailDialog';
 import EmployeeAvailabilityDialog from '../components/EmployeeAvailabilityDialog';
-import { ChevronLeftIcon, LimitsIcon, SearchIcon } from '../components/NavIcons';
+import { ChevronLeftIcon, CloseIcon, LimitsIcon } from '../components/NavIcons';
+import { personInitials } from '../utils/personInitials';
 import './EmployeesView.css';
 
 /**
@@ -45,6 +46,11 @@ const monthIndex = (year, month) => year * 12 + month;
 const EARLIEST_MONTH_INDEX = monthIndex(2000, 0);
 const LATEST_MONTH_INDEX = monthIndex(2100, 11);
 
+/* How many competence chips a row prints before folding the rest into a
+ * "+N" chip. Three keep a row on one line on a laptop; the profile the row
+ * opens lists all of them. */
+const VISIBLE_TAGS = 3;
+
 const EmployeesView = () => {
   const { t, i18n } = useTranslation();
   const today = useMemo(() => new Date(), []);
@@ -69,7 +75,11 @@ const EmployeesView = () => {
   const [detailId, setDetailId] = useState(null);
   const [availabilityId, setAvailabilityId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() });
+  // Only the newest month's answer may land: stepping through months
+  // quickly would otherwise let a slower, older request win.
+  const loadSeq = useRef(0);
 
   const viewMonthIndex = monthIndex(view.y, view.m);
   const isCurrentMonth =
@@ -77,6 +87,7 @@ const EmployeesView = () => {
 
   const loadData = useCallback(async () => {
     if (selectedId == null) return;
+    const seq = ++loadSeq.current;
     setLoading(true);
     setLoadError(false);
     try {
@@ -85,6 +96,7 @@ const EmployeesView = () => {
         fetchCompetences(selectedId),
         fetchEmployeeLoad(selectedId, view.m + 1, view.y),
       ]);
+      if (seq !== loadSeq.current) return;
       setEmployees(
         table.map((row) => ({
           user_id: row.user_id,
@@ -100,12 +112,13 @@ const EmployeesView = () => {
       });
       setLoad(byId);
     } catch {
+      if (seq !== loadSeq.current) return;
       setEmployees([]);
       setCompetences([]);
       setLoad({});
       setLoadError(true);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [selectedId, view.m, view.y]);
 
@@ -242,6 +255,7 @@ const EmployeesView = () => {
   const handleSave = async ({ competence_ids: competenceIds, ...settings }) => {
     if (!detail || selectedId == null) return;
     setSaving(true);
+    setSaveError(false);
     try {
       const before = detail.competences.map((c) => c.id);
       const changed =
@@ -275,25 +289,37 @@ const EmployeesView = () => {
       }));
       setDetailId(null);
     } catch {
-      setLoadError(true);
+      /* Said inside the dialog, which stays open with the edit in it —
+       * not as the page's "could not load" banner behind the overlay. */
+      setSaveError(true);
     } finally {
       setSaving(false);
     }
   };
 
+  const openDetail = (userId) => {
+    setSaveError(false);
+    setDetailId(userId);
+  };
+
   if (workplacesLoading) {
     return (
-      <div className="employees">
-        <p>{t('departments.loading')}</p>
+      <div className="page employees">
+        <p className="employees-state">
+          <span className="spinner" aria-hidden="true" />
+          {t('departments.loading')}
+        </p>
       </div>
     );
   }
 
   if (forbidden || workplaces.length === 0) {
     return (
-      <div className="employees">
-        <h1 className="employees-title">{t('employees.title')}</h1>
-        <div className="employees-banner">
+      <div className="page employees">
+        <header className="page-header">
+          <h1 className="page-title">{t('employees.title')}</h1>
+        </header>
+        <div className="alert alert-info">
           {forbidden ? t('departments.forbidden') : t('departments.no_ambulances')}
         </div>
       </div>
@@ -303,126 +329,145 @@ const EmployeesView = () => {
   const activeCompetence = competences.find((c) => c.id === competenceFilter) || null;
 
   return (
-    <div className="employees">
-      <h1 className="employees-title">{t('employees.title')}</h1>
+    <div className="page employees">
+      <header className="page-header">
+        <div className="employees-heading">
+          <h1 className="page-title">{t('employees.title')}</h1>
+          <p className="page-subtitle">
+            <span className="employees-workplace">{selected?.name}</span>
+            <span className="employees-count">
+              {t('departments.employee_count', { count: employees.length })}
+            </span>
+          </p>
+        </div>
+
+        {/* The month is what every number in the list is about, so it
+          * stands at the page level rather than among the list's filters. */}
+        <div className="page-actions employees-month">
+          {!isCurrentMonth && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => changeMonth(null)}
+            >
+              {t('schedule.current_month')}
+            </button>
+          )}
+          <div className="employees-monthnav">
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon btn-sm"
+              onClick={() => changeMonth(-1)}
+              disabled={viewMonthIndex <= EARLIEST_MONTH_INDEX}
+              aria-label={t('schedule.previous_month')}
+              title={t('schedule.previous_month')}
+            >
+              <ChevronLeftIcon />
+            </button>
+            <span className="employees-monthlabel" aria-live="polite">
+              {monthLabel}
+            </span>
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon btn-sm"
+              onClick={() => changeMonth(1)}
+              disabled={viewMonthIndex >= LATEST_MONTH_INDEX}
+              aria-label={t('schedule.next_month')}
+              title={t('schedule.next_month')}
+            >
+              <ChevronLeftIcon className="employees-next-icon" />
+            </button>
+          </div>
+        </div>
+      </header>
 
       {(workplacesError || loadError) && (
-        <div className="employees-banner">{t('departments.load_error')}</div>
+        <div className="alert alert-danger employees-alert" role="alert">
+          {t('departments.load_error')}
+          <button type="button" className="alert-action" onClick={loadData}>
+            {t('employees.retry')}
+          </button>
+        </div>
       )}
 
-      <section className="employees-panel">
-        <header className="employees-head">
-          <div className="employees-headline">
-            <div className="employees-heading">
-              <h2 className="employees-workplace">{selected?.name}</h2>
-              <span className="employees-count">
-                {t('departments.employee_count', { count: employees.length })}
-              </span>
-            </div>
-
-            <div className={`employees-filter ${filter ? 'is-active' : ''}`}>
-              <SearchIcon className="employees-filter-icon" />
-              <input
-                type="text"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                placeholder={t('employees.filter_placeholder')}
-                aria-label={t('employees.filter_placeholder')}
-              />
-              {filter && (
-                <button
-                  type="button"
-                  className="employees-filter-clear"
-                  onClick={() => setFilter('')}
-                  title={t('competences.clear_filter')}
-                  aria-label={t('competences.clear_filter')}
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="employees-toolbar">
-            <div className="employees-month">
+      <section className="card employees-card">
+        <div className="employees-toolbar">
+          <div className="employees-filter">
+            <input
+              type="text"
+              className="input search-input"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape' && filter) setFilter('');
+              }}
+              placeholder={t('employees.filter_placeholder')}
+              aria-label={t('employees.filter_placeholder')}
+            />
+            {filter && (
               <button
                 type="button"
-                className="employees-month-button"
-                onClick={() => changeMonth(-1)}
-                disabled={viewMonthIndex <= EARLIEST_MONTH_INDEX}
-                aria-label={t('schedule.previous_month')}
-              >
-                <ChevronLeftIcon className="employees-month-icon" />
-              </button>
-              <span className="employees-monthlabel">{monthLabel}</span>
-              <button
-                type="button"
-                className="employees-month-button"
-                onClick={() => changeMonth(1)}
-                disabled={viewMonthIndex >= LATEST_MONTH_INDEX}
-                aria-label={t('schedule.next_month')}
-              >
-                <ChevronLeftIcon className="employees-month-icon is-next" />
-              </button>
-              {!isCurrentMonth && (
-                <button
-                  type="button"
-                  className="employees-month-today"
-                  onClick={() => changeMonth(null)}
-                >
-                  {t('schedule.current_month')}
-                </button>
-              )}
-            </div>
-
-            <div
-              className="employees-switch"
-              role="group"
-              aria-label={t('employees.sort')}
-            >
-              <button
-                type="button"
-                className={`employees-switch-button ${sort === 'name' ? 'is-active' : ''}`}
-                onClick={() => setSort('name')}
-                aria-pressed={sort === 'name'}
-              >
-                {t('employees.sort_name')}
-              </button>
-              <button
-                type="button"
-                className={`employees-switch-button ${sort === 'load' ? 'is-active' : ''}`}
-                onClick={() => setSort('load')}
-                aria-pressed={sort === 'load'}
-              >
-                {t('employees.sort_load')}
-              </button>
-            </div>
-
-            {activeCompetence && (
-              <button
-                type="button"
-                className="employees-activefilter"
-                onClick={() => setCompetenceFilter(null)}
+                className="employees-filter-clear"
+                onClick={() => setFilter('')}
+                title={t('competences.clear_filter')}
                 aria-label={t('competences.clear_filter')}
               >
-                {activeCompetence.name}
-                <span aria-hidden="true">✕</span>
+                <CloseIcon className="icon-sm" />
               </button>
             )}
           </div>
-        </header>
 
-        <div className={`employees-list ${loading ? 'is-loading' : ''}`}>
+          {activeCompetence && (
+            <button
+              type="button"
+              className="employees-activefilter"
+              onClick={() => setCompetenceFilter(null)}
+              title={t('competences.clear_filter')}
+              aria-label={`${t('competences.clear_filter')}: ${activeCompetence.name}`}
+            >
+              {activeCompetence.name}
+              <CloseIcon className="employees-activefilter-icon" />
+            </button>
+          )}
+
+          <div
+            className="segmented employees-sort"
+            role="group"
+            aria-label={t('employees.sort')}
+          >
+            <button
+              type="button"
+              onClick={() => setSort('name')}
+              aria-pressed={sort === 'name'}
+            >
+              {t('employees.sort_name')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSort('load')}
+              aria-pressed={sort === 'load'}
+            >
+              {t('employees.sort_load')}
+            </button>
+          </div>
+        </div>
+
+        <div className={`employees-list ${loading ? 'is-loading' : ''}`.trim()}>
           {visible.length === 0 ? (
-            <p className="employees-empty">
-              {employees.length > 0
-                ? t('competences.no_filter_match')
-                : t('departments.no_employees')}
+            <p className="empty-state">
+              {loading
+                ? t('departments.loading')
+                : employees.length > 0
+                  ? t('competences.no_filter_match')
+                  : t('departments.no_employees')}
             </p>
           ) : (
             <>
+              {/* One template for the legend and the rows, so every label
+                * stands over the numbers it names. */}
               <div className="employees-legend" aria-hidden="true">
-                <span className="employees-legend-spacer" />
+                <span className="employees-legend-person">{t('competences.employee')}</span>
+                <span className="employees-legend-tags">{t('competences.title')}</span>
                 <span className="employees-stats">
                   <span className="employees-cell">{t('employees.stat_shifts')}</span>
                   <span className="employees-cell">{t('employees.stat_surcharge')}</span>
@@ -430,139 +475,165 @@ const EmployeesView = () => {
                   <span className="employees-cell">{t('employees.stat_hours')}</span>
                   <span className="employees-cell">{t('employees.stat_marked')}</span>
                 </span>
-                <span className="employees-legend-end" />
-                <span className="employees-legend-end" />
               </div>
               <ul className="employees-rows">
-              {visible.map((e) => {
-                const stats = statsOf(e.user_id);
-                const name = e.full_name || e.email;
-                const fill = stats.max > 0 ? Math.min(1, stats.shifts / stats.max) : 0;
-                let meterState = '';
-                if (stats.max == null) meterState = 'is-open';
-                else if (stats.shifts > stats.max) meterState = 'is-over';
-                else if (stats.shifts === stats.max) meterState = 'is-full';
-                return (
-                  <li key={e.user_id} className="employees-item">
-                    {/* The overlay is the row's button, so a click anywhere
-                      * that is not a competence chip opens the profile —
-                      * the chips sit above it and filter instead. */}
-                    <button
-                      type="button"
-                      className="employees-open"
-                      onClick={() => setDetailId(e.user_id)}
-                      aria-label={`${name} — ${t('competences.employee_detail')}`}
-                    />
-                    <div className="employees-row">
-                      <span className="employees-avatar" aria-hidden="true">
-                        {name.trim().charAt(0).toUpperCase()}
-                      </span>
-                      <span className="employees-identity">
-                        <span className="employees-name">{name}</span>
-                        <span className="employees-email">{e.email}</span>
-                      </span>
-
-                      <span className="employees-tags">
-                        {e.competences.length === 0 ? (
-                          <span className="employees-tag is-empty">
-                            {t('employees.no_competences')}
-                          </span>
-                        ) : (
-                          e.competences.map((c) => (
-                            <button
-                              key={c.id}
-                              type="button"
-                              className={`employees-tag ${
-                                competenceFilter === c.id ? 'is-picked' : ''
-                              }`}
-                              onClick={() =>
-                                setCompetenceFilter((prev) =>
-                                  prev === c.id ? null : c.id
-                                )
-                              }
-                              aria-pressed={competenceFilter === c.id}
-                            >
-                              {c.name}
-                            </button>
-                          ))
-                        )}
-                      </span>
-
-                      {/* The column labels are printed once above the list;
-                        * every cell repeats its own in `title`, so the
-                        * number is also readable on hover. */}
-                      <span className="employees-stats">
-                        <span
-                          className={`employees-cell employees-meter ${meterState}`}
-                          title={t('employees.stat_shifts_full')}
-                        >
-                          <span className="employees-meter-value">
-                            {stats.shifts}
-                            {stats.max != null && (
-                              <span className="employees-meter-max">/{stats.max}</span>
-                            )}
-                          </span>
-                          <span className="employees-meter-track" aria-hidden="true">
-                            <span
-                              className="employees-meter-fill"
-                              style={{ width: `${Math.round(fill * 100)}%` }}
-                            />
-                          </span>
-                        </span>
-
-                        <span
-                          className={`employees-cell ${
-                            stats.surcharge > 0 ? 'is-accent' : ''
-                          }`}
-                          title={t('employees.stat_surcharge_full')}
-                        >
-                          {stats.surcharge}
-                        </span>
-                        <span
-                          className="employees-cell"
-                          title={t('employees.stat_weekend_full')}
-                        >
-                          {stats.weekend}
-                        </span>
-                        <span
-                          className="employees-cell"
-                          title={t('employees.stat_hours_full')}
-                        >
-                          {stats.hours}
-                        </span>
-                        <span
-                          className={`employees-cell ${
-                            stats.marked === 0 ? 'is-muted' : ''
-                          }`}
-                          title={t('employees.stat_marked_breakdown', {
-                            preferred: stats.preferred,
-                            declined: stats.declined,
-                            blocked: stats.blocked,
-                          })}
-                        >
-                          {stats.marked}
-                        </span>
-                      </span>
-
-                      {/* Its own button rather than a second click
-                        * target inside the profile: the calendar writes
-                        * every click straight through, so it must not
-                        * sit behind an unsaved form. */}
+                {visible.map((e) => {
+                  const stats = statsOf(e.user_id);
+                  const name = e.full_name || e.email;
+                  const fill = stats.max > 0 ? Math.min(1, stats.shifts / stats.max) : 0;
+                  let meterState = '';
+                  if (stats.max == null) meterState = 'is-open';
+                  else if (stats.shifts > stats.max) meterState = 'is-over';
+                  else if (stats.shifts === stats.max) meterState = 'is-full';
+                  /* The chip the list is narrowed to goes first, so it is
+                   * never the one folded into "+N". */
+                  const tags =
+                    competenceFilter == null
+                      ? e.competences
+                      : [
+                          ...e.competences.filter((c) => c.id === competenceFilter),
+                          ...e.competences.filter((c) => c.id !== competenceFilter),
+                        ];
+                  const shownTags = tags.slice(0, VISIBLE_TAGS);
+                  const hiddenTags = tags.slice(VISIBLE_TAGS);
+                  return (
+                    <li key={e.user_id} className="employees-item">
+                      {/* The overlay is the row's button, so a click anywhere
+                        * that is not a competence chip opens the profile —
+                        * the chips sit above it and filter instead. */}
                       <button
                         type="button"
-                        className="employees-calendar"
-                        onClick={() => setAvailabilityId(e.user_id)}
-                        title={t('employees.availability')}
-                        aria-label={`${name} — ${t('employees.availability')}`}
-                      >
-                        <LimitsIcon className="employees-calendar-icon" />
-                      </button>
+                        className="employees-open"
+                        onClick={() => openDetail(e.user_id)}
+                        aria-label={`${name} — ${t('competences.employee_detail')}`}
+                      />
+                      <div className="employees-row">
+                        <span className="employees-avatar" aria-hidden="true">
+                          {personInitials(name)}
+                        </span>
+                        <span className="employees-identity">
+                          <span className="employees-name" title={name}>
+                            {name}
+                          </span>
+                          {e.full_name && (
+                            <span className="employees-email" title={e.email}>
+                              {e.email}
+                            </span>
+                          )}
+                        </span>
 
-                      <ChevronLeftIcon className="employees-chevron" />
-                    </div>
-                  </li>
-                );
-              })}
+                        <span className="employees-tags">
+                          {e.competences.length === 0 ? (
+                            <span className="employees-tag is-empty">
+                              {t('employees.no_competences')}
+                            </span>
+                          ) : (
+                            shownTags.map((c) => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                className={`employees-tag ${
+                                  competenceFilter === c.id ? 'is-picked' : ''
+                                }`.trim()}
+                                onClick={() =>
+                                  setCompetenceFilter((prev) =>
+                                    prev === c.id ? null : c.id
+                                  )
+                                }
+                                aria-pressed={competenceFilter === c.id}
+                              >
+                                {c.name}
+                              </button>
+                            ))
+                          )}
+                          {hiddenTags.length > 0 && (
+                            <span
+                              className="employees-tag is-more"
+                              title={hiddenTags.map((c) => c.name).join(', ')}
+                            >
+                              +{hiddenTags.length}
+                            </span>
+                          )}
+                        </span>
+
+                        {/* The column labels are printed once above the list
+                          * (and beside each number on a phone); every cell
+                          * also repeats its full label in `title`. */}
+                        <span className="employees-stats">
+                          <span
+                            className={`employees-cell employees-meter ${meterState}`.trim()}
+                            title={t('employees.stat_shifts_full')}
+                            data-label={t('employees.stat_shifts')}
+                          >
+                            <span className="employees-meter-value">
+                              {stats.shifts}
+                              {stats.max != null && (
+                                <span className="employees-meter-max">/{stats.max}</span>
+                              )}
+                            </span>
+                            <span className="employees-meter-track" aria-hidden="true">
+                              <span
+                                className="employees-meter-fill"
+                                style={{ width: `${Math.round(fill * 100)}%` }}
+                              />
+                            </span>
+                          </span>
+
+                          <span
+                            className={`employees-cell ${
+                              stats.surcharge > 0 ? 'is-accent' : 'is-muted'
+                            }`}
+                            title={t('employees.stat_surcharge_full')}
+                            data-label={t('employees.stat_surcharge')}
+                          >
+                            {stats.surcharge}
+                          </span>
+                          <span
+                            className={`employees-cell ${stats.weekend === 0 ? 'is-muted' : ''}`.trim()}
+                            title={t('employees.stat_weekend_full')}
+                            data-label={t('employees.stat_weekend')}
+                          >
+                            {stats.weekend}
+                          </span>
+                          <span
+                            className={`employees-cell ${stats.hours === 0 ? 'is-muted' : ''}`.trim()}
+                            title={t('employees.stat_hours_full')}
+                            data-label={t('employees.stat_hours')}
+                          >
+                            {stats.hours}
+                          </span>
+                          <span
+                            className={`employees-cell ${stats.marked === 0 ? 'is-muted' : ''}`.trim()}
+                            title={t('employees.stat_marked_breakdown', {
+                              preferred: stats.preferred,
+                              declined: stats.declined,
+                              blocked: stats.blocked,
+                            })}
+                            data-label={t('employees.stat_marked')}
+                          >
+                            {stats.marked}
+                          </span>
+                        </span>
+
+                        {/* Its own button rather than a second click
+                          * target inside the profile: the calendar writes
+                          * every click straight through, so it must not
+                          * sit behind an unsaved form. */}
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-icon btn-sm employees-calendar"
+                          onClick={() => setAvailabilityId(e.user_id)}
+                          title={t('employees.availability')}
+                          aria-label={`${name} — ${t('employees.availability')}`}
+                        >
+                          <LimitsIcon />
+                        </button>
+
+                        <ChevronLeftIcon className="employees-chevron" />
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </>
           )}
@@ -593,6 +664,7 @@ const EmployeesView = () => {
           `${Number(d.work_date.slice(8, 10))}.${pad(Number(d.work_date.slice(5, 7)))}.`
         }
         saving={saving}
+        error={saveError ? t('departments.save_error') : null}
         onSave={handleSave}
         onClose={() => setDetailId(null)}
       />

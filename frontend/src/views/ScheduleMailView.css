@@ -1,263 +1,219 @@
-/* --- Schedule mail: addresses, the month as it would arrive, what was sent --- */
+/* --- Schedule mail: who gets the request, and the message they get ---
+
+   Header, cards, fields, buttons and the toast are the shared ones from
+   styles/ui.css and components/Toast; this file lays out the two cards and
+   the collapsible workplace groups. Compound selectors wherever a shared
+   class is adjusted: the router pulls every view in ahead of styles/ui.css,
+   so a bare class here would lose to the shared rule of the same weight. */
 
 .smail {
-  max-width: 980px;
-  margin: 0 auto;
-  text-align: left;
+  max-width: 1080px;
 }
 
-.smail-title {
-  margin: 0 0 14px;
-  font-size: 1.5rem;
-  color: var(--text-h);
-}
-
-.smail-banner {
-  border: 1px solid var(--border);
-  background: var(--primary-background);
-  border-radius: 8px;
-  padding: 10px 14px;
-  margin-bottom: 16px;
-  font-size: 0.85rem;
-}
-
-.smail-note {
-  font-size: 0.85rem;
-  opacity: 0.7;
-  margin: 0 0 10px;
-}
-
-.smail-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
+.smail-alert {
   margin-bottom: 16px;
 }
 
-.smail-workplace {
-  font-weight: 600;
-  color: var(--text-h);
-}
-
-.smail-select,
-.smail-input,
-.smail-textarea,
-.smail-btn {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
-  color: inherit;
-  font: inherit;
-  padding: 6px 10px;
-}
-
-.smail-btn {
-  cursor: pointer;
-}
-
-.smail-btn:hover:not(:disabled) {
-  background: var(--primary-background);
-}
-
-.smail-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.smail-btn-primary {
-  border-color: var(--primary);
-  color: var(--primary);
-  font-weight: 600;
-}
-
-.smail-card {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 16px;
-  margin-bottom: 16px;
-}
-
-.smail-card h2 {
-  margin: 0 0 10px;
-  font-size: 1rem;
-  color: var(--text-h);
+/* Recipients beside the message on a wide screen -- the list is picked from
+   while the text is read -- and stacked on a narrow one. */
+.smail-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
 }
 
 /* ---------- recipients ---------- */
 
-.smail-list {
-  list-style: none;
-  margin: 0 0 12px;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.smail-list li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-.smail-check {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-  cursor: pointer;
-}
-
-.smail-email {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.smail-label {
-  font-size: 0.8rem;
-  opacity: 0.7;
-}
-
-.smail-add {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.smail-add .smail-input {
-  flex: 1;
-  min-width: 180px;
-}
-
-/* ---------- preview ---------- */
-
-.smail-subject {
-  margin: 0 0 4px;
-  font-weight: 600;
-}
-
-.smail-body {
-  margin: 0 0 12px;
-  padding: 10px 12px;
-  max-height: 320px;
-  overflow: auto;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--primary-background);
-  font-size: 0.8rem;
-  white-space: pre-wrap;
-}
-
-.smail-textarea {
-  display: block;
-  width: 100%;
-  margin-bottom: 10px;
-  resize: vertical;
-}
-
-/* ---------- log ---------- */
-
-.smail-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-}
-
-.smail-table th,
-.smail-table td {
-  border-bottom: 1px solid var(--border);
-  padding: 6px 8px;
-  text-align: left;
-  vertical-align: top;
-}
-
 .smail-recipients {
-  max-width: 320px;
-  overflow-wrap: anywhere;
+  overflow: hidden;
 }
 
-.smail-status {
-  font-weight: 600;
-}
-
-.smail-status.is-failed {
-  color: #ef5350;
-}
-
-.smail-error {
-  display: block;
-  font-size: 0.78rem;
-  opacity: 0.7;
-}
-
-/* ---------- toast ---------- */
-
-.smail-toast {
-  position: fixed;
-  left: 50%;
-  bottom: 24px;
-  transform: translateX(-50%);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
-  padding: 10px 16px;
-  font-size: 0.85rem;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
-  z-index: 40;
-}
-
-@media (max-width: 640px) {
-  .smail-table thead {
-    display: none;
-  }
-
-  .smail-table tr {
-    display: block;
-    border-bottom: 1px solid var(--border);
-    padding: 6px 0;
-  }
-
-  .smail-table td {
-    display: block;
-    border: none;
-    padding: 2px 0;
-  }
-}
-
-/* Group mailing: one collapsible block per workplace. */
 .smail-groups {
   list-style: none;
-  margin: 0 0 12px;
-  padding: 0;
+  margin: 0;
+  padding: 6px;
 }
 
 .smail-group + .smail-group {
-  margin-top: 6px;
+  border-top: 1px solid var(--border);
 }
 
 .smail-group-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
+  min-height: 44px;
+  padding: 0 4px 0 10px;
+  border-radius: var(--radius);
 }
 
-.smail-group-list {
-  margin-left: 24px;
+.smail-group-head:hover {
+  background: var(--surface-2);
 }
 
-.smail-selected {
-  margin-bottom: 12px;
+.smail-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
 }
 
-.smail-subject-input {
-  display: block;
-  width: 100%;
-  margin-bottom: 8px;
+.smail-check input {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.smail-check input:disabled {
+  cursor: not-allowed;
+}
+
+.smail-group-name {
+  overflow: hidden;
+  color: var(--text-h);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.smail-group-count {
+  flex-shrink: 0;
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.smail-group-toggle svg {
+  transition: transform var(--duration) var(--ease);
+}
+
+.smail-group-toggle svg.is-open {
+  transform: rotate(180deg);
+}
+
+/* Indented under the group's own box, so the ticks line up as a tree. */
+.smail-members {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0 0 0 26px;
+}
+
+.smail-member {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.smail-member:hover {
+  background: var(--surface-2);
+}
+
+.smail-member-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.smail-member-name,
+.smail-member-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.smail-member-name {
+  color: var(--text-h);
+  font-size: var(--fs-sm);
+}
+
+.smail-member-email {
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+}
+
+.empty-state.smail-empty {
+  padding: 32px 20px;
+}
+
+/* ---------- message ---------- */
+
+.card-pad.smail-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.textarea.smail-textarea {
+  min-height: 220px;
+  line-height: 1.55;
+}
+
+.smail-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: var(--surface-2);
+}
+
+/* Who the message is going to, in words, right beside the button that
+   sends it. Two lines at most; the full list is in the confirmation. */
+.smail-summary {
+  flex: 1;
+  min-width: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  color: var(--text-p);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+
+.btn.smail-send {
+  flex-shrink: 0;
+}
+
+/* On the filled button the shared spinner's ring would be accent on accent. */
+.spinner.smail-send-spinner {
+  width: 14px;
+  height: 14px;
+  border-color: color-mix(in srgb, var(--on-primary) 35%, transparent);
+  border-top-color: var(--on-primary);
+}
+
+/* Side by side, the message stays in view while a long roster is ticked
+   through, so the send button never scrolls away from the list it sends to.
+   76px clears the sticky page header (56px) with some air. */
+@media (min-width: 901px) {
+  .smail-message {
+    position: sticky;
+    top: 76px;
+  }
+}
+
+@media (max-width: 900px) {
+  .smail-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .smail-footer {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px 16px;
+  }
+
+  .card-pad.smail-fields {
+    padding: 16px;
+  }
 }

@@ -9,6 +9,9 @@ import {
 import { useWorkplace } from '../hooks/workplaceContext';
 import { useRoles } from '../hooks/useRoles';
 import ConfirmDialog from '../components/ConfirmDialog';
+import PeriodStepper from '../components/PeriodStepper';
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 import './SpecialDaysView.css';
 
 /** Months of the year, zero-based, for the calendar grid. */
@@ -94,18 +97,13 @@ const SpecialDaysView = () => {
   const [pending, setPending] = useState(() => new Map());
   /** Writes in the air. Only the year-wide actions have to wait for zero. */
   const [busy, setBusy] = useState(0);
-  const [toast, setToast] = useState(null);
+  const [toast, notify] = useToast();
   const [copySource, setCopySource] = useState('');
   const [copyTarget, setCopyTarget] = useState(null);
 
   /** Writes go out one at a time. Every answer is the whole year, so two in
    *  flight would let the earlier one land last and undo the later click. */
   const queue = useRef(Promise.resolve());
-
-  const notify = (message) => {
-    setToast(message);
-    setTimeout(() => setToast(null), 2400);
-  };
 
   const load = useCallback(async () => {
     if (selectedId == null) return;
@@ -261,17 +259,22 @@ const SpecialDaysView = () => {
 
   if (workplacesLoading) {
     return (
-      <div className="sdays">
-        <p className="sdays-note">{t('departments.loading')}</p>
+      <div className="page sdays">
+        <div className="empty-state">
+          <span className="spinner" aria-hidden="true" />
+          {t('departments.loading')}
+        </div>
       </div>
     );
   }
 
   if (forbidden || workplaces.length === 0) {
     return (
-      <div className="sdays">
-        <h1 className="sdays-title">{t('special_days.title')}</h1>
-        <div className="sdays-banner">
+      <div className="page sdays">
+        <header className="page-header">
+          <h1 className="page-title">{t('special_days.title')}</h1>
+        </header>
+        <div className="alert alert-warning">
           {forbidden ? t('departments.forbidden') : t('departments.no_ambulances')}
         </div>
       </div>
@@ -279,6 +282,7 @@ const SpecialDaysView = () => {
   }
 
   const otherWorkplaces = workplaces.filter((item) => item.id !== selectedId);
+  const currentYear = new Date().getFullYear();
 
   /** One date in a month card — a button for whoever may change it. */
   const renderDay = (monthIndex, dayNumber) => {
@@ -323,56 +327,59 @@ const SpecialDaysView = () => {
   };
 
   return (
-    <div className="sdays">
-      <header className="sdays-head">
+    <div className="page sdays">
+      <header className="page-header">
         <div className="sdays-head-name">
-          <h1 className="sdays-title">{t('special_days.title')}</h1>
-          {selected?.name && <span className="sdays-workplace">{selected.name}</span>}
+          <h1 className="page-title">{t('special_days.title')}</h1>
+          {selected?.name && (
+            <span className="badge badge-primary sdays-workplace">{selected.name}</span>
+          )}
         </div>
 
-        <div className="sdays-years">
-          <button
-            type="button"
-            className="sdays-step"
-            disabled={year <= firstYear}
-            aria-label={t('special_days.previous_year')}
-            onClick={() => setYear((current) => Math.max(firstYear, current - 1))}
-          >
-            ‹
-          </button>
-          <span className="sdays-year">{year}</span>
-          <button
-            type="button"
-            className="sdays-step"
-            disabled={year >= lastYear}
-            aria-label={t('special_days.next_year')}
-            onClick={() => setYear((current) => Math.min(lastYear, current + 1))}
-          >
-            ›
-          </button>
+        <div className="page-actions">
+          <PeriodStepper
+            unit="year"
+            label={year}
+            onPrevious={() => setYear((current) => Math.max(firstYear, current - 1))}
+            onNext={() => setYear((current) => Math.min(lastYear, current + 1))}
+            previousLabel={t('special_days.previous_year')}
+            nextLabel={t('special_days.next_year')}
+            previousDisabled={year <= firstYear}
+            nextDisabled={year >= lastYear}
+            todayLabel={year === currentYear ? null : t('statistics.current_year')}
+            onToday={() => setYear(currentYear)}
+            groupLabel={t('special_days.year')}
+          />
         </div>
       </header>
 
       {(workplacesError || loadError) && (
-        <div className="sdays-banner">{t('special_days.load_error')}</div>
+        <div className="alert alert-danger sdays-alert" role="alert">
+          <span>{t('special_days.load_error')}</span>
+          {loadError && (
+            <button type="button" className="alert-action" onClick={load}>
+              {t('workload.retry')}
+            </button>
+          )}
+        </div>
       )}
 
       {/* The key is permanent here rather than on hover: a day's colour is
           the whole content of this screen, and half of it -- inherited
           against decided here -- is a distinction nobody would guess. */}
       <div className="sdays-legend" role="note">
-        <span className="sdays-chip is-count">
+        <span className="badge badge-primary sdays-count">
           {t('special_days.rest_day_count', { count: restDayCount })}
         </span>
-        <span className="sdays-chip">
+        <span className="sdays-key">
           <i className="sdays-swatch is-rest" aria-hidden="true" />
           {t('special_days.legend_rest')}
         </span>
-        <span className="sdays-chip">
+        <span className="sdays-key">
           <i className="sdays-swatch is-rest is-own" aria-hidden="true" />
           {t('special_days.legend_own')}
         </span>
-        <span className="sdays-chip">
+        <span className="sdays-key">
           <i className="sdays-swatch is-state-workday" aria-hidden="true" />
           {t('special_days.legend_state_workday')}
         </span>
@@ -387,7 +394,7 @@ const SpecialDaysView = () => {
         {MONTHS.map((monthIndex) => {
           const first = isoWeekday(new Date(year, monthIndex, 1));
           return (
-            <section className="sdays-month" key={monthIndex}>
+            <section className="card sdays-month" key={monthIndex}>
               <header className="sdays-month-head">
                 <h2>{t(`special_days.months.${monthIndex}`)}</h2>
                 {restByMonth[monthIndex] > 0 && (
@@ -416,17 +423,19 @@ const SpecialDaysView = () => {
         })}
       </div>
 
-      <section className="sdays-own">
+      <section className="card sdays-own">
         {/* Taking another workplace's year belongs to the exceptions, not to
             the calendar: it is the one control here that replaces them. */}
-        <header className="sdays-own-head">
-          <h2>{t('special_days.own_title')}</h2>
+        <header className="card-header">
+          <h2 className="card-title">{t('special_days.own_title')}</h2>
           {canEdit && otherWorkplaces.length > 0 && (
             <div className="sdays-copy">
-              <label htmlFor="sdays-copy-source">{t('special_days.copy_from')}</label>
+              <label className="sdays-copy-label" htmlFor="sdays-copy-source">
+                {t('special_days.copy_from')}
+              </label>
               <select
                 id="sdays-copy-source"
-                className="sdays-select"
+                className="select input-sm sdays-select"
                 value={copySource}
                 onChange={(e) => setCopySource(e.target.value)}
               >
@@ -439,7 +448,7 @@ const SpecialDaysView = () => {
               </select>
               <button
                 type="button"
-                className="sdays-btn"
+                className="btn btn-sm"
                 disabled={!copySource || busy > 0}
                 onClick={() =>
                   setCopyTarget(
@@ -463,9 +472,7 @@ const SpecialDaysView = () => {
               <li key={entry.day}>
                 <span className="sdays-own-day">{readableDay(entry.day)}</span>
                 <span
-                  className={`sdays-own-what ${
-                    entry.is_rest_day ? 'is-added' : 'is-removed'
-                  }`}
+                  className={`badge ${entry.is_rest_day ? 'badge-primary' : ''} sdays-own-what`}
                 >
                   {entry.is_rest_day
                     ? t('special_days.own_added')
@@ -475,7 +482,7 @@ const SpecialDaysView = () => {
                 {canEdit && (
                   <button
                     type="button"
-                    className="sdays-btn"
+                    className="btn btn-sm btn-ghost sdays-reset"
                     onClick={() => resetDay(entry.day)}
                   >
                     {t('special_days.reset')}
@@ -495,15 +502,12 @@ const SpecialDaysView = () => {
         })}
         confirmLabel={t('special_days.copy')}
         cancelLabel={t('departments.cancel')}
+        tone="danger"
         onConfirm={handleCopy}
         onCancel={() => setCopyTarget(null)}
       />
 
-      {toast && (
-        <div className="sdays-toast" role="status">
-          {toast}
-        </div>
-      )}
+      <Toast message={toast} />
     </div>
   );
 };

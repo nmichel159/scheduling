@@ -1,132 +1,455 @@
-.cmanager {
-  max-width: 1120px;
-  margin: 0 auto;
-  text-align: left;
-}
+/* --- Competence scenarios of one workplace ---
+ * Page chrome, cards, buttons, badges and the scenario list's table come
+ * from styles/ui.css; this file lays out the two columns, the weekly
+ * summary grid and its key. */
 
-.cmanager-title {
-  margin: 0 0 16px;
-  font-size: 1.5rem;
+.cmanager-workplace {
   color: var(--text-h);
+  font-weight: 600;
 }
 
-.cmanager-banner {
-  border: 1px solid var(--border);
-  background: var(--primary-background);
-  border-radius: 8px;
-  padding: 10px 14px;
+.cmanager-alert {
   margin-bottom: 16px;
-  font-size: 0.85rem;
 }
 
-.cmanager-panel {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--code-background);
-  padding: 16px;
-}
-
-.cmanager-panel-head {
+.cmanager-state,
+.cmanager-note {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 14px;
-}
-
-.cmanager-panel-head .cmanager-btn-icon { margin-left: auto; }
-
-.cmanager-panel-head h2 {
   margin: 0;
-  font-size: 1.1rem;
-  color: var(--text-h);
+  color: var(--text-p);
+  font-size: var(--fs-base);
 }
 
-/* ---------- new competence form ---------- */
-
-.cmanager-new {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 18px;
+.cmanager-state {
+  padding: 32px 0;
 }
 
-.cmanager-input {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
-  background: var(--background);
-  color: var(--text-h);
-  font: inherit;
-  font-size: 0.85rem;
-  min-width: 180px;
+.cmanager-note {
+  padding: 20px;
 }
 
-/* The description is optional prose — it gets the leftover width. */
-.cmanager-input-desc { flex: 1 1 260px; }
+/* ---------- two columns: scenarios | the viewed scenario's week ---------- */
 
-/* ---------- table ---------- */
-
-.cmanager-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
+/* The scenario list keeps to a narrow column; the summary takes the rest,
+   since it is the one with eight day columns to fit. */
+.cmanager-columns {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
 }
 
-.cmanager-table th {
-  text-align: left;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  opacity: 0.65;
-  padding: 0 10px 8px;
-  font-weight: 700;
+.cmanager-scenarios,
+.cmanager-summary {
+  min-width: 0;
 }
 
-.cmanager-table td {
-  padding: 10px;
-  border-top: 1px solid var(--border);
-  vertical-align: middle;
+/* ---------- scenario list ---------- */
+
+.cmanager-table .cmanager-col-radio {
+  width: 64px;
+  padding: 0;
+  text-align: center;
 }
 
-.cmanager-col-name { min-width: 200px; }
+.cmanager-table th.cmanager-col-radio {
+  padding: 9px 4px;
+}
+
+.cmanager-table .cmanager-col-actions {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cmanager-table .cmanager-col-actions .btn + .btn {
+  margin-left: 4px;
+}
+
+.cmanager-table.cmanager-scenario-table td {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.cmanager-scenario-table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: var(--radius-lg);
+}
+
+.cmanager-scenario-table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: var(--radius-lg);
+}
 
 /* Clicking a row shows that scenario in the table beside the list, so the
-   row has to look clickable and say which one is on screen. */
-.cmanager-row.is-openable { cursor: pointer; }
-.cmanager-row:hover { background: var(--primary-background); }
+   row has to look clickable and say which one is on screen. A double click
+   is the rename gesture, so the row must not answer it by selecting the
+   words under the pointer instead. */
+.cmanager-row.is-openable {
+  cursor: pointer;
+  user-select: none;
+}
 
-.cmanager-row.is-viewed > td:first-child {
+.cmanager-scenario-table tr.is-viewed > td {
+  background: var(--primary-background);
+}
+
+.cmanager-scenario-table tr.is-viewed:hover > td {
+  background: var(--primary-background-strong);
+}
+
+.cmanager-scenario-table tr.is-viewed > td:first-child {
   box-shadow: inset 3px 0 0 var(--primary);
 }
 
-.cmanager-row.is-viewed { background: var(--primary-background); }
-
-.cmanager-btn-icon {
-  padding: 4px 10px;
-  font-size: 1rem;
-  line-height: 1.1;
+/* The dot alone is a pixel-sized target in a row that is otherwise all
+   click, so the label takes over the whole cell and the control itself is
+   drawn large enough to see which scenario the generator reads. */
+.cmanager-radio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  cursor: pointer;
 }
 
-.cmanager-col-actions {
-  text-align: right;
+.cmanager-radio input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* The scenario name is not a control of its own -- the whole row takes the
+   click and the double click -- so it is set as plain text; it is a button
+   only so the keyboard can reach it. */
+.cmanager-name {
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cmanager-name:focus-visible {
+  border-radius: var(--radius-xs);
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.cmanager-table tr.is-selected .cmanager-name {
+  font-weight: 650;
+}
+
+.cmanager-active-badge {
+  margin-left: 8px;
+  vertical-align: 1px;
+}
+
+.cmanager-rename {
+  max-width: 220px;
+}
+
+/* A delete is quiet until it is pointed at. */
+.btn.cmanager-delete {
+  color: var(--secondary);
+}
+
+.btn.cmanager-delete:hover:not(:disabled) {
+  background: var(--danger-background);
+  color: var(--danger);
+}
+
+/* ---------- summary: one scenario's week ---------- */
+
+.cmanager-summary-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  min-width: 0;
+}
+
+.cmanager-summary-scroll {
+  overflow-x: auto;
+}
+
+.cmanager-summary-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--fs-sm);
+}
+
+.cmanager-summary-table th {
+  padding: 9px 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-align: center;
+  text-transform: uppercase;
   white-space: nowrap;
+}
+
+.cmanager-summary-table td {
+  padding: 4px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.cmanager-summary-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.cmanager-summary-table .cmanager-col-name {
+  min-width: 150px;
+  padding-left: 20px;
+  text-align: left;
+}
+
+.cmanager-summary-table tbody tr:hover > td {
+  background: var(--surface-2);
+}
+
+/* The weekend columns are shaded as columns; the eighth column is the day
+   of rest, separated from the seven by a rule rather than a gap, because a
+   table cannot have one. */
+.cmanager-summary-table th.is-weekend,
+.cmanager-summary-table th.is-special {
+  color: var(--primary);
+}
+
+.cmanager-summary-table .is-special {
+  border-left: 1px solid var(--border-strong);
+}
+
+.cmanager-summary-table th.is-special {
+  cursor: help;
+}
+
+.cmanager-summary-cell.is-weekend,
+.cmanager-summary-cell.is-special {
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+}
+
+.cmanager-summary-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* A workplace with no competences yet still shows the table: the weekday
+   header is what says what is about to be filled in. */
+.cmanager-table .cmanager-empty-row,
+.cmanager-summary-table .cmanager-empty-row {
+  padding: 28px 16px;
+  color: var(--text-p);
+  text-align: center;
+}
+
+/* One cell is three figures read top to bottom: people, hours, recovery.
+   A day paid with a surcharge is ringed — the fill stays for the weekend
+   shading — and the same ring marks the ticked days in the editor. */
+.cmanager-summary-figures {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 38px;
+  padding: 5px 2px;
+  border-radius: var(--radius);
+  line-height: 1.2;
+  /* "4 h" breaking into two lines would turn the cell into a column of
+     single characters. */
+  white-space: nowrap;
+}
+
+.cmanager-summary-cell.is-surcharge .cmanager-summary-figures {
+  background: var(--primary-background);
+  box-shadow: inset 0 0 0 1.5px var(--primary-border);
+}
+
+.cmanager-summary-figures b {
+  color: var(--text-h);
+  font-size: var(--fs-base);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.cmanager-summary-figures em {
+  color: var(--text-p);
+  font-size: 0.6875rem;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.cmanager-summary-figures em + em {
+  color: var(--secondary);
+}
+
+/* The delete sits beside the competence name and only asserts itself once
+   the row is under the pointer (always on a touch screen). */
+.cmanager-summary-delete {
+  opacity: 0;
+  transition: opacity var(--duration) var(--ease);
+}
+
+.cmanager-summary-table tr:hover .cmanager-summary-delete,
+.cmanager-summary-delete:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .cmanager-summary-delete {
+    opacity: 1;
+  }
+}
+
+/* The competence name reads as a link: it is the way into the editor. */
+.cmanager-link {
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  font-weight: 550;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: text-decoration-color var(--duration) var(--ease);
+}
+
+.cmanager-link:hover {
+  color: var(--primary);
+  text-decoration-color: currentColor;
+}
+
+.cmanager-link:focus-visible {
+  border-radius: var(--radius-xs);
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ---------- the key ---------- */
+
+/* The key rides with the pointer, so it is positioned in viewport
+   coordinates and must not take part in the layout at all: in the flow it
+   would shove the table out from under the cursor that summoned it. The
+   pointer never reaches it, so it stays out of the way of a click. */
+.cmanager-legend {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 260px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  pointer-events: none;
+}
+
+.cmanager-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.cmanager-legend-item b,
+.cmanager-legend-item em {
+  min-width: 22px;
+  text-align: center;
+}
+
+.cmanager-legend-item b {
+  color: var(--text-h);
+  font-size: var(--fs-sm);
+}
+
+.cmanager-legend-item b.is-special {
+  color: var(--primary);
+}
+
+.cmanager-legend-item em {
+  color: var(--text-p);
+  font-style: normal;
+}
+
+/* The same accent ring the surcharged days wear. */
+.cmanager-legend-frame {
+  width: 14px;
+  height: 14px;
+  margin: 0 4px;
+  border-radius: var(--radius-xs);
+  background: var(--primary-background);
+  box-shadow: inset 0 0 0 1.5px var(--primary-border);
+}
+
+/* The key for touch screens: under the table, since there is no pointer
+   to carry it. */
+.cmanager-legend-static {
+  display: none;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+  font-size: var(--fs-xs);
+}
+
+@media (hover: none) {
+  .cmanager-legend {
+    display: none;
+  }
+
+  .cmanager-legend-static {
+    display: flex;
+  }
+}
+
+/* ---------- scenario detail (hidden behind SCENARIO_DETAIL_ENABLED) ---------- */
+
+.cmanager-detail-head {
+  justify-content: flex-start;
+}
+
+.cmanager-detail-title {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+}
+
+.cmanager-scroll {
+  overflow-x: auto;
+}
+
+.cmanager-scroll .cmanager-col-name {
+  min-width: 160px;
 }
 
 .cmanager-desc {
   display: block;
   margin-top: 2px;
-  font-size: 0.78rem;
-  opacity: 0.7;
+  color: var(--text-p);
+  font-size: var(--fs-xs);
 }
 
-.cmanager-edit {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-/* ---------- weekly demand strip ---------- */
-
+/* Weekly strip of the detail table: weekends shaded, the day of rest
+   fenced off, a surcharged day ringed. */
 .cmanager-week {
   display: flex;
   gap: 4px;
@@ -140,405 +463,64 @@
   min-width: 30px;
   padding: 3px 0 4px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--background);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
 }
 
-.cmanager-day.is-weekend { background: var(--primary-background); }
+.cmanager-day.is-weekend {
+  background: var(--surface-2);
+}
 
-/* The day of rest is not a day of the week, so it stands off the strip
-   rather than being shaded like a weekend: a gap, a divider, and the accent
-   colour on its label. */
 .cmanager-day.is-special {
   margin-left: 8px;
-  background: var(--primary-background);
-  box-shadow: -9px 0 0 -8px var(--border);
+  box-shadow: -9px 0 0 -8px var(--border-strong);
 }
 
 .cmanager-day.is-special em {
   color: var(--primary);
   font-weight: 700;
-  opacity: 1;
 }
 
-/* A day paid with a surcharge is framed, not recoloured or filled: the
-   weekend shading already owns the background, so the mark has to be the
-   outline. It is a solid two-pixel ring in the accent colour -- heavy
-   enough to find at a glance across the whole week. The same ring marks
-   the ticked days in the competence editor. */
 .cmanager-day.is-surcharge {
-  border: 2px solid var(--primary);
-  /* The thicker border would otherwise push the chip a pixel wider than
-     its unframed neighbours and nudge the strip out of line. */
-  padding: 2px 0 3px;
+  border-color: var(--primary-border);
+  background: var(--primary-background);
+  box-shadow: inset 0 0 0 0.5px var(--primary-border);
+}
+
+.cmanager-day.is-special.is-surcharge {
+  box-shadow:
+    -9px 0 0 -8px var(--border-strong),
+    inset 0 0 0 0.5px var(--primary-border);
 }
 
 .cmanager-day em {
+  color: var(--text-p);
+  font-size: 0.6875rem;
   font-style: normal;
-  font-size: 0.64rem;
-  opacity: 0.65;
 }
 
 .cmanager-day b {
-  font-size: 0.85rem;
   color: var(--text-h);
-}
-
-/* ---------- scenario list / detail ---------- */
-
-/* A double click is the rename gesture, so the row must not answer it by
-   selecting the words under the pointer instead. */
-.cmanager-row.is-openable { user-select: none; }
-
-.cmanager-col-radio {
-  width: 72px;
-  text-align: center;
-  padding: 0;
-}
-
-/* The dot alone is a pixel-sized target in a row that is otherwise all
-   click, so the label takes over the whole cell and the control itself is
-   drawn large enough to see which scenario the generator reads. */
-.cmanager-radio {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px 10px;
-  cursor: pointer;
-}
-
-.cmanager-radio input {
-  width: 20px;
-  height: 20px;
-  margin: 0;
-  accent-color: var(--primary);
-  cursor: pointer;
-}
-
-.cmanager-table tr.is-selected .cmanager-link,
-.cmanager-table tr.is-selected .cmanager-name { font-weight: 700; }
-
-/* The scenario name is no longer a control of its own -- the whole row
-   takes the click and the double click -- so it is set as plain text and
-   does not pretend to be a link. */
-.cmanager-name {
-  font-weight: 600;
-  color: var(--text-h);
-}
-
-/* The scenario and competence names are the way into the next screen, so
-   they read as links rather than as another button in a row of them. */
-.cmanager-link {
-  border: 0;
-  background: none;
-  padding: 0;
-  font: inherit;
-  font-weight: 600;
-  color: var(--text-h);
-  text-align: left;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-decoration-thickness: 1px;
-  text-decoration-color: var(--border);
-}
-
-.cmanager-link:hover { text-decoration-color: currentColor; }
-
-.cmanager-detail-head {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.cmanager-detail-head h2 {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.cmanager-detail-workplace {
-  margin-left: auto;
-  font-size: 0.8rem;
-  opacity: 0.7;
-}
-
-.cmanager-back {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
-  color: var(--text-h);
-  font: inherit;
-  font-size: 0.8rem;
-  padding: 6px 10px;
-  cursor: pointer;
-}
-
-.cmanager-back:hover { border-color: var(--text-h); }
-
-.cmanager-badge {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-weight: 700;
-  opacity: 0.8;
-}
-
-/* ---------- buttons ---------- */
-
-.cmanager-btn {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
-  color: var(--text-h);
-  font: inherit;
-  font-size: 0.8rem;
-  padding: 7px 12px;
-  cursor: pointer;
-  margin-left: 6px;
-}
-
-.cmanager-btn:hover:not(:disabled) { border-color: var(--text-h); }
-.cmanager-btn:disabled { opacity: 0.5; cursor: default; }
-
-.cmanager-btn-primary {
-  background: var(--primary-background);
-  font-weight: 700;
-}
-
-.cmanager-btn-danger:hover:not(:disabled) { border-color: #c0463c; color: #c0463c; }
-
-.cmanager-new .cmanager-btn { margin-left: 0; }
-
-.cmanager-note {
-  font-size: 0.82rem;
-  opacity: 0.7;
-}
-
-.cmanager-toast {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--code-background);
-  padding: 10px 14px;
-  font-size: 0.85rem;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
-}
-
-@media (max-width: 768px) {
-  .cmanager-panel { padding: 12px; }
-  .cmanager-input { min-width: 0; width: 100%; }
-
-  /* The table would need a horizontal scroll otherwise — the weekly strip
-     alone is wider than a phone once the name column takes its share. */
-  .cmanager-table,
-  .cmanager-table tbody,
-  .cmanager-table tr,
-  .cmanager-table td { display: block; width: 100%; }
-  .cmanager-table thead { display: none; }
-  .cmanager-table tr { border-top: 1px solid var(--border); padding: 8px 0; }
-  .cmanager-table td { border-top: 0; padding: 4px 0; }
-  .cmanager-col-actions { text-align: left; }
-  .cmanager-col-actions .cmanager-btn:first-child { margin-left: 0; }
-  /* A double click is the rename gesture, so the row must not answer it by
-   selecting the words under the pointer instead. */
-.cmanager-row.is-openable { user-select: none; }
-
-.cmanager-col-radio { width: auto; text-align: left; }
-  .cmanager-radio { justify-content: flex-start; padding: 8px 0; }
-  .cmanager-detail-workplace { margin-left: 0; }
-
-  .cmanager-columns { flex-direction: column; }
-  .cmanager-summary { width: 100%; }
-
-  /* The summary is a real grid — a competence against the seven days — so
-     stacking its cells would destroy it. It scrolls sideways instead. */
-  .cmanager-summary { overflow-x: auto; }
-  .cmanager-summary-table { display: table; min-width: 460px; }
-  .cmanager-summary-table thead { display: table-header-group; }
-  .cmanager-summary-table tbody { display: table-row-group; }
-  .cmanager-summary-table tr { display: table-row; padding: 0; }
-  .cmanager-summary-table td { display: table-cell; padding: 6px 4px; }
-}
-
-/* ---------- active scenario summary ---------- */
-
-/* The summary stands beside the scenario list rather than under it, and
-   stays as narrow as its seven day columns need. */
-.cmanager-columns {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-/* The scenario table keeps its buttons on one line, so when the column is
-   narrower than that it scrolls inside its own panel instead of painting
-   over the card beside it. */
-.cmanager-columns > .cmanager-panel {
-  flex: 1 1 420px;
-  min-width: 0;
-  overflow-x: auto;
-}
-
-.cmanager-summary {
-  position: relative;
-  flex: 0 1 auto;
-  max-width: 100%;
-  overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 14px;
-  font-size: 0.8rem;
-}
-
-.cmanager-summary h3 {
-  margin: 0 0 8px;
-  font-size: 0.85rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.cmanager-summary-table { font-size: 0.78rem; }
-.cmanager-summary-table th,
-.cmanager-summary-table td { padding: 4px 6px; }
-.cmanager-summary-table .cmanager-col-name { min-width: 0; }
-
-/* One column per weekday, so the whole staffing week of the workplace is
-   one glance: the count on top, the hours it lasts beneath it. */
-.cmanager-summary-table th { text-align: center; }
-.cmanager-summary-table th.cmanager-col-name { text-align: left; }
-.cmanager-summary-table th.is-weekend { color: var(--primary); }
-
-/* The eighth column is the day of rest. It is separated from the seven by a
-   left border rather than by a gap, because a table cannot have one. */
-.cmanager-summary-table th.is-special {
-  color: var(--primary);
-  font-weight: 700;
-  border-left: 2px solid var(--border);
-  cursor: help;
-}
-
-/* A workplace with no competences yet still shows the table: the weekday
-   header is what says what is about to be filled in, and it would be odd
-   for it to appear only once the first row exists. */
-.cmanager-empty-row {
-  padding: 18px 6px;
-  text-align: center;
-  opacity: 0.6;
-}
-
-.cmanager-summary-cell {
-  text-align: center;
-  line-height: 1.25;
-  /* Each of the three figures is one line; letting "4 h" break into two
-     would turn the cell into a column of single characters. */
-  white-space: nowrap;
-}
-
-.cmanager-summary-cell.is-weekend { background: var(--primary-background); }
-
-.cmanager-summary-cell.is-special {
-  background: var(--primary-background);
-  border-left: 2px solid var(--border);
-}
-
-/* The summary's cells are table cells with no gap between them, so the
-   surcharge frame is drawn inside the cell: an outline would overlap the
-   neighbouring column, an inset shadow keeps the grid intact and still
-   reads as a two-pixel ring. */
-.cmanager-summary-cell.is-surcharge {
-  box-shadow: inset 0 0 0 2px var(--primary);
-  border-radius: 10px;
-}
-
-.cmanager-summary-cell b {
-  display: block;
-  font-size: 0.95rem;
-}
-
-.cmanager-summary-cell em {
-  display: block;
-  font-style: normal;
-  font-size: 0.7rem;
-  opacity: 0.65;
-}
-
-/* The three figures of a cell are read top to bottom: people, hours,
-   recovery. The legend in the corner says so once for the whole table. */
-.cmanager-summary-cell em + em { opacity: 0.5; }
-
-.cmanager-summary h3 .cmanager-btn-icon { margin-left: auto; }
-
-/* The key rides with the pointer, so it is positioned in viewport
-   coordinates and must not take part in the layout at all: in the flow it
-   would shove the table out from under the cursor that summoned it. The
-   pointer never reaches it, so it stays out of the way of a click. */
-.cmanager-legend {
-  position: fixed;
-  z-index: 60;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  max-width: 260px;
-  pointer-events: none;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--background);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
-  font-size: 0.72rem;
-}
-
-.cmanager-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
-}
-
-.cmanager-legend-item b {
-  font-size: 0.85rem;
-  color: var(--text-h);
-}
-
-.cmanager-legend-item em {
-  font-style: normal;
-  opacity: 0.6;
-}
-
-/* The same two-pixel accent ring the surcharged days wear. */
-.cmanager-legend-frame {
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--primary);
-  border-radius: 5px;
-}
-
-@media (hover: none) {
-  /* Nothing hovers on a touch screen, so the key simply stays out. */
-  .cmanager-legend { display: none; }
+  font-size: var(--fs-sm);
 }
 
 @media (max-width: 1100px) {
-  .cmanager-columns { flex-direction: column; }
-  .cmanager-summary { align-self: stretch; }
+  .cmanager-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
-/* The delete cross sits beside the competence name and only asserts itself
-   once the row is under the pointer. */
-.cmanager-summary-delete {
-  margin-left: 6px;
-  opacity: 0;
-  transition: opacity 0.12s;
-}
+@media (max-width: 560px) {
+  .cmanager-summary-table .cmanager-col-name {
+    min-width: 110px;
+    padding-left: 12px;
+  }
 
-.cmanager-summary-table tr:hover .cmanager-summary-delete,
-.cmanager-summary-delete:focus-visible { opacity: 1; }
+  .cmanager-summary-table th {
+    padding: 8px 4px;
+  }
+
+  .cmanager-summary-figures {
+    min-width: 30px;
+  }
+}

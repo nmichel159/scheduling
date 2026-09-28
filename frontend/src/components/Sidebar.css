@@ -1,20 +1,21 @@
 .sidebar {
   /* Neutrálny hover — aktívna položka je fialová, hover nesmie vyzerať rovnako,
      inak pri prechode myšou nevidno, na ktorej stránke stojíš. */
-  --nav-hover: rgba(8, 6, 13, 0.06);
-  --nav-menu-bg: #ffffff;
+  --nav-hover: var(--surface-2);
+  --nav-menu-bg: var(--surface);
 
   width: 56px;                       /* zatvorená lišta (rail) */
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: var(--code-background);
+  background: var(--surface);
   border-right: 1px solid var(--border);
-  padding: 8px;
+  padding: 10px 8px;
   box-sizing: border-box;
   text-align: left;
-  transition: width 0.25s ease;
+  transition: width 0.22s var(--ease);
   overflow: hidden;
+  z-index: 20;
 
   /* Sidebar sa "prilepí" na vrch okna a je vysoký presne ako viewport,
      takže pri dlhých views (ScheduleView, AdminView...) neodíde dole
@@ -27,8 +28,7 @@
 }
 
 :root[data-theme='dark'] .sidebar {
-  --nav-hover: rgba(243, 244, 246, 0.07);
-  --nav-menu-bg: #23242d;
+  --nav-menu-bg: var(--surface-2);
 }
 
 .sidebar.is-open {
@@ -45,18 +45,27 @@
   margin-bottom: 12px;
   flex-shrink: 0;
 }
-.logo-img { width: 28px; height: 28px; object-fit: contain; border-radius: 5px; flex-shrink: 0; }
+.logo-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  background: #ffffff;              /* the logo is a JPEG with a white field */
+  box-shadow: 0 0 0 1px var(--border);
+}
 .logo-title {
-  font-weight: 600;
+  font-size: var(--fs-md);
+  font-weight: 650;
   color: var(--text-h);
   white-space: nowrap;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   flex: 1;
   min-height: 0;                     /* nutné, aby sa mohol scrollovať vnútri flexu */
   overflow-y: auto;
@@ -78,26 +87,31 @@
 .nav-section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   position: relative;                /* kotva pre fly-out */
 }
 
 .nav-section + .nav-section {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);   /* čiara oddeľujúca skupiny rolí */
+  margin-top: 10px;
+}
+
+/* In the rail there are no titles, so a hairline keeps the role groups apart. */
+.sidebar.is-rail .nav-section + .nav-section {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
 }
 
 .nav-section-title {
-  padding: 2px 10px 6px;
+  padding: 6px 10px 4px;
   white-space: nowrap;
 }
 
 .nav-section-title .label {
-  font-size: 0.72rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   color: var(--secondary);
 }
 
@@ -107,12 +121,15 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px;
+  min-height: 36px;
+  padding: 8px 10px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: none;
   font: inherit;
-  font-size: 0.86rem;
+  font-size: var(--fs-base);
+  font-weight: 500;
+  line-height: 1.25;
   color: var(--text);
   text-decoration: none;
   white-space: nowrap;               /* text sa neláme pri animácii */
@@ -121,13 +138,16 @@
   text-align: left;
   cursor: pointer;
   position: relative;
+  transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
 }
 
 .nav-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
   display: block;
+  color: var(--secondary);
+  transition: color var(--duration) var(--ease);
 }
 
 .nav-item .label {
@@ -135,16 +155,16 @@
   text-overflow: ellipsis;
 }
 
-.nav-item:hover { background: var(--nav-hover); }
+.nav-item:hover { background: var(--nav-hover); color: var(--text-h); }
+.nav-item:hover .nav-icon { color: var(--text-h); }
 
-/* Aktívna položka: fialová plocha, ťažší text, zafarbená ikona a prúžok vľavo.
+/* Aktívna položka: jemná fialová plocha, ťažší text a zafarbená ikona.
    NavLink dopĺňa .active aj aria-current="page" sám. */
 .nav-item.active,
 .nav-item.is-current {
   background: var(--primary-background);
   color: var(--text-h);
   font-weight: 600;
-  box-shadow: inset 2.5px 0 0 var(--primary);
 }
 .nav-item.active .nav-icon,
 .nav-item.is-current .nav-icon { color: var(--primary); }
@@ -167,14 +187,24 @@
 
 /* ---------- rýchly skok ---------- */
 
-.nav-search { color: var(--secondary); }
+.nav-search {
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--secondary);
+  font-weight: 450;
+}
+.nav-search:hover { border-color: var(--border-strong); background: var(--surface-2); }
+.sidebar.is-rail .nav-search { border-color: transparent; background: none; }
 .nav-kbd {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 0.6rem;
+  font-size: 0.6875rem;
+  line-height: 1;
   border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  padding: 3px 5px;
   color: var(--secondary);
   flex-shrink: 0;
 }
@@ -188,11 +218,12 @@
   position: fixed;
   z-index: 120;
   width: 244px;
-  padding: 7px;
+  padding: 6px;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   background: var(--nav-menu-bg);
   box-shadow: var(--shadow);
+  animation: ui-pop-in 0.14s var(--ease);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -201,19 +232,19 @@
 .nav-flyout-title,
 .nav-menu-title {
   margin: 0;
-  padding: 6px 9px;
-  font-size: 0.6rem;
+  padding: 6px 10px 4px;
+  font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.07em;
   color: var(--secondary);
 }
 
 /* vo fly-oute sú popisky vždy vidieť, aj keď je lišta zbalená */
 .nav-flyout .nav-item {
   justify-content: flex-start;
-  padding: 9px 10px;
-  font-size: 0.84rem;
+  padding: 8px 10px;
+  font-size: var(--fs-base);
 }
 .flyout-label {
   overflow: hidden;
@@ -232,26 +263,26 @@
   gap: 4px;
 }
 
-.nav-toggle { color: var(--secondary); font-size: 0.8rem; }
+.nav-toggle { color: var(--text-p); font-size: var(--fs-sm); }
 .nav-toggle .nav-icon.is-flipped { transform: rotate(180deg); }
 
 .user-block { position: relative; }
 
 .avatar {
-  width: 22px;
-  height: 22px;
-  margin: -1px;
+  width: 28px;
+  height: 28px;
+  margin: -5px -4px;
   flex-shrink: 0;
-  border-radius: 7px;
-  background: var(--primary);
-  color: #ffffff;
-  font-size: 0.52rem;
-  font-weight: 700;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 60%, #ec4899));
+  color: var(--on-primary);
+  font-size: 0.6875rem;
+  font-weight: 650;
   letter-spacing: 0.02em;
   display: grid;
   place-items: center;
 }
-:root[data-theme='dark'] .avatar { color: #16171d; }
+.sidebar:not(.is-rail) .avatar { margin: -4px 0; }
 
 .user-meta {
   display: none;                     /* v raile ostane len štvorček s iniciálami */
@@ -263,7 +294,7 @@
 }
 .sidebar:not(.is-rail) .user-meta { display: flex; }
 .user-meta b {
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-h);
   overflow: hidden;
@@ -271,12 +302,13 @@
 }
 .user-meta em {
   font-style: normal;
-  font-size: 0.68rem;
+  font-weight: 400;
+  font-size: var(--fs-xs);
   color: var(--secondary);
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.user-more { width: 16px; height: 16px; opacity: 0.6; }
+.user-more { width: 16px; height: 16px; }
 .sidebar:not(.is-rail) .user-more { display: block; }
 
 /* ---------- menu účtu ---------- */
@@ -292,8 +324,10 @@
   margin-bottom: 6px;
   padding: 6px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--nav-menu-bg);
+  box-shadow: var(--shadow);
+  animation: ui-pop-in 0.14s var(--ease);
 }
 
 .nav-menu-item {
@@ -304,16 +338,18 @@
   border: none;
   background: none;
   font: inherit;
-  font-size: 0.82rem;
-  color: var(--text);
+  font-size: var(--fs-base);
+  color: var(--text-h);
   text-align: left;
-  padding: 8px 9px;
-  border-radius: 7px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 .nav-menu-item:hover { background: var(--nav-hover); }
+.nav-menu-item.is-danger { color: var(--danger); }
+.nav-menu-item.is-danger .nav-icon { color: var(--danger); }
 .nav-menu-item:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
-.nav-menu-item .nav-icon { width: 18px; height: 18px; }
+.nav-menu-item .nav-icon { width: 17px; height: 17px; }
 
 .nav-menu-divider {
   border: none;
@@ -331,18 +367,19 @@
     align-self: auto;
     height: 100svh;
     z-index: 100;
-    width: 260px;                    /* na mobile vždy plná šírka */
+    width: min(280px, 86vw);         /* na mobile vždy plná šírka */
     transform: translateX(-100%);    /* zatvorená = schovaná za okrajom */
-    transition: transform 0.25s ease;
+    transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
   }
+  .sidebar.is-open { box-shadow: var(--shadow-lg); }
   .sidebar.is-open {
     transform: translateX(0);        /* otvorená = vysunutá */
   }
   .sidebar .label { display: inline; } /* texty na mobile vždy, panel je plný */
-  .sidebar .nav-section-title { padding: 2px 10px 6px; height: auto; overflow: visible; }
+  .sidebar .nav-section-title { padding: 6px 10px 4px; height: auto; overflow: visible; }
   .sidebar .sidebar-nav { scrollbar-width: thin; }
   .sidebar .nav-toggle { display: none; }  /* zatvára sa cez ☰ v hlavičke a backdrop */
-  .sidebar .nav-kbd { display: none; }     /* Ctrl+K na dotykovom displeji nedáva zmysel */
+  .sidebar:not(.is-rail) .nav-kbd { display: none; } /* Ctrl+K na dotykovom displeji nedáva zmysel */
 }
 
 @media (prefers-reduced-motion: reduce) {

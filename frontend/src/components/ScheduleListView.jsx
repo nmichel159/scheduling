@@ -1,9 +1,7 @@
 import { formatShortName } from '../utils/formatEmployeeName';
+import { isoDate } from '../utils/calendar';
+import { CloseIcon, PlusIcon } from './NavIcons';
 import './ScheduleListView.css';
-
-const pad = (n) => String(n).padStart(2, '0');
-const isoDate = (year, month, day) =>
-  `${year}-${pad(month + 1)}-${pad(day)}`;
 
 /**
  * Alternative monthly schedule view.
@@ -109,8 +107,9 @@ const ScheduleListView = ({
                         onShiftRemove(shift.id);
                       }}
                       title={removeShiftLabel}
+                      aria-label={`${removeShiftLabel}: ${fullLabel}`}
                     >
-                      ×
+                      <CloseIcon className="" />
                     </button>
                   </div>
                 );
@@ -123,7 +122,7 @@ const ScheduleListView = ({
                   title={addShiftLabel}
                   aria-label={addShiftLabel}
                 >
-                  +
+                  <PlusIcon className="" />
                 </button>
               )}
             </div>

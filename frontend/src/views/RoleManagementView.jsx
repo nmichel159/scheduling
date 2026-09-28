@@ -7,6 +7,7 @@ import {
   fetchRoleAssignments,
   updateUserRoles,
 } from '../services/roleService';
+import { personInitials } from '../utils/personInitials';
 import './RoleManagementView.css';
 
 const MANAGED_ROLES = [
@@ -111,94 +112,102 @@ const RoleManagementView = () => {
   };
 
   return (
-    <section className="role-management">
-      <div className="role-management-heading">
+    <div className="page role-management">
+      <header className="page-header">
         <div>
-          <h1>{t('role_management.title')}</h1>
-          <p>{t('role_management.subtitle')}</p>
+          <h1 className="page-title">{t('role_management.title')}</h1>
+          <p className="page-subtitle">{t('role_management.subtitle')}</p>
         </div>
-        <label className="role-management-search">
-          <span className="sr-only">{t('role_management.search')}</span>
+        <div className="page-actions role-management-search">
+          <label className="visually-hidden" htmlFor="role-management-search">
+            {t('role_management.search')}
+          </label>
           <input
+            id="role-management-search"
+            className="input search-input"
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={t('role_management.search')}
           />
-        </label>
-      </div>
-
-      <div className="role-management-legend">
-        {MANAGED_ROLES.map((role) => (
-          <span key={role.id}>
-            <strong>{role.id}</strong> {t(`role_management.${role.key}`)}
-          </span>
-        ))}
-      </div>
+        </div>
+      </header>
 
       {message && (
-        <div className={`role-management-message is-${message.type}`} role="status">
+        <div
+          className={`alert ${message.type === 'error' ? 'alert-danger' : 'alert-success'} role-management-message`}
+          role={message.type === 'error' ? 'alert' : 'status'}
+        >
           {message.text}
         </div>
       )}
 
       {loading ? (
-        <p className="role-management-state">{t('role_management.loading')}</p>
+        <div className="card empty-state">
+          <span className="spinner" aria-hidden="true" />
+          {t('role_management.loading')}
+        </div>
       ) : visibleUsers.length === 0 ? (
-        <p className="role-management-state">{t('role_management.empty')}</p>
+        <div className="card empty-state">{t('role_management.empty')}</div>
       ) : (
-        <div className="role-management-list">
+        <ul className="card role-management-list">
           {visibleUsers.map((user) => {
             const original = roleIdsOf(user);
             const selected = drafts[user.id] || [];
             const dirty = !sameIds(original, selected);
-            const initials = (user.full_name || user.email)
-              .split(/\s+/)
-              .slice(0, 2)
-              .map((part) => part[0]?.toUpperCase())
-              .join('');
+            const saving = savingId === user.id;
 
             return (
-              <article className="role-management-card" key={user.id}>
+              <li className="role-management-row" key={user.id}>
                 <div className="role-management-person">
-                  <span className="role-management-avatar" aria-hidden="true">{initials}</span>
+                  <span className="role-management-avatar" aria-hidden="true">
+                    {personInitials(user.full_name || user.email)}
+                  </span>
                   <span className="role-management-identity">
                     <strong>{user.full_name || t('role_management.unnamed')}</strong>
                     <small>{user.email}</small>
                   </span>
                 </div>
 
-                <div className="role-management-options">
+                <div
+                  className="role-management-options"
+                  role="group"
+                  aria-label={user.full_name || user.email}
+                >
                   {MANAGED_ROLES.map((role) => (
                     <label className="role-management-option" key={role.id}>
                       <input
                         type="checkbox"
                         checked={selected.includes(role.id)}
-                        disabled={savingId === user.id}
+                        disabled={saving}
                         onChange={() => toggleRole(user.id, role.id)}
                       />
                       <span className="role-management-role-number">{role.id}</span>
-                      <span>{t(`role_management.${role.key}`)}</span>
+                      <span className="role-management-role-name">
+                        {t(`role_management.${role.key}`)}
+                      </span>
                     </label>
                   ))}
                 </div>
 
+                {/* Only a row with unsaved changes offers to save; the slot
+                    keeps its width either way, so the rows stay aligned. */}
                 <button
                   type="button"
-                  className="role-management-save"
-                  disabled={!dirty || savingId === user.id}
+                  className={`btn btn-sm btn-primary role-management-save${
+                    dirty || saving ? '' : ' is-idle'
+                  }`}
+                  disabled={!dirty || saving}
                   onClick={() => save(user)}
                 >
-                  {savingId === user.id
-                    ? t('role_management.saving')
-                    : t('role_management.save')}
+                  {saving ? t('role_management.saving') : t('role_management.save')}
                 </button>
-              </article>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
-    </section>
+    </div>
   );
 };
 
