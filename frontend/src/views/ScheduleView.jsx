@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchMySchedule } from '../services/scheduleService';
-import { fetchMyAssignedAmbulances } from '../services/ambulanceService';
 import ShiftCalendar from '../components/ShiftCalendar';
 import PeriodStepper from '../components/PeriodStepper';
 import { localeFor } from '../utils/calendar';
@@ -31,7 +30,6 @@ const ScheduleView = () => {
   const today = useMemo(() => new Date(), []);
 
   const [shifts, setShifts] = useState([]);
-  const [ambulanceNames, setAmbulanceNames] = useState({}); // { id: name }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [view, setView] = useState({
@@ -46,25 +44,7 @@ const ScheduleView = () => {
     setLoading(true);
     setError(null);
     try {
-      /* The ambulance lookup is a nice-to-have: ScheduleResponse carries
-       * competence_name but only ambulance_id, so names come from the
-       * assignment list. A failure there must not blank out the schedule,
-       * hence allSettled rather than Promise.all. */
-      const [scheduleResult, ambulancesResult] = await Promise.allSettled([
-        fetchMySchedule({ month: view.m + 1, year: view.y }),
-        fetchMyAssignedAmbulances(),
-      ]);
-
-      if (scheduleResult.status === 'rejected') throw scheduleResult.reason;
-      setShifts(scheduleResult.value);
-
-      if (ambulancesResult.status === 'fulfilled') {
-        const byId = {};
-        ambulancesResult.value.forEach((a) => {
-          byId[a.id] = a.name;
-        });
-        setAmbulanceNames(byId);
-      }
+      setShifts(await fetchMySchedule({ month: view.m + 1, year: view.y }));
     } catch {
       // Without this the previous month's duties would stay on screen under
       // the new month's name.
@@ -97,7 +77,7 @@ const ScheduleView = () => {
   }, [view.y, view.m, i18n.language]);
 
   const labelFor = (shift) =>
-    ambulanceNames[shift.ambulance_id] || t('schedule.ambulance_fallback', { id: shift.ambulance_id });
+    shift.ambulance_name || t('schedule.ambulance_fallback', { id: shift.ambulance_id });
 
   /** Step by `offset` months, or jump back to the running month when null. */
   const changeMonth = (offset) => {

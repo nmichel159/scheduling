@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { fetchMyAssignedAmbulances } from '../services/ambulanceService';
 import {
   fetchMyMonthlyScheduleStatistics,
   fetchMyNextShift,
@@ -36,7 +35,6 @@ const DashboardView = () => {
   const [nextShift, setNextShift] = useState(null);
   const [monthlyStatistics, setMonthlyStatistics] = useState(null);
   const [workedStatistics, setWorkedStatistics] = useState(null);
-  const [ambulanceNames, setAmbulanceNames] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -46,13 +44,12 @@ const DashboardView = () => {
     setLoading(true);
     setError(null);
     try {
-      const [scheduleResult, nextResult, monthlyResult, workedResult, ambulancesResult] =
+      const [scheduleResult, nextResult, monthlyResult, workedResult] =
         await Promise.allSettled([
           fetchMySchedule({ month: view.month + 1, year: view.year }),
           fetchMyNextShift(),
           fetchMyMonthlyScheduleStatistics(),
           fetchMyWorkedScheduleStatistics(),
-          fetchMyAssignedAmbulances(),
         ]);
 
       if (scheduleResult.status === 'rejected') throw scheduleResult.reason;
@@ -60,14 +57,7 @@ const DashboardView = () => {
       setNextShift(nextResult.status === 'fulfilled' ? nextResult.value.next_shift : null);
       setMonthlyStatistics(monthlyResult.status === 'fulfilled' ? monthlyResult.value : null);
       setWorkedStatistics(workedResult.status === 'fulfilled' ? workedResult.value : null);
-      setAmbulanceNames(
-        ambulancesResult.status === 'fulfilled'
-          ? Object.fromEntries(
-              ambulancesResult.value.map((ambulance) => [ambulance.id, ambulance.name])
-            )
-          : {}
-      );
-      if ([nextResult, monthlyResult, workedResult, ambulancesResult].some(
+      if ([nextResult, monthlyResult, workedResult].some(
         (result) => result.status === 'rejected'
       )) {
         setError(t('dashboard.load_error'));
@@ -107,7 +97,7 @@ const DashboardView = () => {
       }).format(new Date(`${dateString}T00:00:00`))
     );
   const shiftLabel = (shift) =>
-    ambulanceNames[shift.ambulance_id] ||
+    shift.ambulance_name ||
     t('schedule.ambulance_fallback', { id: shift.ambulance_id });
 
   if (!user) {

@@ -480,7 +480,9 @@
     "legend_recovery": "Dni voľna po službe",
     "legend_surcharge": "Príplatkový deň",
     "rename_hint": "Dvojklikom premenujete scenár",
-    "recovery_short": "{{days}} d"
+    "recovery_short": "{{days}} d",
+    "make_active": "Nastaviť ako aktívny",
+    "inactive_badge": "Neaktívny"
   },
   "employees": {
     "title": "Zamestnanci",

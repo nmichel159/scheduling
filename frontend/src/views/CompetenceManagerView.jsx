@@ -116,6 +116,7 @@ const CompetenceManagerView = () => {
   const [competences, setCompetences] = useState([]);
   const [competencesLoading, setCompetencesLoading] = useState(false);
   const [overview, setOverview] = useState([]);
+  const [overviewLoading, setOverviewLoading] = useState(false);
   // Where to draw the key, in viewport coordinates, or null while the
   // pointer is away from the table.
   const [legendAt, setLegendAt] = useState(null);
@@ -201,11 +202,14 @@ const CompetenceManagerView = () => {
       setOverview([]);
       return;
     }
+    setOverviewLoading(true);
     try {
       const rows = await fetchScenarioCompetences(selectedId, viewedScenarioId);
       if (seq === overviewSeq.current) setOverview(rows.map(normalizeCompetenceRequirements));
     } catch {
       if (seq === overviewSeq.current) setOverview([]);
+    } finally {
+      if (seq === overviewSeq.current) setOverviewLoading(false);
     }
   }, [selectedId, viewedScenarioId]);
 
@@ -298,6 +302,7 @@ const CompetenceManagerView = () => {
         scenario.id
       );
       setScenarios((prev) => [...prev, created]);
+      setViewedId(created.id);
       notify(t('scenarios.duplicated'));
     } catch {
       notify(t('competences.action_error'));
@@ -315,8 +320,8 @@ const CompetenceManagerView = () => {
     }, OPEN_CLICK_DELAY_MS);
   };
 
-  /** Controls that own their own click: the radio, the rename field and
-   *  the row's action buttons. The name is deliberately not among them --
+  /** Controls that own their own click: the rename field and the row's
+   *  action buttons. The name is deliberately not among them --
    *  it is part of the row and behaves like the rest of it. */
   const isOwnControl = (event) =>
     !!event.target.closest('input, label, .btn');
@@ -709,7 +714,6 @@ const CompetenceManagerView = () => {
               <table className="data-table cmanager-table cmanager-scenario-table">
                 <thead>
                   <tr>
-                    <th className="cmanager-col-radio">{t('scenarios.active_column')}</th>
                     <th className="cmanager-col-name">{t('scenarios.name')}</th>
                     <th className="cmanager-col-actions">
                       <span className="visually-hidden">{t('scenarios.duplicate')}</span>
@@ -731,22 +735,11 @@ const CompetenceManagerView = () => {
                         ]
                           .join(' ')
                           .trim()}
+                        aria-current={isViewed || undefined}
                         title={t('scenarios.rename_hint')}
                         onClick={(e) => handleRowClick(e, scenario)}
                         onDoubleClick={(e) => handleRowDoubleClick(e, scenario)}
                       >
-                        <td className="cmanager-col-radio">
-                          <label className="cmanager-radio">
-                            <input
-                              type="radio"
-                              name="active-scenario"
-                              checked={!!scenario.is_selected}
-                              onChange={() => handleSelectScenario(scenario)}
-                              aria-label={t('scenarios.select_named', { name: scenario.name })}
-                            />
-                          </label>
-                        </td>
-
                         <td className="cmanager-col-name">
                           {isRenaming ? (
                             <input
@@ -818,22 +811,35 @@ const CompetenceManagerView = () => {
           {viewedScenario && (
             <section className="card cmanager-summary">
               <header className="card-header">
-                <div className="cmanager-summary-heading">
-                  <h2 className="card-title">{t('scenarios.overview_title')}</h2>
-                  <span
-                    className={`badge ${viewedScenario.is_selected ? 'badge-primary' : ''}`.trim()}
-                  >
-                    {viewedScenario.name}
-                  </span>
+                {/* Keyed by scenario so the heading replays its entrance on
+                    every switch -- the one cue that the table changed. */}
+                <div className="cmanager-summary-heading" key={viewedScenario.id}>
+                  <h2 className="card-title">{viewedScenario.name}</h2>
+                  {viewedScenario.is_selected ? (
+                    <span className="badge badge-primary">{t('scenarios.active_badge')}</span>
+                  ) : (
+                    <span className="badge">{t('scenarios.inactive_badge')}</span>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-secondary"
-                  onClick={() => setEditorTarget('new')}
-                >
-                  <PlusIcon />
-                  {t('competences.add_competence')}
-                </button>
+                <div className="cmanager-summary-actions">
+                  {!viewedScenario.is_selected && (
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() => handleSelectScenario(viewedScenario)}
+                    >
+                      {t('scenarios.make_active')}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-secondary"
+                    onClick={() => setEditorTarget('new')}
+                  >
+                    <PlusIcon />
+                    {t('competences.add_competence')}
+                  </button>
+                </div>
               </header>
               {/* Held back until the table is actually being read: the three
                   figures stacked in a cell and the frame around a day are
@@ -847,7 +853,10 @@ const CompetenceManagerView = () => {
                   {legendItems}
                 </div>
               )}
-              <div className="cmanager-summary-scroll">
+              <div
+                className={`cmanager-summary-scroll ${overviewLoading ? 'is-loading' : ''}`.trim()}
+                aria-busy={overviewLoading || undefined}
+              >
                 <table
                   className="cmanager-summary-table"
                   onMouseMove={(e) => setLegendAt(legendPosition(e))}

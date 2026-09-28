@@ -1,18 +1,10 @@
 import client from '../api/client';
 import { fetchAllCursorPages } from '../api/pagination';
 
-/**
- * Frontend service wrapper for the /schedules API.
- *
- * NOTE: GET /schedules/me is currently fixed to the running month —
- * schedule_service.current_month_range() decides the window server-side and
- * the endpoint takes no query parameters. The `params` argument below is a
- * placeholder: once the backend accepts year/month (or date_from/date_to),
- * ScheduleView can pass them and month navigation starts working without any
- * other change here.
- */
+/** Frontend service wrapper for the /schedules API. */
 
-/** Fetch the authenticated user's own shifts (current month). */
+/** The authenticated user's approved shifts for `{ month, year }`
+ *  (the running month when omitted). */
 export async function fetchMySchedule(params = {}) {
   const { data } = await client.get('/schedules/me', { params });
   return data;

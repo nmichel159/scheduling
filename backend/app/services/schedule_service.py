@@ -37,6 +37,7 @@ def _response(item: Schedule) -> ScheduleResponse:
         id=item.id,
         user_id=item.user_id,
         ambulance_id=item.ambulance_id,
+        ambulance_name=item.ambulance.name if item.ambulance else None,
         competence_id=item.competence_id,
         work_date=item.work_date,
         user_email=item.user.email if item.user else None,
@@ -111,7 +112,7 @@ def get_user_schedule(
 ) -> list[ScheduleResponse]:
     query = (
         db.query(Schedule)
-        .options(joinedload(Schedule.user), joinedload(Schedule.competence))
+        .options(joinedload(Schedule.user), joinedload(Schedule.competence), joinedload(Schedule.ambulance))
         .filter(Schedule.user_id == user_id, Schedule.is_active.is_(True))
     )
     period = month_range(month, year)
@@ -135,7 +136,7 @@ def get_ambulance_schedule(
 ) -> list[ScheduleResponse]:
     query = (
         db.query(Schedule)
-        .options(joinedload(Schedule.user), joinedload(Schedule.competence))
+        .options(joinedload(Schedule.user), joinedload(Schedule.competence), joinedload(Schedule.ambulance))
         .filter(Schedule.ambulance_id == ambulance_id, Schedule.is_active.is_(True))
     )
     period = month_range(month, year)
@@ -153,7 +154,7 @@ def get_next_user_schedule(db: Session, user_id: int, today: date | None = None)
     reference_date = today or date.today()
     item = (
         db.query(Schedule)
-        .options(joinedload(Schedule.user), joinedload(Schedule.competence))
+        .options(joinedload(Schedule.user), joinedload(Schedule.competence), joinedload(Schedule.ambulance))
         .filter(
             Schedule.user_id == user_id,
             Schedule.is_active.is_(True),

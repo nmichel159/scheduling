@@ -17,6 +17,7 @@ class ScheduleEntry(BaseModel):
 class ScheduleResponse(ScheduleEntry):
     id: int
     ambulance_id: int
+    ambulance_name: str | None = None
     user_email: str | None = None
     user_full_name: str | None = None
     competence_name: str | None = None

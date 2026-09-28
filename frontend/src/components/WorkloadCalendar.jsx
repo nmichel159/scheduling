@@ -81,6 +81,10 @@ const WorkloadCalendar = ({
   const [toast, notify] = useToast();
   const [wish, setWish] = useState('');
   const pendingRef = useRef(new Set());
+  // Only the month asked for last may fill the grid; a slow answer for the
+  // month stepped away from would otherwise land under the new month's name.
+  const loadSeq = useRef(0);
+  const todayStr = isoDate(today.getFullYear(), today.getMonth(), today.getDate());
 
   const isPastMonth =
     view.y < today.getFullYear() ||
@@ -109,6 +113,7 @@ const WorkloadCalendar = ({
   }, [entries]);
 
   const loadMonth = useCallback(async () => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     setError(null);
     try {
@@ -117,16 +122,18 @@ const WorkloadCalendar = ({
         isoDate(view.y, view.m, 1),
         isoDate(view.y, view.m, daysInMonth)
       );
+      if (seq !== loadSeq.current) return;
       const byDate = {};
       records.forEach((record) => {
         byDate[record.date_absent] = record;
       });
       setEntries(byDate);
     } catch {
+      if (seq !== loadSeq.current) return;
       setEntries({});
       setError(t('workload.load_error'));
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [fetchEntries, view, t]);
 
@@ -171,7 +178,7 @@ const WorkloadCalendar = ({
 
   /** Advance one day to the next state in the cycle. */
   const cycleDay = async (dateStr) => {
-    if (isPastMonth) return;
+    if (dateStr < todayStr) return;
     if (pendingRef.current.has(dateStr)) return;
 
     const existing = entries[dateStr] || null;
@@ -328,8 +335,8 @@ const WorkloadCalendar = ({
             }
             const dateStr = isoDate(view.y, view.m, day);
             const state = stateOfRecord(entries[dateStr]);
-            const isToday =
-              day === today.getDate() && view.m === today.getMonth() && view.y === today.getFullYear();
+            const isToday = dateStr === todayStr;
+            const isPast = dateStr < todayStr;
             const stateLabel = state === DAY_STATE.NONE ? '' : t(`workload.states.${state}`);
             return (
               <button
@@ -337,9 +344,9 @@ const WorkloadCalendar = ({
                 key={dateStr}
                 className={`workload-cell is-${state}${index % 7 >= 5 ? ' is-weekend' : ''}${
                   isToday ? ' is-today' : ''
-                }`}
+                }${isPast ? ' is-past' : ''}`}
                 onClick={() => cycleDay(dateStr)}
-                disabled={isPastMonth}
+                disabled={isPast}
                 aria-label={`${day}. ${monthLabel}${stateLabel ? `, ${stateLabel}` : ''}`}
                 title={stateLabel || undefined}
               >

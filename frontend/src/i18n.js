@@ -27,6 +27,8 @@ i18n
 // Screen readers and hyphenation read the page language from <html lang>.
 const syncHtmlLang = (lng) => {
   document.documentElement.lang = (lng || 'sk').split('-')[0];
+  // index.html ships the Slovak name; an English session should not keep it.
+  document.title = i18n.t('app_title');
 };
 syncHtmlLang(i18n.resolvedLanguage);
 i18n.on('languageChanged', syncHtmlLang);

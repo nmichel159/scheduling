@@ -479,7 +479,9 @@
     "legend_recovery": "Days off afterwards",
     "legend_surcharge": "Surcharged day",
     "rename_hint": "Double-click to rename",
-    "recovery_short": "{{days}} d"
+    "recovery_short": "{{days}} d",
+    "make_active": "Make active",
+    "inactive_badge": "Inactive"
   },
   "employees": {
     "title": "Employees",
