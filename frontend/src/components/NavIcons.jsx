@@ -143,6 +143,18 @@ export const SearchIcon = (props) => (
   </Icon>
 );
 
+export const MenuIcon = (props) => (
+  <Icon {...props}>
+    <path d="M4 7h16M4 12h16M4 17h16" />
+  </Icon>
+);
+
+export const CloseIcon = (props) => (
+  <Icon {...props}>
+    <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" />
+  </Icon>
+);
+
 export const ChevronLeftIcon = (props) => (
   <Icon {...props}>
     <path d="M14.5 6.5 9 12l5.5 5.5" />

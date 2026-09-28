@@ -1,24 +1,103 @@
+/*
+ * Design tokens and base element styles.
+ *
+ * Every screen colours itself from these variables, so the light and dark
+ * look — and any future change of accent — live in this one file. The older
+ * names (--code-background, --primary-background, --text-h, ...) are kept on
+ * purpose: the views were written against them, and they now simply point at
+ * the new scale.
+ *
+ * Surfaces, from the back to the front:
+ *   --background  the page behind everything
+ *   --surface     cards, panels, dialogs, the sidebar (was --code-background)
+ *   --surface-2   quiet fills inside a surface: table heads, hovered rows,
+ *                 segmented controls, disabled fields
+ *   --surface-3   a step stronger than --surface-2, e.g. hover on a filled chip
+ *
+ * Shared components (buttons, fields, cards, dialogs, badges) are in
+ * styles/ui.css.
+ */
+
 :root {
-  --primary:  #aa3bff;     
-  --secondary: #8a8494;   
-  --background: #f4f4f4;        
+  /* ---- Accent ---- */
+  --primary: #6e56cf;
+  --primary-hover: #5d45bd;
+  --on-primary: #ffffff;               /* text/icons on a --primary fill */
+  --primary-background: rgba(110, 86, 207, 0.1);
+  --primary-background-strong: rgba(110, 86, 207, 0.16);
+  --primary-border: rgba(110, 86, 207, 0.38);
 
-  --text: #6b6375;
-  --text-h: #08060d;
-  --border: #e5e4e7; 
-  --code-background: #f4f4f4;
-  --primary-background: rgba(170, 59, 255, 0.1);
-  --primary-border: rgba(170, 59, 255, 0.5);
-  --social-background: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* ---- Neutrals ---- */
+  --background: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f1f2f5;
+  --surface-3: #e8eaef;
+  --code-background: var(--surface);   /* legacy name for --surface */
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  --text-h: #16181d;                   /* headings and primary text */
+  --text: #4a4f5c;                     /* body text */
+  --text-p: #626876;                   /* muted: descriptions, hints */
+  --secondary: #858b98;                /* labels, placeholders, icons */
 
-  font: 18px/1.45 var(--sans);
-  letter-spacing: 0.18px;
+  --border: #e2e4e9;
+  --border-strong: #cdd0d8;
+
+  /* ---- Status ---- */
+  --success: #15803d;
+  --success-solid: #16a34a;
+  --success-background: rgba(22, 163, 74, 0.12);
+  --warning: #b45309;
+  --warning-solid: #d97706;
+  --warning-background: rgba(217, 119, 6, 0.13);
+  --danger: #c42b2b;
+  --danger-solid: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-background: rgba(220, 38, 38, 0.1);
+  --info: #1d5fd6;
+  --info-solid: #2563eb;
+  --info-background: rgba(37, 99, 235, 0.1);
+
+  /* ---- Elevation ---- */
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow: 0 10px 24px -8px rgba(16, 24, 40, 0.14), 0 2px 6px -2px rgba(16, 24, 40, 0.06);
+  --shadow-lg: 0 24px 56px -12px rgba(16, 24, 40, 0.25), 0 4px 12px -4px rgba(16, 24, 40, 0.08);
+  --overlay: rgba(15, 17, 23, 0.42);
+
+  /* ---- Shape ---- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 999px;
+
+  /* ---- Controls ---- */
+  --control-h: 36px;
+  --control-h-sm: 30px;
+  --control-h-lg: 42px;
+  --focus-ring: 0 0 0 3px rgba(110, 86, 207, 0.28);
+
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --duration: 0.15s;
+
+  /* ---- Type ---- */
+  --sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --heading: var(--sans);
+  --mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', monospace;
+
+  --fs-xs: 0.75rem;     /* 12px */
+  --fs-sm: 0.8125rem;   /* 13px */
+  --fs-base: 0.875rem;  /* 14px — default for UI text */
+  --fs-md: 1rem;        /* 16px */
+  --fs-lg: 1.125rem;    /* 18px */
+  --fs-xl: 1.375rem;    /* 22px */
+  --fs-2xl: 1.75rem;    /* 28px */
+
+  font: 16px/1.5 var(--sans);
+  font-feature-settings: 'cv11', 'ss01';  /* Inter: single-storey a, open digits */
   color-scheme: light;
   color: var(--text);
   background: var(--background);
@@ -26,93 +105,211 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
-/* Tmavý motív. data-theme na <html> nastavuje src/theme.js — pri systémovom
-   režime podľa prefers-color-scheme, inak podľa voľby v Nastaveniach. */
+/* Dark theme. data-theme on <html> is written by src/theme.js — resolved from
+   prefers-color-scheme in "system" mode, or from the choice in Settings. */
 :root[data-theme='dark'] {
-  --primary: #c084fc;
-  --secondary: #8b8695;
-  --background: #16171d;
+  --primary: #a896ff;
+  --primary-hover: #bcadff;
+  --on-primary: #14102b;
+  --primary-background: rgba(168, 150, 255, 0.13);
+  --primary-background-strong: rgba(168, 150, 255, 0.2);
+  --primary-border: rgba(168, 150, 255, 0.42);
 
-  --text: #9ca3af;
-  --text-h: #f3f4f6;
-  --border: #2e303a;
-  --code-background: #1f2028;
-  --primary-background: rgba(192, 132, 252, 0.15);
-  --primary-border: rgba(192, 132, 252, 0.5);
-  --social-background: rgba(47, 48, 58, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+  --background: #0e1014;
+  --surface: #16191f;
+  --surface-2: #1d2027;
+  --surface-3: #262a33;
+
+  --text-h: #eceef3;
+  --text: #b0b5c1;
+  --text-p: #9aa0ad;
+  --secondary: #7b8190;
+
+  --border: #292d36;
+  --border-strong: #3a3f4b;
+
+  --success: #4ade80;
+  --success-solid: #22c55e;
+  --success-background: rgba(74, 222, 128, 0.13);
+  --warning: #fbbf24;
+  --warning-solid: #f59e0b;
+  --warning-background: rgba(251, 191, 36, 0.13);
+  --danger: #f87171;
+  --danger-solid: #ef4444;
+  --danger-hover: #f87171;
+  --danger-background: rgba(248, 113, 113, 0.13);
+  --info: #7cb0ff;
+  --info-solid: #3b82f6;
+  --info-background: rgba(96, 165, 250, 0.14);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.6), 0 2px 6px -2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 28px 64px -12px rgba(0, 0, 0, 0.75), 0 4px 12px -4px rgba(0, 0, 0, 0.45);
+  --overlay: rgba(0, 0, 0, 0.6);
+
+  --focus-ring: 0 0 0 3px rgba(168, 150, 255, 0.35);
 
   color-scheme: dark;
 }
 
-:root[data-theme='dark'] #social .button-icon {
-  filter: invert(1) brightness(2);
+/* ---------- base ---------- */
+
+html {
+  background: var(--background);
 }
 
 body {
   margin: 0;
+  min-width: 320px;
+  background: var(--background);
+  color: var(--text);
 }
 
 #root {
-  /* width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center; */   /* sidebar chcem uplne na lavy okraj*/
-  /* border-inline: 1px solid var(--border); */  /* ciary co boli v uvode stranky */
   min-height: 100svh;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
+/* Controls take the app's typeface but keep their own sizes — many screens
+   size their buttons in rem and only relied on the browser for the family. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  letter-spacing: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']),
+select:not(:disabled) {
+  cursor: pointer;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--secondary);
+  opacity: 1;
+}
+
+img,
+svg {
+  vertical-align: middle;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--primary-background-strong);
   color: var(--text-h);
 }
 
+a {
+  color: var(--primary);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--heading);
+  color: var(--text-h);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
 h1 {
-  font-size: clamp(28px, 6vw, 56px);
-  line-height: 110%;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
+  font-size: var(--fs-2xl);
   margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
 }
+
+h2 {
+  font-size: var(--fs-xl);
+  margin: 0 0 8px;
+}
+
+h3 {
+  font-size: var(--fs-lg);
+  margin: 0 0 6px;
+}
+
+h4 {
+  font-size: var(--fs-md);
+  margin: 0 0 4px;
+}
+
 p {
   margin: 0;
 }
 
 code,
-.counter {
+kbd {
   font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+  font-size: 0.9em;
 }
 
 code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-background);
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  color: var(--text-h);
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+/* Thin, theme-aware scrollbars. The width rule is for WebKit/Blink; Firefox
+   takes scrollbar-width/scrollbar-color. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

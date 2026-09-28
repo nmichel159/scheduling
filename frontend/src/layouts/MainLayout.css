@@ -12,20 +12,32 @@
 
 .content {
   flex: 1;
-  padding: 24px;
-  text-align: center;
+  padding: 28px 32px 40px;
+  text-align: left;
 }
 
 .backdrop {
   display: none;
 }
 
+@media (max-width: 1024px) {
+  .content {
+    padding: 24px 20px 32px;
+  }
+}
+
 @media (max-width: 768px) {
+  .content {
+    padding: 16px 16px 28px;
+  }
+
   .backdrop {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: var(--overlay);
+    backdrop-filter: blur(2px);
     z-index: 99;
+    animation: ui-fade-in 0.2s ease-out;
   }
 }

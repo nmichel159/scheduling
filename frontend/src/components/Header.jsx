@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import WorkplaceSwitcher from './WorkplaceSwitcher';
+import { MenuIcon } from './NavIcons';
 import { isWorkplaceScopedPath } from '../router/workplaceScope';
 import './Header.css';
 
@@ -15,7 +16,14 @@ const Header = ({ onToggle }) => {
   return (
     <header className={`header ${showWorkplace ? 'has-workplace' : ''}`}>
       <div className="header-left">
-        <button className="menu-btn" onClick={onToggle}>☰</button>
+        <button
+          type="button"
+          className="menu-btn"
+          onClick={onToggle}
+          aria-label={t('sidebar.open_menu')}
+        >
+          <MenuIcon className="menu-btn-icon" />
+        </button>
         <span className="header-title">{t('app_title')}</span>
       </div>
       {/* Centred against the bar, not against the title: the empty third
