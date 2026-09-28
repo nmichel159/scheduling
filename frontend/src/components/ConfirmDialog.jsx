@@ -25,18 +25,25 @@ const ConfirmDialog = ({
   onCancel,
 }) => {
   const confirmBtnRef = useRef(null);
+  const onCancelRef = useRef(onCancel);
   const messageId = useId();
+
+  // Callers pass inline callbacks; holding the latest one in a ref keeps the
+  // effect below from re-running (and re-focusing the button) on every render.
+  useEffect(() => {
+    onCancelRef.current = onCancel;
+  }, [onCancel]);
 
   useEffect(() => {
     if (!open) return;
     confirmBtnRef.current?.focus();
 
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Escape') onCancelRef.current?.();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onCancel]);
+  }, [open]);
 
   if (!open) return null;
 

@@ -3,9 +3,12 @@ import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import '@fontsource-variable/inter'
-import { router } from './router'
+// Shared styles first: every view's CSS loads with the router below, and a
+// view has to be able to adjust a shared class (.btn, .dialog, ...) with a
+// single-class rule of its own.
 import './index.css'
 import './styles/ui.css'
+import { router } from './router'
 import './i18n'
 import './theme'   // zapíše zvolený vzhľad do <html> ešte pred prvým vykreslením
 
