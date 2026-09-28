@@ -29,14 +29,17 @@ const LEADING_TITLES = [
   'Bc\\.',
   'Mag\\.',
 ];
-const TRAILING_TITLES = ['PhD\\.?', 'CSc\\.?', 'DrSc\\.?', 'MBA', 'MPH', 'ArtD\\.?'];
+const TRAILING_TITLES = ['PhD', 'CSc', 'DrSc', 'MBA', 'MPH', 'ArtD'];
 
 const LEADING_TITLE_REGEX = new RegExp(
   `^(?:(?:${LEADING_TITLES.join('|')})\\s*)+`,
   'i'
 );
+// Every trailing title, not just the last one ("…, PhD., MPH."), each with or
+// without its dot. A title has to stand apart from the surname -- after a
+// comma or a space -- or "Kolomba" would lose its "mba".
 const TRAILING_TITLE_REGEX = new RegExp(
-  `,?\\s*(?:${TRAILING_TITLES.join('|')})\\s*$`,
+  `(?:(?:,\\s*|\\s+)(?:${TRAILING_TITLES.join('|')})\\.?)+\\s*$`,
   'i'
 );
 
@@ -47,6 +50,16 @@ export function stripTitles(fullName) {
   name = name.replace(LEADING_TITLE_REGEX, '').trim();
   name = name.replace(TRAILING_TITLE_REGEX, '').trim();
   return name;
+}
+
+/**
+ * Orders two names the way they are shown: without their titles. Compared as
+ * written, every "doc." came first and every "MUDr." was filed under M, so a
+ * list of short names ("J. Šimonová", "J. Špáková", "A. Benčurová") read as
+ * unsorted.
+ */
+export function compareNames(a, b, locale) {
+  return (stripTitles(a) || a || '').localeCompare(stripTitles(b) || b || '', locale);
 }
 
 /**

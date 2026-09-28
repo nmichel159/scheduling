@@ -13,6 +13,7 @@ import { useWorkplace } from '../hooks/workplaceContext';
 import EmployeeDetailDialog from '../components/EmployeeDetailDialog';
 import EmployeeAvailabilityDialog from '../components/EmployeeAvailabilityDialog';
 import { ChevronLeftIcon, CloseIcon, LimitsIcon } from '../components/NavIcons';
+import { compareNames } from '../utils/formatEmployeeName';
 import { personInitials } from '../utils/personInitials';
 import './EmployeesView.css';
 
@@ -190,6 +191,8 @@ const EmployeesView = () => {
     [load]
   );
 
+  const locale = i18n.language === 'en' ? 'en-GB' : 'sk-SK';
+
   /* Name, e-mail and competence names are all searchable, so "kto vie
    * ultrazvuk" is one query away without leaving the list. Clicking a
    * competence chip in a row narrows the list the same way, except it
@@ -220,17 +223,18 @@ const EmployeesView = () => {
         const fb = sb.max ? sb.shifts / sb.max : 0;
         return fb - fa;
       });
+    } else {
+      rows = [...rows].sort((a, b) =>
+        compareNames(a.full_name || a.email, b.full_name || b.email, locale)
+      );
     }
     return rows;
-  }, [employees, filter, competenceFilter, sort, statsOf]);
+  }, [employees, filter, competenceFilter, sort, statsOf, locale]);
 
   const monthLabel = useMemo(() => {
-    const formatter = new Intl.DateTimeFormat(
-      i18n.language === 'en' ? 'en-GB' : 'sk-SK',
-      { month: 'long', year: 'numeric' }
-    );
+    const formatter = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' });
     return formatter.format(new Date(view.y, view.m, 1));
-  }, [view.y, view.m, i18n.language]);
+  }, [view.y, view.m, locale]);
 
   /** Step by `offset` months, or jump back to the running month when null. */
   const changeMonth = (offset) => {

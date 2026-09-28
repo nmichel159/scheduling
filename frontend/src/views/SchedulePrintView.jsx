@@ -7,7 +7,7 @@ import {
 import { fetchAmbulanceSchedule } from '../services/scheduleService';
 import { fetchSpecialDays } from '../services/specialDayService';
 import { useWorkplace } from '../hooks/workplaceContext';
-import { formatNameStyle } from '../utils/formatEmployeeName';
+import { compareNames, formatNameStyle } from '../utils/formatEmployeeName';
 import { downloadCsv, downloadXlsx } from '../utils/tableExport';
 import { downloadSchedulePdf } from '../utils/schedulePdf';
 import './SchedulePrintView.css';
@@ -136,10 +136,11 @@ const SchedulePrintView = () => {
      sheet at all. */
   const stageShown = !workplacesLoading && !forbidden && workplaces.length > 0;
 
-  /* What the fit search settled on: the type size, and the rows each sheet
-     carries. Until it has run once the whole month sits on one page, which is
-     also what a month that fits ends up with. */
-  const [fit, setFit] = useState({ fontPx: MIN_FONT_PX, pages: [] });
+  /* What the fit search settled on: the type size, the rows each sheet
+     carries, and the table it was worked out for. Until it has run once the
+     whole month sits on one page, which is also what a month that fits ends
+     up with. */
+  const [fit, setFit] = useState({ fontPx: MIN_FONT_PX, pages: [], table: null });
 
   // Only the newest load may publish: switching month or workplace leaves the
   // previous request in flight, and a slower earlier answer would otherwise
@@ -277,7 +278,7 @@ const SchedulePrintView = () => {
     });
     return [...map.entries()]
       .map(([userId, fullName]) => ({ userId, fullName }))
-      .sort((a, b) => a.fullName.localeCompare(b.fullName, locale));
+      .sort((a, b) => compareNames(a.fullName, b.fullName, locale));
   }, [employees, shifts, locale]);
 
   const monthLabel = t(`special_days.months.${month}`);
@@ -539,13 +540,18 @@ const SchedulePrintView = () => {
     setFit({
       fontPx: bestSize,
       pages: best.map((indexes) => indexes.map((index) => table.rows[index])),
+      table,
     });
   }, [table, sheetWidthMm, sheetHeightMm, pageBudget, loading, stageShown]);
 
   /* Before the search has run -- the first paint, and any paint where the
-     month has just changed underneath it -- the whole table is shown as one
-     page, which is what a month that fits ends up as anyway. */
-  const pages = fit.pages.length ? fit.pages : [table.rows];
+     table has just changed underneath it -- the whole table is shown as one
+     page, which is what a month that fits ends up as anyway. The pages of an
+     earlier table must not be drawn under the new one's columns: switching
+     from a row per person to a row per day would hand rows of thirty-one
+     squares to a heading of a handful of competences, and a shorter month
+     would do the same to the day columns. */
+  const pages = fit.table === table && fit.pages.length ? fit.pages : [table.rows];
 
   /* The sheet is laid out at its true printed size and only shown smaller, so
      every measurement above is taken on the paper's own geometry. */

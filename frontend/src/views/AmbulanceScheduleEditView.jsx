@@ -25,7 +25,7 @@ import {
   formatDurationSeconds,
 } from '../utils/generationEstimate';
 import { generationErrorMessage } from '../utils/generationIssues';
-import { formatShortName } from '../utils/formatEmployeeName';
+import { compareNames, formatShortName } from '../utils/formatEmployeeName';
 import './AmbulanceScheduleEditView.css';
 
 /* How long the solver may keep improving the month, in seconds. The whole
@@ -311,7 +311,7 @@ const AmbulanceScheduleEditView = () => {
       list.sort(
         (a, b) =>
           competenceOrder(a.competence_id) - competenceOrder(b.competence_id) ||
-          (a.user_full_name || '').localeCompare(b.user_full_name || '')
+          compareNames(a.user_full_name, b.user_full_name)
       )
     );
     return map;
@@ -852,6 +852,8 @@ const AmbulanceScheduleEditView = () => {
       disabled={loading || generating || saving || approving}
       todayLabel={isCurrentMonth ? null : t('schedule_edit.current_month')}
       onToday={() => changeMonth(null)}
+      // The toolbar starts with the stepper, so "current month" goes after it.
+      todaySide="end"
       groupLabel={t('workload.month_nav')}
     />
   );

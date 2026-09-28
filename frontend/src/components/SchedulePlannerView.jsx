@@ -5,7 +5,7 @@ import {
   defaultIsSurcharge,
   normalizeWeekdayRequirements,
 } from '../utils/competenceRequirements';
-import { formatShortName } from '../utils/formatEmployeeName';
+import { compareNames, formatShortName } from '../utils/formatEmployeeName';
 import { CloseIcon } from './NavIcons';
 import './SchedulePlannerView.css';
 
@@ -276,7 +276,7 @@ const SchedulePlannerView = ({
   const people = useMemo(
     () =>
       [...employees].sort((a, b) =>
-        (a.full_name || a.email || '').localeCompare(b.full_name || b.email || '')
+        compareNames(a.full_name || a.email, b.full_name || b.email)
       ),
     [employees]
   );
@@ -486,7 +486,7 @@ const SchedulePlannerView = ({
         return (
           rank(a) - rank(b) ||
           a.stats.total - b.stats.total ||
-          (a.employee.full_name || '').localeCompare(b.employee.full_name || '')
+          compareNames(a.employee.full_name, b.employee.full_name)
         );
       });
   }, [openDemand, employees, shiftsByDate, dutyStats]); // eslint-disable-line react-hooks/exhaustive-deps

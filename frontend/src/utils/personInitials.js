@@ -6,9 +6,9 @@ import { stripTitles } from './formatEmployeeName';
  *
  * Taking the first character of the full name gave almost every doctor an
  * "M" (for "MUDr."), so a list of avatars said nothing. Words ending in a
- * dot are titles that stripTitles does not know ("PhD., MPH." after a
- * comma); anything not starting with a letter ("-" in a double surname)
- * is skipped too. A name without letters falls back to its first character.
+ * dot are titles that stripTitles does not know; anything not starting with
+ * a letter ("-" in a double surname) is skipped too. A name without letters
+ * falls back to its first character.
  */
 export function personInitials(name) {
   const words = stripTitles(name || '')
