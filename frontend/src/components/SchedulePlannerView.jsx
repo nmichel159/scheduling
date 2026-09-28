@@ -198,6 +198,7 @@ const SchedulePlannerView = ({
   // { dateStr, competenceId, anchor: DOMRect } — the square whose people are
   // listed. Null while nothing is being filled.
   const [demandCell, setDemandCell] = useState(null);
+  const [showUnqualified, setShowUnqualified] = useState(false);
   // { dateStr, userId, anchor: DOMRect } — the person's day whose competence
   // list is open.
   const [personCell, setPersonCell] = useState(null);
@@ -631,6 +632,7 @@ const SchedulePlannerView = ({
   const toggleDemandCell = (event, dateStr, competenceId) => {
     const rect = event.currentTarget.getBoundingClientRect();
     setPersonCell(null);
+    setShowUnqualified(false);
     setDemandCell((current) =>
       current && current.dateStr === dateStr && current.competenceId === competenceId
         ? null
@@ -678,6 +680,7 @@ const SchedulePlannerView = ({
           stats: statsFor(employee.user_id),
         };
       })
+      .filter((row) => row.shift || row.qualified || showUnqualified)
       .sort((a, b) => {
         // Assigned first (so removing is easy), then the qualified who can
         // take the duty cleanly, least served first, then the qualified it
@@ -693,7 +696,7 @@ const SchedulePlannerView = ({
           compareNames(a.employee.full_name, b.employee.full_name)
         );
       });
-  }, [openDemand, employees, shiftsByDate, dutyStats, conflictReport]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [openDemand, employees, shiftsByDate, dutyStats, conflictReport, showUnqualified]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleAssignment = (dateStr, competenceId, row) => {
     if (row.shift) onRemoveShift(row.shift.id);
@@ -1435,6 +1438,14 @@ const SchedulePlannerView = ({
             <span className="planner-detail-count">
               {t('schedule_edit.planner_standard')}
             </span>
+            <label className="planner-detail-toggle">
+              <input
+                type="checkbox"
+                checked={showUnqualified}
+                onChange={(e) => setShowUnqualified(e.target.checked)}
+              />
+              {t('schedule_edit.planner_show_unqualified')}
+            </label>
           </div>
 
           {demandRows.length === 0 ? (

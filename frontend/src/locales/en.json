@@ -347,6 +347,7 @@
     "planner_assigned": "Assigned",
     "planner_surcharge": "Surcharge",
     "planner_standard": "Standard",
+    "planner_show_unqualified": "Without competence",
     "planner_person_picker_title": "Duties for {{name}}",
     "generate_fixed_unknown": "{{date}}: a placed duty cannot be assigned in this workplace.",
     "generate_confirm_title": "Generate the schedule?",

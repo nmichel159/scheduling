@@ -1098,6 +1098,16 @@
   text-transform: uppercase;
 }
 
+.planner-detail-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 /* Columns of at most ten, filled top to bottom; the row count comes from the
    panel's inline style, which also sizes its width to match. */
 .planner-detail-grid {

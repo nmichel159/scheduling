@@ -347,6 +347,7 @@
     "planner_assigned": "Priradený",
     "planner_surcharge": "Príplatkové",
     "planner_standard": "Štandardné",
+    "planner_show_unqualified": "Bez kompetencie",
     "planner_person_picker_title": "Služby pre {{name}}",
     "generate_fixed_unknown": "{{date}}: nahodenú službu nemožno priradiť tomuto pracovisku.",
     "generate_confirm_title": "Vygenerovať rozvrh?",
