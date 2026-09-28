@@ -515,7 +515,10 @@
     "stat_preferred": "Preferred",
     "stat_declined": "Reluctant",
     "stat_blocked": "Blocked",
-    "availability": "Availability calendar"
+    "availability": "Availability calendar",
+    "retry": "Try again",
+    "decrease": "Fewer",
+    "increase": "More"
   },
   "special_days": {
     "title": "Special days",

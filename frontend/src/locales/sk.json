@@ -516,7 +516,10 @@
     "stat_preferred": "Preferované",
     "stat_declined": "Nerád",
     "stat_blocked": "Blokované",
-    "availability": "Kalendár obsadenosti"
+    "availability": "Kalendár obsadenosti",
+    "retry": "Skúsiť znova",
+    "decrease": "Menej",
+    "increase": "Viac"
   },
   "special_days": {
     "title": "Špeciálne dni",
