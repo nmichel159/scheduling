@@ -8,6 +8,8 @@ import {
 } from '../services/scheduleService';
 import ConfirmDialog from '../components/ConfirmDialog';
 import GenerationProgressDialog from '../components/GenerationProgressDialog';
+import PeriodStepper from '../components/PeriodStepper';
+import { capitalizeFirst, localeFor } from '../utils/calendar';
 import { formatDurationSeconds } from '../utils/generationEstimate';
 import { generationErrorMessage } from '../utils/generationIssues';
 import './ScheduleOverviewView.css';
@@ -61,10 +63,10 @@ const ScheduleOverviewView = () => {
   const [confirmState, setConfirmState] = useState(null);
 
   const monthLabel = useMemo(() => {
-    const formatter = new Intl.DateTimeFormat(
-      i18n.language === 'en' ? 'en-GB' : 'sk-SK',
-      { month: 'long', year: 'numeric' }
-    );
+    const formatter = new Intl.DateTimeFormat(localeFor(i18n.language), {
+      month: 'long',
+      year: 'numeric',
+    });
     return formatter.format(new Date(view.y, view.m, 1));
   }, [view.y, view.m, i18n.language]);
 
@@ -159,7 +161,12 @@ const ScheduleOverviewView = () => {
               month: monthLabel,
             }),
       details: t('schedule_overview.generate_confirm_saves'),
-      confirmLabel: t('schedule_overview.generate'),
+      // Replacing a month someone may have built by hand is destructive.
+      tone: row.shift_count > 0 ? 'danger' : 'primary',
+      confirmLabel:
+        row.shift_count > 0
+          ? t('schedule_overview.regenerate')
+          : t('schedule_overview.generate'),
       cancelLabel: t('schedule_overview.cancel'),
       onConfirm: () => {
         setConfirmState(null);
@@ -226,148 +233,167 @@ const ScheduleOverviewView = () => {
 
   /* ---------- render ---------- */
 
+  const statusBadge = {
+    approved: 'badge-success',
+    draft: 'badge-warning',
+    missing: 'badge-danger',
+  };
+
   return (
-    <div className="overview">
-      {error && <div className="overview-banner is-error">{error}</div>}
-      {message && <div className="overview-banner is-success">{message}</div>}
-
-      <div className="overview-topbar">
-        <div className="overview-month-navigation">
-          <button
-            type="button"
-            className="overview-month-button"
-            onClick={() => changeMonth(-1)}
-            disabled={loading || !!busy}
-            aria-label={t('schedule_overview.previous_month')}
-          >
-            &#8249;
-          </button>
-          <span className="overview-month">{monthLabel}</span>
-          <button
-            type="button"
-            className="overview-month-button"
-            onClick={() => changeMonth(1)}
-            disabled={loading || !!busy}
-            aria-label={t('schedule_overview.next_month')}
-          >
-            &#8250;
-          </button>
-          {/* Months are unbounded in both directions, so after browsing a year
-              back there is no cheap way home without this. */}
-          {!isCurrentMonth && (
-            <button
-              type="button"
-              className="overview-month-today"
-              onClick={() => changeMonth(null)}
-              disabled={loading || !!busy}
-            >
-              {t('schedule_overview.current_month')}
-            </button>
-          )}
+    <div className="page overview">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">{t('schedule_overview.title')}</h1>
+          <p className="page-subtitle">{t('schedule_overview.subtitle')}</p>
         </div>
+        <div className="page-actions">
+          {/* Months are unbounded in both directions, so after browsing a
+              year back there is no cheap way home without "current month". */}
+          <PeriodStepper
+            label={monthLabel}
+            onPrevious={() => changeMonth(-1)}
+            onNext={() => changeMonth(1)}
+            previousLabel={t('schedule_overview.previous_month')}
+            nextLabel={t('schedule_overview.next_month')}
+            disabled={loading || !!busy}
+            todayLabel={isCurrentMonth ? null : t('schedule_overview.current_month')}
+            onToday={() => changeMonth(null)}
+            groupLabel={t('workload.month_nav')}
+          />
+        </div>
+      </header>
 
+      {error && (
+        <div className="alert alert-danger overview-alert" role="alert">
+          {error}
+        </div>
+      )}
+      {message && (
+        <div className="alert alert-success overview-alert" role="status">
+          {message}
+        </div>
+      )}
+
+      <div className={`card overview-card ${loading ? 'is-loading' : ''}`}>
         {rows.length > 0 && (
-          <div className="overview-summary">
-            <span className="overview-summary-item">
-              {t('schedule_overview.summary_approved', {
-                approved: approvedCount,
-                total: rows.length,
-              })}
-            </span>
-            {missingCount > 0 && (
-              <span className="overview-summary-item is-warn">
-                {t('schedule_overview.summary_missing', {
-                  missing: missingCount,
+          <div className="card-header">
+            <h2 className="card-title">{capitalizeFirst(monthLabel)}</h2>
+            <div className="overview-summary">
+              <span>
+                {t('schedule_overview.summary_approved', {
+                  approved: approvedCount,
+                  total: rows.length,
                 })}
               </span>
-            )}
+              {missingCount > 0 && (
+                <span className="badge badge-danger">
+                  {t('schedule_overview.summary_missing', {
+                    missing: missingCount,
+                  })}
+                </span>
+              )}
+            </div>
           </div>
         )}
-      </div>
 
-      <div className={`overview-card ${loading ? 'is-loading' : ''}`}>
         {rows.length === 0 ? (
-          <p className="overview-empty">
+          <div className="empty-state">
+            {loading && <span className="spinner" aria-hidden="true" />}
             {loading
               ? t('schedule_overview.loading')
               : t('schedule_overview.empty')}
-          </p>
+          </div>
         ) : (
-          <table className="overview-table">
-            <thead>
-              <tr>
-                <th scope="col">{t('schedule_overview.workplace')}</th>
-                <th scope="col">{t('schedule_overview.manager')}</th>
-                <th scope="col">{t('schedule_overview.status')}</th>
-                <th scope="col" className="overview-num">
-                  {t('schedule_overview.shifts')}
-                </th>
-                {/* Deliberately unlabelled: the buttons name themselves, and
-                    a heading over them would only add a word that says
-                    nothing. The cell itself has to stay for the column count. */}
-                <th scope="col" className="overview-actions-head" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
-                const status = statusOf(row);
-                const rowBusy = busy?.id === row.ambulance_id;
-                return (
-                  <tr key={row.ambulance_id}>
-                    <th scope="row" className="overview-name">
-                      {row.ambulance_name}
-                    </th>
-                    <td className="overview-manager">
-                      {row.manager_full_name || row.manager_email || (
-                        <span className="overview-none">
-                          {t('schedule_overview.no_manager')}
+          <div className="overview-scroll">
+            <table className="data-table overview-table">
+              <thead>
+                <tr>
+                  <th scope="col">{t('schedule_overview.workplace')}</th>
+                  <th scope="col" className="overview-col-manager">
+                    {t('schedule_overview.manager')}
+                  </th>
+                  <th scope="col">{t('schedule_overview.status')}</th>
+                  <th scope="col" className="overview-num">
+                    {t('schedule_overview.shifts')}
+                  </th>
+                  {/* The buttons name themselves, so the heading is for
+                      screen readers only; the cell has to stay for the
+                      column count. */}
+                  <th scope="col" className="overview-actions-head">
+                    <span className="visually-hidden">
+                      {t('admin.col_actions')}
+                    </span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const status = statusOf(row);
+                  const rowBusy = busy?.id === row.ambulance_id;
+                  return (
+                    <tr key={row.ambulance_id}>
+                      <th scope="row" className="overview-name">
+                        {row.ambulance_name}
+                      </th>
+                      <td className="overview-col-manager">
+                        {row.manager_full_name || row.manager_email || (
+                          <span className="overview-none">
+                            {t('schedule_overview.no_manager')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="overview-status">
+                        <span className={`badge badge-dot ${statusBadge[status]}`}>
+                          {t(`schedule_overview.status_${status}`)}
                         </span>
-                      )}
-                    </td>
-                    <td>
-                      <span className={`overview-status is-${status}`}>
-                        <span className="overview-dot" aria-hidden="true" />
-                        {t(`schedule_overview.status_${status}`)}
-                      </span>
-                    </td>
-                    <td className="overview-num">
-                      {row.shift_count > 0 ? (
-                        row.shift_count
-                      ) : (
-                        <span className="overview-none">&#8211;</span>
-                      )}
-                    </td>
-                    <td className="overview-actions">
-                      {status === 'draft' && (
-                        <button
-                          type="button"
-                          className="overview-btn overview-btn-approve"
-                          onClick={() => handleApprove(row)}
-                          disabled={!!busy || loading}
-                        >
-                          {rowBusy && busy.action === 'approve'
-                            ? t('schedule_overview.approving')
-                            : t('schedule_overview.approve')}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="overview-btn overview-btn-generate"
-                        onClick={() => handleGenerate(row)}
-                        disabled={!!busy || loading}
+                      </td>
+                      <td
+                        className="overview-num"
+                        data-label={t('schedule_overview.shifts')}
                       >
-                        {rowBusy && busy.action === 'generate'
-                          ? t('schedule_overview.generating')
-                          : row.shift_count > 0
-                            ? t('schedule_overview.regenerate')
-                            : t('schedule_overview.generate')}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                        {row.shift_count > 0 ? (
+                          row.shift_count
+                        ) : (
+                          <span className="overview-none">&#8211;</span>
+                        )}
+                      </td>
+                      <td className="overview-actions-cell">
+                        {/* A wrapper, not display:flex on the cell itself —
+                            that takes the cell out of the table layout and
+                            breaks the row's bottom border under it. */}
+                        <div className="overview-actions">
+                          {status === 'draft' && (
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-primary"
+                              onClick={() => handleApprove(row)}
+                              disabled={!!busy || loading}
+                            >
+                              {rowBusy && busy.action === 'approve'
+                                ? t('schedule_overview.approving')
+                                : t('schedule_overview.approve')}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${status === 'missing' ? 'btn-primary' : ''}`}
+                            onClick={() => handleGenerate(row)}
+                            disabled={!!busy || loading}
+                          >
+                            {rowBusy && busy.action === 'generate'
+                              ? t('schedule_overview.generating')
+                              : row.shift_count > 0
+                                ? t('schedule_overview.regenerate')
+                                : t('schedule_overview.generate')}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -375,6 +401,7 @@ const ScheduleOverviewView = () => {
         open={!!confirmState}
         message={confirmState?.message}
         details={confirmState?.details}
+        tone={confirmState?.tone}
         confirmLabel={confirmState?.confirmLabel}
         cancelLabel={confirmState?.cancelLabel}
         onConfirm={confirmState?.onConfirm}

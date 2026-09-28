@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { fetchYearlyStatistics } from '../services/statisticsService';
 import { fetchAllAmbulances } from '../services/ambulanceService';
 import { formatShortName } from '../utils/formatEmployeeName';
+import PeriodStepper from '../components/PeriodStepper';
+import { localeFor } from '../utils/calendar';
 import './StatisticsView.css';
 
 /**
@@ -76,24 +78,30 @@ const StatisticsView = () => {
     loadStatistics();
   }, [loadStatistics]);
 
+  const locale = localeFor(i18n.language);
+
+  // "4 130" and "47,2" in Slovak: numbers follow the language like dates do.
+  const number = useMemo(() => {
+    const formatter = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
+    return (value) => formatter.format(value);
+  }, [locale]);
+
   const monthLabels = useMemo(() => {
-    const formatter = new Intl.DateTimeFormat(
-      i18n.language === 'en' ? 'en-GB' : 'sk-SK',
-      { month: 'short' }
-    );
+    const formatter = new Intl.DateTimeFormat(locale, { month: 'short' });
     return Array.from({ length: 12 }, (_, index) =>
       formatter.format(new Date(2026, index, 1))
     );
-  }, [i18n.language]);
+  }, [locale]);
 
   const throughLabel = useMemo(() => {
     if (!report?.through_date) return '';
-    const formatter = new Intl.DateTimeFormat(
-      i18n.language === 'en' ? 'en-GB' : 'sk-SK',
-      { day: 'numeric', month: 'numeric', year: 'numeric' }
-    );
+    const formatter = new Intl.DateTimeFormat(locale, {
+      day: 'numeric',
+      month: 'numeric',
+      year: 'numeric',
+    });
     return formatter.format(new Date(`${report.through_date}T00:00:00`));
-  }, [report, i18n.language]);
+  }, [report, locale]);
 
   // The tallest month sets the scale; without duties there is nothing to chart.
   const peakMonth = useMemo(
@@ -123,101 +131,110 @@ const StatisticsView = () => {
   const changeYear = (offset) => setYear((current) => current + offset);
 
   return (
-    <div className="stats">
-      {error && <div className="stats-banner is-error">{error}</div>}
-
-      <div className="stats-topbar">
-        <div className="stats-year-navigation">
-          <button
-            type="button"
-            className="stats-year-button"
-            onClick={() => changeYear(-1)}
-            disabled={loading}
-            aria-label={t('statistics.previous_year')}
-          >
-            &#8249;
-          </button>
-          <span className="stats-year">{year}</span>
-          <button
-            type="button"
-            className="stats-year-button"
-            onClick={() => changeYear(1)}
-            disabled={loading}
-            aria-label={t('statistics.next_year')}
-          >
-            &#8250;
-          </button>
-          {year !== currentYear && (
-            <button
-              type="button"
-              className="stats-year-today"
-              onClick={() => setYear(currentYear)}
-              disabled={loading}
-            >
-              {t('statistics.current_year')}
-            </button>
-          )}
+    <div className="page stats">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">{t('statistics.title')}</h1>
+          <p className="page-subtitle">
+            {t('statistics.subtitle')}
+            {report?.through_date && (
+              <span className="stats-through">
+                {' · '}
+                {t('statistics.through', { date: throughLabel })}
+              </span>
+            )}
+          </p>
         </div>
-        {ambulances.length > 0 && (
-          <label className="stats-scope">
-            <span className="stats-sr-only">{t('statistics.scope')}</span>
-            <select
-              className="stats-scope-select"
-              value={ambulanceId ?? ''}
-              onChange={(e) =>
-                setAmbulanceId(e.target.value === '' ? null : Number(e.target.value))
-              }
-              disabled={loading}
-            >
-              <option value="">{t('statistics.scope_all')}</option>
-              {ambulances.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
+        <div className="page-actions">
+          {ambulances.length > 0 && (
+            <label className="stats-scope">
+              <span className="visually-hidden">{t('statistics.scope')}</span>
+              <select
+                className="select stats-scope-select"
+                value={ambulanceId ?? ''}
+                onChange={(e) =>
+                  setAmbulanceId(e.target.value === '' ? null : Number(e.target.value))
+                }
+                disabled={loading}
+              >
+                <option value="">{t('statistics.scope_all')}</option>
+                {ambulances.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <PeriodStepper
+            unit="year"
+            label={year}
+            onPrevious={() => changeYear(-1)}
+            onNext={() => changeYear(1)}
+            previousLabel={t('statistics.previous_year')}
+            nextLabel={t('statistics.next_year')}
+            disabled={loading}
+            todayLabel={year === currentYear ? null : t('statistics.current_year')}
+            onToday={() => setYear(currentYear)}
+            groupLabel={t('statistics.year_nav')}
+          />
+        </div>
+      </header>
 
-        {report && (
-          <span className="stats-through">
-            {t('statistics.through', { date: throughLabel })}
-          </span>
-        )}
-      </div>
+      {error && (
+        <div className="alert alert-danger stats-alert" role="alert">
+          <span>{error}</span>
+          <button type="button" className="alert-action" onClick={loadStatistics}>
+            {t('dashboard.retry')}
+          </button>
+        </div>
+      )}
 
       {!report ? (
-        <p className="stats-empty">
+        <div className="card empty-state">
+          {loading && <span className="spinner" aria-hidden="true" />}
           {loading ? t('statistics.loading') : t('statistics.no_data')}
-        </p>
+        </div>
       ) : (
         <div className={`stats-body ${loading ? 'is-loading' : ''}`}>
           {/* --- headline numbers --- */}
           <section className="stats-kpis">
-            <article className="stats-kpi">
-              <span className="stats-kpi-value">{report.worked_shift_count}</span>
+            <article className="card stats-kpi">
               <span className="stats-kpi-label">{t('statistics.kpi_worked')}</span>
+              <span className="stats-kpi-value">{number(report.worked_shift_count)}</span>
             </article>
-            <article className="stats-kpi">
-              <span className="stats-kpi-value">{averagePerPerson}</span>
+            <article className="card stats-kpi">
               <span className="stats-kpi-label">{t('statistics.kpi_average')}</span>
+              <span className="stats-kpi-value">{number(averagePerPerson)}</span>
             </article>
             {ambulanceId === null && (
-              <article className="stats-kpi">
-                <span className="stats-kpi-value">
-                  {report.staffed_workplace_count}
-                  <span className="stats-kpi-of">/{report.workplace_count}</span>
-                </span>
+              <article className="card stats-kpi">
                 <span className="stats-kpi-label">
                   {t('statistics.kpi_workplaces')}
+                </span>
+                <span className="stats-kpi-value">
+                  {report.staffed_workplace_count}
+                  <span className="stats-kpi-of"> / {report.workplace_count}</span>
                 </span>
               </article>
             )}
           </section>
 
           {/* --- duties per month --- */}
-          <section className="stats-card">
-            <h2 className="stats-card-title">{t('statistics.by_month_title')}</h2>
+          <section className="card stats-card">
+            <header className="card-header">
+              <h2 className="card-title">{t('statistics.by_month_title')}</h2>
+              <p className="stats-legend">
+                <span className="stats-legend-item">
+                  <span className="stats-swatch is-worked" />
+                  {t('statistics.legend_worked')}
+                </span>
+                <span className="stats-legend-item">
+                  <span className="stats-swatch is-planned" />
+                  {t('statistics.legend_planned')}
+                </span>
+              </p>
+            </header>
             {peakMonth === 0 ? (
               <p className="stats-card-empty">{t('statistics.no_data')}</p>
             ) : (
@@ -231,12 +248,12 @@ const StatisticsView = () => {
                       key={item.month}
                       title={t('statistics.month_tooltip', {
                         month: monthLabels[index],
-                        planned,
-                        worked,
+                        planned: number(planned),
+                        worked: number(worked),
                       })}
                     >
                       <span className="stats-chart-value">
-                        {planned > 0 ? planned : ''}
+                        {planned > 0 ? number(planned) : ''}
                       </span>
                       <div className="stats-chart-track">
                         {/* One bar for what is planned, an inner fill for the
@@ -266,26 +283,16 @@ const StatisticsView = () => {
                 })}
               </div>
             )}
-            <p className="stats-legend">
-              <span className="stats-legend-item">
-                <span className="stats-swatch is-worked" />
-                {t('statistics.legend_worked')}
-              </span>
-              <span className="stats-legend-item">
-                <span className="stats-swatch is-planned" />
-                {t('statistics.legend_planned')}
-              </span>
-            </p>
           </section>
 
           {/* --- per workplace: a comparison, so only when unscoped --- */}
           {ambulanceId === null && (
-            <section className="stats-card">
-              <h2 className="stats-card-title">
-                {t('statistics.by_workplace_title')}
-              </h2>
+            <section className="card stats-card">
+              <header className="card-header">
+                <h2 className="card-title">{t('statistics.by_workplace_title')}</h2>
+              </header>
               <div className="stats-scroll">
-                <table className="stats-table">
+                <table className="data-table stats-table">
                   <thead>
                     <tr>
                       <th scope="col">{t('statistics.workplace')}</th>
@@ -312,9 +319,9 @@ const StatisticsView = () => {
                         <th scope="row" className="stats-name">
                           {item.ambulance_name}
                         </th>
-                        <td className="stats-num">{item.worked_shift_count}</td>
-                        <td className="stats-num">{item.shift_count}</td>
-                        <td className="stats-num">{item.employee_count}</td>
+                        <td className="stats-num">{number(item.worked_shift_count)}</td>
+                        <td className="stats-num">{number(item.shift_count)}</td>
+                        <td className="stats-num">{number(item.employee_count)}</td>
                         <td className="stats-load">
                           <div className="stats-load-track">
                             <div
@@ -335,12 +342,12 @@ const StatisticsView = () => {
 
           {/* --- busiest people --- */}
           {report.employees.length > 0 && (
-            <section className="stats-card">
-              <h2 className="stats-card-title">
-                {t('statistics.by_employee_title')}
-              </h2>
+            <section className="card stats-card">
+              <header className="card-header">
+                <h2 className="card-title">{t('statistics.by_employee_title')}</h2>
+              </header>
               <div className="stats-scroll">
-                <table className="stats-table">
+                <table className="data-table stats-table">
                   <thead>
                     <tr>
                       <th scope="col">{t('statistics.employee')}</th>
@@ -361,9 +368,9 @@ const StatisticsView = () => {
                         <th scope="row" className="stats-name" title={item.email}>
                           {formatShortName(item.full_name) || item.email}
                         </th>
-                        <td className="stats-num">{item.worked_shift_count}</td>
-                        <td className="stats-num">{item.shift_count}</td>
-                        <td className="stats-num">{item.ambulance_count}</td>
+                        <td className="stats-num">{number(item.worked_shift_count)}</td>
+                        <td className="stats-num">{number(item.shift_count)}</td>
+                        <td className="stats-num">{number(item.ambulance_count)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -371,7 +378,6 @@ const StatisticsView = () => {
               </div>
             </section>
           )}
-
         </div>
       )}
     </div>

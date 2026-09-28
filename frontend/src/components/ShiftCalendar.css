@@ -127,19 +127,28 @@
     font-size: 0.6875rem;
   }
 
-  /* A phone column is ~50px wide: the workplace name still fits, the
-     competence does not — it stays in the chip's tooltip. */
-  .shiftcal-shift {
-    padding: 2px 4px;
-    border-left-width: 2px;
+  .shiftcal-head span {
     font-size: 0.6875rem;
+  }
+}
+
+/* A phone column is under 50px wide: a short workplace name ("KDAIM")
+   still fits at this size, the competence does not — it stays in the
+   chip's tooltip. Dense grid labels are the one place the type drops
+   below 11px. */
+@media (max-width: 560px) {
+  .shiftcal-cell {
+    padding: 3px 2px;
+  }
+
+  .shiftcal-shift {
+    padding: 2px 2px 2px 3px;
+    border-left-width: 2px;
+    font-size: 0.625rem;
+    letter-spacing: -0.01em;
   }
 
   .shiftcal-shift-meta {
     display: none;
-  }
-
-  .shiftcal-head span {
-    font-size: 0.6875rem;
   }
 }

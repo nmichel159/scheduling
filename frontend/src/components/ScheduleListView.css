@@ -1,40 +1,16 @@
-.schedule-view-switch {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
-}
-
-.schedule-view-switch-button {
-  border: 0;
-  border-radius: 6px;
-  padding: 6px 10px;
-  background: transparent;
-  color: var(--text-h);
-  opacity: 0.65;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.82rem;
-}
-
-.schedule-view-switch-button:hover {
-  opacity: 1;
-}
-
-.schedule-view-switch-button.is-active {
-  background: var(--primary);
-  color: #fff;
-  opacity: 1;
-}
+/* "Daily rows" view of a workplace month: one row per day, the day's duties
+   as draggable chips. Chip colours come from the competence palette (data,
+   not theme); everything else is on the tokens. */
 
 .schedule-list-view {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: 10px;
   overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: opacity var(--duration) var(--ease);
 }
 
 .schedule-list-view.is-loading {
@@ -45,13 +21,17 @@
 .schedule-list-row {
   display: grid;
   grid-template-columns: minmax(120px, 155px) 1fr;
-  min-height: 58px;
+  min-height: 56px;
   border-bottom: 1px solid var(--border);
-  transition: background-color 120ms ease;
+  transition: background-color var(--duration) var(--ease);
 }
 
 .schedule-list-row:last-child {
   border-bottom: 0;
+}
+
+.schedule-list-row:hover {
+  background: color-mix(in srgb, var(--surface-2) 55%, var(--surface));
 }
 
 .schedule-list-row.is-today {
@@ -68,29 +48,31 @@
   flex-direction: column;
   justify-content: center;
   gap: 2px;
-  padding: 9px 14px;
+  padding: 8px 14px;
   border-right: 1px solid var(--border);
 }
 
 .schedule-list-weekday {
   color: var(--text-h);
-  font-size: 0.88rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   text-transform: capitalize;
 }
 
+.schedule-list-row.is-today .schedule-list-weekday {
+  color: var(--primary);
+}
+
 .schedule-list-day {
-  color: var(--text-h);
-  opacity: 0.6;
-  font-size: 0.78rem;
-  text-transform: capitalize;
+  color: var(--text-p);
+  font-size: var(--fs-xs);
 }
 
 .schedule-list-shifts {
   display: flex;
-  align-items: center;
-  align-content: center;
   flex-wrap: wrap;
+  align-content: center;
+  align-items: center;
   gap: 6px;
   min-width: 0;
   padding: 8px 10px;
@@ -99,18 +81,19 @@
 .schedule-list-shift {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   /* Fixed, uniform width instead of the old variable max-width: 240px —
      names are now short ("P. Priezvisko"), so every chip fits comfortably,
      and any outlier still truncates cleanly via the ellipsis below rather
      than stretching the row. */
-  width: 108px;
+  width: 112px;
   flex-shrink: 0;
-  padding: 5px 7px;
+  padding: 4px 4px 4px 7px;
   border-left: 3px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: grab;
   user-select: none;
+  box-sizing: border-box;
 }
 
 .schedule-list-shift:active {
@@ -128,8 +111,8 @@
   display: block;
   overflow: hidden;
   color: var(--text-h);
-  font-size: 0.8rem;
-  letter-spacing: -0.1px;
+  font-size: var(--fs-sm);
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -142,22 +125,23 @@
   position: absolute;
   left: 0;
   bottom: calc(100% + 6px);
+  z-index: 30;
   max-width: 260px;
   padding: 5px 9px;
   border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--code-background);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
   color: var(--text-h);
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   white-space: nowrap;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
   transform: translateY(3px);
   transition: opacity 0.12s ease, transform 0.12s ease, visibility 0s linear 0.12s;
-  z-index: 30;
 }
+
 .schedule-list-shift-name-wrap:hover .schedule-list-shift-tooltip {
   opacity: 1;
   visibility: visible;
@@ -166,58 +150,75 @@
 }
 
 .schedule-list-shift-remove {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
   border: 0;
-  border-radius: 4px;
-  padding: 2px;
+  border-radius: var(--radius-xs);
   background: none;
-  color: var(--text-h);
+  color: var(--text-p);
   opacity: 0;
   cursor: pointer;
-  font: inherit;
-  font-size: 0.75rem;
-  line-height: 1;
+  transition: opacity var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+
+.schedule-list-shift-remove svg {
+  width: 13px;
+  height: 13px;
 }
 
 .schedule-list-shift:hover .schedule-list-shift-remove,
 .schedule-list-shift-remove:focus-visible {
-  opacity: 0.6;
+  opacity: 1;
 }
 
 .schedule-list-shift-remove:hover {
-  opacity: 1;
-  color: #ef5350;
+  background: var(--danger-background);
+  color: var(--danger);
+}
+
+.schedule-list-shift-remove:focus-visible,
+.schedule-list-add:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 /* "+" affordance at the end of each day row — opens the shift editor with
    a fresh draft for that day. Visible only on hover to keep the list clean. */
 .schedule-list-add {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border: 1px dashed var(--border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-h);
-  font: inherit;
-  font-size: 0.85rem;
-  line-height: 1;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
   padding: 0;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-p);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 120ms ease, border-color 120ms ease, color 120ms ease;
+  transition:
+    opacity var(--duration) var(--ease),
+    border-color var(--duration) var(--ease),
+    color var(--duration) var(--ease);
+}
+
+.schedule-list-add svg {
+  width: 14px;
+  height: 14px;
 }
 
 .schedule-list-row:hover .schedule-list-add,
 .schedule-list-add:focus-visible {
-  opacity: 0.7;
+  opacity: 1;
 }
 
 .schedule-list-add:hover {
   border-color: var(--primary);
   color: var(--primary);
-  opacity: 1;
 }
 
 @media (max-width: 640px) {
@@ -229,7 +230,9 @@
     padding: 8px 10px;
   }
 
-  .schedule-list-add {
-    opacity: 0.7;
+  /* No hover on touch screens: the affordances stay visible. */
+  .schedule-list-add,
+  .schedule-list-shift-remove {
+    opacity: 1;
   }
 }
