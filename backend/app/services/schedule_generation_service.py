@@ -16,7 +16,7 @@ against a fraction of somebody's preference.
 
 What each pass is made of, from the strongest term to the weakest:
 
-1. Hard constraints -- coverage, availability, one duty a day, the recovery
+1. Hard constraints -- at least the required coverage, availability, one duty a day, the recovery
    the workplace configured for each duty (and, for a duty worked at another
    workplace, the recovery that one configured), and every manually placed
    duty. A manual placement outranks all the others: the manager may put
@@ -132,6 +132,11 @@ HOURS_UNIT_COST = 4
 # balance step, so the solver only does it when the month cannot be staffed
 # otherwise.
 OVER_WISH_DUTY_COST = 1000.0
+
+# What one person above a role's required count costs. Overstaffing is not
+# forbidden, only priced like a broken monthly wish. A role with no count
+# set has no ceiling and is never charged.
+OVERSTAFF_DUTY_COST = 1000.0
 
 # --- Day wishes -----------------------------------------------------------
 # The wishes are not weighed against the balance at all: they are settled in
@@ -916,15 +921,23 @@ def solve_monthly_schedule(
         )
 
     fixed_counts = _fixed_counts(fixed_assignments)
+    overstaff_terms: list[LpAffineExpression] = []
     for work_date in window_days:
         for competence in competences:
             coverage_variables = variable_index.by_competence_date.get(
                 (competence.id, work_date), []
             )
+            demand = _demand(competence, work_date, fixed_counts)
             problem += (
-                lpSum(coverage_variables) == _demand(competence, work_date, fixed_counts),
+                lpSum(coverage_variables) >= demand,
                 f"coverage_{competence.id}_{work_date.isoformat()}",
             )
+            # More people than asked for is allowed but paid for. A role
+            # with no count set has no ceiling, so its surplus is free.
+            if competence.required_on(work_date) > 0 and coverage_variables:
+                overstaff_terms.append(
+                    OVERSTAFF_DUTY_COST * (lpSum(coverage_variables) - demand)
+                )
 
     # One rule covers both "one duty a day" and "a duty earns its rest": on
     # any given day an employee may start a duty, or still be recovering from
@@ -1136,7 +1149,7 @@ def solve_monthly_schedule(
             )
             objective_terms.append(OVER_WISH_DUTY_COST * over_wish)
 
-    balance = lpSum(objective_terms)
+    balance = lpSum(objective_terms) + lpSum(overstaff_terms)
 
     preferred_variables = [
         variable

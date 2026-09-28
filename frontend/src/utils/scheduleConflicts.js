@@ -339,6 +339,8 @@ export function analyzeScheduleConflicts({
       const required = requiredOf(competence.id, dateStr);
       const filled = filledByCell.get(key) || 0;
       if (filled === required) return;
+      // No count set means no ceiling: any number of people is fine there.
+      if (required === 0) return;
       add(filled < required ? 'understaffed' : 'overstaffed', {
         key,
         date: dateStr,
