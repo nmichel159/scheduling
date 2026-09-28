@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CloseIcon, PersonIcon } from './NavIcons';
 import {
   DEFAULT_RECOVERY_DAYS,
   DEFAULT_SHIFT_HOURS,
@@ -129,6 +130,7 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
     isUniform(draftFrom(competence).week, 'shift_hours')
   );
   const nameRef = useRef(null);
+  const titleId = useId();
 
   useEffect(() => {
     if (!open) return undefined;
@@ -225,62 +227,65 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
 
   return (
     <div
-      className="ceditor-overlay"
-      onClick={(e) => {
+      className="dialog-overlay"
+      onMouseDown={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}
     >
       <form
-        className="ceditor"
+        className="dialog dialog-lg ceditor"
         role="dialog"
         aria-modal="true"
-        aria-label={
-          competence ? t('scenarios.edit_competence') : t('scenarios.new_competence')
-        }
+        aria-labelledby={titleId}
         onSubmit={handleSubmit}
         onKeyDown={handleFormKeyDown}
       >
-        <header className="ceditor-head">
-          <h2>
+        <header className="dialog-header ceditor-head">
+          <h2 id={titleId} className="dialog-title">
             {competence
               ? t('scenarios.edit_competence')
               : t('scenarios.new_competence')}
           </h2>
           <button
             type="button"
-            className="ceditor-close"
+            className="dialog-close"
             onClick={onCancel}
             aria-label={t('departments.cancel')}
+            title={t('departments.cancel')}
           >
-            ×
+            <CloseIcon />
           </button>
         </header>
 
-        <div className="ceditor-body">
-          <label className="ceditor-field">
-            <span>{t('competence_manager.name')}</span>
-            <input
-              ref={nameRef}
-              className="ceditor-input"
-              value={draft.name}
-              maxLength={200}
-              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            />
-          </label>
+        <div className="dialog-body ceditor-body">
+          <div className="ceditor-fields">
+            <label className="field">
+              <span className="field-label">{t('competence_manager.name')}</span>
+              <input
+                ref={nameRef}
+                className="input"
+                value={draft.name}
+                maxLength={200}
+                required
+                aria-invalid={draft.name.length > 0 && !trimmedName ? true : undefined}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              />
+            </label>
 
-          <label className="ceditor-field">
-            <span>{t('competence_manager.description')}</span>
-            <input
-              className="ceditor-input"
-              value={draft.description}
-              maxLength={2000}
-              placeholder={t('competence_manager.description_placeholder')}
-              onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-            />
-          </label>
+            <label className="field">
+              <span className="field-label">{t('competence_manager.description')}</span>
+              <input
+                className="input"
+                value={draft.description}
+                maxLength={2000}
+                placeholder={t('competence_manager.description_placeholder')}
+                onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+              />
+            </label>
+          </div>
 
           <section className="ceditor-section">
-            <h3>{t('scenarios.week_title')}</h3>
+            <h3 className="ceditor-section-title">{t('scenarios.week_title')}</h3>
             <div className="ceditor-grid">
               <div className="ceditor-grid-row ceditor-grid-head">
                 <span className="ceditor-grid-label" />
@@ -317,7 +322,7 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
                   {draft.week.map((item) => (
                     <input
                       key={item.weekday}
-                      className={dayClass('ceditor-grid-input', item.weekday)}
+                      className={dayClass('input ceditor-grid-input', item.weekday)}
                       type="number"
                       min="0"
                       max={row.max}
@@ -375,7 +380,7 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
           </section>
 
           <section className="ceditor-section">
-            <h3>{t('scenarios.recovery_title')}</h3>
+            <h3 className="ceditor-section-title">{t('scenarios.recovery_title')}</h3>
             <div className="ceditor-recovery">
               {draft.week.map((item, index) => {
                 const target = recoveryTargetWeekday(
@@ -408,7 +413,9 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
                       >
                         <div className="ceditor-slot is-source">
                           <em>{t('special_days.column_short')}</em>
-                          <b aria-hidden="true">🧍</b>
+                          <b aria-hidden="true">
+                            <PersonIcon className="ceditor-person" />
+                          </b>
                         </div>
                         {Array.from(
                           { length: MAX_RECOVERY_DAYS + 1 },
@@ -486,7 +493,9 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
                             onClick={() => setRecoveryTarget(item.weekday, weekday)}
                           >
                             <em>{t(`workload.days.${weekday}`)}</em>
-                            <b aria-hidden="true">{isSource ? '🧍' : ''}</b>
+                            <b aria-hidden="true">
+                              {isSource && <PersonIcon className="ceditor-person" />}
+                            </b>
                           </button>
                         );
                       })}
@@ -503,15 +512,11 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
           </section>
         </div>
 
-        <footer className="ceditor-actions">
-          <button type="button" className="cmanager-btn" onClick={onCancel}>
+        <footer className="dialog-footer">
+          <button type="button" className="btn" onClick={onCancel}>
             {t('departments.cancel')}
           </button>
-          <button
-            type="submit"
-            className="cmanager-btn cmanager-btn-primary"
-            disabled={!canSave}
-          >
+          <button type="submit" className="btn btn-primary" disabled={!canSave}>
             {t('departments.save')}
           </button>
         </footer>

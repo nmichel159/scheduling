@@ -1,7 +1,9 @@
-import { useLayoutEffect, useState } from 'react';
+import { useId, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { SHIFT_PREFERENCE } from '../services/employeeService';
+import { personInitials } from '../utils/personInitials';
+import { CheckIcon, CloseIcon, PlusIcon } from './NavIcons';
 import './EmployeeDetailDialog.css';
 
 /**
@@ -38,6 +40,8 @@ import './EmployeeDetailDialog.css';
  *   of the filled-in availability count
  * - formatDay(day) — how one duty's date is printed
  * - saving: boolean — disables the form while a save is in flight
+ * - error: string | null — why the last save failed; shown above the
+ *   buttons, the form keeps what was typed
  * - onSave({ max_shifts_per_month, shift_preference, competence_ids })
  * - onClose()
  */
@@ -53,8 +57,19 @@ const PREFERENCE_ORDER = [
   SHIFT_PREFERENCE.ANY,
 ];
 
-/* What the stepper's buttons and the number input agree on. */
+/* What the stepper's buttons and the number input agree on — and what the
+ * backend accepts (0..31, whole numbers). */
 const MAX_SHIFTS_LIMIT = 31;
+
+/** A typed wish as the API takes it: null for "no opinion", otherwise a
+ *  whole number inside the limit. Typing 40 or 2.5 must not end in a 422. */
+const clampShifts = (text) => {
+  const trimmed = String(text).trim();
+  if (trimmed === '') return null;
+  const value = Number(trimmed);
+  if (!Number.isFinite(value)) return null;
+  return Math.min(MAX_SHIFTS_LIMIT, Math.max(0, Math.round(value)));
+};
 
 /** One number with its label; the dialog prints a grid of them. */
 const Tile = ({ label, value, accent = false }) => (
@@ -75,6 +90,7 @@ const EmployeeDetailDialog = ({
   daysInMonth = 0,
   formatDay = (d) => d.work_date,
   saving = false,
+  error = null,
   onSave,
   onClose,
 }) => {
@@ -96,6 +112,7 @@ const EmployeeDetailDialog = ({
     () => (settings && settings.shift_preference) || SHIFT_PREFERENCE.ANY
   );
   const [picked, setPicked] = useState(() => competences.map((c) => c.id));
+  const titleId = useId();
 
   useLayoutEffect(() => {
     if (!employee) return;
@@ -115,9 +132,15 @@ const EmployeeDetailDialog = ({
 
   /** Step the duty wish, treating "no opinion" as the current count. */
   const stepShifts = (delta) => {
-    const current = maxShifts.trim() === '' ? 0 : Number(maxShifts);
+    const current = clampShifts(maxShifts) ?? 0;
     const next = Math.min(MAX_SHIFTS_LIMIT, Math.max(0, current + delta));
     setMaxShifts(String(next));
+  };
+
+  /** Leaving the field shows the number that will actually be saved. */
+  const commitShifts = () => {
+    const value = clampShifts(maxShifts);
+    setMaxShifts(value == null ? '' : String(value));
   };
 
   const toggleCompetence = (id) => {
@@ -127,9 +150,8 @@ const EmployeeDetailDialog = ({
   };
 
   const handleSave = () => {
-    const trimmed = maxShifts.trim();
     onSave({
-      max_shifts_per_month: trimmed === '' ? null : Number(trimmed),
+      max_shifts_per_month: clampShifts(maxShifts),
       shift_preference: preference,
       competence_ids: editableCompetences ? picked : competences.map((c) => c.id),
     });
@@ -137,36 +159,45 @@ const EmployeeDetailDialog = ({
 
   return createPortal(
     <div
-      className="empdlg-backdrop"
+      className="dialog-overlay"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="empdlg" role="dialog" aria-modal="true">
-        <header className="empdlg-head">
+      <div
+        className="dialog empdlg"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
+        <header className="dialog-header empdlg-head">
           <div className="empdlg-avatar" aria-hidden="true">
-            {label.trim().charAt(0).toUpperCase()}
+            {personInitials(label)}
           </div>
           <div className="empdlg-heading">
-            <h3 className="empdlg-title">{label}</h3>
-            <p className="empdlg-subtitle">{employee.email}</p>
+            <h2 id={titleId} className="dialog-title empdlg-title">
+              {label}
+            </h2>
+            {employee.full_name && (
+              <p className="dialog-description empdlg-subtitle">{employee.email}</p>
+            )}
           </div>
           <button
             type="button"
-            className="empdlg-close"
+            className="dialog-close"
             onClick={onClose}
-            title={t('departments.cancel')}
-            aria-label={t('departments.cancel')}
+            title={t('competences.close_detail')}
+            aria-label={t('competences.close_detail')}
           >
-            ✕
+            <CloseIcon />
           </button>
         </header>
 
-        <div className="empdlg-body">
+        <div className="dialog-body empdlg-body">
           <section className="empdlg-section">
-            <h4 className="empdlg-section-title">
+            <h3 className="empdlg-section-title">
               {t('competences.employee_detail')}
-            </h4>
+            </h3>
             <dl className="empdlg-fields">
               <div>
                 <dt>{t('competences.first_name')}</dt>
@@ -184,14 +215,14 @@ const EmployeeDetailDialog = ({
           </section>
 
           <section className="empdlg-section">
-            <h4 className="empdlg-section-title">
+            <h3 className="empdlg-section-title">
               {t('competences.title')}
               {editableCompetences && (
                 <span className="empdlg-section-count">
                   {picked.length} / {allCompetences.length}
                 </span>
               )}
-            </h4>
+            </h3>
 
             {editableCompetences ? (
               allCompetences.length === 0 ? (
@@ -204,14 +235,16 @@ const EmployeeDetailDialog = ({
                       <button
                         key={c.id}
                         type="button"
-                        className={`empdlg-chip ${on ? 'is-on' : ''}`}
+                        className={`empdlg-chip ${on ? 'is-on' : ''}`.trim()}
                         aria-pressed={on}
                         disabled={saving}
                         onClick={() => toggleCompetence(c.id)}
                       >
-                        <span className="empdlg-chip-mark" aria-hidden="true">
-                          {on ? '✓' : '+'}
-                        </span>
+                        {on ? (
+                          <CheckIcon className="empdlg-chip-mark" />
+                        ) : (
+                          <PlusIcon className="empdlg-chip-mark" />
+                        )}
                         {c.name}
                       </button>
                     );
@@ -227,44 +260,51 @@ const EmployeeDetailDialog = ({
 
           {editable && (
             <section className="empdlg-section">
-              <h4 className="empdlg-section-title">{t('employees.settings')}</h4>
+              <h3 className="empdlg-section-title">{t('employees.settings')}</h3>
 
-              <div className="empdlg-field">
-                <span className="empdlg-label">{t('employees.max_shifts')}</span>
+              <div className="field empdlg-field">
+                <label className="field-label" htmlFor={`${titleId}-max`}>
+                  {t('employees.max_shifts')}
+                </label>
                 <div className="empdlg-stepper">
                   <button
                     type="button"
-                    className="empdlg-step"
+                    className="btn btn-icon"
                     onClick={() => stepShifts(-1)}
                     disabled={saving || maxShifts.trim() === '0'}
-                    aria-label="−"
+                    aria-label={t('employees.decrease')}
+                    title={t('employees.decrease')}
                   >
                     −
                   </button>
                   <input
+                    id={`${titleId}-max`}
                     type="number"
                     min="0"
                     max={MAX_SHIFTS_LIMIT}
+                    step="1"
                     inputMode="numeric"
-                    className="empdlg-input"
+                    className="input empdlg-input"
                     value={maxShifts}
                     disabled={saving}
                     placeholder="—"
                     onChange={(e) => setMaxShifts(e.target.value)}
+                    onBlur={commitShifts}
                   />
                   <button
                     type="button"
-                    className="empdlg-step"
+                    className="btn btn-icon"
                     onClick={() => stepShifts(1)}
-                    disabled={saving}
-                    aria-label="+"
+                    disabled={saving || clampShifts(maxShifts) === MAX_SHIFTS_LIMIT}
+                    aria-label={t('employees.increase')}
+                    title={t('employees.increase')}
                   >
                     +
                   </button>
                   {maxShifts.trim() !== '' && (
                     <button
                       type="button"
-                      className="empdlg-clear"
+                      className="btn btn-ghost btn-sm empdlg-clear"
                       onClick={() => setMaxShifts('')}
                       disabled={saving}
                     >
@@ -274,20 +314,19 @@ const EmployeeDetailDialog = ({
                 </div>
               </div>
 
-              <div className="empdlg-field">
-                <span className="empdlg-label">{t('employees.preference')}</span>
+              <div className="field empdlg-field">
+                <span className="field-label" id={`${titleId}-pref`}>
+                  {t('employees.preference')}
+                </span>
                 <div
-                  className="empdlg-choice"
+                  className="segmented empdlg-choice"
                   role="group"
-                  aria-label={t('employees.preference')}
+                  aria-labelledby={`${titleId}-pref`}
                 >
                   {PREFERENCE_ORDER.map((value) => (
                     <button
                       key={value}
                       type="button"
-                      className={`empdlg-choice-button ${
-                        preference === value ? 'is-active' : ''
-                      }`}
                       aria-pressed={preference === value}
                       disabled={saving}
                       onClick={() => setPreference(value)}
@@ -303,12 +342,12 @@ const EmployeeDetailDialog = ({
           {stats && (
             <>
               <section className="empdlg-section">
-                <h4 className="empdlg-section-title">
+                <h3 className="empdlg-section-title">
                   {monthLabel}
                   <span className="empdlg-section-count">
                     {t(`employees.preference_${stats.preference}`)}
                   </span>
-                </h4>
+                </h3>
 
                 <div className="empdlg-tiles">
                   <Tile
@@ -345,7 +384,7 @@ const EmployeeDetailDialog = ({
                     {days.map((d) => (
                       <span
                         key={`${d.work_date}-${d.competence_id}`}
-                        className={`empdlg-day ${d.is_surcharge ? 'is-surcharge' : ''}`}
+                        className={`empdlg-day ${d.is_surcharge ? 'is-surcharge' : ''}`.trim()}
                         title={d.competence_name || ''}
                       >
                         {formatDay(d)}
@@ -358,12 +397,12 @@ const EmployeeDetailDialog = ({
               {/* What the person said about the month before it was
                 * planned — the counts the availability calendar holds. */}
               <section className="empdlg-section">
-                <h4 className="empdlg-section-title">
+                <h3 className="empdlg-section-title">
                   {t('employees.availability')}
                   <span className="empdlg-section-count">
                     {stats.marked} / {daysInMonth}
                   </span>
-                </h4>
+                </h3>
                 <div className="empdlg-tiles">
                   <Tile label={t('employees.stat_marked')} value={stats.marked} />
                   <Tile label={t('employees.stat_preferred')} value={stats.preferred} />
@@ -379,14 +418,20 @@ const EmployeeDetailDialog = ({
           )}
         </div>
 
-        <div className="empdlg-actions">
-          <button type="button" className="departments-btn" onClick={onClose}>
+        {error && (
+          <div className="alert alert-danger empdlg-error" role="alert">
+            {error}
+          </div>
+        )}
+
+        <div className="dialog-footer">
+          <button type="button" className="btn" onClick={onClose}>
             {t('competences.close_detail')}
           </button>
           {editable && (
             <button
               type="button"
-              className="departments-btn departments-btn-primary"
+              className="btn btn-primary"
               onClick={handleSave}
               disabled={saving}
             >

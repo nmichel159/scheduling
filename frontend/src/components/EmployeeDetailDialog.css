@@ -1,157 +1,123 @@
 /* --- employee profile dialog (EmployeeDetailDialog.jsx) ---
- * Sectioned: who the person is, what they are allowed to do, what they
- * want, and what the shown month gave them. The middle two sections are
- * only editable when the opening screen passes the data they edit — the
- * competence matrix still gets the plain read-only card. */
-.empdlg-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.45);
+ * The shell (overlay, card, header, footer, buttons, fields, segmented
+ * switch) is the shared dialog from styles/ui.css. Sectioned inside: who
+ * the person is, what they are allowed to do, what they want, and what the
+ * shown month gave them. The middle two sections are only editable when
+ * the opening screen passes the data they edit. */
+
+.dialog.empdlg {
+  max-width: 520px;
 }
 
-.empdlg {
-  width: 100%;
-  max-width: 480px;
-  max-height: calc(100vh - 32px);
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--code-background);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
-  padding: 16px;
-}
-
-.empdlg-head {
-  display: flex;
+.dialog-header.empdlg-head {
   align-items: center;
-  gap: 10px;
-  padding-bottom: 14px;
+  padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
 }
 
 .empdlg-avatar {
-  flex: none;
-  width: 42px;
-  height: 42px;
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: center;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: var(--primary-background);
   color: var(--primary);
-  font-weight: 700;
-  font-size: 1.1rem;
+  font-size: var(--fs-base);
+  font-weight: 650;
+  letter-spacing: 0.02em;
 }
 
-.empdlg-heading { flex: 1; min-width: 0; }
-
-.empdlg-title {
-  margin: 0;
-  color: var(--text-h);
-  font-size: 1.05rem;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.empdlg-heading {
+  flex: 1;
+  min-width: 0;
 }
-.empdlg-subtitle {
-  margin: 2px 0 0;
-  color: var(--text);
-  font-size: 0.78rem;
-  opacity: 0.75;
+
+.empdlg-title,
+.dialog-description.empdlg-subtitle {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.empdlg-close {
-  flex: none;
-  border: none;
-  background: none;
-  color: var(--text-h);
-  font: inherit;
-  font-size: 0.85rem;
-  line-height: 1;
-  padding: 4px 6px;
-  border-radius: 6px;
-  cursor: pointer;
-  opacity: 0.7;
+.dialog-description.empdlg-subtitle {
+  margin-top: 2px;
 }
-.empdlg-close:hover { opacity: 1; }
+
+.empdlg-head .dialog-close {
+  align-self: flex-start;
+}
 
 /* The sections scroll, the header and the action row stay put, so Save
  * is reachable however many competences the workplace has. */
-.empdlg-body {
+.dialog-body.empdlg-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  margin: 0 -16px;
-  padding: 0 16px;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 .empdlg-section {
-  padding: 14px 0;
-  border-bottom: 1px solid var(--border);
+  padding: 16px 0;
 }
-.empdlg-section:last-child { border-bottom: none; }
+
+.empdlg-section + .empdlg-section {
+  border-top: 1px solid var(--border);
+}
 
 .empdlg-section-title {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  margin: 0 0 10px;
-  color: var(--text-h);
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  opacity: 0.75;
-}
-.empdlg-section-count {
-  font-size: 0.72rem;
+  margin: 0 0 12px;
+  color: var(--text-p);
+  font-size: var(--fs-xs);
   font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.empdlg-section-count {
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.8;
 }
 
 .empdlg-fields {
-  margin: 0;
   display: grid;
   gap: 8px;
+  margin: 0;
 }
+
 .empdlg-fields > div {
   display: grid;
-  grid-template-columns: 110px 1fr;
+  grid-template-columns: 110px minmax(0, 1fr);
   align-items: baseline;
-  gap: 10px;
+  gap: 12px;
 }
+
 .empdlg-fields dt {
-  color: var(--text);
-  font-size: 0.78rem;
-  opacity: 0.75;
+  color: var(--text-p);
+  font-size: var(--fs-sm);
 }
+
 .empdlg-fields dd {
   margin: 0;
   color: var(--text-h);
-  font-size: 0.88rem;
-  word-break: break-word;
+  font-size: var(--fs-base);
+  overflow-wrap: anywhere;
 }
 
 .empdlg-none {
   margin: 0;
-  color: var(--text-h);
-  font-size: 0.85rem;
-  opacity: 0.75;
+  color: var(--text-p);
+  font-size: var(--fs-base);
 }
 
 /* --- competences: every one of the workplace's, the person's are on --- */
@@ -165,46 +131,58 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 11px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--background);
-  color: var(--text-h);
+  height: 30px;
+  padding: 0 12px 0 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text);
   font: inherit;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: var(--fs-sm);
+  font-weight: 550;
   cursor: pointer;
-  opacity: 0.8;
+  transition:
+    background-color var(--duration) var(--ease),
+    border-color var(--duration) var(--ease),
+    color var(--duration) var(--ease);
 }
+
 .empdlg-chip:hover:not(:disabled) {
-  border-color: var(--primary);
-  opacity: 1;
+  border-color: var(--primary-border);
+  color: var(--text-h);
 }
+
 .empdlg-chip.is-on {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: #fff;
-  opacity: 1;
+  border-color: var(--primary-border);
+  background: var(--primary-background);
+  color: var(--primary);
 }
-.empdlg-chip:disabled { cursor: not-allowed; }
+
+.empdlg-chip.is-on:hover:not(:disabled) {
+  background: var(--primary-background-strong);
+  color: var(--primary);
+}
+
+.empdlg-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.empdlg-chip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 .empdlg-chip-mark {
-  font-size: 0.78rem;
-  line-height: 1;
-  opacity: 0.8;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  stroke-width: 2.2;
 }
 
 /* --- settings --- */
-.empdlg-field {
-  display: grid;
-  gap: 6px;
-}
-.empdlg-field + .empdlg-field { margin-top: 12px; }
-
-.empdlg-label {
-  color: var(--text);
-  font-size: 0.78rem;
-  opacity: 0.75;
+.empdlg-field + .empdlg-field {
+  margin-top: 16px;
 }
 
 .empdlg-stepper {
@@ -213,89 +191,42 @@
   gap: 6px;
 }
 
-.empdlg-step {
-  flex: none;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
-  color: var(--text-h);
-  font: inherit;
-  font-size: 1rem;
-  line-height: 1;
-  cursor: pointer;
+.empdlg-stepper > .btn-icon {
+  font-size: var(--fs-md);
 }
-.empdlg-step:hover:not(:disabled) { border-color: var(--primary); }
-.empdlg-step:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.empdlg-input {
-  width: 64px;
-  box-sizing: border-box;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 7px 8px;
-  background: var(--background);
-  color: var(--text-h);
-  font: inherit;
-  font-size: 0.95rem;
-  font-weight: 700;
+.input.empdlg-input {
+  width: 72px;
+  font-size: var(--fs-md);
   font-variant-numeric: tabular-nums;
+  font-weight: 600;
   text-align: center;
 }
-.empdlg-input:focus {
-  outline: none;
-  border-color: var(--primary);
-}
-.empdlg-input:disabled { opacity: 0.6; }
+
 /* The stepper is the control; the native spinners duplicate it. */
 .empdlg-input::-webkit-outer-spin-button,
 .empdlg-input::-webkit-inner-spin-button {
-  appearance: none;
   margin: 0;
+  appearance: none;
 }
-.empdlg-input[type='number'] { appearance: textfield; }
 
-.empdlg-clear {
-  border: none;
-  background: none;
-  color: var(--primary);
-  font: inherit;
-  font-size: 0.78rem;
-  padding: 4px 6px;
-  cursor: pointer;
+.empdlg-input[type='number'] {
+  appearance: textfield;
 }
-.empdlg-clear:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn.empdlg-clear {
+  color: var(--primary);
+}
 
 .empdlg-choice {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
+  align-self: flex-start;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
-.empdlg-choice-button {
-  flex: 1;
-  border: 0;
-  border-radius: 6px;
-  padding: 6px 10px;
-  background: transparent;
-  color: var(--text-h);
-  opacity: 0.65;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.8rem;
-  white-space: nowrap;
+.empdlg-choice > button:disabled {
+  cursor: not-allowed;
 }
-.empdlg-choice-button:hover { opacity: 1; }
-.empdlg-choice-button.is-active {
-  background: var(--primary);
-  color: #fff;
-  opacity: 1;
-}
-.empdlg-choice-button:disabled { cursor: not-allowed; }
 
 /* --- the month in numbers ---
  * A fixed grid of small tiles rather than a sentence: the scheduler
@@ -303,41 +234,52 @@
  * faster than numbers in a paragraph. */
 .empdlg-tiles {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  margin-bottom: 12px;
+}
+
+.empdlg-tiles + .empdlg-none,
+.empdlg-tiles + .empdlg-days {
+  margin-top: 12px;
 }
 
 .empdlg-tile {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
 }
+
 .empdlg-tile.is-accent {
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  border-color: var(--primary-border);
   background: var(--primary-background);
 }
 
 .empdlg-tile-value {
-  font-size: 1.1rem;
-  font-weight: 700;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
   color: var(--text-h);
+  font-size: var(--fs-lg);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  line-height: 1.1;
 }
-.empdlg-tile.is-accent .empdlg-tile-value { color: var(--primary); }
+
+.empdlg-tile.is-accent .empdlg-tile-value {
+  color: var(--primary);
+}
 
 .empdlg-tile-label {
-  font-size: 0.64rem;
+  overflow: hidden;
+  color: var(--text-p);
+  font-size: 0.6875rem;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.04em;
-  opacity: 0.6;
-  color: var(--text-h);
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 /* --- the shown month's duties --- */
@@ -348,31 +290,36 @@
 }
 
 .empdlg-day {
-  padding: 4px 8px;
+  padding: 3px 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--background);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
   color: var(--text-h);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
-  line-height: 1.3;
+  line-height: 1.4;
   white-space: nowrap;
 }
+
 /* The surcharged days are the ones the scheduler counts twice, so they
  * are the only thing coloured in the strip. */
 .empdlg-day.is-surcharge {
-  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+  border-color: var(--primary-border);
   background: var(--primary-background);
   color: var(--primary);
-  font-weight: 700;
+  font-weight: 600;
 }
 
-/* The dialog is opened from several screens, so it brings its own action
- * row instead of borrowing the matrix's. */
-.empdlg-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
+.empdlg-error {
+  margin: 0 20px 12px;
+}
+
+@media (max-width: 560px) {
+  .empdlg-fields > div {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  .empdlg-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
