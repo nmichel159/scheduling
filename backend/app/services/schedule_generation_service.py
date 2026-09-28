@@ -19,7 +19,9 @@ What each pass is made of, from the strongest term to the weakest:
 1. Hard constraints -- coverage, availability, one duty a day, the recovery
    the workplace configured for each duty (and, for a duty worked at another
    workplace, the recovery that one configured), and every manually placed
-   duty.
+   duty. A manual placement outranks all the others: the manager may put
+   anybody anywhere, even one person into two roles on one day, and the
+   solver keeps it and plans only the rest of the month around it.
 2. The monthly wish. A duty past what an employee said they want costs
    :data:`OVER_WISH_DUTY_COST`, far above any balance step, so it happens
    only when the month cannot be staffed otherwise.
@@ -45,6 +47,7 @@ from __future__ import annotations
 
 from bisect import bisect_left
 from calendar import monthrange
+from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -442,30 +445,110 @@ def _load_ladder(
     ]
 
 
+def _fixed_counts(
+    fixed_assignments: Iterable[tuple[int, int, date]],
+) -> Counter[tuple[int, date]]:
+    """How many duties were placed by hand in each competence on each day."""
+    return Counter(
+        (competence_id, work_date) for _user_id, competence_id, work_date in fixed_assignments
+    )
+
+
+def _demand(
+    competence: SchedulingCompetence,
+    work_date: date,
+    fixed_counts: Counter[tuple[int, date]],
+) -> int:
+    """How many people one competence gets on one day.
+
+    What the workplace asks for, unless the manager already placed more
+    than that by hand -- then the placed ones stand and nobody is added.
+    """
+    return max(competence.required_on(work_date), fixed_counts[(competence.id, work_date)])
+
+
+def _doubled_fixed_duties(
+    fixed_by_date: dict[date, list[tuple[int, int]]],
+    work_dates: Iterable[date],
+    competence_id: int | None = None,
+) -> int:
+    """Duties placed by hand on a person who already holds one in the span.
+
+    Capacity is counted in people on the assumption that each of them covers
+    one duty. Someone the manager put into two roles, or onto two days that
+    break their rest, covers more than that, and the difference is added
+    back so the check does not report a shortage the placement itself
+    resolved.
+    """
+    per_user: Counter[int] = Counter(
+        user_id
+        for work_date in work_dates
+        for user_id, placed_competence_id in fixed_by_date.get(work_date, ())
+        if competence_id is None or placed_competence_id == competence_id
+    )
+    return sum(count - 1 for count in per_user.values() if count > 1)
+
+
+def _clashing_fixed_duties(
+    fixed_assignments: Iterable[tuple[int, int, date]],
+    recovery_of: Callable[[int, date], int],
+) -> set[tuple[int, int, date]]:
+    """Duties placed by hand that share a day or a rest with another one.
+
+    The manager may put one person into two roles on a day, or onto a day
+    their previous duty still holds in rest. Both stand as placed; this is
+    what finds them, so the parts of the model that assume one duty at a
+    time can make room for the extra ones.
+    """
+    by_user: dict[int, list[tuple[int, int, date]]] = {}
+    for assignment in fixed_assignments:
+        by_user.setdefault(assignment[0], []).append(assignment)
+    clashing: set[tuple[int, int, date]] = set()
+    for placements in by_user.values():
+        ordered = sorted(placements, key=lambda item: (item[2], item[1]))
+        for position, first in enumerate(ordered):
+            rest_ends = first[2] + timedelta(days=recovery_of(first[1], first[2]))
+            for second in ordered[position + 1:]:
+                if second[2] > rest_ends:
+                    break
+                clashing.update((first, second))
+    return clashing
+
+
 def _detect_capacity_issues(
     variables: dict[tuple[int, int, date], LpVariable],
     competences: list[SchedulingCompetence],
     days: list[date],
     variable_index: ScheduleVariableIndex | None = None,
+    fixed_assignments: frozenset[tuple[int, int, date]] = frozenset(),
 ) -> list[dict[str, object]]:
     """Find obvious daily and rest-day capacity conflicts."""
     index = variable_index or _index_schedule_variables(variables)
+    fixed_counts = _fixed_counts(fixed_assignments)
+    fixed_by_date: dict[date, list[tuple[int, int]]] = {}
+    for user_id, competence_id, work_date in fixed_assignments:
+        fixed_by_date.setdefault(work_date, []).append((user_id, competence_id))
     issues: list[dict[str, object]] = []
     for work_date in days:
-        daily_required = sum(competence.required_on(work_date) for competence in competences)
+        daily_required = sum(
+            _demand(competence, work_date, fixed_counts) for competence in competences
+        )
         daily_candidates = index.candidate_ids_by_date.get(work_date, set())
-        if len(daily_candidates) < daily_required:
+        daily_available = len(daily_candidates) + _doubled_fixed_duties(
+            fixed_by_date, (work_date,)
+        )
+        if daily_available < daily_required:
             issues.append(
                 {
                     "code": "insufficient_daily_capacity",
                     "work_date": work_date.isoformat(),
                     "required_count": daily_required,
-                    "available_count": len(daily_candidates),
+                    "available_count": daily_available,
                 }
             )
 
         for competence in competences:
-            required_count = competence.required_on(work_date)
+            required_count = _demand(competence, work_date, fixed_counts)
             candidates = index.candidate_ids_by_competence_date.get(
                 (competence.id, work_date), set()
             )
@@ -498,10 +581,14 @@ def _detect_capacity_issues(
             next_candidates = index.candidate_ids_by_competence_date.get(
                 (competence.id, next_day), set()
             )
-            combined_count = len(current_candidates | next_candidates)
-            required_across_days = competence.required_on(
-                current_day
-            ) + competence.required_on(next_day)
+            combined_count = len(
+                current_candidates | next_candidates
+            ) + _doubled_fixed_duties(
+                fixed_by_date, (current_day, next_day), competence.id
+            )
+            required_across_days = _demand(
+                competence, current_day, fixed_counts
+            ) + _demand(competence, next_day, fixed_counts)
             if combined_count < required_across_days:
                 issues.append(
                     {
@@ -522,18 +609,22 @@ def _detect_capacity_issues(
         combined_candidates = index.candidate_ids_by_date.get(
             current_day, set()
         ) | index.candidate_ids_by_date.get(next_day, set())
+        combined_available = len(combined_candidates) + _doubled_fixed_duties(
+            fixed_by_date, (current_day, next_day)
+        )
         required_across_days = sum(
-            competence.required_on(current_day) + competence.required_on(next_day)
+            _demand(competence, current_day, fixed_counts)
+            + _demand(competence, next_day, fixed_counts)
             for competence in competences
         )
-        if len(combined_candidates) < required_across_days:
+        if combined_available < required_across_days:
             issues.append(
                 {
                     "code": "insufficient_consecutive_day_capacity",
                     "work_date": current_day.isoformat(),
                     "next_work_date": next_day.isoformat(),
                     "required_count": required_across_days,
-                    "available_count": len(combined_candidates),
+                    "available_count": combined_available,
                 }
             )
 
@@ -547,18 +638,18 @@ def _detect_fixed_assignment_conflicts(
 ) -> list[dict[str, object]]:
     """Find manually placed duties the solver could never keep.
 
-    A manual placement is an instruction, not a wish, so anything the solver
-    would have to break to honor it is reported before the solve rather than
-    coming back as an unexplained infeasibility.
+    A manual placement is an instruction, not a wish: one that breaks a rest
+    day, doubles a person up or overfills a role is kept exactly as placed,
+    and the editor shows it as a conflict. What cannot be kept is a duty for
+    somebody who no longer works here, or in a competence the workplace no
+    longer has, and that is reported before the solve.
     """
     issues: list[dict[str, object]] = []
     employee_ids = {employee.id for employee in employees}
-    competences_by_id = {competence.id: competence for competence in competences}
-    placements_by_user: dict[int, list[tuple[date, int]]] = {}
-    counts_by_competence_date: dict[tuple[int, date], int] = {}
+    competence_ids = {competence.id for competence in competences}
 
     for user_id, competence_id, work_date in sorted(fixed_assignments):
-        if user_id not in employee_ids or competence_id not in competences_by_id:
+        if user_id not in employee_ids or competence_id not in competence_ids:
             issues.append(
                 {
                     "code": "fixed_assignment_unknown",
@@ -567,44 +658,6 @@ def _detect_fixed_assignment_conflicts(
                     "competence_id": competence_id,
                 }
             )
-            continue
-        placements_by_user.setdefault(user_id, []).append((work_date, competence_id))
-        counts_by_competence_date[(competence_id, work_date)] = (
-            counts_by_competence_date.get((competence_id, work_date), 0) + 1
-        )
-
-    for (competence_id, work_date), count in sorted(counts_by_competence_date.items()):
-        competence = competences_by_id[competence_id]
-        required_count = competence.required_on(work_date)
-        if count > required_count:
-            issues.append(
-                {
-                    "code": "fixed_assignment_over_requirement",
-                    "work_date": work_date.isoformat(),
-                    "competence_id": competence_id,
-                    "competence_name": competence.name,
-                    "required_count": required_count,
-                    "fixed_count": count,
-                }
-            )
-
-    for user_id, placements in sorted(placements_by_user.items()):
-        ordered = sorted(placements)
-        for (current_date, current_competence), (next_date, _) in zip(
-            ordered, ordered[1:]
-        ):
-            recovery = competences_by_id[current_competence].recovery_days_on(
-                current_date
-            )
-            if next_date <= current_date + timedelta(days=recovery):
-                issues.append(
-                    {
-                        "code": "fixed_assignment_rest_conflict",
-                        "work_date": current_date.isoformat(),
-                        "next_work_date": next_date.isoformat(),
-                        "user_id": user_id,
-                    }
-                )
 
     return issues
 
@@ -683,7 +736,10 @@ def solve_monthly_schedule(
         adjacent_assignments: Assignments on the days around the month.
         fixed_assignments: Assignments the solver must keep exactly as given.
             They cover their own demand, occupy their employee's rest days and
-            count towards the workload balance like any generated duty.
+            count towards the workload balance like any generated duty. They
+            are kept even where they break a rule -- two roles on one day, a
+            duty inside another's rest, more people than a role asks for --
+            and the solver only plans the rest of the month around them.
         generate_from: First date the solver may fill. Earlier dates keep only
             their fixed assignments and are exempt from the coverage rule, so a
             month already half worked can be regenerated from tomorrow on.
@@ -845,6 +901,7 @@ def solve_monthly_schedule(
         competences,
         window_days,
         variable_index,
+        fixed_assignments,
     )
     if capacity_issues:
         raise ScheduleGenerationError(
@@ -858,13 +915,14 @@ def solve_monthly_schedule(
             f"fixed_{user_id}_{competence_id}_{work_date.isoformat()}",
         )
 
+    fixed_counts = _fixed_counts(fixed_assignments)
     for work_date in window_days:
         for competence in competences:
             coverage_variables = variable_index.by_competence_date.get(
                 (competence.id, work_date), []
             )
             problem += (
-                lpSum(coverage_variables) == competence.required_on(work_date),
+                lpSum(coverage_variables) == _demand(competence, work_date, fixed_counts),
                 f"coverage_{competence.id}_{work_date.isoformat()}",
             )
 
@@ -872,10 +930,15 @@ def solve_monthly_schedule(
     # any given day an employee may start a duty, or still be recovering from
     # one earlier duty, but not both. Every duty inside the sum already
     # excludes every other one, so they can share a single constraint.
+    #
+    # Duties placed by hand may already break it -- two roles on one day, or
+    # a duty inside the rest of another. The bound then rises to however many
+    # of them the day holds, which keeps them and still leaves no room for a
+    # generated duty beside them.
     for employee in employees:
         for work_date in days:
             recovering = [
-                variables[(employee.id, competence_id, earlier_date)]
+                (employee.id, competence_id, earlier_date)
                 for earlier_date in variable_index.candidate_dates_by_user.get(
                     employee.id, set()
                 )
@@ -887,13 +950,29 @@ def solve_monthly_schedule(
                 <= earlier_date
                 + timedelta(days=duty_recovery(competence_id, earlier_date))
             ]
-            working = variable_index.by_user_date.get((employee.id, work_date), [])
-            if len(recovering) + len(working) < 2:
+            working = [
+                (employee.id, competence_id, work_date)
+                for competence_id in variable_index.competence_ids_by_user_date.get(
+                    (employee.id, work_date), set()
+                )
+            ]
+            keys = recovering + working
+            if len(keys) < 2:
                 continue
+            placed = sum(1 for key in keys if key in fixed_assignments)
             problem += (
-                lpSum(recovering) + lpSum(working) <= 1,
+                lpSum(variables[key] for key in keys) <= max(1, placed),
                 f"rest_{employee.id}_{work_date.isoformat()}",
             )
+
+    # The ladders below are as tall as the most an employee can work while
+    # every duty keeps its rest. A clashing manual placement is one more duty
+    # than that allows, so each of them adds its own step.
+    clashing_by_user: dict[int, list[tuple[int, date]]] = {}
+    for user_id, competence_id, work_date in _clashing_fixed_duties(
+        fixed_assignments, duty_recovery
+    ):
+        clashing_by_user.setdefault(user_id, []).append((competence_id, work_date))
 
     # One duty worth of hours, averaged over everything the month asks for.
     # It is what the hour ladder is stepped in, so that an employee working
@@ -949,12 +1028,24 @@ def solve_monthly_schedule(
             hours_load.append(hours * variable)
             longest_duty[work_date] = max(longest_duty.get(work_date, 0.0), hours)
 
+        clashing = clashing_by_user.get(employee.id, [])
+        clashing_surcharge = sum(
+            1
+            for competence_id, work_date in clashing
+            if competences_by_id[competence_id].is_surcharge_on(work_date)
+        )
+        clashing_hours = sum(
+            competences_by_id[competence_id].shift_hours_on(work_date)
+            for competence_id, work_date in clashing
+        )
+
         objective_terms.extend(
             _load_ladder(
                 problem,
                 f"total_{employee.id}",
                 lpSum(employee_variables),
-                _maximum_spaced_days(candidate_dates, shortest_recovery),
+                _maximum_spaced_days(candidate_dates, shortest_recovery)
+                + len(clashing),
                 BALANCE_UNIT_COST,
             )
         )
@@ -963,7 +1054,8 @@ def solve_monthly_schedule(
                 problem,
                 f"surcharge_{employee.id}",
                 lpSum(surcharge_variables),
-                _maximum_spaced_days(surcharge_dates, shortest_recovery),
+                _maximum_spaced_days(surcharge_dates, shortest_recovery)
+                + clashing_surcharge,
                 _kind_unit_cost(employee.shift_preference, True),
             )
         )
@@ -972,7 +1064,9 @@ def solve_monthly_schedule(
                 problem,
                 f"standard_{employee.id}",
                 lpSum(standard_variables),
-                _maximum_spaced_days(standard_dates, shortest_recovery),
+                _maximum_spaced_days(standard_dates, shortest_recovery)
+                + len(clashing)
+                - clashing_surcharge,
                 _kind_unit_cost(employee.shift_preference, False),
             )
         )
@@ -983,7 +1077,8 @@ def solve_monthly_schedule(
                 lpSum(hours_load),
                 _best_spaced_value(
                     candidate_dates, shortest_recovery, longest_duty.__getitem__
-                ),
+                )
+                + clashing_hours,
                 HOURS_UNIT_COST,
                 average_duty_hours,
             )
@@ -997,7 +1092,9 @@ def solve_monthly_schedule(
         #
         # The flags need no integrality. They are only ever pushed up, never
         # down, so the cheapest way to satisfy each constraint is to sit at
-        # its right-hand side -- zero, or one when both days are worked.
+        # its right-hand side -- zero, or one when both days are worked. They
+        # have no upper bound either: a day a person was put into two roles
+        # by hand pushes its pairs to two.
         capacity = _maximum_spaced_days(candidate_dates, shortest_recovery)
         if capacity > 0:
             # Each duty bounds at most one charged pair per gap length, so
@@ -1020,7 +1117,6 @@ def solve_monthly_schedule(
                     close = LpVariable(
                         f"close_{employee.id}_{earlier.isoformat()}_{gap}",
                         lowBound=0,
-                        upBound=1,
                     )
                     problem += (
                         lpSum(variable_index.by_user_date[(employee.id, earlier)])
@@ -1145,7 +1241,7 @@ def _slot_value(
     return getattr(row, attribute)
 
 
-def _foreign_recovery_reader(
+def foreign_recovery_reader(
     db: Session, ambulance_ids: set[int], first: date, last: date
 ) -> Callable[[int, int, date], int]:
     """Read how much rest a duty at another workplace earns its holder.
@@ -1327,7 +1423,7 @@ def generate_ambulance_monthly_schedule(
             )
             .all()
         )
-        foreign_recovery_days = _foreign_recovery_reader(
+        foreign_recovery_days = foreign_recovery_reader(
             db,
             {row[1] for row in external_schedule_rows},
             start - margin,

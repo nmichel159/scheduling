@@ -296,6 +296,16 @@
       "expected_status": 200
     },
     {
+      "name": "ambulance_schedule_context",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/schedule/context",
+      "params": {
+        "month": "${BENCHMARK_MONTH}",
+        "year": "${BENCHMARK_YEAR}"
+      },
+      "expected_status": 200
+    },
+    {
       "name": "fill_request_groups",
       "method": "GET",
       "path": "/ambulances/mail/fill-request-groups",

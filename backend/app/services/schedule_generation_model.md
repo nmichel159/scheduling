@@ -67,6 +67,10 @@ Rovnosť, nie nerovnosť — presne toľko ľudí, koľko je nastavené. Počet 
 per-weekday a deň odpočinku (sviatok) má vlastný, ôsmy slot mimo pondelka
 až nedele.
 
+Keď rozvrhár ručne vložil viac ľudí, než deň žiada, pravá strana je ich
+počet: `max(required_on(d), ručne vložené)`. Vložení ostanú a nik ďalší
+nepribudne.
+
 ### 2.2 Jedna služba denne a regenerácia
 
 Jedna podmienka pokrýva oboje. Pre každého zamestnanca a každý deň:
@@ -90,12 +94,24 @@ najdlhší odpočinok, aký by za ten deň dala táto ambulancia.
 Podmienka sa vynechá, keď má ľavá strana menej než dva členy — vtedy je
 triviálne splnená.
 
+Ručne vložené služby ju smú porušiť — dve roly v jeden deň, služba v dobe
+odpočinku po inej. Pravá strana je potom počet ručných služieb v súčte,
+`max(1, F)`: tie ostanú, a keďže už samy zaberajú celú pravú stranu,
+vygenerovaná služba vedľa nich nevznikne.
+
 ### 2.3 Ručné priradenia
 
-Každé `x` z `fixed_assignments` je pripnuté na 1. Zároveň sa pred
-zostavením modelu kontrolujú samy proti sebe (`fixed_assignment_conflict`,
-`..._rest_conflict`, `..._over_requirement`) — model, ktorý je nesplniteľný
-už zo vstupu, sa ani nezačne riešiť.
+Každé `x` z `fixed_assignments` je pripnuté na 1. Ručné priradenie je
+pokyn, nie želanie: ponechá sa aj bez kvalifikácie, v deň neprítomnosti,
+ako druhá rola v ten istý deň, v dobe odpočinku po inej službe aj nad
+požadovaný počet (viď 2.1 a 2.2). Pred výpočtom sa odmietne len služba pre
+človeka alebo kompetenciu, ktorú pracovisko nemá (`fixed_assignment_unknown`).
+
+Kvôli takým kolíziám sa na troch miestach pripočítavajú ručné služby navyše:
+kontrola kapacity ráta človeka v dvoch rolách dvakrát, rebríky záťaže
+dostanú o toľko stupňov viac, koľko ručných služieb koliduje s inou, a
+príznaky rozptylu nemajú hornú hranicu, lebo deň s dvoma rolami ich tlačí
+na dvojku.
 
 ---
 

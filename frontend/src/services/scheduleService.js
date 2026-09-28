@@ -83,6 +83,20 @@ export async function generateAmbulanceSchedule(ambulanceId, params, body = {}) 
   return data;
 }
 
+/**
+ * What one ambulance month is checked against for conflicts (manager only):
+ * { employees: [{ user_id, max_shifts_per_month, marks: [{ work_date, reason }],
+ * duties: [{ work_date, ambulance_id, ambulance_name, competence_id,
+ * competence_name, recovery_days }] }] } -- absences, and duties at other
+ * workplaces or at this one just outside the month.
+ */
+export async function fetchScheduleContext(ambulanceId, params) {
+  const { data } = await client.get(`/ambulances/${ambulanceId}/schedule/context`, {
+    params,
+  });
+  return data;
+}
+
 /** Approve and publish one saved ambulance schedule package. */
 export async function approveAmbulanceSchedule(ambulanceId, params) {
   const { data } = await client.post(

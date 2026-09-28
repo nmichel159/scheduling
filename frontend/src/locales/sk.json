@@ -341,24 +341,57 @@
     "planner_missing_hint": "Koľko služieb ešte chýba oproti potrebnej obsadenosti pracoviska.",
     "planner_cell_title": "{{date}} – {{competence}}: obsadené {{filled}} z {{required}}",
     "planner_dot_title": "{{name}} – {{date}}: {{competence}}",
-    "planner_picker_title": "Kto môže zastať kompetenciu {{competence}}",
+    "planner_picker_title": "Kto zastane kompetenciu {{competence}}",
     "planner_picker_filled": "obsadené {{filled}} z {{required}}",
     "planner_picker_filled_short": "{{filled}}/{{required}}",
-    "planner_picker_busy": "V tento deň už slúži: {{competence}}",
     "planner_assigned": "Priradený",
     "planner_surcharge": "Príplatkové",
     "planner_standard": "Štandardné",
-    "planner_person_picker_title": "Služby, ktoré môže zastať {{name}}",
-    "planner_person_no_competence": "Tento zamestnanec nemá na tomto pracovisku kompetenciu.",
-    "generate_fixed_over_requirement": "{{date}} – {{competence}}: nahodených {{fixed}}, potrebných {{required}}.",
-    "generate_fixed_rest_conflict": "{{firstDate}} a {{secondDate}}: nahodené služby nedodržiavajú deň odpočinku.",
+    "planner_person_picker_title": "Služby pre {{name}}",
     "generate_fixed_unknown": "{{date}}: nahodenú službu nemožno priradiť tomuto pracovisku.",
     "generate_confirm_title": "Vygenerovať rozvrh?",
     "clear_confirm_title": "Vyčistiť rozvrh?",
     "approve_confirm_title": "Schváliť rozvrh?",
     "discard_confirm": "Všetky neuložené zmeny v rozpise sa zahodia.",
     "discard": "Zahodiť zmeny",
-    "keep_editing": "Pokračovať v úpravách"
+    "keep_editing": "Pokračovať v úpravách",
+    "conflicts": {
+      "title": "Konflikty",
+      "more": "+ ďalších {{count}}",
+      "collapse": "Zbaliť konflikty",
+      "expand": "Rozbaliť konflikty",
+      "approve_with_conflicts_one": "Rozvrh má {{count}} konflikt.",
+      "approve_with_conflicts_few": "Rozvrh má {{count}} konflikty.",
+      "approve_with_conflicts_other": "Rozvrh má {{count}} konfliktov.",
+      "types": {
+        "unqualified": "Bez kompetencie",
+        "unavailable": "Neprítomnosť",
+        "double_role": "Dve roly v jeden deň",
+        "other_workplace": "Služba na inom pracovisku",
+        "rest": "Nedodržaný odpočinok",
+        "understaffed": "Neobsadené",
+        "overstaffed": "Nadpočet",
+        "over_wish": "Nad mesačné želanie",
+        "soft_decline": "Nechce slúžiť"
+      },
+      "reasons": {
+        "UNAVAILABLE": "Nemôže",
+        "VACATION": "Dovolenka",
+        "BUSINESS_TRIP": "Služobná cesta"
+      },
+      "detail": {
+        "rest": "{{first}} → {{second}}",
+        "rest_elsewhere": "{{first}} → {{second}}, {{workplaces}}",
+        "coverage": "{{competence}}: {{filled}}/{{required}}",
+        "over_wish": "{{count}} služieb, želanie {{max}}"
+      },
+      "candidate": {
+        "double_role": "Už slúži: {{competences}}",
+        "other_workplace": "Slúži na: {{workplaces}}",
+        "rest": "Odpočinok: {{dates}}",
+        "over_wish": "Nad želanie: {{count}}/{{max}}"
+      }
+    }
   },
   "schedule_overview": {
     "title": "Prehľad rozvrhov",

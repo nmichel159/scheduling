@@ -6,7 +6,17 @@ import {
   normalizeWeekdayRequirements,
 } from '../utils/competenceRequirements';
 import { compareNames, formatShortName } from '../utils/formatEmployeeName';
-import { CloseIcon } from './NavIcons';
+import {
+  CONFLICT_SEVERITY,
+  CONFLICT_TYPES,
+  COVERAGE_CONFLICT_TYPES,
+  SOFT_DECLINE_REASON,
+  demandCellKey,
+  personCellKey,
+  severityOf,
+} from '../utils/scheduleConflicts';
+import ConflictIcon from './ConflictIcon';
+import { ChevronDownIcon, CloseIcon } from './NavIcons';
 import './SchedulePlannerView.css';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -42,7 +52,7 @@ const STACKED_ROW_HEIGHT = 24;
 /* The competence picker is a fixed-position panel anchored next to the cell
    that opened it, so these have to be known here to keep it inside the
    viewport. */
-const PICKER_WIDTH = 268;
+const PICKER_WIDTH = 300;
 const PICKER_MAX_HEIGHT = 320;
 const PICKER_MARGIN = 12;
 
@@ -52,7 +62,7 @@ const PICKER_MARGIN = 12;
    where thirty people hold the same competence is exactly the case where the
    whole roster has to be comparable at a glance, and a scrolling column shows
    ten of them. */
-const DETAIL_COL_WIDTH = 164;
+const DETAIL_COL_WIDTH = 184;
 const DETAIL_MAX_ROWS = 10;
 const DETAIL_MAX_COLS = 4;
 const DETAIL_CHROME = 18; // borders + the grid's own padding
@@ -89,6 +99,15 @@ const MAX_LABEL_WIDTH = 320;
    --planner-head-h in the stylesheet. */
 const LABEL_PADDING = 20;
 
+/* How many conflicts the panel lists before it counts the rest. The list
+   scrolls on its own, so this only bounds what a month with hundreds of
+   empty squares puts into the page. */
+const CONFLICT_LIST_LIMIT = 60;
+/* How many conflict glyphs a name in the people list carries; the tooltip
+   has them all. */
+const ROW_GLYPH_LIMIT = 3;
+const NO_CONFLICTS = [];
+
 /**
  * Third schedule mode — the planner.
  *
@@ -100,17 +119,24 @@ const LABEL_PADDING = 20;
  *   into a narrow pane. Each square says how far that day/competence pair is
  *   from what the workplace needs — a filled dot when a single required duty
  *   is covered, a plain number once more than one person is needed. Clicking a
- *   square opens the people who hold that competence as a row of the table
- *   itself, each with the duties they already carry split into the surcharged
+ *   square opens the workplace's people, the ones holding that competence
+ *   first, each with the duties they already carry split into the surcharged
  *   and the ordinary ones — which is the number the choice is actually made
  *   on. Filling the square is one click on a name.
  *
  * - Right: people. One row per employee, one column per day, a coloured dot
  *   where they serve. This is the half that answers "who is overloaded", "who
  *   has not been used" and "is anyone on two duties in one day" — none of
- *   which the demand matrix can show. Clicking a person's day offers exactly
- *   the competences that person holds, so the same month can be filled from
- *   the person's side as well as from the day's.
+ *   which the demand matrix can show. Clicking a person's day offers every
+ *   competence of the workplace, so the same month can be filled from the
+ *   person's side as well as from the day's.
+ *
+ * Nothing is refused: anybody can be put into any square, a second role on
+ * the same day included. What that breaks is shown instead — a marked cell
+ * in both halves wherever a conflict sits, the conflicts listed by type above
+ * the people grid (clicking a type or an item points at its cells), and next
+ * to every name and competence the planner offers, what picking it would
+ * break before it is picked.
  *
  * Both halves read from and write to the same unsaved `shifts` state as the
  * calendar and the daily-rows modes, so switching between them mid-edit keeps
@@ -124,6 +150,9 @@ const LABEL_PADDING = 20;
  * - restDays: Set of ISO dates the workplace rests on. A duty there is staffed
  *   and paid from the competence's day-of-rest slot rather than from the
  *   weekday it happens to fall on, exactly as the solver reads it.
+ * - conflictReport: analyzeScheduleConflicts() over the same shifts — every
+ *   conflict, indexed by the cells it marks, plus forCandidate() for what a
+ *   pick would break.
  * - onAssign(dateStr, competenceId, userId) / onRemoveShift(shiftId) —
  *   local-state edits; nothing here talks to the API.
  * - onGenerate + generate* — the solver button, repeated here because the
@@ -149,6 +178,7 @@ const SchedulePlannerView = ({
   shiftsByDate,
   restDays,
   competenceColor,
+  conflictReport,
   loading,
   onAssign,
   onRemoveShift,
@@ -174,6 +204,12 @@ const SchedulePlannerView = ({
   const pickerRef = useRef(null);
   const detailRef = useRef(null);
   const demandRef = useRef(null);
+  const rootRef = useRef(null);
+  // The conflict type whose cells are singled out, and the one conflict whose
+  // cells are pointed at -- both picked in the conflicts panel.
+  const [conflictFocus, setConflictFocus] = useState(null);
+  const [conflictTarget, setConflictTarget] = useState(null);
+  const [conflictsOpen, setConflictsOpen] = useState(true);
   const [metrics, setMetrics] = useState({
     rowHeight: MAX_ROW_HEIGHT,
     labelWidth: MAX_LABEL_WIDTH,
@@ -433,6 +469,165 @@ const SchedulePlannerView = ({
     [locale]
   );
 
+  /* ---------- conflicts: what they say and where they sit ---------- */
+
+  const shortDateFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'numeric' }),
+    [locale]
+  );
+  const formatIso = (iso) => shortDateFormatter.format(new Date(`${iso}T00:00:00`));
+
+  const competenceById = useMemo(
+    () => new Map(competences.map((competence) => [competence.id, competence])),
+    [competences]
+  );
+  const competenceName = (id) => competenceById.get(id)?.name || '';
+  const personName = (userId) => {
+    const employee = employeeById.get(userId);
+    return formatShortName(employee?.full_name) || employee?.email || '';
+  };
+  const typeLabel = (type) => t(`schedule_edit.conflicts.types.${type}`);
+  const reasonLabel = (reason) =>
+    t(`schedule_edit.conflicts.reasons.${reason}`, {
+      defaultValue: t('schedule_edit.conflicts.reasons.UNAVAILABLE'),
+    });
+
+  /** The specifics of one conflict, without its type -- the type is the glyph. */
+  const conflictDetail = (conflict) => {
+    switch (conflict.type) {
+      case 'unqualified':
+        return competenceName(conflict.competenceId);
+      case 'unavailable':
+        return reasonLabel(conflict.reason);
+      case 'double_role':
+        return conflict.competenceIds.map(competenceName).join(' + ');
+      case 'other_workplace':
+        return conflict.workplaces.join(', ');
+      case 'rest': {
+        const values = {
+          first: formatIso(conflict.firstDate),
+          second: formatIso(conflict.secondDate),
+          workplaces: conflict.workplaces.join(', '),
+        };
+        return conflict.workplaces.length > 0
+          ? t('schedule_edit.conflicts.detail.rest_elsewhere', values)
+          : t('schedule_edit.conflicts.detail.rest', values);
+      }
+      case 'understaffed':
+      case 'overstaffed':
+        return t('schedule_edit.conflicts.detail.coverage', {
+          competence: competenceName(conflict.competenceId),
+          filled: conflict.filled,
+          required: conflict.required,
+        });
+      case 'over_wish':
+        return t('schedule_edit.conflicts.detail.over_wish', {
+          count: conflict.count,
+          max: conflict.max,
+        });
+      default:
+        return '';
+    }
+  };
+
+  /** One tooltip line: the type, then what exactly. */
+  const conflictLine = (conflict) => {
+    const detail = conflictDetail(conflict);
+    return detail ? `${typeLabel(conflict.type)}: ${detail}` : typeLabel(conflict.type);
+  };
+
+  /** What picking a name or a competence would break, as a short phrase. */
+  const candidateLine = (item) => {
+    switch (item.type) {
+      case 'unavailable':
+        return reasonLabel(item.reason);
+      case 'double_role':
+        return t('schedule_edit.conflicts.candidate.double_role', {
+          competences: item.competenceIds.map(competenceName).join(', '),
+        });
+      case 'other_workplace':
+        return t('schedule_edit.conflicts.candidate.other_workplace', {
+          workplaces: item.workplaces.join(', '),
+        });
+      case 'rest':
+        return t('schedule_edit.conflicts.candidate.rest', {
+          dates: item.dates.map(formatIso).join(', '),
+        });
+      case 'over_wish':
+        return t('schedule_edit.conflicts.candidate.over_wish', {
+          count: item.count,
+          max: item.max,
+        });
+      default:
+        return typeLabel(item.type);
+    }
+  };
+
+  /* The focused type counts only while the month still has one of it, and
+     the pointed-at conflict only while it still exists: a fix clears either
+     without anyone having to switch it off. */
+  const conflicts = conflictReport?.conflicts || NO_CONFLICTS;
+  const activeFocus =
+    conflictFocus && conflictReport?.counts[conflictFocus] ? conflictFocus : null;
+  const target = useMemo(
+    () => conflicts.find((conflict) => conflict.key === conflictTarget) || null,
+    [conflicts, conflictTarget]
+  );
+  const targetCells = useMemo(() => new Set(target?.cells || []), [target]);
+  const targetDemandCells = useMemo(() => new Set(target?.demandCells || []), [target]);
+  const targetRows = useMemo(() => new Set(target?.rows || []), [target]);
+
+  /* Without a type picked the list holds what concerns people; the empty and
+     overfilled squares are already plain to see in the matrix, and a fresh
+     month has hundreds of them. Picking their type lists them too. */
+  const listedConflicts = useMemo(
+    () =>
+      activeFocus
+        ? conflicts.filter((conflict) => conflict.type === activeFocus)
+        : conflicts.filter((conflict) => !COVERAGE_CONFLICT_TYPES.has(conflict.type)),
+    [conflicts, activeFocus]
+  );
+
+  const conflictClasses = (cellConflicts, isTarget) => {
+    const severity = severityOf(cellConflicts);
+    const isFocus =
+      activeFocus != null && cellConflicts.some((conflict) => conflict.type === activeFocus);
+    return [
+      severity ? `has-conflict is-${severity}` : '',
+      isFocus ? 'is-conflict-focus' : '',
+      isTarget ? 'is-conflict-target' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+  };
+
+  const toggleConflictFocus = (type) => {
+    setConflictTarget(null);
+    setConflictFocus((current) => (current === type ? null : type));
+  };
+
+  /** Point at one conflict's cells and bring the first of them into view. */
+  const showConflict = (conflict) => {
+    if (conflictTarget === conflict.key) {
+      setConflictTarget(null);
+      return;
+    }
+    setConflictTarget(conflict.key);
+    let selector = null;
+    if (conflict.cells[0]) selector = `[data-person-cell="${conflict.cells[0]}"]`;
+    else if (conflict.demandCells[0]) {
+      selector = `[data-demand-cell="${conflict.demandCells[0]}"]`;
+    } else if (conflict.rows[0] != null) {
+      selector = `[data-person-row="${conflict.rows[0]}"]`;
+    }
+    if (!selector) return;
+    window.requestAnimationFrame(() => {
+      rootRef.current
+        ?.querySelector(selector)
+        ?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    });
+  };
+
   const toggleDemandCell = (event, dateStr, competenceId) => {
     const rect = event.currentTarget.getBoundingClientRect();
     setPersonCell(null);
@@ -458,41 +653,49 @@ const SchedulePlannerView = ({
     if (!openDemand) return [];
     const dayShifts = shiftsByDate[openDemand.dateStr] || [];
     return employees
-      .filter((e) =>
-        (e.competences || []).some((c) => c.id === openDemand.competenceId)
-      )
       .map((employee) => {
         const mine = dayShifts.find(
           (s) =>
             s.user_id === employee.user_id &&
             s.competence_id === openDemand.competenceId
         );
-        const elsewhere = dayShifts.find(
-          (s) =>
-            s.user_id === employee.user_id &&
-            s.competence_id !== openDemand.competenceId
-        );
+        const warnings = conflictReport
+          ? conflictReport.forCandidate(
+              employee.user_id,
+              openDemand.dateStr,
+              openDemand.competenceId,
+              mine?.id ?? null
+            )
+          : [];
         return {
           employee,
           shift: mine || null,
-          busyWith: mine ? null : elsewhere || null,
+          qualified: (employee.competences || []).some(
+            (c) => c.id === openDemand.competenceId
+          ),
+          warnings,
+          severity: severityOf(warnings),
           stats: statsFor(employee.user_id),
         };
       })
       .sort((a, b) => {
-        // Assigned first (so removing is easy), then whoever is free and has
-        // served least so far, then the ones already on duty that day.
-        const rank = (row) => (row.shift ? 0 : row.busyWith ? 2 : 1);
+        // Assigned first (so removing is easy), then the qualified who can
+        // take the duty cleanly, least served first, then the qualified it
+        // would put in conflict, and last everybody without the competence.
+        const rank = (row) => {
+          if (row.shift) return 0;
+          if (!row.qualified) return 3;
+          return row.severity === 'error' ? 2 : 1;
+        };
         return (
           rank(a) - rank(b) ||
           a.stats.total - b.stats.total ||
           compareNames(a.employee.full_name, b.employee.full_name)
         );
       });
-  }, [openDemand, employees, shiftsByDate, dutyStats]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [openDemand, employees, shiftsByDate, dutyStats, conflictReport]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleAssignment = (dateStr, competenceId, row) => {
-    if (row.busyWith) return; // one duty per person per day
     if (row.shift) onRemoveShift(row.shift.id);
     else onAssign(dateStr, competenceId, row.employee.user_id);
   };
@@ -545,44 +748,53 @@ const SchedulePlannerView = ({
 
   /* ---------- what the open person can do that day ---------- */
 
-  const personRows = useMemo(() => {
-    if (!openPerson) return [];
+  /* Every competence of the workplace, the ones the person does not hold
+     included -- they are marked, not hidden. What a pick would break is split
+     in two: whatever holds for every row (an absence, the rest, a duty
+     elsewhere) is said once under the name, and only what differs from one
+     competence to the next stays on its row. */
+  const personPicker = useMemo(() => {
+    if (!openPerson) return { rows: [], shared: [] };
     const dayShifts = shiftsByDate[openPerson.dateStr] || [];
-    const held = new Set(
-      (openPerson.employee.competences || []).map((c) => c.id)
+    const userId = openPerson.employee.user_id;
+    const rows = competences.map((competence) => {
+      const mine = dayShifts.find(
+        (s) => s.user_id === userId && s.competence_id === competence.id
+      );
+      return {
+        competence,
+        shift: mine || null,
+        warnings: conflictReport
+          ? conflictReport.forCandidate(
+              userId,
+              openPerson.dateStr,
+              competence.id,
+              mine?.id ?? null
+            )
+          : [],
+        filled: dayShifts.filter((s) => s.competence_id === competence.id).length,
+        required: requiredFor(competence.id, openPerson.day.slot),
+      };
+    });
+    // Shared means said the same way on every row: "already on" names the
+    // other roles, which differ from row to row, so it never moves up.
+    const keyOf = (item) => JSON.stringify(item);
+    const sharedKeys = new Set(
+      rows.length > 0
+        ? rows[0].warnings
+            .map(keyOf)
+            .filter((key) => rows.every((row) => row.warnings.some((item) => keyOf(item) === key)))
+        : []
     );
-    const elsewhere = dayShifts.find(
-      (s) => s.user_id === openPerson.employee.user_id
-    );
-    return competences
-      .filter(
-        (competence) =>
-          held.has(competence.id) ||
-          /* A duty placed before the person lost the competence, or by the
-             solver on an older roster, still has to be removable from here —
-             so what is already theirs is listed whether they hold it or not. */
-          dayShifts.some(
-            (s) =>
-              s.user_id === openPerson.employee.user_id &&
-              s.competence_id === competence.id
-          )
-      )
-      .map((competence) => {
-        const mine = dayShifts.find(
-          (s) =>
-            s.user_id === openPerson.employee.user_id &&
-            s.competence_id === competence.id
-        );
-        return {
-          competence,
-          shift: mine || null,
-          busyWith: mine ? null : elsewhere || null,
-          filled: dayShifts.filter((s) => s.competence_id === competence.id)
-            .length,
-          required: requiredFor(competence.id, openPerson.day.slot),
-        };
-      });
-  }, [openPerson, competences, shiftsByDate, slotsByCompetence]); // eslint-disable-line react-hooks/exhaustive-deps
+    return {
+      shared: rows[0]?.warnings.filter((item) => sharedKeys.has(keyOf(item))) || [],
+      rows: rows.map((row) => {
+        const own = row.warnings.filter((item) => !sharedKeys.has(keyOf(item)));
+        return { ...row, own, severity: severityOf(row.warnings) };
+      }),
+    };
+  }, [openPerson, competences, shiftsByDate, slotsByCompetence, conflictReport]); // eslint-disable-line react-hooks/exhaustive-deps
+  const personRows = personPicker.rows;
 
   const pickerStyle = useMemo(() => {
     if (!openPerson) return null;
@@ -604,7 +816,6 @@ const SchedulePlannerView = ({
   }, [openPerson]);
 
   const togglePersonDuty = (row) => {
-    if (row.busyWith) return; // one duty per person per day
     if (row.shift) onRemoveShift(row.shift.id);
     else
       onAssign(
@@ -619,7 +830,13 @@ const SchedulePlannerView = ({
   const hasCompetences = competences.length > 0;
 
   return (
-    <div className={`planner ${loading ? 'is-loading' : ''}`} aria-busy={loading}>
+    <div
+      ref={rootRef}
+      className={`planner ${loading ? 'is-loading' : ''} ${
+        activeFocus || target ? 'has-conflict-focus' : ''
+      }`}
+      aria-busy={loading}
+    >
       <div className="planner-split">
         {/* ---------- left: demand per day ----------
             First thing on the page and flush with its top edge: it is the half
@@ -712,8 +929,42 @@ const SchedulePlannerView = ({
                             const showDot = filled === 1 && required <= 1;
                             const color = competenceColor(competence.id);
 
+                            /* The square's own shortfall or surplus is its colour
+                               already; the corner mark is for the people in it --
+                               somebody unqualified, absent, doubled up, unrested. */
+                            const cellKey = demandCellKey(dayInfo.dateStr, competence.id);
+                            const cellConflicts =
+                              conflictReport?.byDemandCell.get(cellKey) || NO_CONFLICTS;
+                            const peopleConflicts = cellConflicts.filter(
+                              (conflict) => !COVERAGE_CONFLICT_TYPES.has(conflict.type)
+                            );
+                            const markSeverity = severityOf(peopleConflicts);
+                            const isFocus =
+                              activeFocus != null &&
+                              cellConflicts.some((conflict) => conflict.type === activeFocus);
+                            const cellTitle = [
+                              t('schedule_edit.planner_cell_title', {
+                                date: dateFormatter.format(dayInfo.date),
+                                competence: competence.name,
+                                filled,
+                                required,
+                              }),
+                              ...peopleConflicts.map(
+                                (conflict) =>
+                                  `${personName(conflict.userId)} – ${conflictLine(conflict)}`
+                              ),
+                            ].join('\n');
+
                             return (
-                              <td key={competence.id} className="planner-matrix-cell">
+                              <td
+                                key={competence.id}
+                                className={`planner-matrix-cell ${
+                                  markSeverity ? `has-conflict is-${markSeverity}` : ''
+                                } ${isFocus ? 'is-conflict-focus' : ''} ${
+                                  targetDemandCells.has(cellKey) ? 'is-conflict-target' : ''
+                                }`}
+                                data-demand-cell={cellKey}
+                              >
                                 <button
                                   type="button"
                                   className={`planner-square is-${state} ${
@@ -730,18 +981,8 @@ const SchedulePlannerView = ({
                                     toggleDemandCell(e, dayInfo.dateStr, competence.id)
                                   }
                                   aria-expanded={isOpen}
-                                  aria-label={t('schedule_edit.planner_cell_title', {
-                                    date: dateFormatter.format(dayInfo.date),
-                                    competence: competence.name,
-                                    filled,
-                                    required,
-                                  })}
-                                  title={t('schedule_edit.planner_cell_title', {
-                                    date: dateFormatter.format(dayInfo.date),
-                                    competence: competence.name,
-                                    filled,
-                                    required,
-                                  })}
+                                  aria-label={cellTitle}
+                                  title={cellTitle}
                                 >
                                   {showDot ? (
                                     <span
@@ -853,6 +1094,114 @@ const SchedulePlannerView = ({
             )}
           </div>
 
+          {conflicts.length > 0 && (
+            <section
+              className="card planner-conflicts"
+              aria-labelledby="planner-conflicts-title"
+            >
+              <button
+                type="button"
+                className="planner-conflicts-head"
+                onClick={() => setConflictsOpen((open) => !open)}
+                aria-expanded={conflictsOpen}
+                title={
+                  conflictsOpen
+                    ? t('schedule_edit.conflicts.collapse')
+                    : t('schedule_edit.conflicts.expand')
+                }
+              >
+                <h2 id="planner-conflicts-title" className="planner-pane-title">
+                  {t('schedule_edit.conflicts.title')}
+                </h2>
+                <span
+                  className={`badge ${
+                    conflictReport.errorCount > 0 ? 'badge-danger' : 'badge-warning'
+                  }`}
+                >
+                  {conflicts.length}
+                </span>
+                <ChevronDownIcon
+                  className={`planner-conflicts-chevron ${conflictsOpen ? 'is-open' : ''}`}
+                />
+              </button>
+
+              {conflictsOpen && (
+                <>
+                  <div className="planner-conflict-types">
+                    {CONFLICT_TYPES.filter((type) => conflictReport.counts[type]).map(
+                      (type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          className={`planner-conflict-type is-${CONFLICT_SEVERITY[type]} ${
+                            activeFocus === type ? 'is-active' : ''
+                          }`}
+                          onClick={() => toggleConflictFocus(type)}
+                          aria-pressed={activeFocus === type}
+                        >
+                          <ConflictIcon type={type} className="planner-conflict-glyph" />
+                          <span>{typeLabel(type)}</span>
+                          <span className="planner-conflict-type-count">
+                            {conflictReport.counts[type]}
+                          </span>
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  {listedConflicts.length > 0 && (
+                    <ul className="planner-conflict-list">
+                      {listedConflicts.slice(0, CONFLICT_LIST_LIMIT).map((conflict) => {
+                        const detail = conflictDetail(conflict);
+                        return (
+                          <li key={conflict.key}>
+                            <button
+                              type="button"
+                              className={`planner-conflict-item is-${conflict.severity} ${
+                                conflictTarget === conflict.key ? 'is-active' : ''
+                              }`}
+                              onClick={() => showConflict(conflict)}
+                              aria-pressed={conflictTarget === conflict.key}
+                              title={conflictLine(conflict)}
+                            >
+                              <ConflictIcon
+                                type={conflict.type}
+                                className="planner-conflict-glyph"
+                              />
+                              <span className="planner-conflict-date">
+                                {conflict.date ? formatIso(conflict.date) : ''}
+                              </span>
+                              {conflict.userId != null && (
+                                <span className="planner-conflict-person">
+                                  {personName(conflict.userId)}
+                                </span>
+                              )}
+                              {!activeFocus && (
+                                <span className="planner-conflict-kind">
+                                  {typeLabel(conflict.type)}
+                                </span>
+                              )}
+                              {detail && (
+                                <span className="planner-conflict-detail">{detail}</span>
+                              )}
+                            </button>
+                          </li>
+                        );
+                      })}
+                      {listedConflicts.length > CONFLICT_LIST_LIMIT && (
+                        <li className="planner-conflict-more">
+                          {t('schedule_edit.conflicts.more', {
+                            count: listedConflicts.length - CONFLICT_LIST_LIMIT,
+                          })}
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </>
+              )}
+            </section>
+          )}
+
           <section className="card planner-pane planner-pane-people">
             <h2 className="planner-pane-title">
               {t('schedule_edit.planner_people_title')}
@@ -898,9 +1247,22 @@ const SchedulePlannerView = ({
                       const byDate = shiftsByUserDate.get(employee.user_id);
                       const stats = statsFor(employee.user_id);
                       const fullLabel = employee.full_name || employee.email;
+                      // The whole month is the conflict here -- more duties
+                      // than the person asked for -- so it marks the row.
+                      const rowConflicts =
+                        conflictReport?.byUser.get(employee.user_id) || NO_CONFLICTS;
+                      const rowClasses = conflictClasses(
+                        rowConflicts,
+                        targetRows.has(employee.user_id)
+                      );
                       return (
                         <tr key={employee.user_id}>
-                          <th scope="row" className="planner-people-name" title={fullLabel}>
+                          <th
+                            scope="row"
+                            className={`planner-people-name ${rowClasses}`}
+                            title={[fullLabel, ...rowConflicts.map(conflictLine)].join('\n')}
+                            data-person-row={employee.user_id}
+                          >
                             {formatShortName(employee.full_name) || employee.email}
                           </th>
                           {days.map((dayInfo) => {
@@ -908,18 +1270,44 @@ const SchedulePlannerView = ({
                             const isOpen =
                               openPerson?.dateStr === dayInfo.dateStr &&
                               openPerson?.userId === employee.user_id;
-                            const slotTitle =
+                            const cellKey = personCellKey(employee.user_id, dayInfo.dateStr);
+                            const cellConflicts =
+                              conflictReport?.byCell.get(cellKey) || NO_CONFLICTS;
+                            /* An absence or a duty elsewhere is marked even on a
+                               free day: it is where the next conflict would be. */
+                            const note = conflictReport?.notesByCell.get(cellKey);
+                            const isAbsent =
+                              note?.reason != null && note.reason !== SOFT_DECLINE_REASON;
+                            const isElsewhere = (note?.workplaces.length ?? 0) > 0;
+                            const noteLines = [
+                              isAbsent ? reasonLabel(note.reason) : null,
+                              note?.reason === SOFT_DECLINE_REASON
+                                ? typeLabel('soft_decline')
+                                : null,
+                              isElsewhere
+                                ? t('schedule_edit.conflicts.candidate.other_workplace', {
+                                    workplaces: note.workplaces.join(', '),
+                                  })
+                                : null,
+                            ].filter(Boolean);
+                            const slotTitle = [
                               dayShifts.length > 0
                                 ? dayShifts
                                     .map((shift) =>
                                       t('schedule_edit.planner_dot_title', {
                                         name: fullLabel,
                                         date: dateFormatter.format(dayInfo.date),
-                                        competence: shift.competence_name,
+                                        competence:
+                                          shift.competence_name ||
+                                          competenceName(shift.competence_id),
                                       })
                                     )
                                     .join('\n')
-                                : `${fullLabel} — ${dateFormatter.format(dayInfo.date)}`;
+                                : `${fullLabel} — ${dateFormatter.format(dayInfo.date)}`,
+                              ...(cellConflicts.length > 0
+                                ? cellConflicts.map(conflictLine)
+                                : noteLines),
+                            ].join('\n');
                             return (
                               <td
                                 key={dayInfo.dateStr}
@@ -928,8 +1316,9 @@ const SchedulePlannerView = ({
                                     ? 'is-weekend'
                                     : ''
                                 } ${dayInfo.isToday ? 'is-today' : ''} ${
-                                  dayShifts.length > 1 ? 'is-clash' : ''
-                                }`}
+                                  isAbsent ? 'is-absent' : ''
+                                } ${conflictClasses(cellConflicts, targetCells.has(cellKey))}`}
+                                data-person-cell={cellKey}
                               >
                                 {/* The whole square opens the list of what this
                                     person may serve that day — an empty one as
@@ -962,11 +1351,21 @@ const SchedulePlannerView = ({
                                       }}
                                     />
                                   ))}
+                                  {dayShifts.length === 0 && isElsewhere && (
+                                    <span
+                                      className="planner-people-dot is-elsewhere"
+                                      aria-hidden="true"
+                                    />
+                                  )}
                                 </button>
                               </td>
                             );
                           })}
-                          <td className="planner-people-total">
+                          <td
+                            className={`planner-people-total ${
+                              rowConflicts.length > 0 ? 'is-over-wish' : ''
+                            }`}
+                          >
                             {stats.total || ''}
                           </td>
                           <td className="planner-people-total is-surcharge">
@@ -1040,7 +1439,7 @@ const SchedulePlannerView = ({
 
           {demandRows.length === 0 ? (
             <p className="planner-popover-empty">
-              {t('schedule_edit.no_eligible_users')}
+              {t('schedule_edit.planner_people_empty')}
             </p>
           ) : (
             <div className="planner-detail-grid">
@@ -1052,7 +1451,9 @@ const SchedulePlannerView = ({
                     type="button"
                     className={`planner-detail-person ${
                       row.shift ? 'is-assigned' : ''
-                    } ${row.busyWith ? 'is-busy' : ''}`}
+                    } ${row.qualified ? '' : 'is-unqualified'} ${
+                      row.severity ? `has-warning is-${row.severity}` : ''
+                    }`}
                     onClick={() =>
                       toggleAssignment(
                         openDemand.dateStr,
@@ -1060,21 +1461,25 @@ const SchedulePlannerView = ({
                         row
                       )
                     }
-                    disabled={!!row.busyWith}
                     aria-pressed={!!row.shift}
-                    title={
-                      row.busyWith
-                        ? `${fullLabel} — ${t('schedule_edit.planner_picker_busy', {
-                            competence: row.busyWith.competence_name,
-                          })}`
-                        : fullLabel
-                    }
+                    title={[fullLabel, ...row.warnings.map(candidateLine)].join('\n')}
                   >
                     <span className="planner-check" aria-hidden="true" />
                     <span className="planner-detail-name">
                       {formatShortName(row.employee.full_name) ||
                         row.employee.email}
                     </span>
+                    {row.warnings.length > 0 && (
+                      <span className="planner-conflict-glyphs" aria-hidden="true">
+                        {row.warnings.slice(0, ROW_GLYPH_LIMIT).map((item) => (
+                          <ConflictIcon
+                            key={item.type}
+                            type={item.type}
+                            className={`planner-conflict-glyph is-${item.severity}`}
+                          />
+                        ))}
+                      </span>
+                    )}
                     {/* The two numbers the choice is made on, read as one
                         figure: surcharged duties first, ordinary ones after
                         the slash. The legend in the head says which is which
@@ -1114,6 +1519,19 @@ const SchedulePlannerView = ({
               <span className="planner-popover-meta">
                 {dateFormatter.format(openPerson.day.date)}
               </span>
+              {personPicker.shared.length > 0 && (
+                <span className="planner-picker-warnings">
+                  {personPicker.shared.map((item) => (
+                    <span
+                      key={item.type}
+                      className={`planner-picker-warning is-${item.severity}`}
+                    >
+                      <ConflictIcon type={item.type} className="planner-conflict-glyph" />
+                      {candidateLine(item)}
+                    </span>
+                  ))}
+                </span>
+              )}
             </div>
             <button
               type="button"
@@ -1127,9 +1545,7 @@ const SchedulePlannerView = ({
           </div>
 
           {personRows.length === 0 ? (
-            <p className="planner-popover-empty">
-              {t('schedule_edit.planner_person_no_competence')}
-            </p>
+            <p className="planner-popover-empty">{t('schedule_edit.legend_empty')}</p>
           ) : (
             <ul className="planner-picker-list">
               {personRows.map((row) => (
@@ -1138,9 +1554,8 @@ const SchedulePlannerView = ({
                     type="button"
                     className={`planner-picker-option ${
                       row.shift ? 'is-assigned' : ''
-                    } ${row.busyWith ? 'is-busy' : ''}`}
+                    } ${row.severity ? `has-warning is-${row.severity}` : ''}`}
                     onClick={() => togglePersonDuty(row)}
-                    disabled={!!row.busyWith}
                     aria-pressed={!!row.shift}
                   >
                     <span className="planner-check" aria-hidden="true" />
@@ -1155,11 +1570,20 @@ const SchedulePlannerView = ({
                       <span className="planner-picker-option-name">
                         {row.competence.name}
                       </span>
-                      {row.busyWith && (
-                        <span className="planner-picker-option-note">
-                          {t('schedule_edit.planner_picker_busy', {
-                            competence: row.busyWith.competence_name,
-                          })}
+                      {row.own.length > 0 && (
+                        <span className="planner-picker-warnings">
+                          {row.own.map((item) => (
+                            <span
+                              key={item.type}
+                              className={`planner-picker-warning is-${item.severity}`}
+                            >
+                              <ConflictIcon
+                                type={item.type}
+                                className="planner-conflict-glyph"
+                              />
+                              {candidateLine(item)}
+                            </span>
+                          ))}
                         </span>
                       )}
                     </span>

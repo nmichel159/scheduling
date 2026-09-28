@@ -453,7 +453,13 @@ class AmbulanceReadQueryTests(unittest.TestCase):
         self.assertEqual(len(result), 5)
 
     def test_ambulance_schedule_save_uses_bounded_queries(self) -> None:
-        """Ambulance-wide validation is batched before synchronizing entries."""
+        """Ambulance-wide validation is batched before synchronizing entries.
+
+        The planner's save checks only who works here and which competences
+        the workplace has -- qualification, absences and duties elsewhere
+        are conflicts the planner shows, not reasons to refuse -- so it
+        reads users, memberships and competences, then syncs and reloads.
+        """
         entries = [
             ScheduleEntry(
                 user_id=user_id,
@@ -463,7 +469,7 @@ class AmbulanceReadQueryTests(unittest.TestCase):
             for index, user_id in enumerate(self.employee_ids)
         ]
         result = self._assert_query_count(
-            8,
+            5,
             lambda: save_ambulance_monthly_schedule(
                 self.session,
                 self.ambulance_id,

@@ -341,24 +341,56 @@
     "planner_missing_hint": "How many duties are still missing against the workplace's required staffing.",
     "planner_cell_title": "{{date}} – {{competence}}: {{filled}} of {{required}} staffed",
     "planner_dot_title": "{{name}} – {{date}}: {{competence}}",
-    "planner_picker_title": "Who can cover {{competence}}",
+    "planner_picker_title": "Who covers {{competence}}",
     "planner_picker_filled": "{{filled}} of {{required}} staffed",
     "planner_picker_filled_short": "{{filled}}/{{required}}",
-    "planner_picker_busy": "Already on duty that day: {{competence}}",
     "planner_assigned": "Assigned",
     "planner_surcharge": "Surcharge",
     "planner_standard": "Standard",
-    "planner_person_picker_title": "Duties {{name}} can cover",
-    "planner_person_no_competence": "This employee holds no competence in this workplace.",
-    "generate_fixed_over_requirement": "{{date}} – {{competence}}: {{fixed}} placed, {{required}} required.",
-    "generate_fixed_rest_conflict": "{{firstDate}} and {{secondDate}}: the placed duties leave no rest day in between.",
+    "planner_person_picker_title": "Duties for {{name}}",
     "generate_fixed_unknown": "{{date}}: a placed duty cannot be assigned in this workplace.",
     "generate_confirm_title": "Generate the schedule?",
     "clear_confirm_title": "Clear the schedule?",
     "approve_confirm_title": "Approve the schedule?",
     "discard_confirm": "All unsaved changes to the schedule will be discarded.",
     "discard": "Discard changes",
-    "keep_editing": "Keep editing"
+    "keep_editing": "Keep editing",
+    "conflicts": {
+      "title": "Conflicts",
+      "more": "+ {{count}} more",
+      "collapse": "Collapse conflicts",
+      "expand": "Expand conflicts",
+      "approve_with_conflicts_one": "The schedule has {{count}} conflict.",
+      "approve_with_conflicts_other": "The schedule has {{count}} conflicts.",
+      "types": {
+        "unqualified": "Without the competence",
+        "unavailable": "Absent",
+        "double_role": "Two roles in one day",
+        "other_workplace": "On duty at another workplace",
+        "rest": "Rest not kept",
+        "understaffed": "Understaffed",
+        "overstaffed": "Overstaffed",
+        "over_wish": "Over the monthly wish",
+        "soft_decline": "Would rather not"
+      },
+      "reasons": {
+        "UNAVAILABLE": "Cannot",
+        "VACATION": "Vacation",
+        "BUSINESS_TRIP": "Business trip"
+      },
+      "detail": {
+        "rest": "{{first}} → {{second}}",
+        "rest_elsewhere": "{{first}} → {{second}}, {{workplaces}}",
+        "coverage": "{{competence}}: {{filled}}/{{required}}",
+        "over_wish": "{{count}} duties, wish {{max}}"
+      },
+      "candidate": {
+        "double_role": "Already on: {{competences}}",
+        "other_workplace": "On duty at: {{workplaces}}",
+        "rest": "Resting: {{dates}}",
+        "over_wish": "Over the wish: {{count}}/{{max}}"
+      }
+    }
   },
   "schedule_overview": {
     "title": "Schedule overview",

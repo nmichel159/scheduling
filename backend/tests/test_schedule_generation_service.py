@@ -546,47 +546,119 @@ class ScheduleGenerationSolverTests(unittest.TestCase):
                 1,
             )
 
-    def test_rejects_manually_placed_duties_that_break_the_rest_day(self) -> None:
-        """Two placed duties on neighbouring days are reported, not solved."""
+    def test_keeps_manually_placed_duties_that_break_the_rest_day(self) -> None:
+        """Two placed duties on neighbouring days stand, and the rest is planned."""
+        first_day = date(2026, 8, 4)
+        second_day = date(2026, 8, 5)
         employees = [_employee(index) for index in range(1, 7)]
         competences = [SchedulingCompetence(id=1, name="Triage", required_count=1)]
 
-        with self.assertRaises(ScheduleGenerationError) as error:
-            solve_monthly_schedule(
-                employees,
-                competences,
-                month=8,
-                year=2026,
-                fixed_assignments=frozenset(
-                    {(1, 1, date(2026, 8, 4)), (1, 1, date(2026, 8, 5))}
-                ),
-            )
-
-        self.assertEqual(
-            [issue["code"] for issue in error.exception.issues],
-            ["fixed_assignment_rest_conflict"],
+        assignments = solve_monthly_schedule(
+            employees,
+            competences,
+            month=8,
+            year=2026,
+            fixed_assignments=frozenset({(1, 1, first_day), (1, 1, second_day)}),
         )
 
-    def test_rejects_more_manually_placed_duties_than_the_day_requires(self) -> None:
-        """Overfilling a role by hand is reported before the solve starts."""
+        placed = {
+            (item.user_id, item.competence_id, item.work_date) for item in assignments
+        }
+        self.assertIn((1, 1, first_day), placed)
+        self.assertIn((1, 1, second_day), placed)
+        coverage = Counter(item.work_date for item in assignments)
+        for day_number in range(1, 32):
+            self.assertEqual(coverage[date(2026, 8, day_number)], 1)
+        # Nothing generated leans on the clash from either side.
+        self.assertFalse(
+            any(
+                item.user_id == 1
+                and item.work_date in {date(2026, 8, 3), date(2026, 8, 6)}
+                for item in assignments
+            )
+        )
+
+    def test_keeps_more_manually_placed_duties_than_the_day_requires(self) -> None:
+        """An overfilled role keeps everybody placed and gets nobody more."""
         crowded_day = date(2026, 8, 7)
         employees = [_employee(index) for index in range(1, 7)]
         competences = [SchedulingCompetence(id=1, name="Triage", required_count=1)]
 
-        with self.assertRaises(ScheduleGenerationError) as error:
-            solve_monthly_schedule(
-                employees,
-                competences,
-                month=8,
-                year=2026,
-                fixed_assignments=frozenset(
-                    {(1, 1, crowded_day), (2, 1, crowded_day)}
-                ),
-            )
+        assignments = solve_monthly_schedule(
+            employees,
+            competences,
+            month=8,
+            year=2026,
+            fixed_assignments=frozenset({(1, 1, crowded_day), (2, 1, crowded_day)}),
+        )
+
+        on_crowded_day = sorted(
+            item.user_id for item in assignments if item.work_date == crowded_day
+        )
+        self.assertEqual(on_crowded_day, [1, 2])
+        coverage = Counter(item.work_date for item in assignments)
+        for day_number in range(1, 32):
+            work_date = date(2026, 8, day_number)
+            if work_date != crowded_day:
+                self.assertEqual(coverage[work_date], 1)
+
+    def test_keeps_one_person_placed_into_two_roles_on_one_day(self) -> None:
+        """A double role placed by hand covers both roles and blocks the rest."""
+        placed_day = date(2026, 8, 12)
+        employees = [_employee(index) for index in range(1, 7)]
+        competences = [
+            SchedulingCompetence(id=1, name="Triage", required_count=1),
+            SchedulingCompetence(id=2, name="Procedure", required_count=1),
+        ]
+
+        assignments = solve_monthly_schedule(
+            employees,
+            competences,
+            month=8,
+            year=2026,
+            fixed_assignments=frozenset({(1, 1, placed_day), (1, 2, placed_day)}),
+        )
+
+        on_placed_day = sorted(
+            (item.user_id, item.competence_id)
+            for item in assignments
+            if item.work_date == placed_day
+        )
+        self.assertEqual(on_placed_day, [(1, 1), (1, 2)])
+        neighbours = {placed_day - timedelta(days=1), placed_day + timedelta(days=1)}
+        self.assertFalse(
+            any(item.user_id == 1 and item.work_date in neighbours for item in assignments)
+        )
+
+    def test_a_double_role_placed_by_hand_counts_towards_the_day_capacity(self) -> None:
+        """Two roles and two people are enough when one of them serves both."""
+        placed_day = date(2026, 8, 12)
+        other_days = frozenset(
+            date(2026, 8, day) for day in range(1, 32) if day != 12
+        )
+        employees = [
+            _employee(1),
+            # Only the first employee may serve on the placed day.
+            *(_employee(index, unavailable_dates=frozenset({placed_day})) for index in range(2, 7)),
+        ]
+        competences = [
+            SchedulingCompetence(id=1, name="Triage", required_count=1),
+            SchedulingCompetence(id=2, name="Procedure", required_count=1),
+        ]
+
+        assignments = solve_monthly_schedule(
+            employees,
+            competences,
+            month=8,
+            year=2026,
+            fixed_assignments=frozenset({(1, 1, placed_day), (1, 2, placed_day)}),
+        )
 
         self.assertEqual(
-            [issue["code"] for issue in error.exception.issues],
-            ["fixed_assignment_over_requirement"],
+            sum(1 for item in assignments if item.work_date == placed_day), 2
+        )
+        self.assertEqual(
+            sum(1 for item in assignments if item.work_date in other_days), 60
         )
 
     def test_keeps_a_manually_placed_duty_on_an_unavailable_day(self) -> None:
@@ -804,30 +876,42 @@ class ScheduleGenerationRecoveryTests(unittest.TestCase):
             any(item.user_id == 1 and item.work_date in blocked for item in assignments)
         )
 
-    def test_rejects_manually_placed_duties_inside_a_long_recovery(self) -> None:
-        """Two placed duties three days apart break a three-day recovery."""
-        with self.assertRaises(ScheduleGenerationError) as context:
-            solve_monthly_schedule(
-                [_employee(index, competence_ids=frozenset({1})) for index in range(1, 6)],
-                [
-                    SchedulingCompetence(
-                        id=1,
-                        name="Triage",
-                        required_count=1,
-                        weekday_recovery_days=(3, 3, 3, 3, 3, 3, 3),
-                    )
-                ],
-                month=8,
-                year=2026,
-                fixed_assignments=frozenset(
-                    {(1, 1, date(2026, 8, 10)), (1, 1, date(2026, 8, 13))}
-                ),
-            )
-
-        self.assertEqual(
-            [issue["code"] for issue in context.exception.issues],
-            ["fixed_assignment_rest_conflict"],
+    def test_keeps_manually_placed_duties_inside_a_long_recovery(self) -> None:
+        """Two placed duties three days apart stand despite a three-day recovery."""
+        placed = {(1, 1, date(2026, 8, 10)), (1, 1, date(2026, 8, 13))}
+        assignments = solve_monthly_schedule(
+            [_employee(index, competence_ids=frozenset({1})) for index in range(1, 7)],
+            [
+                SchedulingCompetence(
+                    id=1,
+                    name="Triage",
+                    required_count=1,
+                    weekday_recovery_days=(3, 3, 3, 3, 3, 3, 3),
+                )
+            ],
+            month=8,
+            year=2026,
+            fixed_assignments=frozenset(placed),
         )
+
+        self.assertTrue(
+            placed
+            <= {(item.user_id, item.competence_id, item.work_date) for item in assignments}
+        )
+        self.assertEqual(len(assignments), 31)
+        # The clash is the only one: every generated duty still keeps its rest.
+        dates_by_employee: dict[int, list[date]] = {}
+        for item in assignments:
+            dates_by_employee.setdefault(item.user_id, []).append(item.work_date)
+        for user_id, work_dates in dates_by_employee.items():
+            ordered = sorted(work_dates)
+            for current, following in zip(ordered, ordered[1:]):
+                if user_id == 1 and (current, following) == (
+                    date(2026, 8, 10),
+                    date(2026, 8, 13),
+                ):
+                    continue
+                self.assertGreaterEqual((following - current).days, 4)
 
 
 class ScheduleGenerationSpreadTests(unittest.TestCase):

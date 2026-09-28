@@ -145,3 +145,51 @@ class UserMonthlySchedule(BaseModel):
     month: int
     year: int
     entries: list[ScheduleResponse]
+
+
+class ScheduleContextMark(BaseModel):
+    """A day an employee marked in their availability calendar.
+
+    ``reason`` is the stored sentinel, upper-cased: ``SOFT_DECLINE`` is a
+    wish, anything else (``UNAVAILABLE``, ``VACATION``, ``BUSINESS_TRIP``,
+    or an older free-text reason) is an absence. Preferred days are left
+    out -- nothing placed on one can be a conflict.
+    """
+
+    work_date: date
+    reason: str
+
+
+class ScheduleContextDuty(BaseModel):
+    """A duty the planner does not show but has to respect.
+
+    Either a duty at another workplace, or one at this workplace outside the
+    month on screen, close enough to it that its rest reaches inside.
+    ``recovery_days`` is the rest that duty earns under its own workplace's
+    selected scenario.
+    """
+
+    work_date: date
+    ambulance_id: int
+    ambulance_name: str | None = None
+    competence_id: int
+    competence_name: str | None = None
+    recovery_days: int
+
+
+class EmployeeScheduleContext(BaseModel):
+    """What one employee brings to the month besides its duties."""
+
+    user_id: int
+    max_shifts_per_month: int | None = None
+    marks: list[ScheduleContextMark] = Field(default_factory=list)
+    duties: list[ScheduleContextDuty] = Field(default_factory=list)
+
+
+class ScheduleContextResponse(BaseModel):
+    """Everything the planner checks a month against, per employee."""
+
+    ambulance_id: int
+    month: int
+    year: int
+    employees: list[EmployeeScheduleContext]

@@ -246,6 +246,18 @@ POST body: `{"ambulance_id":1,"competence_id":2,"work_date":"2026-07-20"}`. PUT 
 
 GET vracia položky rozdelené podľa používateľa: `user_id`, `user_full_name`, `month`, `year`, `entries`. PUT je kompatibilný endpoint s body `{"entries":[{"user_id":1,"competence_id":2,"work_date":"2026-07-20"}]}`. Oprávnenie: rola 2 pre danú ambulanciu alebo rola 3.
 
+PUT je uloženie plánovača, preto odmietne len zamestnanca, ktorý na pracovisku nie je aktívnym členom, a kompetenciu iného pracoviska (`400`). Služba bez kvalifikácie, v deň neprítomnosti, v deň služby na inom pracovisku, dve roly jedného človeka v jeden deň či nedodržaný odpočinok sa uložia tak, ako sú — plánovač ich zobrazuje ako konflikty. Jednotlivé zápisy cez `/schedules` ostávajú prísne.
+
+### `GET /ambulances/{ambulance_id}/schedule/context?month={month}&year={year}`
+
+- Oprávnenie: rola 2 pre spravovanú ambulanciu alebo rola 3
+- Parametre: povinné `month` (`1–12`) a `year` (`2000–2100`)
+- Úspech: `200` — `ambulance_id`, `month`, `year` a `employees`
+- Každá položka `employees` obsahuje `user_id`, `max_shifts_per_month`, `marks` a `duties`
+- `marks` sú dni mesiaca, ktoré si zamestnanec označil: `work_date` a `reason` (veľkými písmenami; `SOFT_DECLINE` je želanie, `UNAVAILABLE`, `VACATION`, `BUSINESS_TRIP` a staršie záznamy bez dôvodu sú neprítomnosť). Dni `PREFERRED` sa nevracajú.
+- `duties` sú služby, ktoré plánovač nevidí, ale musí ich rešpektovať: na iných pracoviskách v mesiaci a týždeň pred ním a po ňom, a na tomto pracovisku len mimo mesiaca v tom istom okne. Každá má `work_date`, `ambulance_id`, `ambulance_name`, `competence_id`, `competence_name` a `recovery_days` — odpočinok, ktorý jej dáva vybraný scenár jej vlastného pracoviska.
+- Plánovač z toho a zo služieb na obrazovke počíta konflikty: bez kompetencie, neprítomnosť, dve roly v jeden deň, služba na inom pracovisku, nedodržaný odpočinok, neobsadené, nadpočet, nad mesačné želanie a deň „nechcem“.
+
 ### `GET /ambulances/schedule-overview?month={month}&year={year}`
 
 - Oprávnenie: rola 3
@@ -261,7 +273,7 @@ GET vracia položky rozdelené podľa používateľa: `user_id`, `user_full_name
 - Oprávnenie: rola 2 pre spravovanú ambulanciu alebo rola 3 pre ľubovoľnú aktívnu ambulanciu
 - Parametre: povinné `month` (`1–12`) a `year` (`2000–2100`)
 - Request body: nepovinný `{"fixed_entries":[{"user_id":1,"competence_id":2,"work_date":"2026-08-20"}],"generate_from":"2026-08-20"}`
-- `fixed_entries` sú služby, ktoré solver musí ponechať presne tak, ako sú zadané; obsadia svoj vlastný dopyt, blokujú svojmu človeku susedné dni a počítajú sa do vyrovnávania záťaže. Prekročený dopyt, dve služby jedného človeka vedľa seba alebo služba mimo pracoviska sa hlásia ako `409` ešte pred výpočtom.
+- `fixed_entries` sú služby, ktoré solver musí ponechať presne tak, ako sú zadané; obsadia svoj vlastný dopyt, blokujú svojmu človeku susedné dni a počítajú sa do vyrovnávania záťaže. Ponechajú sa aj vtedy, keď porušujú pravidlo — prekročený dopyt, dve roly jedného človeka v jeden deň, služba v dobe odpočinku po inej — a solver doplní len zvyšok mesiaca okolo nich. Ako `409` sa pred výpočtom hlási len služba pre človeka, ktorý na pracovisku už nie je, alebo v kompetencii, ktorú pracovisko nemá (`fixed_assignment_unknown`).
 - `generate_from` je prvý deň, ktorý smie solver obsadiť. Skoršie dni si ponechajú len to, čo je v `fixed_entries`, a pravidlo obsadenosti sa na ne nevzťahuje — tak sa preplánuje zvyšok už rozbehnutého mesiaca bez prepisovania jeho minulosti.
 - Bez body sa generuje celý mesiac od začiatku, ako doteraz
 - Úspech: `200` — neuložený mesačný návrh s poľami `month`, `year`, `assignment_count` a `entries`

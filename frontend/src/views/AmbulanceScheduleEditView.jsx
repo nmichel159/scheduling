@@ -8,6 +8,7 @@ import {
 import {
   approveAmbulanceSchedule,
   fetchAmbulanceSchedule,
+  fetchScheduleContext,
   generateAmbulanceSchedule,
   updateAmbulanceSchedule,
 } from '../services/scheduleService';
@@ -25,6 +26,7 @@ import {
   formatDurationSeconds,
 } from '../utils/generationEstimate';
 import { generationErrorMessage } from '../utils/generationIssues';
+import { analyzeScheduleConflicts } from '../utils/scheduleConflicts';
 import { compareNames, formatShortName } from '../utils/formatEmployeeName';
 import './AmbulanceScheduleEditView.css';
 
@@ -132,6 +134,11 @@ const AmbulanceScheduleEditView = () => {
   // rather than from the weekday it lands on, which is how the generator
   // reads it -- so the planner has to know them to agree with the solver.
   const [restDays, setRestDays] = useState(() => new Set());
+  // What the month is checked against beyond its own duties: absences,
+  // duties elsewhere and just outside the month, the monthly wishes. Null
+  // until it arrives, or when it could not be read -- the checks that need
+  // it are then skipped, the rest still run.
+  const [scheduleContext, setScheduleContext] = useState(null);
 
   // Shift editor state.
   //   editingShift: the shift being edited (or a fresh one when isNew=true).
@@ -160,22 +167,27 @@ const AmbulanceScheduleEditView = () => {
     setError(null);
     setGenerationMessage(null);
     try {
-      const [scheduleData, competenceData, employeeData] = await Promise.all([
+      const [scheduleData, competenceData, employeeData, contextData] = await Promise.all([
         fetchAmbulanceSchedule(selectedId, { month: view.m + 1, year: view.y }),
         fetchCompetences(selectedId),
         fetchEmployeeCompetenceTable(selectedId),
+        fetchScheduleContext(selectedId, { month: view.m + 1, year: view.y }).catch(
+          () => null
+        ),
       ]);
       if (loadRequestId.current !== requestId) return;
       setShifts(scheduleData);
       setOriginalShifts(scheduleData);
       setCompetences(competenceData);
       setEmployees(employeeData);
+      setScheduleContext(contextData);
     } catch {
       if (loadRequestId.current !== requestId) return;
       // Drop the stale rows too: showing the previous period's schedule under
       // the new heading is worse than showing an empty one with the error.
       setShifts([]);
       setOriginalShifts([]);
+      setScheduleContext(null);
       setError(t('schedule_edit.load_schedule_error'));
     } finally {
       if (loadRequestId.current === requestId) setLoading(false);
@@ -317,6 +329,24 @@ const AmbulanceScheduleEditView = () => {
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shifts, competenceMap]);
+
+  /* Every rule the month on screen breaks. Worked out from the edited
+   * shifts, so a click in the planner shows or clears its conflict at once,
+   * before anything is saved. */
+  const conflictReport = useMemo(
+    () =>
+      analyzeScheduleConflicts({
+        year: view.y,
+        month: view.m,
+        ambulanceId: selectedId,
+        shifts,
+        employees,
+        competences: legend,
+        restDays,
+        context: scheduleContext,
+      }),
+    [view.y, view.m, selectedId, shifts, employees, legend, restDays, scheduleContext]
+  );
 
   const cells = useMemo(() => buildMonthCells(view.y, view.m), [view.y, view.m]);
 
@@ -765,9 +795,19 @@ const AmbulanceScheduleEditView = () => {
 
   const handleApprove = () => {
     if (!selectedId || loading || isDirty || isApproved || shifts.length === 0) return;
+    const { errorCount, warningCount } = conflictReport;
     setConfirmState({
       title: t('schedule_edit.approve_confirm_title'),
       message: t('schedule_edit.approve_warning'),
+      // Approving publishes the month to everyone on it, so a month that
+      // still breaks rules says so one last time.
+      details:
+        errorCount + warningCount > 0
+          ? t('schedule_edit.conflicts.approve_with_conflicts', {
+              count: errorCount + warningCount,
+            })
+          : undefined,
+      tone: errorCount > 0 ? 'danger' : undefined,
       confirmLabel: t('schedule_edit.approve'),
       onConfirm: () => {
         setConfirmState(null);
@@ -1136,6 +1176,7 @@ const AmbulanceScheduleEditView = () => {
               shiftsByDate={shiftsByDate}
               restDays={restDays}
               competenceColor={competenceColor}
+              conflictReport={conflictReport}
               loading={loading}
               onAssign={handleAssignShift}
               onRemoveShift={handleRemoveShift}

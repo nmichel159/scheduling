@@ -218,8 +218,17 @@ def get_user_worked_statistics(
 def _validate_entries(
     db: Session,
     entries: list[tuple[int, ScheduleCreate]],
+    allow_conflicts: bool = False,
 ) -> None:
-    """Validate schedule entries with a bounded set of database queries."""
+    """Validate schedule entries with a bounded set of database queries.
+
+    ``allow_conflicts`` is the workplace planner's save. There the manager
+    may put any employee of the workplace into any of its competences on any
+    day -- without the qualification, on a day they marked as an absence, or
+    on a day they already serve somewhere else -- and the planner shows each
+    of those as a conflict instead of this refusing the save. Membership of
+    the workplace and the competence being the workplace's own still hold.
+    """
     if not entries:
         return
 
@@ -260,6 +269,20 @@ def _validate_entries(
         )
         .all()
     }
+    if allow_conflicts:
+        for user_id, entry in entries:
+            if user_id not in active_user_ids:
+                raise HTTPException(status_code=404, detail="User not found or inactive.")
+            if (
+                (user_id, entry.ambulance_id) not in active_memberships
+                or (entry.competence_id, entry.ambulance_id) not in active_competences
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="User must be an active member of the selected ambulance.",
+                )
+        return
+
     active_qualifications = {
         (user_id, competence_id)
         for user_id, competence_id in db.query(
@@ -449,6 +472,9 @@ def save_ambulance_monthly_schedule(
     Entries omitted from the request are deactivated only when they belong to
     the selected ambulance and month.  Schedules from another ambulance, even
     for the same employee, are deliberately left untouched.
+
+    This is the planner's save, so a placement that breaks a scheduling rule
+    is stored as placed; the planner reports it as a conflict.
     """
     start, end = month_range(month, year)
     requested = {(entry.user_id, entry.competence_id, entry.work_date): entry for entry in entries}
@@ -464,7 +490,7 @@ def save_ambulance_monthly_schedule(
         )
         for entry in requested.values()
     ]
-    _validate_entries(db, validation_entries)
+    _validate_entries(db, validation_entries, allow_conflicts=True)
 
     existing = (
         db.query(Schedule)

@@ -521,11 +521,389 @@
   color: var(--primary);
 }
 
-/* Two duties for one person in one day — the backend allows it, the ward
-   usually does not, so it should be impossible to miss. */
-.planner-people-cell.is-clash {
+/* --- conflicts in the two grids ---
+   A cell holding a conflict is ringed and carries a notch in its top right
+   corner: red where a rule is broken, amber where only a wish or the
+   head-count is. The notch is what survives at 15px wide; the ring is what
+   finds it in a full month. The tooltip says which conflict it is. */
+
+.planner-people-cell,
+.planner-matrix-cell,
+.planner-people-name {
+  --conflict-color: var(--danger-solid);
+}
+
+.planner-people-cell,
+.planner-matrix-cell {
+  position: relative;
+}
+
+.planner-people-cell.has-conflict::after,
+.planner-matrix-cell.has-conflict::after,
+.planner-people-name.has-conflict::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  border-style: solid;
+  border-width: 0 7px 7px 0;
+  border-color: transparent var(--conflict-color) transparent transparent;
+  pointer-events: none;
+  transition: opacity var(--duration) var(--ease);
+}
+
+.planner-people-cell.is-warning,
+.planner-matrix-cell.is-warning,
+.planner-people-name.is-warning {
+  --conflict-color: var(--warning-solid);
+}
+
+.planner-people-cell.is-error {
   background: var(--danger-background);
   box-shadow: inset 0 0 0 1.5px var(--danger);
+}
+
+.planner-people-cell.is-warning {
+  background: var(--warning-background);
+  box-shadow: inset 0 0 0 1.5px var(--warning-solid);
+}
+
+/* The matrix squares are coloured by competence, so the ring sits inside
+   the square rather than washing over it. */
+.planner-matrix-cell.has-conflict .planner-square {
+  box-shadow: inset 0 0 0 2px var(--conflict-color);
+}
+
+.planner-people-name.has-conflict {
+  color: var(--warning);
+}
+
+.planner-people-total.is-over-wish {
+  color: var(--warning);
+}
+
+/* A day the person is away: hatched, whether anything is on it or not. */
+.planner-people-cell.is-absent {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--secondary) 26%, transparent) 0 1.5px,
+    transparent 1.5px 5px
+  );
+}
+
+/* A day the person serves at another workplace, with nothing here yet. */
+.planner-people-dot.is-elsewhere {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--secondary);
+  background: transparent;
+}
+
+/* One type or one conflict picked in the panel: its cells are singled out
+   and every other mark steps back. */
+.planner.has-conflict-focus .has-conflict:not(.is-conflict-focus):not(.is-conflict-target)::after {
+  opacity: 0.25;
+}
+
+.planner.has-conflict-focus .planner-people-cell.has-conflict:not(.is-conflict-focus):not(.is-conflict-target) {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.planner.has-conflict-focus .planner-matrix-cell.has-conflict:not(.is-conflict-focus):not(.is-conflict-target) .planner-square {
+  box-shadow: none;
+}
+
+.planner-people-cell.is-conflict-focus,
+.planner-people-cell.is-conflict-target {
+  box-shadow: inset 0 0 0 2px var(--conflict-color);
+}
+
+.planner-matrix-cell.is-conflict-focus .planner-square,
+.planner-matrix-cell.is-conflict-target .planner-square {
+  box-shadow: inset 0 0 0 2.5px var(--conflict-color), inset 0 0 0 3.5px var(--surface);
+}
+
+/* Coverage conflicts carry no mark of their own -- the square's colour is
+   the mark -- so when their type is picked the ring has to say it. */
+.planner-matrix-cell.is-conflict-focus:not(.has-conflict) .planner-square,
+.planner-matrix-cell.is-conflict-target:not(.has-conflict) .planner-square {
+  box-shadow: inset 0 0 0 2.5px var(--text-h), inset 0 0 0 3.5px var(--surface);
+}
+
+.planner-people-cell.is-conflict-target,
+.planner-matrix-cell.is-conflict-target,
+.planner-people-name.is-conflict-target {
+  animation: planner-conflict-pulse 1.1s var(--ease) 2;
+}
+
+@keyframes planner-conflict-pulse {
+  50% {
+    filter: brightness(0.82);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .planner-people-cell.is-conflict-target,
+  .planner-matrix-cell.is-conflict-target,
+  .planner-people-name.is-conflict-target {
+    animation: none;
+  }
+}
+
+/* The square still answers the pointer while it carries a conflict ring, and
+   the open one is always the one being worked on. Kept after the conflict
+   rules so they do not outrank it. */
+.planner-matrix-cell.has-conflict .planner-square:hover {
+  box-shadow: inset 0 0 0 2px var(--conflict-color), inset 0 0 0 4px var(--square-color);
+}
+
+.planner-matrix-cell .planner-square.is-open,
+.planner-matrix-cell .planner-square.is-open:hover {
+  box-shadow: inset 0 0 0 2px var(--primary), inset 0 0 0 3px var(--surface);
+}
+
+/* --- the conflicts panel: types to single out, then the conflicts --- */
+
+.planner-conflicts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 14px 12px;
+  min-width: 0;
+}
+
+.planner-conflicts-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.planner-conflicts-head:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.planner-conflicts-chevron {
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  color: var(--secondary);
+  transform: rotate(-90deg);
+  transition: transform var(--duration) var(--ease);
+}
+
+.planner-conflicts-chevron.is-open {
+  transform: none;
+}
+
+.planner-conflict-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.planner-conflict-type {
+  --conflict-color: var(--danger);
+  --conflict-wash: var(--danger-background);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 3px 9px 3px 7px;
+  border: 1px solid color-mix(in srgb, var(--conflict-color) 35%, transparent);
+  border-radius: var(--radius-full);
+  background: var(--conflict-wash);
+  color: var(--text-h);
+  font: inherit;
+  font-size: var(--fs-sm);
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color var(--duration) var(--ease), border-color var(--duration) var(--ease);
+}
+
+.planner-conflict-type.is-warning,
+.planner-conflict-item.is-warning,
+.planner-picker-warning.is-warning {
+  --conflict-color: var(--warning);
+  --conflict-wash: var(--warning-background);
+}
+
+.planner-conflict-type .planner-conflict-glyph {
+  color: var(--conflict-color);
+}
+
+.planner-conflict-type:hover {
+  border-color: var(--conflict-color);
+}
+
+.planner-conflict-type.is-active {
+  border-color: var(--conflict-color);
+  box-shadow: inset 0 0 0 1px var(--conflict-color);
+}
+
+.planner-conflict-type:focus-visible,
+.planner-conflict-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.planner-conflict-type-count {
+  color: var(--conflict-color);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.planner-conflict-glyph {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.planner-conflict-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 184px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+
+.planner-conflict-item {
+  --conflict-color: var(--danger);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.planner-conflict-item:hover {
+  background: var(--surface-2);
+}
+
+.planner-conflict-item.is-active {
+  background: var(--primary-background);
+  box-shadow: inset 2px 0 0 var(--primary);
+}
+
+.planner-conflict-item .planner-conflict-glyph {
+  color: var(--conflict-color);
+}
+
+.planner-conflict-date {
+  flex: none;
+  min-width: 3.4em;
+  color: var(--text-p);
+  font-variant-numeric: tabular-nums;
+}
+
+.planner-conflict-person {
+  flex: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.planner-conflict-kind {
+  flex: none;
+  color: var(--conflict-color);
+  white-space: nowrap;
+}
+
+.planner-conflict-detail {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planner-conflict-more {
+  padding: 4px 8px;
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+}
+
+/* --- what a pick would break, inside the two popovers --- */
+
+.planner-conflict-glyphs {
+  flex: none;
+  display: inline-flex;
+  gap: 2px;
+}
+
+.planner-conflict-glyphs .planner-conflict-glyph {
+  width: 13px;
+  height: 13px;
+}
+
+.planner-conflict-glyph.is-error {
+  color: var(--danger);
+}
+
+.planner-conflict-glyph.is-warning {
+  color: var(--warning);
+}
+
+/* Offered, but it is not their competence: set back, never hidden. */
+.planner-detail-person.is-unqualified:not(.is-assigned) .planner-detail-name {
+  color: var(--text-p);
+}
+
+.planner-detail-person.has-warning.is-error.is-assigned,
+.planner-picker-option.has-warning.is-error.is-assigned {
+  background: var(--danger-background);
+}
+
+.planner-detail-person.has-warning.is-warning.is-assigned,
+.planner-picker-option.has-warning.is-warning.is-assigned {
+  background: var(--warning-background);
+}
+
+.planner-picker-warnings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin-top: 2px;
+}
+
+.planner-picker-warning {
+  --conflict-color: var(--danger);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--conflict-color);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.planner-picker-warning .planner-conflict-glyph {
+  width: 12px;
+  height: 12px;
 }
 
 /* The whole square is the control, empty or not: a duty is added from the
@@ -770,12 +1148,6 @@
   font-weight: 600;
 }
 
-.planner-detail-person.is-busy,
-.planner-picker-option.is-busy {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
 .planner-detail-name {
   flex: 1;
   min-width: 0;
@@ -893,7 +1265,9 @@
     order: -2;
   }
 
-  .planner-toolbar {
+  /* The conflicts come straight after the toolbar, ahead of the matrix. */
+  .planner-toolbar,
+  .planner-conflicts {
     order: -1;
   }
 

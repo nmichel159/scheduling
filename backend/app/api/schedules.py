@@ -12,7 +12,8 @@ from app.models.ambulance import Ambulance
 from app.models.associations import UserAmbulance
 from app.models.schedule import Schedule
 from app.models.user import User
-from app.schemas.schedule import MonthlyScheduleOverview, MonthlyScheduleSave, MonthlyScheduleStatistics, NextScheduleResponse, ScheduleApprovalResponse, ScheduleCreate, ScheduleEdit, ScheduleGenerationRequest, ScheduleGenerationResponse, ScheduleResponse, ScheduleUpdate, UserMonthlySchedule, WorkedScheduleStatistics
+from app.schemas.schedule import MonthlyScheduleOverview, MonthlyScheduleSave, MonthlyScheduleStatistics, NextScheduleResponse, ScheduleApprovalResponse, ScheduleContextResponse, ScheduleCreate, ScheduleEdit, ScheduleGenerationRequest, ScheduleGenerationResponse, ScheduleResponse, ScheduleUpdate, UserMonthlySchedule, WorkedScheduleStatistics
+from app.services.schedule_context_service import get_schedule_context
 from app.services.schedule_generation_service import ScheduleGenerationError, generate_ambulance_monthly_schedule
 from app.services.schedule_service import approve_ambulance_monthly_schedule, create_schedule, deactivate_schedule, get_ambulance_schedule, get_manageable_user_ambulance_ids, get_monthly_schedule_overview, get_next_user_schedule, get_user_monthly_statistics, get_user_schedule, get_user_worked_statistics, save_ambulance_monthly_schedule, save_monthly_schedule, update_schedule
 
@@ -236,6 +237,21 @@ def update_ambulance_schedule_endpoint(data: ScheduleUpdate, ambulance: Ambulanc
         if entry.work_date.month != selected_month or entry.work_date.year != selected_year:
             raise HTTPException(status_code=400, detail="Entries must belong to the selected month and year.")
     return save_ambulance_monthly_schedule(db, ambulance.id, selected_month, selected_year, data.entries)
+
+
+@ambulance_router.get(
+    "/{ambulance_id}/schedule/context",
+    response_model=ScheduleContextResponse,
+    summary="What one ambulance month is checked against for conflicts",
+)
+def get_ambulance_schedule_context_endpoint(
+    month: int = Query(..., ge=1, le=12),
+    year: int = Query(..., ge=2000, le=2100),
+    ambulance: Ambulance = Depends(get_manager_ambulance),
+    db: Session = Depends(get_db),
+) -> ScheduleContextResponse:
+    """Absences, duty wishes and surrounding duties of every employee."""
+    return get_schedule_context(db, ambulance.id, month, year)
 
 
 @ambulance_router.post(
