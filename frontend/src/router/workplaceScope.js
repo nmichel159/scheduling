@@ -11,6 +11,7 @@ export const WORKPLACE_SCOPED_PATHS = [
   '/departments',
   '/employees',
   '/competences',
+  '/special-days',
 ];
 
 export const isWorkplaceScopedPath = (pathname) =>

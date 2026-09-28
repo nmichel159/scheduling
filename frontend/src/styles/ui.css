@@ -744,6 +744,21 @@ input[type='radio'] {
   white-space: nowrap;
 }
 
+/* Row headers (<th scope="row">) read like cells, not like column heads. */
+.data-table tbody th {
+  position: static;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--text-h);
+  font-size: inherit;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: normal;
+  text-align: left;
+}
+
 .data-table td {
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
@@ -751,10 +766,12 @@ input[type='radio'] {
   vertical-align: middle;
 }
 
-.data-table tbody tr:last-child td {
+.data-table tbody tr:last-child td,
+.data-table tbody tr:last-child th {
   border-bottom: none;
 }
 
+.data-table tbody tr:hover th,
 .data-table tbody tr:hover td {
   background: var(--surface-2);
 }
