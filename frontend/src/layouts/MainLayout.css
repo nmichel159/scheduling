@@ -36,7 +36,6 @@
     position: fixed;
     inset: 0;
     background: var(--overlay);
-    backdrop-filter: blur(2px);
     z-index: 99;
     animation: ui-fade-in 0.2s ease-out;
   }

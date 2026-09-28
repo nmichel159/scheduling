@@ -20,6 +20,13 @@ const normalize = (value) =>
  * - onClose: zavretie palety
  */
 const QuickJump = ({ open, items, onClose }) => {
+  // Panel sa pri každom otvorení pripojí nanovo, takže hľadanie aj kurzor
+  // začínajú vždy od začiatku bez resetovania stavu v efekte.
+  if (!open) return null;
+  return <QuickJumpPanel items={items} onClose={onClose} />;
+};
+
+const QuickJumpPanel = ({ items, onClose }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const inputRef = useRef(null);
@@ -37,19 +44,12 @@ const QuickJump = ({ open, items, onClose }) => {
     );
   }, [items, query]);
 
-  // Pri každom otvorení sa začína odznova a kurzor nesmie ostať mimo zoznamu.
+  // Kurzor nesmie ostať mimo zúženého zoznamu.
+  const activeIndex = Math.min(cursor, Math.max(matches.length - 1, 0));
+
   useEffect(() => {
-    if (!open) return;
-    setQuery('');
-    setCursor(0);
     inputRef.current?.focus();
-  }, [open]);
-
-  useEffect(() => {
-    setCursor((current) => Math.min(current, Math.max(matches.length - 1, 0)));
-  }, [matches.length]);
-
-  if (!open) return null;
+  }, []);
 
   const go = (item) => {
     if (!item) return;
@@ -65,17 +65,17 @@ const QuickJump = ({ open, items, onClose }) => {
     }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setCursor((c) => (matches.length ? (c + 1) % matches.length : 0));
+      setCursor(matches.length ? (activeIndex + 1) % matches.length : 0);
       return;
     }
     if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setCursor((c) => (matches.length ? (c - 1 + matches.length) % matches.length : 0));
+      setCursor(matches.length ? (activeIndex - 1 + matches.length) % matches.length : 0);
       return;
     }
     if (e.key === 'Enter') {
       e.preventDefault();
-      go(matches[cursor]);
+      go(matches[activeIndex]);
     }
   };
 
@@ -93,7 +93,10 @@ const QuickJump = ({ open, items, onClose }) => {
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setCursor(0);   // nový filter = prvý výsledok, nie ten na starej pozícii
+            }}
             onKeyDown={handleKeyDown}
             placeholder={t('sidebar.quick_jump_placeholder')}
             aria-label={t('sidebar.quick_jump_placeholder')}
@@ -110,7 +113,7 @@ const QuickJump = ({ open, items, onClose }) => {
               <li key={item.to}>
                 <button
                   type="button"
-                  className={`quick-jump-item ${index === cursor ? 'is-cursor' : ''}`}
+                  className={`quick-jump-item ${index === activeIndex ? 'is-cursor' : ''}`}
                   onMouseEnter={() => setCursor(index)}
                   onClick={() => go(item)}
                 >

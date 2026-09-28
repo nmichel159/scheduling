@@ -16,15 +16,19 @@ import StatisticsView from '../views/StatisticsView';
 import RoleManagementView from '../views/RoleManagementView';
 import MainLayout from '../layouts/MainLayout';
 import RequireRole from '../components/RequireRole';
+import RouteErrorView from '../views/RouteErrorView';
 
 /** Pustí ďalej len usera s daným flagom roly (UX vrstva, backend má vlastné 403). */
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <LoginView />,
+    // Neznámu adresu router ohlási ako 404 práve na tejto koreňovej ceste.
+    errorElement: <RouteErrorView />,
   },
   {
     element: <MainLayout />, // Obal pre chránené cesty
+    errorElement: <RouteErrorView />,
     children: [
       {
         path: "/dashboard",

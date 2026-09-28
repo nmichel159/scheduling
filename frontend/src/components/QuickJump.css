@@ -2,7 +2,6 @@
   position: fixed;
   inset: 0;
   background: var(--overlay);
-  backdrop-filter: blur(2px);
   display: flex;
   justify-content: center;
   align-items: flex-start;

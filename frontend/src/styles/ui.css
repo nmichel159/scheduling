@@ -558,7 +558,6 @@ input[type='radio'] {
   justify-content: center;
   padding: 16px;
   background: var(--overlay);
-  backdrop-filter: blur(2px);
   animation: ui-fade-in 0.14s ease-out;
 }
 

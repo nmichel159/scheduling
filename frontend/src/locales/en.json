@@ -1,5 +1,14 @@
 {
   "app_title": "Scheduling",
+  "route_error": {
+    "not_found_code": "404",
+    "not_found_title": "Page not found",
+    "not_found_text": "This address doesn't exist or has moved.",
+    "error_title": "Something went wrong",
+    "error_text": "An unexpected error occurred while showing this page.",
+    "home": "Back to start",
+    "reload": "Reload"
+  },
   "login_title": "Sign in",
   "login_subtitle": "Shift planning and workplace schedules in one place.",
   "login_google": "Continue with Google",

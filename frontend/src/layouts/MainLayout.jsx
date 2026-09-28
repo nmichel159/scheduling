@@ -18,6 +18,16 @@ const getInitialSidebar = () => {
 const MainLayout = () => {
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const [sidebarOpen, setSidebarOpen] = useState(getInitialSidebar);
+  const [layoutWasDesktop, setLayoutWasDesktop] = useState(isDesktop);
+
+  // Po zmene veľkosti okna: na mobile sa overlay zavrie, na desktope sa obnoví
+  // zapamätaná voľba (rail alebo vypísané položky). Upravené ešte počas
+  // renderu, nie v efekte — inak by ukladací efekt nižšie stihol prepísať
+  // zapamätanú voľbu zatvoreným stavom z mobilu.
+  if (isDesktop !== layoutWasDesktop) {
+    setLayoutWasDesktop(isDesktop);
+    setSidebarOpen(isDesktop ? localStorage.getItem(SIDEBAR_KEY) !== 'false' : false);
+  }
 
   // Cache stavu — len na desktope, mobilný overlay si pamätať nechceme.
   useEffect(() => {
@@ -25,12 +35,6 @@ const MainLayout = () => {
       localStorage.setItem(SIDEBAR_KEY, String(sidebarOpen));
     }
   }, [sidebarOpen, isDesktop]);
-
-  // Po zmene veľkosti okna: na mobile sa overlay zavrie, na desktope sa obnoví
-  // zapamätaná voľba (rail alebo vypísané položky).
-  useEffect(() => {
-    setSidebarOpen(isDesktop ? localStorage.getItem(SIDEBAR_KEY) !== 'false' : false);
-  }, [isDesktop]);
 
   if (!localStorage.getItem('user')) {
     return <Navigate to="/" replace />;

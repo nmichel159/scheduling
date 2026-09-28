@@ -1,5 +1,14 @@
 {
   "app_title": "Rozpisy",
+  "route_error": {
+    "not_found_code": "404",
+    "not_found_title": "Stránka sa nenašla",
+    "not_found_text": "Adresa neexistuje alebo bola presunutá.",
+    "error_title": "Niečo sa pokazilo",
+    "error_text": "Pri zobrazení tejto stránky nastala neočakávaná chyba.",
+    "home": "Späť na úvod",
+    "reload": "Načítať znova"
+  },
   "login_title": "Prihlásenie",
   "login_subtitle": "Plánovanie služieb a rozpisov pracovísk na jednom mieste.",
   "login_google": "Pokračovať cez Google",

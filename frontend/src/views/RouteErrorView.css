@@ -1,0 +1,42 @@
+.route-error {
+  display: grid;
+  place-items: center;
+  min-height: 100svh;
+  padding: 24px 16px;
+  box-sizing: border-box;
+  background:
+    radial-gradient(900px 420px at 50% -10%, var(--primary-background), transparent 70%),
+    var(--background);
+}
+
+.route-error-card {
+  max-width: 420px;
+  text-align: center;
+}
+
+.route-error-code {
+  margin: 0 0 8px;
+  color: var(--primary);
+  font-size: 3.5rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.route-error-title {
+  margin: 0;
+  font-size: var(--fs-xl);
+}
+
+.route-error-text {
+  margin: 8px 0 24px;
+  color: var(--text-p);
+  font-size: var(--fs-base);
+}
+
+.route-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
