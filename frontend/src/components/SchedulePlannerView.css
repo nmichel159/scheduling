@@ -1125,7 +1125,6 @@
 /* What the pair of numbers in every cell means, written once in the same
    shape and colours the cells use. */
 .planner-detail-legend {
-  flex-wrap: wrap;
   flex: none;
   display: flex;
   align-items: baseline;
@@ -1369,10 +1368,6 @@
   gap: 8px;
 }
 
-.marks-key {
-  display: contents;
-}
-
 .marks-key-toggle {
   display: inline-flex;
   align-items: center;
@@ -1406,7 +1401,7 @@
 }
 
 .marks-key-toggle:hover,
-.marks-key.is-open .marks-key-toggle {
+.marks-key-toggle.is-open {
   border-color: var(--primary-border);
   background: var(--primary-background);
   color: var(--primary);
@@ -1418,6 +1413,7 @@
 }
 
 .planner-detail-legend .marks-key-toggle {
+  flex: none;
   margin-left: auto;
 }
 
@@ -1425,23 +1421,28 @@
   margin-left: 12px;
 }
 
-.marks-key-panel {
-  order: 10;
-  flex: 1 0 100%;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 6px 16px;
-  margin: 4px 0 0;
+.marks-key-bubble {
+  position: fixed;
+  z-index: 1000;
+  width: max-content;
+  max-width: calc(100vw - 16px);
   padding: 10px 12px;
-  list-style: none;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
   color: var(--text);
-  font-size: var(--fs-xs);
-  letter-spacing: normal;
-  text-transform: none;
+  font-size: var(--fs-sm, 0.8125rem);
   animation: planner-popover-in 0.12s var(--ease);
+}
+
+.marks-key-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .marks-key-item {

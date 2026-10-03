@@ -385,6 +385,8 @@ const SchedulePlannerView = ({
       if (e.key === 'Escape') closeAll();
     };
     const handlePointerDown = (e) => {
+      // The legend bubble lives outside both lists but belongs to them.
+      if (e.target.closest?.('.marks-key-bubble')) return;
       if (!pickerRef.current?.contains(e.target)) setPersonCell(null);
       if (!detailRef.current?.contains(e.target)) setDemandCell(null);
     };
