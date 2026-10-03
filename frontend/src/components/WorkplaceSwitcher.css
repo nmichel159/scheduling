@@ -1,4 +1,5 @@
-/* Sedí v strednom stĺpci hlavičky. Nikde žiadna pevná šírka: prepínač sa
+/* Na desktope sedí navrchu bočnej lišty pod logom (.is-sidebar, nižšie), na
+   mobile v strednom stĺpci hlavičky. Nikde žiadna pevná šírka: prepínač sa
    zmestí do toho, čo mu stĺpec dá, a dlhý názov sa skráti trojbodkou --
    inak by lišta pretlačila stránku a objavil by sa vodorovný posuvník. */
 .workplace-switcher {
@@ -231,4 +232,70 @@
   padding: 10px 8px;
   color: var(--text-p);
   font-size: var(--fs-sm);
+}
+
+/* --- v bočnej lište (desktop) ---
+   Celá šírka lišty a hranatý tvar ako ostatné položky menu; v zbalenej
+   lište ostane len odznak s iniciálami. Menu je position: fixed a kreslí sa
+   cez portál -- lišta má overflow: hidden a menu musí ležať cez stránku. */
+
+.workplace-switcher.is-sidebar {
+  width: 100%;
+  justify-self: stretch;
+}
+
+.workplace-switcher.is-sidebar.is-static,
+.workplace-switcher.is-sidebar .workplace-switcher-trigger {
+  width: 100%;
+  height: 40px;
+  padding: 0 8px 0 6px;
+  border-radius: var(--radius);
+}
+
+.workplace-switcher.is-sidebar .workplace-switcher-badge {
+  border-radius: var(--radius-sm);
+}
+
+.workplace-switcher.is-sidebar .workplace-switcher-name {
+  flex: 1;
+  text-align: left;
+}
+
+.workplace-switcher.is-rail.is-static,
+.workplace-switcher.is-rail .workplace-switcher-trigger {
+  justify-content: center;
+  padding: 0;
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+}
+
+.workplace-switcher.is-rail .workplace-switcher-trigger:hover {
+  background: var(--surface-2);
+}
+
+.workplace-switcher.is-rail .workplace-switcher-trigger[aria-expanded='true'],
+.workplace-switcher.is-rail .workplace-switcher-trigger:focus-visible {
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+.workplace-switcher.is-rail .workplace-switcher-name,
+.workplace-switcher.is-rail .workplace-switcher-caret {
+  display: none;
+}
+
+.workplace-switcher-skeleton {
+  display: block;
+  width: 100%;
+  height: 40px;
+  border-radius: var(--radius);
+}
+
+.workplace-switcher-menu.is-floating {
+  position: fixed;
+  transform: none;
+  z-index: 200;
+  min-width: 260px;
+  animation: ui-pop-in 0.14s var(--ease);
 }

@@ -14,6 +14,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import { ChevronDownIcon, CloseIcon, PlusIcon, TrashIcon } from '../components/NavIcons';
+import PageSkeleton from '../components/Skeleton';
 import './AdminView.css';
 
 // Rola je "manažérska" (dá sa priradiť ako správca ambulancie), ak má level >= 2 —
@@ -479,12 +480,11 @@ const AdminView = () => {
 
   if (loading && ambulances.length === 0 && !error) {
     return (
-      <div className="page admin">
-        <div className="empty-state">
-          <span className="spinner" aria-hidden="true" />
-          {t('admin.loading')}
-        </div>
-      </div>
+      <PageSkeleton
+        className="page admin"
+        title={t('admin.title')}
+        label={t('admin.loading')}
+      />
     );
   }
 

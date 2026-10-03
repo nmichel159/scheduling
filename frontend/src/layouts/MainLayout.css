@@ -1,3 +1,15 @@
+/* Výška hornej lišty. Na desktope lišta nie je, na mobile má 56px; prilepené
+   prvky v obsahu (hlavička tabuľky, bočný panel) sa podľa nej odsadzujú. */
+:root {
+  --header-h: 0px;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --header-h: 56px;
+  }
+}
+
 .app-container {
   display: flex;
   min-height: 100svh;

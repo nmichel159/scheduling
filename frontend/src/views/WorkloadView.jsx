@@ -31,7 +31,6 @@ const WorkloadView = () => {
     <div className="page workload">
       <WorkloadCalendar
         title={t('workload.title')}
-        subtitle={t('workload.subtitle')}
         fetchEntries={fetchEntries}
         createEntry={createEntry}
         updateEntry={updateEntry}

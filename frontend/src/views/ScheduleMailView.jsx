@@ -10,6 +10,7 @@ import {
   refusalCode,
   sendFillRequest,
 } from '../services/scheduleMailService';
+import PageSkeleton from '../components/Skeleton';
 import './ScheduleMailView.css';
 
 /** A tick identifies a person inside one workplace, not a person alone. */
@@ -151,12 +152,11 @@ const ScheduleMailView = () => {
 
   if (!loaded) {
     return (
-      <div className="page smail">
-        <div className="empty-state" role="status">
-          <span className="spinner" aria-hidden="true" />
-          {t('departments.loading')}
-        </div>
-      </div>
+      <PageSkeleton
+        className="page smail"
+        title={t('schedule_mail.title')}
+        label={t('departments.loading')}
+      />
     );
   }
 
@@ -174,7 +174,6 @@ const ScheduleMailView = () => {
       <header className="page-header">
         <div>
           <h1 className="page-title">{t('schedule_mail.title')}</h1>
-          <p className="page-subtitle">{t('schedule_mail.subtitle')}</p>
         </div>
       </header>
 

@@ -26,41 +26,6 @@
   margin-bottom: 16px;
 }
 
-.employees-state {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 32px 0;
-  color: var(--text-p);
-  font-size: var(--fs-base);
-}
-
-/* --- month stepper (page header) --- */
-.employees-monthnav {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow-xs);
-}
-
-.employees-monthlabel {
-  min-width: 132px;
-  color: var(--text-h);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  text-transform: capitalize;
-}
-
-.employees-next-icon {
-  transform: rotate(180deg);
-}
-
 /* --- the card: toolbar, legend, rows ---
  * The card is a size container: how the rows fold depends on how wide the
  * list actually is, which changes with the sidebar, not only the window. */
@@ -218,10 +183,10 @@
   pointer-events: none; /* clicks fall through to the overlay button */
 }
 
-/* Stays under the app header while the list scrolls under it. */
+/* Stays under the app header (mobile only) while the list scrolls under it. */
 .employees-legend {
   position: sticky;
-  top: 56px;
+  top: var(--header-h);
   z-index: 2;
   min-height: 36px;
   border-bottom: 1px solid var(--border);

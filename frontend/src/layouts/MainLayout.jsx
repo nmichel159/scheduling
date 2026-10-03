@@ -52,7 +52,9 @@ const MainLayout = () => {
           <div className="backdrop" onClick={() => setSidebarOpen(false)} />
         )}
         <div className="main-area">
-          <Header onToggle={() => setSidebarOpen((o) => !o)} />
+          {/* Len mobil: na desktope je názov aj prepínač pracoviska v bočnej
+              lište a horná lišta by ostala prázdna. */}
+          {!isDesktop && <Header onToggle={() => setSidebarOpen((o) => !o)} />}
           <main className="content">
             <Outlet />
           </main>

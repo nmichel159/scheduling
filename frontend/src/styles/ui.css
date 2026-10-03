@@ -13,7 +13,8 @@
  *   Surfaces   .card (+ .card-pad, .card-header, .card-title), .panel
  *   Feedback   .alert + .alert-info | .alert-success | .alert-warning |
  *              .alert-danger; .badge + variants; .empty-state; .spinner;
- *              .skeleton
+ *              .skeleton (+ .skeleton-rows, .skeleton-grid — see
+ *              components/Skeleton.jsx)
  *   Dialogs    .dialog-overlay > .dialog (+ .dialog-sm | .dialog-lg),
  *              .dialog-header, .dialog-title, .dialog-close, .dialog-body,
  *              .dialog-footer
@@ -586,6 +587,69 @@ input[type='radio'] {
   }
   to {
     background-position: -200% 0;
+  }
+}
+
+/* Placeholder rows and cells of a screen that is still loading — drawn by
+   components/Skeleton.jsx inside a .card. */
+.skeleton-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.skeleton-row:last-child {
+  border-bottom: none;
+}
+
+.skeleton-dot {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.skeleton-line {
+  height: 12px;
+}
+
+.skeleton-line.is-end {
+  flex-shrink: 0;
+  width: 56px;
+  margin-left: auto;
+}
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--skeleton-columns, 7), minmax(0, 1fr));
+  gap: 6px;
+  padding: 16px;
+}
+
+.skeleton-cell {
+  height: 64px;
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 560px) {
+  .skeleton-row {
+    padding: 0 16px;
+  }
+
+  .skeleton-grid {
+    padding: 12px;
+  }
+
+  .skeleton-cell {
+    height: 44px;
   }
 }
 

@@ -201,11 +201,11 @@
 
 /* Side by side, the message stays in view while a long roster is ticked
    through, so the send button never scrolls away from the list it sends to.
-   76px clears the sticky page header (56px) with some air. */
+   20px of air under the top of the window, or under the mobile top bar. */
 @media (min-width: 901px) {
   .smail-message {
     position: sticky;
-    top: 76px;
+    top: calc(var(--header-h) + 20px);
   }
 }
 

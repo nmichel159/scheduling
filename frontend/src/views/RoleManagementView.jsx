@@ -8,6 +8,7 @@ import {
   updateUserRoles,
 } from '../services/roleService';
 import { personInitials } from '../utils/personInitials';
+import { SkeletonRows } from '../components/Skeleton';
 import './RoleManagementView.css';
 
 const MANAGED_ROLES = [
@@ -142,9 +143,8 @@ const RoleManagementView = () => {
       )}
 
       {loading ? (
-        <div className="card empty-state">
-          <span className="spinner" aria-hidden="true" />
-          {t('role_management.loading')}
+        <div className="card">
+          <SkeletonRows label={t('role_management.loading')} />
         </div>
       ) : visibleUsers.length === 0 ? (
         <div className="card empty-state">{t('role_management.empty')}</div>

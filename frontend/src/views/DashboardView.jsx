@@ -124,7 +124,6 @@ const DashboardView = () => {
           <h1 className="page-title">
             {name ? t('dashboard.greeting', { name }) : t('dashboard.greeting_anonymous')}
           </h1>
-          <p className="page-subtitle">{t('dashboard.subtitle')}</p>
         </div>
       </header>
 

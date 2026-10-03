@@ -12,6 +12,7 @@ import PeriodStepper from '../components/PeriodStepper';
 import { capitalizeFirst, localeFor } from '../utils/calendar';
 import { formatDurationSeconds } from '../utils/generationEstimate';
 import { generationErrorMessage } from '../utils/generationIssues';
+import { SkeletonRows } from '../components/Skeleton';
 import './ScheduleOverviewView.css';
 
 const shiftedMonth = ({ y, m }, offset) => {
@@ -244,7 +245,6 @@ const ScheduleOverviewView = () => {
       <header className="page-header">
         <div>
           <h1 className="page-title">{t('schedule_overview.title')}</h1>
-          <p className="page-subtitle">{t('schedule_overview.subtitle')}</p>
         </div>
         <div className="page-actions">
           {/* Months are unbounded in both directions, so after browsing a
@@ -296,13 +296,10 @@ const ScheduleOverviewView = () => {
           </div>
         )}
 
-        {rows.length === 0 ? (
-          <div className="empty-state">
-            {loading && <span className="spinner" aria-hidden="true" />}
-            {loading
-              ? t('schedule_overview.loading')
-              : t('schedule_overview.empty')}
-          </div>
+        {rows.length === 0 && loading ? (
+          <SkeletonRows label={t('schedule_overview.loading')} />
+        ) : rows.length === 0 ? (
+          <div className="empty-state">{t('schedule_overview.empty')}</div>
         ) : (
           <div className="overview-scroll">
             <table className="data-table overview-table">

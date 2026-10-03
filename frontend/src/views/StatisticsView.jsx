@@ -4,7 +4,8 @@ import { fetchYearlyStatistics } from '../services/statisticsService';
 import { fetchAllAmbulances } from '../services/ambulanceService';
 import { formatShortName } from '../utils/formatEmployeeName';
 import PeriodStepper from '../components/PeriodStepper';
-import { localeFor } from '../utils/calendar';
+import { capitalizeFirst, localeFor } from '../utils/calendar';
+import { SkeletonRows } from '../components/Skeleton';
 import './StatisticsView.css';
 
 /**
@@ -135,15 +136,11 @@ const StatisticsView = () => {
       <header className="page-header">
         <div>
           <h1 className="page-title">{t('statistics.title')}</h1>
-          <p className="page-subtitle">
-            {t('statistics.subtitle')}
-            {report?.through_date && (
-              <span className="stats-through">
-                {' · '}
-                {t('statistics.through', { date: throughLabel })}
-              </span>
-            )}
-          </p>
+          {report?.through_date && (
+            <p className="page-subtitle">
+              {capitalizeFirst(t('statistics.through', { date: throughLabel }))}
+            </p>
+          )}
         </div>
         <div className="page-actions">
           {ambulances.length > 0 && (
@@ -190,11 +187,12 @@ const StatisticsView = () => {
         </div>
       )}
 
-      {!report ? (
-        <div className="card empty-state">
-          {loading && <span className="spinner" aria-hidden="true" />}
-          {loading ? t('statistics.loading') : t('statistics.no_data')}
+      {!report && loading ? (
+        <div className="card">
+          <SkeletonRows label={t('statistics.loading')} />
         </div>
+      ) : !report ? (
+        <div className="card empty-state">{t('statistics.no_data')}</div>
       ) : (
         <div className={`stats-body ${loading ? 'is-loading' : ''}`}>
           {/* --- headline numbers --- */}

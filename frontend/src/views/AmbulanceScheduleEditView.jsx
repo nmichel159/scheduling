@@ -28,6 +28,7 @@ import {
 import { generationErrorMessage } from '../utils/generationIssues';
 import { analyzeScheduleConflicts } from '../utils/scheduleConflicts';
 import { compareNames, formatShortName } from '../utils/formatEmployeeName';
+import PageSkeleton from '../components/Skeleton';
 import './AmbulanceScheduleEditView.css';
 
 /* How long the solver may keep improving the month, in seconds. The whole
@@ -875,12 +876,12 @@ const AmbulanceScheduleEditView = () => {
 
   if (workplacesLoading) {
     return (
-      <div className="schedule-edit">
-        <div className="empty-state" role="status">
-          <span className="spinner" aria-hidden="true" />
-          {t('schedule_edit.loading')}
-        </div>
-      </div>
+      <PageSkeleton
+        className="schedule-edit"
+        title={t('schedule_edit.title')}
+        variant="grid"
+        label={t('schedule_edit.loading')}
+      />
     );
   }
 
@@ -932,10 +933,11 @@ const AmbulanceScheduleEditView = () => {
     />
   );
 
-  /* What you are looking at on the left -- the workplace, whether it is saved
-   * and approved -- and what you can do to it on the right: save and approve.
-   * On a narrow column the two halves wrap under each other instead of
-   * squeezing.
+  /* What you are looking at on the left -- the screen, whether the month is
+   * saved and approved -- and what you can do to it on the right: save and
+   * approve. Which workplace it is the switcher already says, so the name is
+   * not repeated here. On a narrow column the two halves wrap under each
+   * other instead of squeezing.
    *
    * It is built here rather than rendered in place because the planner puts
    * it somewhere else: there the day matrix owns the left column and has to
@@ -944,11 +946,8 @@ const AmbulanceScheduleEditView = () => {
   const topbar = (
     <div className="schedule-edit-topbar">
       <div className="schedule-edit-identity">
-        <p className="page-eyebrow">{t('schedule_edit.title')}</p>
         <div className="schedule-edit-title-row">
-          <h1 className="page-title schedule-edit-topbar-name" title={selected.name}>
-            {selected.name}
-          </h1>
+          <h1 className="page-title">{t('schedule_edit.title')}</h1>
           <div className="schedule-edit-state">
             <span className={`badge badge-dot ${isDirty ? 'badge-warning' : ''}`}>
               {isDirty ? t('schedule_edit.unsaved') : t('schedule_edit.saved')}

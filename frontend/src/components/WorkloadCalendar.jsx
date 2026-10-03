@@ -61,7 +61,6 @@ const STATE_CYCLE = [DAY_STATE.NONE, ...MARKABLE_STATES];
  */
 const WorkloadCalendar = ({
   title,
-  subtitle,
   titleLevel = 1,
   fetchEntries,
   createEntry,
@@ -261,7 +260,6 @@ const WorkloadCalendar = ({
         <header className="page-header">
           <div>
             <TitleTag className="page-title">{title}</TitleTag>
-            {subtitle && <p className="page-subtitle">{subtitle}</p>}
           </div>
           <div className="page-actions">{stepper}</div>
         </header>

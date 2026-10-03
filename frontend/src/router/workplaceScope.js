@@ -1,6 +1,7 @@
 /**
  * Routes whose content is scoped to one workplace, and which therefore get
- * the workplace switcher in the header. Kept next to the route table (and
+ * the workplace switcher in the mobile top bar (on desktop it sits at the top
+ * of the side bar on every screen). Kept next to the route table (and
  * out of the router module itself, which would be a cycle: router -> layout
  * -> Header) so a new scheduler screen is registered in one place.
  *

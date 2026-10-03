@@ -12,6 +12,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import PeriodStepper from '../components/PeriodStepper';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
+import PageSkeleton from '../components/Skeleton';
 import './SpecialDaysView.css';
 
 /** Months of the year, zero-based, for the calendar grid. */
@@ -259,12 +260,12 @@ const SpecialDaysView = () => {
 
   if (workplacesLoading) {
     return (
-      <div className="page sdays">
-        <div className="empty-state">
-          <span className="spinner" aria-hidden="true" />
-          {t('departments.loading')}
-        </div>
-      </div>
+      <PageSkeleton
+        className="page sdays"
+        title={t('special_days.title')}
+        variant="grid"
+        label={t('departments.loading')}
+      />
     );
   }
 

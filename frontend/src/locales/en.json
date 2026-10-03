@@ -23,7 +23,6 @@
     "greeting": "Hello, {{name}}",
     "greeting_anonymous": "Hello!",
     "open_schedule": "Full schedule",
-    "subtitle": "Your duties and current overview in one place.",
     "next_shift": "Next duty",
     "no_next_shift": "You have no upcoming duty scheduled.",
     "planned_shifts": "Planned duties",
@@ -95,7 +94,6 @@
   },
   "workload": {
     "title": "Restrictions",
-    "subtitle": "Each click moves the day on: 1× I want to, 2× I would rather not, 3× I cannot, 4× Vacation, 5× Business trip, 6× back to neutral.",
     "month_nav": "Month selection",
     "prev_month": "Previous month",
     "next_month": "Next month",
@@ -251,7 +249,6 @@
     "empty": "You have no shifts scheduled this month.",
     "shift_count": "Shifts this month: {{count}}",
     "ambulance_fallback": "Workplace #{{id}}",
-    "page_subtitle": "Your approved duties, month by month.",
     "previous_month": "Previous month",
     "next_month": "Next month",
     "current_month": "Current month"
@@ -423,7 +420,6 @@
   },
   "schedule_overview": {
     "title": "Schedule overview",
-    "subtitle": "Where every workplace's schedule stands for the chosen month.",
     "loading": "Loading the overview…",
     "load_error": "The schedule overview could not be loaded.",
     "empty": "There are no active workplaces.",
@@ -459,7 +455,6 @@
   },
   "statistics": {
     "title": "Statistics",
-    "subtitle": "Duties and people over the whole year",
     "year_nav": "Year selection",
     "loading": "Loading the statistics…",
     "load_error": "The statistics could not be loaded.",
@@ -637,7 +632,6 @@
     "send_failed": "Sending failed.",
     "not_configured": "Mail sending is not configured.",
     "no_selection": "Nobody is selected.",
-    "subtitle": "Email the employees of the chosen workplaces a link to fill in their schedule.",
     "body": "Message text",
     "send_confirm_title": "Send the request?",
     "selected_count": "Selected: {{people}}",
@@ -651,7 +645,6 @@
     "loading": "Loading...",
     "load_error": "Could not load the schedule.",
     "month": "Month",
-    "year": "Year",
     "layout": "Layout",
     "layout_competences": "Competences",
     "layout_employees": "Employees",
@@ -666,7 +659,6 @@
     "pdf": "Download PDF",
     "pdf_building": "Preparing PDF...",
     "pdf_error": "Could not create the PDF.",
-    "subtitle": "A preview of the A4 sheet. The type is sized so the month fits the chosen number of pages.",
     "xlsx": "Excel",
     "csv": "CSV",
     "date": "Date",

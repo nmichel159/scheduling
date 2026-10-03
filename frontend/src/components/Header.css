@@ -1,3 +1,4 @@
+/* Horná lišta mobilu. Na desktope sa nevykresľuje vôbec (MainLayout). */
 .header {
   position: sticky;
   top: 0;
@@ -5,8 +6,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 56px;
-  padding: 0 24px;
+  min-height: var(--header-h, 56px);
+  padding: 0 16px;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--background) 82%, transparent);
   backdrop-filter: saturate(1.4) blur(10px);
@@ -32,9 +33,7 @@
   min-width: 0;
 }
 
-/* Na desktope je názov aplikácie už v bočnej lište; v hlavičke by bol druhýkrát. */
 .header-title {
-  display: none;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -45,7 +44,7 @@
 }
 
 .menu-btn {
-  display: none;
+  display: grid;
   place-items: center;
   width: var(--control-h);
   height: var(--control-h);
@@ -75,29 +74,9 @@
   box-shadow: var(--focus-ring);
 }
 
-/* Desktop without a workplace switcher: the bar would hold nothing (the menu
-   button is mobile-only and the app name sits in the sidebar), so it goes. */
-@media (min-width: 769px) {
-  .header:not(.has-workplace) {
-    display: none;
-  }
-}
-
 .menu-btn-icon {
   width: 20px;
   height: 20px;
-}
-
-@media (max-width: 768px) {
-  .header {
-    padding: 0 16px;
-  }
-  .menu-btn {
-    display: grid;
-  }
-  .header-title {
-    display: block;
-  }
 }
 
 /* Na úzkom displeji je dôležitejšie, ktoré pracovisko upravujem, než ako sa

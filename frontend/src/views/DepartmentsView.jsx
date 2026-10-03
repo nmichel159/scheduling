@@ -28,6 +28,7 @@ import {
   normalizeCompetenceRequirements,
   normalizeWeekdayRequirements,
 } from '../utils/competenceRequirements';
+import PageSkeleton from '../components/Skeleton';
 import './DepartmentsView.css';
 
 /** Deep-copies rows so edits to the draft never mutate the loaded snapshot.
@@ -436,12 +437,11 @@ const DepartmentsView = () => {
 
   if (loading) {
     return (
-      <div className="page departments">
-        <p className="departments-state">
-          <span className="spinner" aria-hidden="true" />
-          {t('departments.loading')}
-        </p>
-      </div>
+      <PageSkeleton
+        className="page departments"
+        title={t('departments.title')}
+        label={t('departments.loading')}
+      />
     );
   }
 
@@ -466,7 +466,7 @@ const DepartmentsView = () => {
 
   return (
     <div className="page departments">
-      {/* Pracovisko sa vyberá v hlavičke, stránka je preto jeden stĺpec:
+      {/* Pracovisko sa vyberá v bočnej lište, stránka je preto jeden stĺpec:
         * názov, popis pracoviska a Uložiť hore, tabuľka pod tým. */}
       <header className="page-header">
         <div className="departments-heading">

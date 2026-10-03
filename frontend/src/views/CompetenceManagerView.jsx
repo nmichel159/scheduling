@@ -24,6 +24,7 @@ import {
   normalizeCompetenceRequirements,
   normalizeWeekdayRequirements,
 } from '../utils/competenceRequirements';
+import PageSkeleton, { SkeletonRows } from '../components/Skeleton';
 import './CompetenceManagerView.css';
 
 /** Whether a slot is the day of rest rather than one of the seven weekdays.
@@ -485,12 +486,11 @@ const CompetenceManagerView = () => {
 
   if (loading) {
     return (
-      <div className="page cmanager">
-        <p className="cmanager-state">
-          <span className="spinner" aria-hidden="true" />
-          {t('departments.loading')}
-        </p>
-      </div>
+      <PageSkeleton
+        className="page cmanager"
+        title={t('competence_manager.title')}
+        label={t('departments.loading')}
+      />
     );
   }
 
@@ -588,10 +588,7 @@ const CompetenceManagerView = () => {
           </header>
 
           {competencesLoading && (
-            <p className="cmanager-note">
-              <span className="spinner" aria-hidden="true" />
-              {t('departments.loading')}
-            </p>
+            <SkeletonRows rows={4} label={t('departments.loading')} />
           )}
 
           {!competencesLoading && (
@@ -700,10 +697,7 @@ const CompetenceManagerView = () => {
             </header>
 
             {scenariosLoading && scenarios.length === 0 && (
-              <p className="cmanager-note">
-                <span className="spinner" aria-hidden="true" />
-                {t('departments.loading')}
-              </p>
+              <SkeletonRows rows={3} label={t('departments.loading')} />
             )}
 
             {!scenariosLoading && scenarios.length === 0 && (

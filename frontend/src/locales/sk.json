@@ -23,7 +23,6 @@
     "greeting": "Ahoj, {{name}}",
     "greeting_anonymous": "Ahoj!",
     "open_schedule": "Celý rozpis",
-    "subtitle": "Vaše služby a aktuálny prehľad na jednom mieste.",
     "next_shift": "Najbližšia služba",
     "no_next_shift": "Nemáte naplánovanú ďalšiu službu.",
     "planned_shifts": "Naplánované služby",
@@ -95,7 +94,6 @@
   },
   "workload": {
     "title": "Obmedzenia",
-    "subtitle": "Kliknutím na deň prepínate stav: 1× Chcem, 2× Nechcem, 3× Nemôžem, 4× Dovolenka, 5× Služobná cesta, 6× späť na neutrálny stav.",
     "month_nav": "Výber mesiaca",
     "prev_month": "Predchádzajúci mesiac",
     "next_month": "Nasledujúci mesiac",
@@ -251,7 +249,6 @@
     "empty": "V tomto mesiaci nemáte naplánovanú žiadnu službu.",
     "shift_count": "Služby v mesiaci: {{count}}",
     "ambulance_fallback": "Pracovisko #{{id}}",
-    "page_subtitle": "Vaše schválené služby po mesiacoch.",
     "previous_month": "Predchádzajúci mesiac",
     "next_month": "Nasledujúci mesiac",
     "current_month": "Aktuálny mesiac"
@@ -424,7 +421,6 @@
   },
   "schedule_overview": {
     "title": "Prehľad rozvrhov",
-    "subtitle": "Stav rozvrhu každého pracoviska v zvolenom mesiaci.",
     "loading": "Načítavam prehľad…",
     "load_error": "Prehľad rozvrhov sa nepodarilo načítať.",
     "empty": "Nie sú evidované žiadne aktívne pracoviská.",
@@ -460,7 +456,6 @@
   },
   "statistics": {
     "title": "Štatistiky",
-    "subtitle": "Služby a ľudia za celý rok",
     "year_nav": "Výber roka",
     "loading": "Načítavam štatistiky…",
     "load_error": "Štatistiky sa nepodarilo načítať.",
@@ -640,7 +635,6 @@
     "send_failed": "Odoslanie zlyhalo.",
     "not_configured": "Odosielanie e-mailov nie je nastavené.",
     "no_selection": "Nie je vybraný nikto.",
-    "subtitle": "Pošlite zamestnancom vybraných pracovísk e-mail s odkazom na vyplnenie rozvrhu.",
     "body": "Text správy",
     "send_confirm_title": "Odoslať výzvu?",
     "selected_count": "Vybraní: {{people}}",
@@ -654,7 +648,6 @@
     "loading": "Načítavam...",
     "load_error": "Nepodarilo sa načítať rozvrh.",
     "month": "Mesiac",
-    "year": "Rok",
     "layout": "Rozloženie",
     "layout_competences": "Kompetencie",
     "layout_employees": "Zamestnanci",
@@ -669,7 +662,6 @@
     "pdf": "Stiahnuť PDF",
     "pdf_building": "Pripravujem PDF...",
     "pdf_error": "PDF sa nepodarilo vytvoriť.",
-    "subtitle": "Náhľad hárku A4. Písmo sa prispôsobí tak, aby sa mesiac zmestil na zvolený počet strán.",
     "xlsx": "Excel",
     "csv": "CSV",
     "date": "Dátum",

@@ -6,10 +6,10 @@ import { useMediaQuery, DESKTOP_QUERY } from '../hooks/useMediaQuery';
 import ConfirmDialog from './ConfirmDialog';
 import QuickJump from './QuickJump';
 import SettingsDialog from './SettingsDialog';
+import WorkplaceSwitcher from './WorkplaceSwitcher';
 import {
   AdminIcon,
   ChevronDownIcon,
-  ChevronLeftIcon,
   CompetenceIcon,
   ConstraintsIcon,
   EmployeesIcon,
@@ -19,6 +19,7 @@ import {
   MailIcon,
   MoreIcon,
   MyScheduleIcon,
+  PanelIcon,
   PrintIcon,
   RolesIcon,
   ScheduleOverviewIcon,
@@ -47,8 +48,9 @@ const QUICK_JUMP_KEYS = IS_MAC ? '⌘K' : 'Ctrl K';
  *
  * Rozvrhár má tri sekcie podľa toho, ako často do nich chodí: denná práca,
  * nastavenie kliniky (raz a hotovo) a pravidlá, podľa ktorých sa rozpis
- * počíta. Sekcie s `collapsible` sú v rozbalenej lište štandardne zbalené,
- * aj keď je v nich práve otvorená obrazovka — vtedy sa zvýrazní ich nadpis.
+ * počíta. Sekcie s `collapsible` sa dajú zbaliť: prvá z nich je štandardne
+ * rozbalená, ostatné zbalené, a čo si používateľ nastaví, to si lišta
+ * pamätá. Sekcia, v ktorej je práve otvorená obrazovka, sa rozbalí sama.
  */
 const SECTIONS = [
   {
@@ -131,6 +133,18 @@ const SECTIONS = [
   },
 ];
 
+/** Kľúč, pod ktorým si lišta pamätá rozbalené a zbalené sekcie. */
+const SECTIONS_KEY = 'sidebarSections';
+
+const readStoredSections = () => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(SECTIONS_KEY));
+    return stored && typeof stored === 'object' ? stored : {};
+  } catch {
+    return {};
+  }
+};
+
 const readStoredUser = () => {
   try {
     return JSON.parse(localStorage.getItem('user')) || null;
@@ -162,6 +176,7 @@ const Sidebar = ({ open, onToggle, onClose }) => {
 
   const [flyout, setFlyout] = useState(null);      // { id, top } — otvorená sekcia v raile
   const [userMenu, setUserMenu] = useState(null);  // { bottom } | true pri vypísanom menu
+  const [workplaceMenuOpen, setWorkplaceMenuOpen] = useState(false);
   const [quickJumpOpen, setQuickJumpOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [logoutAsked, setLogoutAsked] = useState(false);
@@ -182,11 +197,35 @@ const Sidebar = ({ open, onToggle, onClose }) => {
       .filter((section) => section.items.length > 0);
   }, [hasEmployee, hasManager, hasAdmin, hasAnalyst, t]);
 
-  /** Zbaliteľné sekcie, ktoré používateľ rozbalil: `id -> otvorená`. Nič
-   *  sa neukladá, takže po načítaní stránky sú zase všetky zbalené. */
-  const [sectionOpen, setSectionOpen] = useState({});
+  /** Zbaliteľné sekcie: `id -> otvorená`, tak ako ich používateľ nechal.
+   *  Sekcia bez záznamu sa riadi predvolenou hodnotou — prvá zbaliteľná je
+   *  rozbalená, ostatné zbalené. */
+  const [sectionOpen, setSectionOpen] = useState(readStoredSections);
 
-  const isSectionOpen = (section) => !section.collapsible || Boolean(sectionOpen[section.id]);
+  const firstCollapsibleId = sections.find((section) => section.collapsible)?.id;
+
+  const isSectionOpen = (section) =>
+    !section.collapsible || (sectionOpen[section.id] ?? section.id === firstCollapsibleId);
+
+  const toggleSection = (id, value) =>
+    setSectionOpen((current) => ({ ...current, [id]: value }));
+
+  useEffect(() => {
+    localStorage.setItem(SECTIONS_KEY, JSON.stringify(sectionOpen));
+  }, [sectionOpen]);
+
+  // Po navigácii sa sekcia s otvorenou obrazovkou rozbalí, aby bolo v menu
+  // vidno, kde stojíš. Deje sa to len pri zmene adresy: ak ju potom používateľ
+  // zbalí, ostane zbalená a zvýrazní sa jej nadpis.
+  const [expandedFor, setExpandedFor] = useState(null);
+  if (expandedFor !== pathname) {
+    setExpandedFor(pathname);
+    const current = sections.find(
+      (section) =>
+        section.collapsible && section.items.some((item) => isItemActive(pathname, item.to)),
+    );
+    if (current && !isSectionOpen(current)) toggleSection(current.id, true);
+  }
 
   /** Plochý zoznam pre rýchly skok — už prefiltrovaný podľa rolí. */
   const jumpItems = useMemo(
@@ -210,6 +249,7 @@ const Sidebar = ({ open, onToggle, onClose }) => {
     clearTimeout(closeTimer.current);
     setFlyout(null);
     setUserMenu(null);
+    setWorkplaceMenuOpen(false);
   }, []);
 
   // Po navigácii nemá čo ostať otvorené — ani fly-out, ani menu účtu. Aj
@@ -221,6 +261,7 @@ const Sidebar = ({ open, onToggle, onClose }) => {
     setOpenedIn(menusContext);
     setFlyout(null);
     setUserMenu(null);
+    setWorkplaceMenuOpen(false);
   }
 
   useEffect(() => () => clearTimeout(closeTimer.current), []);
@@ -267,6 +308,7 @@ const Sidebar = ({ open, onToggle, onClose }) => {
     const top = Math.max(8, Math.min(rect.top - 6, window.innerHeight - height - 12));
     clearTimeout(closeTimer.current);
     setUserMenu(null);
+    setWorkplaceMenuOpen(false);
     setFlyout({ id: section.id, top });
   };
 
@@ -281,6 +323,7 @@ const Sidebar = ({ open, onToggle, onClose }) => {
       return;
     }
     setFlyout(null);
+    setWorkplaceMenuOpen(false);
     if (railMode) {
       const rect = element.getBoundingClientRect();
       setUserMenu({ bottom: Math.max(8, window.innerHeight - rect.bottom - 4) });
@@ -337,7 +380,36 @@ const Sidebar = ({ open, onToggle, onClose }) => {
         <div className="sidebar-head">
           <img src={logo} alt="UPJŠ" className="logo-img" />
           <span className="logo-title label">{t('app_title')}</span>
+          <button
+            type="button"
+            className="sidebar-collapse"
+            onClick={onToggle}
+            aria-expanded={!railMode}
+            aria-label={railMode ? t('sidebar.open_menu') : t('sidebar.close_menu')}
+            title={railMode ? t('sidebar.open_menu') : t('sidebar.close_menu')}
+          >
+            <PanelIcon />
+          </button>
         </div>
+
+        {/* Na mobile je prepínač v hlavičke; tu by bol schovaný v zasunutej lište. */}
+        {isDesktop && (hasManager || hasAdmin) && (
+          <div className="sidebar-workplace">
+            <WorkplaceSwitcher
+              variant="sidebar"
+              rail={railMode}
+              open={workplaceMenuOpen}
+              onOpenChange={(next) => {
+                if (next) {
+                  clearTimeout(closeTimer.current);
+                  setFlyout(null);
+                  setUserMenu(null);
+                }
+                setWorkplaceMenuOpen(next);
+              }}
+            />
+          </div>
+        )}
 
         <nav className="sidebar-nav" aria-label={t('sidebar.nav_label')} onScroll={closeMenus}>
           <button
@@ -374,9 +446,7 @@ const Sidebar = ({ open, onToggle, onClose }) => {
                       }`}
                       aria-expanded={open}
                       aria-controls={`nav-section-${section.id}`}
-                      onClick={() =>
-                        setSectionOpen((current) => ({ ...current, [section.id]: !open }))
-                      }
+                      onClick={() => toggleSection(section.id, !open)}
                     >
                       <span className="label">{section.title}</span>
                       <ChevronDownIcon
@@ -463,17 +533,6 @@ const Sidebar = ({ open, onToggle, onClose }) => {
         </nav>
 
         <div className="sidebar-foot">
-          <button
-            type="button"
-            className="nav-item nav-toggle"
-            onClick={onToggle}
-            aria-expanded={!railMode}
-            title={railMode ? t('sidebar.open_menu') : t('sidebar.close_menu')}
-          >
-            <ChevronLeftIcon className={`nav-icon ${railMode ? 'is-flipped' : ''}`} />
-            <span className="label">{t('sidebar.close_menu')}</span>
-          </button>
-
           <div
             className="user-block"
             onBlur={(e) => {

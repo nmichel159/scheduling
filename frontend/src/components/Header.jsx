@@ -9,6 +9,9 @@ const Header = ({ onToggle }) => {
   const { t } = useTranslation();
   const { pathname } = useLocation();
 
+  // The mobile top bar. On desktop the app name and the workplace switcher
+  // are both in the side bar, so MainLayout does not render this at all.
+  //
   // Only the scheduler screens are scoped to one workplace; everywhere else
   // the switcher would suggest a choice that changes nothing on the page.
   const showWorkplace = isWorkplaceScopedPath(pathname);

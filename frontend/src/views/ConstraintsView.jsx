@@ -12,6 +12,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import Toast from '../components/Toast';
 import { LockIcon, ResetIcon } from '../components/NavIcons';
 import { useToast } from '../hooks/useToast';
+import PageSkeleton from '../components/Skeleton';
 import './ConstraintsView.css';
 
 /** The most a weight may be set to; the backend refuses anything above. */
@@ -227,12 +228,11 @@ const ConstraintsView = () => {
 
   if (workplacesLoading) {
     return (
-      <div className="page cons">
-        <div className="empty-state">
-          <span className="spinner" aria-hidden="true" />
-          {t('departments.loading')}
-        </div>
-      </div>
+      <PageSkeleton
+        className="page cons"
+        title={t('constraints.title')}
+        label={t('departments.loading')}
+      />
     );
   }
 

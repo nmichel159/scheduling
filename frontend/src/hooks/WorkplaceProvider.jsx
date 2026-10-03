@@ -12,8 +12,8 @@ import { WorkplaceContext } from './workplaceContext';
  * row, and its own list widget in the page body. That meant three widgets
  * that looked different, three requests per navigation, and a choice that
  * was silently reset on every page change. The choice belongs to the
- * session, not to a page, so it lives here and is offered once — in the
- * header, via WorkplaceSwitcher.
+ * session, not to a page, so it lives here and is offered once — at the top
+ * of the side bar (in the top bar on mobile), via WorkplaceSwitcher.
  *
  * A scheduler's list is the workplaces they run. An administrator's is all
  * of them: level 3 is allowed on every workplace by every endpoint here, and

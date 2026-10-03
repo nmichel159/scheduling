@@ -12,22 +12,14 @@
   margin-bottom: 16px;
 }
 
-.cmanager-state,
 .cmanager-note {
   display: flex;
   align-items: center;
   gap: 10px;
   margin: 0;
+  padding: 20px;
   color: var(--text-p);
   font-size: var(--fs-base);
-}
-
-.cmanager-state {
-  padding: 32px 0;
-}
-
-.cmanager-note {
-  padding: 20px;
 }
 
 /* ---------- two columns: scenarios | the viewed scenario's week ---------- */

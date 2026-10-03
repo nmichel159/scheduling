@@ -7,10 +7,6 @@
   margin-bottom: 16px;
 }
 
-.stats-through {
-  white-space: nowrap;
-}
-
 .stats-body {
   display: flex;
   flex-direction: column;

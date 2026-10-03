@@ -15,6 +15,8 @@ import EmployeeAvailabilityDialog from '../components/EmployeeAvailabilityDialog
 import { ChevronLeftIcon, CloseIcon, LimitsIcon } from '../components/NavIcons';
 import { compareNames } from '../utils/formatEmployeeName';
 import { personInitials } from '../utils/personInitials';
+import PeriodStepper from '../components/PeriodStepper';
+import PageSkeleton, { SkeletonRows } from '../components/Skeleton';
 import './EmployeesView.css';
 
 /**
@@ -308,12 +310,11 @@ const EmployeesView = () => {
 
   if (workplacesLoading) {
     return (
-      <div className="page employees">
-        <p className="employees-state">
-          <span className="spinner" aria-hidden="true" />
-          {t('departments.loading')}
-        </p>
-      </div>
+      <PageSkeleton
+        className="page employees"
+        title={t('employees.title')}
+        label={t('departments.loading')}
+      />
     );
   }
 
@@ -347,41 +348,19 @@ const EmployeesView = () => {
 
         {/* The month is what every number in the list is about, so it
           * stands at the page level rather than among the list's filters. */}
-        <div className="page-actions employees-month">
-          {!isCurrentMonth && (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => changeMonth(null)}
-            >
-              {t('schedule.current_month')}
-            </button>
-          )}
-          <div className="employees-monthnav">
-            <button
-              type="button"
-              className="btn btn-ghost btn-icon btn-sm"
-              onClick={() => changeMonth(-1)}
-              disabled={viewMonthIndex <= EARLIEST_MONTH_INDEX}
-              aria-label={t('schedule.previous_month')}
-              title={t('schedule.previous_month')}
-            >
-              <ChevronLeftIcon />
-            </button>
-            <span className="employees-monthlabel" aria-live="polite">
-              {monthLabel}
-            </span>
-            <button
-              type="button"
-              className="btn btn-ghost btn-icon btn-sm"
-              onClick={() => changeMonth(1)}
-              disabled={viewMonthIndex >= LATEST_MONTH_INDEX}
-              aria-label={t('schedule.next_month')}
-              title={t('schedule.next_month')}
-            >
-              <ChevronLeftIcon className="employees-next-icon" />
-            </button>
-          </div>
+        <div className="page-actions">
+          <PeriodStepper
+            label={monthLabel}
+            onPrevious={() => changeMonth(-1)}
+            onNext={() => changeMonth(1)}
+            previousLabel={t('schedule.previous_month')}
+            nextLabel={t('schedule.next_month')}
+            previousDisabled={viewMonthIndex <= EARLIEST_MONTH_INDEX}
+            nextDisabled={viewMonthIndex >= LATEST_MONTH_INDEX}
+            todayLabel={isCurrentMonth ? null : t('schedule.current_month')}
+            onToday={() => changeMonth(null)}
+            groupLabel={t('workload.month_nav')}
+          />
         </div>
       </header>
 
@@ -457,13 +436,13 @@ const EmployeesView = () => {
         </div>
 
         <div className={`employees-list ${loading ? 'is-loading' : ''}`.trim()}>
-          {visible.length === 0 ? (
+          {visible.length === 0 && loading ? (
+            <SkeletonRows label={t('departments.loading')} />
+          ) : visible.length === 0 ? (
             <p className="empty-state">
-              {loading
-                ? t('departments.loading')
-                : employees.length > 0
-                  ? t('competences.no_filter_match')
-                  : t('departments.no_employees')}
+              {employees.length > 0
+                ? t('competences.no_filter_match')
+                : t('departments.no_employees')}
             </p>
           ) : (
             <>

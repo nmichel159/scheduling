@@ -152,7 +152,7 @@
 .cmatrix-scroll {
   /* Tall enough to work in, short enough that the page header and its
      Save button stay on screen while the table scrolls. */
-  max-height: max(360px, calc(100svh - 272px));
+  max-height: max(360px, calc(100svh - 216px - var(--header-h)));
   overflow: auto;
   overscroll-behavior: contain;
   transition: opacity var(--duration) var(--ease);

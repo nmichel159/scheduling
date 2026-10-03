@@ -94,7 +94,6 @@ const ScheduleView = () => {
       <header className="page-header">
         <div>
           <h1 className="page-title">{t('schedule.title')}</h1>
-          <p className="page-subtitle">{t('schedule.page_subtitle')}</p>
         </div>
         <div className="page-actions">
           {/* Months run far in both directions, so after browsing half a

@@ -155,6 +155,14 @@ export const CloseIcon = (props) => (
   </Icon>
 );
 
+/** Zbaliť / rozbaliť bočnú lištu — okno s vyznačeným ľavým panelom. */
+export const PanelIcon = (props) => (
+  <Icon {...props}>
+    <rect x="3.6" y="4.6" width="16.8" height="14.8" rx="2.4" />
+    <path d="M9.4 4.6v14.8" />
+  </Icon>
+);
+
 export const ChevronLeftIcon = (props) => (
   <Icon {...props}>
     <path d="M14.5 6.5 9 12l5.5 5.5" />

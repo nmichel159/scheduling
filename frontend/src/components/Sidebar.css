@@ -35,15 +35,59 @@
   width: 260px;                      /* rozbalená lišta — všetky položky s popiskami */
 }
 
-/* hlavička s logom; logo je len logo, prepínač má vlastné tlačidlo v pätke */
+/* hlavička s logom; logo je len logo, lištu zbaľuje tlačidlo na konci riadku */
 .sidebar-head {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 40px;
-  padding: 0 6px;
-  margin-bottom: 12px;
+  min-height: 40px;
+  padding: 0 0 0 6px;
+  margin-bottom: 10px;
   flex-shrink: 0;
+}
+
+/* V raile sa tlačidlo do riadku s logom nezmestí, ide pod neho. */
+.sidebar.is-rail .sidebar-head {
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0 0;
+}
+
+.sidebar-collapse {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--secondary);
+  cursor: pointer;
+  transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+.sidebar.is-rail .sidebar-collapse { margin-left: 0; width: 40px; height: 36px; }
+.sidebar-collapse:hover { background: var(--nav-hover); color: var(--text-h); }
+.sidebar-collapse:active { background: var(--surface-3); }
+.sidebar-collapse:hover .nav-icon { color: var(--text-h); }
+.sidebar-collapse:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+/* Prepínač pracoviska: hneď pod logom, nad navigáciou. Mimo .sidebar-nav,
+   takže pri scrollovaní dlhého menu ostáva na mieste. */
+.sidebar-workplace {
+  flex-shrink: 0;
+  margin-bottom: 10px;
+  min-width: 0;
+}
+.sidebar-workplace:empty { display: none; }
+.sidebar-workplace .workplace-switcher-status {
+  display: block;
+  padding: 0 6px;
 }
 .logo-img {
   width: 28px;
@@ -307,7 +351,7 @@
   text-overflow: ellipsis;
 }
 
-/* ---------- pätka: prepínač + účet ---------- */
+/* ---------- pätka: účet ---------- */
 
 .sidebar-foot {
   margin-top: auto;                  /* vždy zatlačená na spodok lišty */
@@ -318,9 +362,6 @@
   flex-direction: column;
   gap: 4px;
 }
-
-.nav-toggle { color: var(--text-p); font-size: var(--fs-sm); }
-.nav-toggle .nav-icon.is-flipped { transform: rotate(180deg); }
 
 .user-block { position: relative; }
 
@@ -437,7 +478,7 @@
   .sidebar .label { display: inline; } /* texty na mobile vždy, panel je plný */
   .sidebar .nav-section-title { padding: 6px 10px 4px; height: auto; overflow: visible; }
   .sidebar .sidebar-nav { scrollbar-width: thin; }
-  .sidebar .nav-toggle { display: none; }  /* zatvára sa cez ☰ v hlavičke a backdrop */
+  .sidebar .sidebar-collapse { display: none; }  /* zatvára sa cez ☰ v hlavičke a backdrop */
   .sidebar:not(.is-rail) .nav-kbd { display: none; } /* Ctrl+K na dotykovom displeji nedáva zmysel */
 }
 

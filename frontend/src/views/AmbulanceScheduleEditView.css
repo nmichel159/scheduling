@@ -1,5 +1,5 @@
 /* Editable ambulance schedule.
-   No separate page header — the action bar (workplace, state, month, save)
+   No separate page header — the action bar (title, state, month, save)
    travels into the planner's right column, beside the day matrix.
    The calendar mode (currently switched off) keeps a left rail with the
    generate button and the weekly staffing table (CompetenceCoverage), and
@@ -82,13 +82,13 @@
 /* The side column stays pinned while the calendar scrolls past it. */
 .schedule-edit-side {
   position: sticky;
-  top: 72px;
+  top: calc(var(--header-h) + 16px);
   align-self: start;
   display: flex;
   flex-direction: column;
   gap: 16px;
   flex-shrink: 0;
-  max-height: calc(100svh - 96px);
+  max-height: calc(100svh - var(--header-h) - 40px);
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -119,7 +119,7 @@
 }
 
 /* --- The action bar ---
-   Left: which workplace, and whether its month is saved and approved.
+   Left: the screen's title, and whether the month is saved and approved.
    Right: the month stepper, then the buttons. On a narrow column the two
    halves wrap under each other instead of squeezing. */
 
@@ -145,16 +145,8 @@
   min-width: 0;
 }
 
-.schedule-edit-topbar-name {
-  max-width: 100%;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* --- State badges (saved? approved?) ---
-   Passive information, so they sit beside the name rather than among the
+   Passive information, so they sit beside the title rather than among the
    buttons, where two loose labels used to read as captions for whichever
    button happened to follow them. Neutral states carry no colour: only
    "unsaved" asks for an action, and only "approved" reports one completed. */

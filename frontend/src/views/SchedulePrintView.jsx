@@ -10,13 +10,13 @@ import { useWorkplace } from '../hooks/workplaceContext';
 import { compareNames, formatNameStyle } from '../utils/formatEmployeeName';
 import { downloadCsv, downloadXlsx } from '../utils/tableExport';
 import { downloadSchedulePdf } from '../utils/schedulePdf';
+import PeriodStepper from '../components/PeriodStepper';
+import PageSkeleton from '../components/Skeleton';
 import './SchedulePrintView.css';
 
 const pad = (n) => String(n).padStart(2, '0');
 const isoDate = (year, month, day) => `${year}-${pad(month + 1)}-${pad(day)}`;
 const isoWeekday = (dateObj) => (dateObj.getDay() + 6) % 7;
-
-const MONTHS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 
 /* How a name may be written on the sheet, in the order the toolbar offers it:
    the initial and the surname, the whole name without its academic titles,
@@ -290,6 +290,14 @@ const SchedulePrintView = () => {
   }, [employees, shifts, locale]);
 
   const monthLabel = t(`special_days.months.${month}`);
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+
+  /** One month back or forward, carrying over the turn of the year. */
+  const stepMonth = (offset) => {
+    const next = new Date(year, month + offset, 1);
+    setYear(next.getFullYear());
+    setMonth(next.getMonth());
+  };
 
   /**
    * The one table every output is written from.
@@ -774,12 +782,11 @@ const SchedulePrintView = () => {
 
   if (workplacesLoading) {
     return (
-      <div className="page sprint">
-        <div className="empty-state" role="status">
-          <span className="spinner" aria-hidden="true" />
-          {t('schedule_print.loading')}
-        </div>
-      </div>
+      <PageSkeleton
+        className="page sprint"
+        title={t('schedule_print.title')}
+        label={t('schedule_print.loading')}
+      />
     );
   }
 
@@ -803,7 +810,6 @@ const SchedulePrintView = () => {
       <header className="page-header">
         <div>
           <h1 className="page-title">{t('schedule_print.title')}</h1>
-          <p className="page-subtitle">{t('schedule_print.subtitle')}</p>
         </div>
 
         {/* What leaves the screen. The toolbar under it carries what the
@@ -845,35 +851,26 @@ const SchedulePrintView = () => {
       )}
 
       <div className="card sprint-bar">
-        <label className="field sprint-field">
+        {/* The same stepper every other month screen pages with. */}
+        <div className="field sprint-field">
           <span className="field-label">{t('schedule_print.month')}</span>
-          <select
-            className="select sprint-select"
-            value={month}
-            onChange={(event) => setMonth(Number(event.target.value))}
-          >
-            {MONTHS.map((index) => (
-              <option key={index} value={index}>
-                {t(`special_days.months.${index}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="field sprint-field">
-          <span className="field-label">{t('schedule_print.year')}</span>
-          <select
-            className="select sprint-select"
-            value={year}
-            onChange={(event) => setYear(Number(event.target.value))}
-          >
-            {years.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
+          <PeriodStepper
+            label={`${monthLabel} ${year}`}
+            onPrevious={() => stepMonth(-1)}
+            onNext={() => stepMonth(1)}
+            previousLabel={t('schedule.previous_month')}
+            nextLabel={t('schedule.next_month')}
+            previousDisabled={year === years[0] && month === 0}
+            nextDisabled={year === years[years.length - 1] && month === 11}
+            todayLabel={isCurrentMonth ? null : t('schedule.current_month')}
+            onToday={() => {
+              setYear(today.getFullYear());
+              setMonth(today.getMonth());
+            }}
+            todaySide="end"
+            groupLabel={t('workload.month_nav')}
+          />
+        </div>
 
         <span className="sprint-divider" aria-hidden="true" />
 
