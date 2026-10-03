@@ -5,7 +5,7 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 12vh 16px 16px;
+  padding: min(12vh, 96px) 16px 16px;
   z-index: 1000;
   animation: ui-fade-in 0.12s ease-out;
 }
@@ -84,7 +84,16 @@
   cursor: pointer;
 }
 
-.quick-jump-item.is-cursor {
+.quick-jump-item {
+  transition: background-color var(--duration) var(--ease);
+}
+
+.quick-jump-item:hover {
+  background: var(--surface-2);
+}
+
+.quick-jump-item.is-cursor,
+.quick-jump-item.is-cursor:hover {
   background: var(--primary-background);
   color: var(--text-h);
 }

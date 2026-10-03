@@ -135,6 +135,7 @@
   border-color: var(--primary);
   background: var(--primary);
   color: var(--on-primary);
+  box-shadow: var(--shadow-xs), inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -144,7 +145,16 @@
 
 .btn-primary:active:not(:disabled) {
   background: var(--primary-hover);
+  filter: brightness(0.94);
+}
+
+.btn-secondary:active:not(:disabled) {
+  background: var(--primary-background-strong);
   filter: brightness(0.96);
+}
+
+.btn-ghost:active:not(:disabled) {
+  background: var(--surface-3);
 }
 
 .btn-secondary {
@@ -183,8 +193,16 @@
   background: var(--danger-hover);
 }
 
+/* White on the dark theme's lighter reds would fall under 4.5:1, so the
+   filled danger button keeps a deep red there. */
+:root[data-theme='dark'] .btn-danger {
+  border-color: #dc2626;
+  background: #dc2626;
+}
+
 :root[data-theme='dark'] .btn-danger:hover:not(:disabled) {
-  color: #1a0b0b;
+  border-color: #b91c1c;
+  background: #b91c1c;
 }
 
 .btn-danger-outline {
@@ -200,15 +218,25 @@
 }
 
 .btn-success {
-  border-color: var(--success-solid);
-  background: var(--success-solid);
+  border-color: #15803d;
+  background: #15803d;
   color: #ffffff;
 }
 
 .btn-success:hover:not(:disabled) {
+  border-color: #166534;
+  background: #166534;
+}
+
+:root[data-theme='dark'] .btn-success {
   border-color: var(--success-solid);
   background: var(--success-solid);
-  filter: brightness(0.94);
+  color: #052e16;
+}
+
+:root[data-theme='dark'] .btn-success:hover:not(:disabled) {
+  border-color: var(--success);
+  background: var(--success);
 }
 
 .btn-sm {
@@ -331,6 +359,12 @@
   border-color: var(--danger);
 }
 
+.input[aria-invalid='true']:focus,
+.select[aria-invalid='true']:focus,
+.textarea[aria-invalid='true']:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 28%, transparent);
+}
+
 .input-sm,
 .select.input-sm {
   height: var(--control-h-sm);
@@ -433,6 +467,13 @@ input[type='radio'] {
   background: var(--danger-background);
 }
 
+.alert > svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
 .alert-action {
   margin-left: auto;
   flex-shrink: 0;
@@ -454,6 +495,7 @@ input[type='radio'] {
   align-items: center;
   gap: 5px;
   height: 22px;
+  max-width: 100%;
   padding: 0 8px;
   border-radius: var(--radius-full);
   background: var(--surface-2);
@@ -629,6 +671,15 @@ input[type='radio'] {
   color: var(--text-h);
 }
 
+.dialog-close:active {
+  background: var(--surface-3);
+}
+
+.dialog-close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .dialog-close svg {
   width: 18px;
   height: 18px;
@@ -676,6 +727,10 @@ input[type='radio'] {
     border-bottom-right-radius: 0;
   }
 
+  .dialog-footer {
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+  }
+
   .dialog-footer .btn {
     flex: 1;
   }
@@ -711,6 +766,11 @@ input[type='radio'] {
 
 .segmented > button:hover {
   color: var(--text-h);
+}
+
+.segmented > button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .segmented > button[aria-pressed='true'],
@@ -769,6 +829,11 @@ input[type='radio'] {
 .data-table tbody tr:last-child td,
 .data-table tbody tr:last-child th {
   border-bottom: none;
+}
+
+.data-table th,
+.data-table td {
+  transition: background-color var(--duration) var(--ease);
 }
 
 .data-table tbody tr:hover th,

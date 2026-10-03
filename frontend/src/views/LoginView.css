@@ -96,7 +96,7 @@
 /* SK | EN — segmented, top right */
 .login-language {
   position: absolute;
-  top: 20px;
+  top: max(20px, env(safe-area-inset-top));
   right: 20px;
   display: inline-flex;
   gap: 2px;
@@ -120,8 +120,17 @@
   cursor: pointer;
 }
 
+.login-language button {
+  transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+
 .login-language button:hover {
   color: var(--text-h);
+}
+
+.login-language button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .login-language button.is-active {

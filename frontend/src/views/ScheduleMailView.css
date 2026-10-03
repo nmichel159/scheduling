@@ -48,7 +48,12 @@
   border-radius: var(--radius);
 }
 
-.smail-group-head:hover {
+.smail-group-head {
+  transition: background-color var(--duration) var(--ease);
+}
+
+.smail-group-head:hover,
+.smail-member:hover {
   background: var(--surface-2);
 }
 
@@ -66,7 +71,14 @@
   width: 16px;
   height: 16px;
   margin: 0;
+  accent-color: var(--primary);
   cursor: pointer;
+}
+
+.smail-check input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-xs);
 }
 
 .smail-check input:disabled {
@@ -107,10 +119,7 @@
 .smail-member {
   padding: 6px 10px;
   border-radius: var(--radius-sm);
-}
-
-.smail-member:hover {
-  background: var(--surface-2);
+  transition: background-color var(--duration) var(--ease);
 }
 
 .smail-member-text {

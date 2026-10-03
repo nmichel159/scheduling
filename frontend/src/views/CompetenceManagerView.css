@@ -559,3 +559,42 @@
 @media (prefers-reduced-motion: reduce) {
   .cmanager-summary-heading { animation: none; }
 }
+
+/* ---------- horizontal scroll cues ---------- */
+
+/* When the week is wider than its card the cut-off edge fades instead of
+   slicing the last column, and the name stays put while the days scroll. */
+.cmanager-summary-scroll {
+  background:
+    linear-gradient(to right, var(--surface) 30%, transparent) left center / 24px 100% no-repeat local,
+    linear-gradient(to left, var(--surface) 30%, transparent) right center / 24px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 0.22), transparent) left center / 10px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 0.22), transparent) right center / 10px 100% no-repeat scroll;
+  scrollbar-width: thin;
+}
+
+.cmanager-summary-table .cmanager-col-name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+}
+
+.cmanager-summary-table th.cmanager-col-name {
+  background: var(--surface-2);
+}
+
+.cmanager-summary-table tbody tr:hover > td.cmanager-col-name {
+  background: var(--surface-2);
+}
+
+.cmanager-summary-table .cmanager-col-name {
+  box-shadow: 1px 0 0 var(--border);
+}
+
+@media (max-width: 640px) {
+  .cmanager-summary-table .cmanager-col-name {
+    min-width: 112px;
+    padding-left: 12px;
+  }
+}

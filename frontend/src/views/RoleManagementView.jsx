@@ -116,7 +116,6 @@ const RoleManagementView = () => {
       <header className="page-header">
         <div>
           <h1 className="page-title">{t('role_management.title')}</h1>
-          <p className="page-subtitle">{t('role_management.subtitle')}</p>
         </div>
         <div className="page-actions role-management-search">
           <label className="visually-hidden" htmlFor="role-management-search">

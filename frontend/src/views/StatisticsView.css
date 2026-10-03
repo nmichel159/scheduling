@@ -53,6 +53,7 @@
   gap: 6px;
   min-width: 0;
   padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
 }
 
 .stats-kpi-label {
@@ -144,6 +145,15 @@
   width: 100%;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   background: var(--primary);
+  transition: height var(--duration) var(--ease), background-color var(--duration) var(--ease);
+}
+
+.stats-chart-col:hover .stats-chart-worked {
+  background: var(--primary-hover);
+}
+
+.stats-chart-col:hover .stats-chart-value {
+  color: var(--text-h);
 }
 
 .stats-chart-label {
@@ -256,6 +266,7 @@
   height: 100%;
   border-radius: var(--radius-full);
   background: var(--primary);
+  transition: width 0.3s var(--ease);
 }
 
 @media (max-width: 720px) {

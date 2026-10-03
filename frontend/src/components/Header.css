@@ -58,8 +58,21 @@
   cursor: pointer;
 }
 
+.menu-btn {
+  transition: background-color var(--duration) var(--ease);
+}
+
 .menu-btn:hover {
   background: var(--surface-2);
+}
+
+.menu-btn:active {
+  background: var(--surface-3);
+}
+
+.menu-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 /* Desktop without a workplace switcher: the bar would hold nothing (the menu

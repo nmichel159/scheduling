@@ -51,6 +51,8 @@
     box-shadow var(--duration) var(--ease);
 }
 .settings-option:hover { border-color: var(--border-strong); background: var(--surface-2); }
+.settings-option:active { background: var(--surface-3); }
+.settings-option.is-selected:hover { border-color: var(--primary); background: var(--primary-background-strong); }
 .settings-option:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 /* Vybraná voľba: fialový rám aj plocha — rovnaký jazyk ako aktívna položka v lište. */
@@ -75,4 +77,4 @@
   line-height: 20px;
 }
 
-.settings-option-label { line-height: 1.2; }
+.settings-option-label { line-height: 1.2; text-align: center; overflow-wrap: anywhere; }

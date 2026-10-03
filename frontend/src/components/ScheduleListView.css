@@ -94,10 +94,26 @@
   cursor: grab;
   user-select: none;
   box-sizing: border-box;
+  transition: box-shadow var(--duration) var(--ease), transform var(--duration) var(--ease);
+}
+
+.schedule-list-shift:hover {
+  box-shadow: var(--shadow-xs), inset 0 0 0 1px var(--border-strong);
 }
 
 .schedule-list-shift:active {
   cursor: grabbing;
+}
+
+/* The first row has no room above it inside the clipped card. */
+.schedule-list-row:first-child .schedule-list-shift-tooltip {
+  top: calc(100% + 6px);
+  bottom: auto;
+}
+
+.schedule-list-shift:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 /* Wraps the short name so the tooltip can be positioned relative to it. */

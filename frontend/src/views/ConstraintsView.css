@@ -175,3 +175,10 @@
     padding: 0 9px;
   }
 }
+
+/* The header's actions line up with the right edge of the cards below
+   instead of floating at the far side of the viewport. */
+.cons .page-header,
+.cons .cons-alert {
+  max-width: 920px;
+}

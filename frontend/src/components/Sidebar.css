@@ -207,6 +207,7 @@
 }
 
 .nav-item:hover { background: var(--nav-hover); color: var(--text-h); }
+.nav-item:active { background: var(--surface-3); }
 .nav-item:hover .nav-icon { color: var(--text-h); }
 
 /* Aktívna položka: jemná fialová plocha, ťažší text a zafarbená ikona.
@@ -219,6 +220,8 @@
 }
 .nav-item.active .nav-icon,
 .nav-item.is-current .nav-icon { color: var(--primary); }
+.nav-item.active:hover,
+.nav-item.is-current:hover { background: var(--primary-background-strong); }
 
 .nav-item:focus-visible {
   outline: 2px solid var(--primary);
@@ -267,6 +270,8 @@
    .sidebar nemá transform, takže fixed sa počíta voči oknu. */
 .nav-flyout {
   position: fixed;
+  max-height: calc(100svh - 16px);
+  overflow-y: auto;
   z-index: 120;
   width: 244px;
   padding: 6px;
@@ -396,7 +401,10 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
+.nav-menu-item { transition: background-color var(--duration) var(--ease); }
 .nav-menu-item:hover { background: var(--nav-hover); }
+.nav-menu-item:active { background: var(--surface-3); }
+.nav-menu-item.is-danger:hover { background: var(--danger-background); }
 .nav-menu-item.is-danger { color: var(--danger); }
 .nav-menu-item.is-danger .nav-icon { color: var(--danger); }
 .nav-menu-item:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }

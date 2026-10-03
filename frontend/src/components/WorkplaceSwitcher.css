@@ -177,6 +177,15 @@
   cursor: pointer;
 }
 
+.workplace-switcher-option {
+  transition: background-color var(--duration) var(--ease);
+}
+
+.workplace-switcher-option:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
 .workplace-switcher-option:hover {
   background: var(--surface-2);
 }

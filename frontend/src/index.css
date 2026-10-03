@@ -37,10 +37,10 @@
   --text-h: #16181d;                   /* headings and primary text */
   --text: #4a4f5c;                     /* body text */
   --text-p: #626876;                   /* muted: descriptions, hints */
-  --secondary: #858b98;                /* labels, placeholders, icons */
+  --secondary: #6f7585;                /* labels, placeholders, icons (4.6:1 on white) */
 
   --border: #e2e4e9;
-  --border-strong: #cdd0d8;
+  --border-strong: #c9ccd5;
 
   /* ---- Status ---- */
   --success: #15803d;
@@ -188,6 +188,10 @@ textarea {
 
 button {
   -webkit-tap-highlight-color: transparent;
+}
+
+button:disabled {
+  cursor: not-allowed;
 }
 
 button:not(:disabled),

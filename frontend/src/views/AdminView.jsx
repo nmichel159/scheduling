@@ -506,7 +506,6 @@ const AdminView = () => {
       <header className="page-header">
         <div>
           <h1 className="page-title">{t('admin.title')}</h1>
-          <p className="page-subtitle">{t('admin.subtitle')}</p>
         </div>
         <div className="page-actions">
           <button type="button" className="btn btn-primary" onClick={() => openEditor(null)}>

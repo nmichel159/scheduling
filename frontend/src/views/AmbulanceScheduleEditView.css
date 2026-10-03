@@ -246,15 +246,27 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--duration) var(--ease), background-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
+}
+
+.schedule-edit-cell:hover:not(.schedule-edit-cell-empty) {
+  border-color: var(--border-strong);
 }
 
 .schedule-edit-cell-empty {
   border-color: transparent;
   background: transparent;
+  box-shadow: none;
 }
 
 .schedule-edit-cell.is-today {
   border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.schedule-edit-cell.is-today .schedule-edit-cell-daynum {
+  color: var(--primary);
 }
 
 .schedule-edit-cell.is-drag-over {
@@ -292,7 +304,14 @@
   line-height: 1;
   opacity: 0;
   cursor: pointer;
-  transition: opacity 0.12s, border-color 0.12s, color 0.12s;
+  transition: opacity var(--duration) var(--ease), border-color var(--duration) var(--ease), color var(--duration) var(--ease), background-color var(--duration) var(--ease);
+}
+
+.schedule-edit-cell-add:focus-visible,
+.schedule-edit-shift-remove:focus-visible,
+.schedule-edit-alert-close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .schedule-edit-cell:hover .schedule-edit-cell-add,
@@ -303,6 +322,7 @@
 .schedule-edit-cell-add:hover {
   border-color: var(--primary);
   color: var(--primary);
+  background: var(--primary-background);
 }
 
 /* --- Employee chips --- */
@@ -398,6 +418,7 @@
   color: var(--text-p);
   opacity: 0;
   cursor: pointer;
+  transition: opacity var(--duration) var(--ease), color var(--duration) var(--ease), background-color var(--duration) var(--ease);
 }
 
 .schedule-edit-shift-remove svg {
@@ -411,6 +432,7 @@
 }
 
 .schedule-edit-shift-remove:hover {
+  background: var(--danger-background);
   color: var(--danger);
 }
 
@@ -530,7 +552,8 @@
     min-width: 248px;
   }
 
-  .schedule-edit-cell-add {
+  .schedule-edit-cell-add,
+  .schedule-edit-shift-remove {
     opacity: 1;
   }
 }
