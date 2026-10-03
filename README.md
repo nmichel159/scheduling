@@ -202,6 +202,27 @@ Four properties of the profile are worth knowing before you change it:
 `config_2` is the older, smaller profile (`ambulancia1`..`ambulancia4` and four
 urgent workplaces) and is kept for tests and for comparison.
 
+### Seedované zobrazenie obrazovky „Rozpis pracoviska“ (bez prihlásenia)
+
+Prihlásenie ide len cez Google, takže obrazovku rozpisu nejde otvoriť bez účtu.
+Na vizuálne úpravy a kontrolu preto existuje seedovaný náhľad, ktorý vykreslí
+skutočný `SchedulePlannerView` so zabudovanými dátami (7 kompetencií, 22 ľudí,
+vygenerovaný mesiac s dierami v obsadení a pár zámernými konfliktmi). Nepotrebuje
+backend ani prihlásenie.
+
+```powershell
+npm --prefix frontend run dev
+# potom v prehliadači: http://localhost:5173/preview.html
+```
+
+Parametre: `?state=dirty` (neuložené zmeny, tlačidlo Zrušiť zmeny),
+`?toast=1` (toast po vygenerovaní), `?error=1` (chybové okno),
+`?conflicts=0` (mesiac bez umelo vložených konfliktov). Ide o samostatný vstup
+`frontend/preview.html` + `frontend/src/dev/previewMain.jsx`; produkčný build ho
+neobsahuje. Hlavička (názov, stavy, Uložiť/Schváliť, mesiac) je v náhľade
+zložená ručne, rovnako ako v `AmbulanceScheduleEditView.jsx`, takže po zmene
+tamojších tlačidiel treba upraviť aj náhľad.
+
 ### Scheduling rules per workplace
 
 **Ohraničenia** (`/constraints`) lists every rule the schedule generator

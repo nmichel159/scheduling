@@ -13,6 +13,8 @@
   color: var(--text-h);
   font-size: var(--fs-base);
   line-height: 1.5;
+  /* Error texts list several conflicts, one per line. */
+  white-space: pre-line;
 }
 
 .confirm-dialog-details {

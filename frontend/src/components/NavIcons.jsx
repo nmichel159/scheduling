@@ -308,3 +308,51 @@ export const ResetIcon = (props) => (
     <path d="M4.4 4.6v3.8h3.8" />
   </Icon>
 );
+
+/** Uložiť — disketa. */
+export const SaveIcon = (props) => (
+  <Icon {...props}>
+    <path d="M5 4.6h11.2L19.4 7.8V18a1.4 1.4 0 0 1-1.4 1.4H6A1.4 1.4 0 0 1 4.6 18V6A1.4 1.4 0 0 1 6 4.6" />
+    <path d="M8 4.6v4.2h6.6V4.6M8 19.4v-5.2h8v5.2" />
+  </Icon>
+);
+
+/** Generovať — iskra: návrh sa vytvorí sám. */
+export const SparkIcon = (props) => (
+  <Icon {...props}>
+    <path d="M12 3.6c.5 4.3 2.1 5.9 6.4 6.4-4.3.5-5.9 2.1-6.4 6.4-.5-4.3-2.1-5.9-6.4-6.4 4.3-.5 5.9-2.1 6.4-6.4z" />
+    <path d="M18.4 15.6c.2 1.6.8 2.2 2.4 2.4-1.6.2-2.2.8-2.4 2.4-.2-1.6-.8-2.2-2.4-2.4 1.6-.2 2.2-.8 2.4-2.4z" />
+  </Icon>
+);
+
+/** Čas — hodiny. */
+export const ClockIcon = (props) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="8.2" />
+    <path d="M12 7.4V12l3 1.9" />
+  </Icon>
+);
+
+/** Upozornenie — trojuholník s výkričníkom. */
+export const AlertIcon = (props) => (
+  <Icon {...props}>
+    <path d="M12 4.2 21 19.4H3L12 4.2z" />
+    <path d="M12 10v4.2M12 16.9v.1" />
+  </Icon>
+);
+
+/** Hotovo — fajka v kruhu. */
+export const CheckCircleIcon = (props) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="8.4" />
+    <path d="m8.4 12.4 2.5 2.5 4.8-5" />
+  </Icon>
+);
+
+/** Zámer schváliť — pečať: rozvrh sa sprístupní zamestnancom. */
+export const SealIcon = (props) => (
+  <Icon {...props}>
+    <path d="M12 3.4l2.2 1.6 2.7-.2 1 2.5 2.3 1.5-.8 2.6.8 2.6-2.3 1.5-1 2.5-2.7-.2L12 20.6 9.8 19l-2.7.2-1-2.5-2.3-1.5.8-2.6-.8-2.6 2.3-1.5 1-2.5 2.7.2L12 3.4z" />
+    <path d="m8.9 12.2 2.2 2.2 4-4.2" />
+  </Icon>
+);

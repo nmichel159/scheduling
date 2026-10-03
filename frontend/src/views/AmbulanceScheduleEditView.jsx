@@ -20,7 +20,8 @@ import CompetenceCoverage from '../components/CompetenceCoverage';
 import ConfirmDialog from '../components/ConfirmDialog';
 import GenerationProgressDialog from '../components/GenerationProgressDialog';
 import PeriodStepper from '../components/PeriodStepper';
-import { CloseIcon } from '../components/NavIcons';
+import Toast from '../components/Toast';
+import { CloseIcon, ResetIcon, SaveIcon, SealIcon } from '../components/NavIcons';
 import {
   displayedGenerationSeconds,
   formatDurationSeconds,
@@ -925,8 +926,10 @@ const AmbulanceScheduleEditView = () => {
       previousLabel={t('schedule_edit.previous_month')}
       nextLabel={t('schedule_edit.next_month')}
       disabled={loading || generating || saving || approving}
-      todayLabel={isCurrentMonth ? null : t('schedule_edit.current_month')}
+      todayLabel={t('schedule_edit.current_month')}
       onToday={() => changeMonth(null)}
+      compactToday
+      todayDisabled={isCurrentMonth}
       // The toolbar starts with the stepper, so "current month" goes after it.
       todaySide="end"
       groupLabel={t('workload.month_nav')}
@@ -943,102 +946,78 @@ const AmbulanceScheduleEditView = () => {
    * it somewhere else: there the day matrix owns the left column and has to
    * start at the very top of the page, so the bar goes into the right column
    * above the people calendar instead of lying across the whole width. */
+  const identity = (
+    <div className="schedule-edit-identity">
+      <h1 className="page-title">{t('schedule_edit.title')}</h1>
+      <div className="schedule-edit-state">
+        <span className={`badge badge-dot ${isDirty ? 'badge-warning' : ''}`}>
+          {isDirty ? t('schedule_edit.unsaved') : t('schedule_edit.saved')}
+        </span>
+        <span className={`badge badge-dot ${isApproved ? 'badge-success' : ''}`}>
+          {isApproved
+            ? t('schedule_edit.approved')
+            : t('schedule_edit.not_approved')}
+        </span>
+      </div>
+    </div>
+  );
+
+  const actions = (
+    <div className="schedule-edit-topbar-actions">
+      {/* Only worth a place in the bar while there is something to throw
+          away; permanently greyed out it just took room. */}
+      {isDirty && (
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={handleCancel}
+          disabled={saving || approving}
+        >
+          <ResetIcon />
+          {t('schedule_edit.cancel')}
+        </button>
+      )}
+      <button
+        type="button"
+        className="btn btn-primary schedule-edit-save"
+        onClick={handleSave}
+        disabled={!isDirty || saving || approving}
+      >
+        <SaveIcon />
+        {saving ? t('schedule_edit.saving') : t('schedule_edit.save')}
+      </button>
+      <button
+        type="button"
+        className="btn schedule-edit-approve"
+        onClick={handleApprove}
+        disabled={
+          loading ||
+          isDirty ||
+          isApproved ||
+          shifts.length === 0 ||
+          saving ||
+          generating ||
+          approving
+        }
+      >
+        <SealIcon />
+        {approving ? t('schedule_edit.approving') : t('schedule_edit.approve')}
+      </button>
+    </div>
+  );
+
   const topbar = (
     <div className="schedule-edit-topbar">
-      <div className="schedule-edit-identity">
-        <div className="schedule-edit-title-row">
-          <h1 className="page-title">{t('schedule_edit.title')}</h1>
-          <div className="schedule-edit-state">
-            <span className={`badge badge-dot ${isDirty ? 'badge-warning' : ''}`}>
-              {isDirty ? t('schedule_edit.unsaved') : t('schedule_edit.saved')}
-            </span>
-            <span className={`badge badge-dot ${isApproved ? 'badge-success' : ''}`}>
-              {isApproved
-                ? t('schedule_edit.approved')
-                : t('schedule_edit.not_approved')}
-            </span>
-          </div>
-        </div>
-      </div>
-
+      {identity}
       <div className="schedule-edit-controls">
         {scheduleView !== 'planner' && monthStepper}
-
-        <div className="schedule-edit-topbar-actions">
-          {/* Only worth a place in the bar while there is something to
-              throw away; permanently greyed out it just took room. */}
-          {isDirty && (
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={handleCancel}
-              disabled={saving || approving}
-            >
-              {t('schedule_edit.cancel')}
-            </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-primary schedule-edit-save"
-            onClick={handleSave}
-            disabled={!isDirty || saving || approving}
-          >
-            {saving ? t('schedule_edit.saving') : t('schedule_edit.save')}
-          </button>
-          <button
-            type="button"
-            className="btn schedule-edit-approve"
-            onClick={handleApprove}
-            disabled={
-              loading ||
-              isDirty ||
-              isApproved ||
-              shifts.length === 0 ||
-              saving ||
-              generating ||
-              approving
-            }
-          >
-            {approving
-              ? t('schedule_edit.approving')
-              : t('schedule_edit.approve')}
-          </button>
-        </div>
+        {actions}
       </div>
     </div>
   );
 
   return (
     <div className="schedule-edit">
-      {error && (
-        <div className="alert alert-danger schedule-edit-alert" role="alert">
-          <span className="schedule-edit-alert-text">{error}</span>
-          <button
-            type="button"
-            className="schedule-edit-alert-close"
-            onClick={() => setError(null)}
-            aria-label={t('schedule_edit.close')}
-            title={t('schedule_edit.close')}
-          >
-            <CloseIcon />
-          </button>
-        </div>
-      )}
-      {generationMessage && (
-        <div className="alert alert-success schedule-edit-alert" role="status">
-          <span className="schedule-edit-alert-text">{generationMessage}</span>
-          <button
-            type="button"
-            className="schedule-edit-alert-close"
-            onClick={() => setGenerationMessage(null)}
-            aria-label={t('schedule_edit.close')}
-            title={t('schedule_edit.close')}
-          >
-            <CloseIcon />
-          </button>
-        </div>
-      )}
-
       {/* The planner carries its own generate button and shows the required
           head-counts inside its demand matrix, so the left rail would only
           repeat itself there — and the two halves of the split need the
@@ -1197,7 +1176,8 @@ const AmbulanceScheduleEditView = () => {
 
           {scheduleView === 'planner' && (
             <SchedulePlannerView
-              header={topbar}
+              identity={identity}
+              actions={actions}
               period={monthStepper}
               year={view.y}
               month={view.m}
@@ -1411,6 +1391,25 @@ const AmbulanceScheduleEditView = () => {
           </div>
         </div>
       )}
+      {/* Things that went wrong stop and say so in a window of their own, and
+          what went right is a toast: neither takes room from the page, so
+          nothing under the pointer moves when one turns up. */}
+      <ConfirmDialog
+        open={!!error && !confirmState}
+        tone="danger"
+        title={t('schedule_edit.error_title')}
+        message={error}
+        confirmLabel={t('schedule_edit.close')}
+        hideCancel
+        onConfirm={() => setError(null)}
+        onCancel={() => setError(null)}
+      />
+      <Toast
+        message={generationMessage}
+        tone="success"
+        onClose={() => setGenerationMessage(null)}
+        closeLabel={t('schedule_edit.close')}
+      />
       <ConfirmDialog
         open={!!confirmState}
         title={confirmState?.title}

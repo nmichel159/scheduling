@@ -254,6 +254,7 @@
     "current_month": "Aktuálny mesiac"
   },
   "schedule_edit": {
+    "error_title": "Niečo sa nepodarilo",
     "title": "Rozpis pracoviska",
     "loading": "Načítavam...",
     "no_ambulances": "Nie sú dostupné žiadne pracoviská.",
@@ -357,6 +358,7 @@
     "discard": "Zahodiť zmeny",
     "keep_editing": "Pokračovať v úpravách",
     "conflicts": {
+      "none": "Bez konfliktov",
       "title": "Konflikty",
       "more": "+ ďalších {{count}}",
       "collapse": "Zbaliť konflikty",

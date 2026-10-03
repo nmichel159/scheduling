@@ -19,7 +19,15 @@ import {
 } from '../utils/scheduleConflicts';
 import ConflictIcon from './ConflictIcon';
 import PlannerLegend from './PlannerLegend';
-import { ChevronDownIcon, CloseIcon } from './NavIcons';
+import {
+  AlertIcon,
+  CheckCircleIcon,
+  ChevronDownIcon,
+  ClockIcon,
+  CloseIcon,
+  SparkIcon,
+  TrashIcon,
+} from './NavIcons';
 import './SchedulePlannerView.css';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -162,14 +170,15 @@ const NO_CONFLICTS = [];
  *   planner replaces the left rail that normally carries it.
  * - onClear + clear* — the same for the button that empties the still
  *   plannable part of the month.
- * - header — the page's own action bar. It is handed in rather than left
- *   above the planner because the demand matrix has to start at the very top
- *   of the page; the bar therefore sits in the right column, beside the
- *   matrix instead of over it.
+ * - identity / actions — the page's title with its state badges, and its save
+ *   and approve buttons. Handed in rather than left above the planner because
+ *   the demand matrix has to start at the very top of the page; the command
+ *   bar they belong to therefore sits in the right column, beside the matrix.
  * - period — the page's month stepper, which leads the generate toolbar.
  */
 const SchedulePlannerView = ({
-  header,
+  identity,
+  actions,
   period,
   year,
   month,
@@ -213,7 +222,7 @@ const SchedulePlannerView = ({
   // cells are pointed at -- both picked in the conflicts panel.
   const [conflictFocus, setConflictFocus] = useState(null);
   const [conflictTarget, setConflictTarget] = useState(null);
-  const [conflictsOpen, setConflictsOpen] = useState(true);
+  const [conflictsOpen, setConflictsOpen] = useState(false);
   const [metrics, setMetrics] = useState({
     rowHeight: MAX_ROW_HEIGHT,
     labelWidth: MAX_LABEL_WIDTH,
@@ -1022,13 +1031,16 @@ const SchedulePlannerView = ({
 
         {/* ---------- right: the controls, then the month per person ---------- */}
         <div className="planner-right">
-          {header && <div className="planner-header">{header}</div>}
+          <div className="card planner-bar">
+            <div className="planner-bar-row">
+              {identity}
+              {actions}
+            </div>
 
-          <div className="card planner-toolbar">
-            <div className="planner-toolbar-row">
+            <div className="planner-bar-row is-tools">
               {period}
 
-              <div className="planner-toolbar-actions">
+              <div className="planner-genbar">
                 {onGenerate && (
                   <button
                     type="button"
@@ -1037,55 +1049,58 @@ const SchedulePlannerView = ({
                     disabled={generateDisabled}
                     title={generateHint}
                   >
+                    <SparkIcon />
                     {generateLabel}
                   </button>
                 )}
 
                 {onTimeBudgetChange && (
-                  <select
-                    className="select planner-time-budget"
-                    value={timeBudget}
-                    onChange={(event) => onTimeBudgetChange(Number(event.target.value))}
-                    disabled={generateDisabled}
-                    aria-label={t('schedule_edit.time_budget_label')}
+                  <label
+                    className="planner-time-budget-wrap"
                     title={t('schedule_edit.time_budget_label')}
                   >
-                    {(timeBudgetOptions || []).map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                )}
-
-                {onClear && (
-                  <button
-                    type="button"
-                    className="btn planner-clear"
-                    onClick={onClear}
-                    disabled={clearDisabled}
-                  >
-                    {clearLabel}
-                  </button>
+                    <ClockIcon />
+                    <select
+                      className="select planner-time-budget"
+                      value={timeBudget}
+                      onChange={(event) => onTimeBudgetChange(Number(event.target.value))}
+                      disabled={generateDisabled}
+                      aria-label={t('schedule_edit.time_budget_label')}
+                    >
+                      {(timeBudgetOptions || []).map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 )}
               </div>
 
-              {/* Pushed to the far end: it is the one number that says whether
-                  the month is finished, so it does not sit inside the legend. */}
-              {hasCompetences && (
-                <span
-                  className={`badge badge-dot planner-missing ${
-                    missingTotal === 0 ? 'badge-success' : 'badge-danger'
-                  }`}
-                  title={t('schedule_edit.planner_missing_hint')}
+              {onClear && (
+                <button
+                  type="button"
+                  className="btn btn-ghost planner-clear"
+                  onClick={onClear}
+                  disabled={clearDisabled}
+                  title={clearLabel}
+                  aria-label={clearLabel}
                 >
-                  {missingTotal === 0
-                    ? t('schedule_edit.planner_missing_none')
-                    : t('schedule_edit.planner_missing', { missing: missingTotal })}
-                </span>
+                  <TrashIcon />
+                  <span className="planner-clear-text">{clearLabel}</span>
+                </button>
               )}
-            </div>
 
+            </div>
+          </div>
+
+          <section className="card planner-pane planner-pane-people">
+            <div className="planner-pane-head">
+              <h2 className="planner-pane-title">
+                {t('schedule_edit.planner_people_title')}
+              </h2>
+              <PlannerLegend kind="grid" />
+            </div>
             {hasCompetences && (
               <ul className="planner-legend">
                 {competences.map((competence) => (
@@ -1102,123 +1117,6 @@ const SchedulePlannerView = ({
                 ))}
               </ul>
             )}
-          </div>
-
-          {conflicts.length > 0 && (
-            <section
-              className="card planner-conflicts"
-              aria-labelledby="planner-conflicts-title"
-            >
-              <button
-                type="button"
-                className="planner-conflicts-head"
-                onClick={() => setConflictsOpen((open) => !open)}
-                aria-expanded={conflictsOpen}
-                title={
-                  conflictsOpen
-                    ? t('schedule_edit.conflicts.collapse')
-                    : t('schedule_edit.conflicts.expand')
-                }
-              >
-                <h2 id="planner-conflicts-title" className="planner-pane-title">
-                  {t('schedule_edit.conflicts.title')}
-                </h2>
-                <span
-                  className={`badge ${
-                    conflictReport.errorCount > 0 ? 'badge-danger' : 'badge-warning'
-                  }`}
-                >
-                  {conflicts.length}
-                </span>
-                <ChevronDownIcon
-                  className={`planner-conflicts-chevron ${conflictsOpen ? 'is-open' : ''}`}
-                />
-              </button>
-
-              {conflictsOpen && (
-                <>
-                  <div className="planner-conflict-types">
-                    {CONFLICT_TYPES.filter((type) => conflictReport.counts[type]).map(
-                      (type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          className={`planner-conflict-type is-${CONFLICT_SEVERITY[type]} ${
-                            activeFocus === type ? 'is-active' : ''
-                          }`}
-                          onClick={() => toggleConflictFocus(type)}
-                          aria-pressed={activeFocus === type}
-                        >
-                          <ConflictIcon type={type} className="planner-conflict-glyph" />
-                          <span>{typeLabel(type)}</span>
-                          <span className="planner-conflict-type-count">
-                            {conflictReport.counts[type]}
-                          </span>
-                        </button>
-                      )
-                    )}
-                  </div>
-
-                  {listedConflicts.length > 0 && (
-                    <ul className="planner-conflict-list">
-                      {listedConflicts.slice(0, CONFLICT_LIST_LIMIT).map((conflict) => {
-                        const detail = conflictDetail(conflict);
-                        return (
-                          <li key={conflict.key}>
-                            <button
-                              type="button"
-                              className={`planner-conflict-item is-${conflict.severity} ${
-                                conflictTarget === conflict.key ? 'is-active' : ''
-                              }`}
-                              onClick={() => showConflict(conflict)}
-                              aria-pressed={conflictTarget === conflict.key}
-                              title={conflictLine(conflict)}
-                            >
-                              <ConflictIcon
-                                type={conflict.type}
-                                className="planner-conflict-glyph"
-                              />
-                              <span className="planner-conflict-date">
-                                {conflict.date ? formatIso(conflict.date) : ''}
-                              </span>
-                              {conflict.userId != null && (
-                                <span className="planner-conflict-person">
-                                  {personName(conflict.userId)}
-                                </span>
-                              )}
-                              {!activeFocus && (
-                                <span className="planner-conflict-kind">
-                                  {typeLabel(conflict.type)}
-                                </span>
-                              )}
-                              {detail && (
-                                <span className="planner-conflict-detail">{detail}</span>
-                              )}
-                            </button>
-                          </li>
-                        );
-                      })}
-                      {listedConflicts.length > CONFLICT_LIST_LIMIT && (
-                        <li className="planner-conflict-more">
-                          {t('schedule_edit.conflicts.more', {
-                            count: listedConflicts.length - CONFLICT_LIST_LIMIT,
-                          })}
-                        </li>
-                      )}
-                    </ul>
-                  )}
-                </>
-              )}
-            </section>
-          )}
-
-          <section className="card planner-pane planner-pane-people">
-            <div className="planner-pane-head">
-              <h2 className="planner-pane-title">
-                {t('schedule_edit.planner_people_title')}
-              </h2>
-              <PlannerLegend kind="grid" />
-            </div>
             {people.length === 0 ? (
               <p className="planner-empty">{t('schedule_edit.planner_people_empty')}</p>
             ) : (
@@ -1393,6 +1291,140 @@ const SchedulePlannerView = ({
                 </table>
               </div>
             )}
+          </section>
+
+          <section
+            className={`card planner-conflicts ${conflictsOpen ? 'is-open' : ''}`}
+            aria-labelledby="planner-conflicts-title"
+          >
+            <button
+              type="button"
+              className="planner-conflicts-head"
+              onClick={() => setConflictsOpen((open) => !open)}
+              aria-expanded={conflictsOpen}
+              disabled={conflicts.length === 0}
+              title={
+                conflictsOpen
+                  ? t('schedule_edit.conflicts.collapse')
+                  : t('schedule_edit.conflicts.expand')
+              }
+            >
+              {conflicts.length === 0 ? (
+                <CheckCircleIcon className="planner-conflicts-icon is-ok" />
+              ) : (
+                <AlertIcon
+                  className={`planner-conflicts-icon ${
+                    conflictReport.errorCount > 0 ? 'is-error' : 'is-warning'
+                  }`}
+                />
+              )}
+              <h2 id="planner-conflicts-title" className="planner-conflicts-title">
+                {conflicts.length === 0
+                  ? t('schedule_edit.conflicts.none')
+                  : t('schedule_edit.conflicts.title')}
+              </h2>
+              {conflicts.length > 0 && (
+                <span
+                  className={`badge ${
+                    conflictReport.errorCount > 0 ? 'badge-danger' : 'badge-warning'
+                  }`}
+                >
+                  {conflicts.length}
+                </span>
+              )}
+              <span className="planner-conflicts-spacer" />
+              {hasCompetences && (
+                <span
+                  className={`planner-missing ${missingTotal === 0 ? 'is-done' : ''}`}
+                  title={t('schedule_edit.planner_missing_hint')}
+                >
+                  {missingTotal === 0 ? <CheckCircleIcon /> : <AlertIcon />}
+                  {missingTotal === 0
+                    ? t('schedule_edit.planner_missing_none')
+                    : t('schedule_edit.planner_missing', { missing: missingTotal })}
+                </span>
+              )}
+              {conflicts.length > 0 && (
+                <ChevronDownIcon
+                  className={`planner-conflicts-chevron ${conflictsOpen ? 'is-open' : ''}`}
+                />
+              )}
+            </button>
+
+              {conflictsOpen && conflicts.length > 0 && (
+                <>
+                  <div className="planner-conflict-types">
+                    {CONFLICT_TYPES.filter((type) => conflictReport.counts[type]).map(
+                      (type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          className={`planner-conflict-type is-${CONFLICT_SEVERITY[type]} ${
+                            activeFocus === type ? 'is-active' : ''
+                          }`}
+                          onClick={() => toggleConflictFocus(type)}
+                          aria-pressed={activeFocus === type}
+                        >
+                          <ConflictIcon type={type} className="planner-conflict-glyph" />
+                          <span>{typeLabel(type)}</span>
+                          <span className="planner-conflict-type-count">
+                            {conflictReport.counts[type]}
+                          </span>
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  {listedConflicts.length > 0 && (
+                    <ul className="planner-conflict-list">
+                      {listedConflicts.slice(0, CONFLICT_LIST_LIMIT).map((conflict) => {
+                        const detail = conflictDetail(conflict);
+                        return (
+                          <li key={conflict.key}>
+                            <button
+                              type="button"
+                              className={`planner-conflict-item is-${conflict.severity} ${
+                                conflictTarget === conflict.key ? 'is-active' : ''
+                              }`}
+                              onClick={() => showConflict(conflict)}
+                              aria-pressed={conflictTarget === conflict.key}
+                              title={conflictLine(conflict)}
+                            >
+                              <ConflictIcon
+                                type={conflict.type}
+                                className="planner-conflict-glyph"
+                              />
+                              <span className="planner-conflict-date">
+                                {conflict.date ? formatIso(conflict.date) : ''}
+                              </span>
+                              {conflict.userId != null && (
+                                <span className="planner-conflict-person">
+                                  {personName(conflict.userId)}
+                                </span>
+                              )}
+                              {!activeFocus && (
+                                <span className="planner-conflict-kind">
+                                  {typeLabel(conflict.type)}
+                                </span>
+                              )}
+                              {detail && (
+                                <span className="planner-conflict-detail">{detail}</span>
+                              )}
+                            </button>
+                          </li>
+                        );
+                      })}
+                      {listedConflicts.length > CONFLICT_LIST_LIMIT && (
+                        <li className="planner-conflict-more">
+                          {t('schedule_edit.conflicts.more', {
+                            count: listedConflicts.length - CONFLICT_LIST_LIMIT,
+                          })}
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </>
+              )}
           </section>
         </div>
       </div>

@@ -11,6 +11,8 @@ import './ConfirmDialog.css';
  * - details: optional secondary line under the message (e.g. an estimate)
  * - confirmLabel / cancelLabel: button labels
  * - tone: 'primary' (default) or 'danger' for destructive actions
+ * - hideCancel: a notice rather than a question -- one button, which both
+ *   confirms and dismisses (Escape and a click outside call onCancel)
  * - onConfirm / onCancel: callbacks
  */
 const ConfirmDialog = ({
@@ -21,6 +23,7 @@ const ConfirmDialog = ({
   confirmLabel,
   cancelLabel,
   tone = 'primary',
+  hideCancel = false,
   onConfirm,
   onCancel,
 }) => {
@@ -66,9 +69,11 @@ const ConfirmDialog = ({
           {details && <p className="confirm-dialog-details">{details}</p>}
         </div>
         <div className="dialog-footer">
-          <button type="button" className="btn" onClick={onCancel}>
-            {cancelLabel}
-          </button>
+          {!hideCancel && (
+            <button type="button" className="btn" onClick={onCancel}>
+              {cancelLabel}
+            </button>
+          )}
           <button
             type="button"
             ref={confirmBtnRef}

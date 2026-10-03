@@ -5,7 +5,11 @@
   left: 50%;
   bottom: max(24px, calc(env(safe-area-inset-bottom) + 12px));
   z-index: 1100;
-  max-width: calc(100vw - 32px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: min(560px, calc(100vw - 32px));
   padding: 10px 16px;
   border-radius: var(--radius-md);
   background: var(--text-h);
@@ -13,12 +17,50 @@
   font-size: var(--fs-sm);
   font-weight: 500;
   line-height: 1.4;
-  text-align: center;
+  text-align: left;
   overflow-wrap: anywhere;
   box-shadow: var(--shadow-lg);
   transform: translateX(-50%);
   animation: app-toast-in 0.18s var(--ease);
   box-sizing: border-box;
+}
+
+.app-toast-text {
+  min-width: 0;
+}
+
+.app-toast-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--success-solid);
+}
+
+.app-toast-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: -4px -8px -4px 2px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+  transition: opacity var(--duration) var(--ease), background-color var(--duration) var(--ease);
+}
+
+.app-toast-close:hover {
+  background: color-mix(in srgb, var(--surface) 16%, transparent);
+  opacity: 1;
+}
+
+.app-toast-close svg {
+  width: 14px;
+  height: 14px;
 }
 
 @keyframes app-toast-in {

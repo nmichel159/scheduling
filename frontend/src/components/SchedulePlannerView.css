@@ -23,27 +23,76 @@
   pointer-events: none;
 }
 
-/* --- toolbar: generate + how much is still unstaffed, then the legend --- */
+/* --- the command bar: who and what state, then the month and the solver --- */
 
-.planner-toolbar {
+.planner-bar {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+}
+
+.planner-bar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  min-width: 0;
   padding: 12px 14px;
 }
 
-.planner-toolbar-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
+/* The second row is one line, always: the month, the solver, how much is left.
+   Nothing in it is allowed to drop under the rest when a month name is longer
+   or a button turns up -- what has no room shrinks instead. */
+.planner-bar-row.is-tools {
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: var(--surface-2);
 }
 
-.planner-toolbar-actions {
+.planner-bar .period-stepper {
+  flex: none;
+  gap: 4px;
+}
+
+.planner-bar .period-stepper-label {
+  min-width: 8.6em;
+}
+
+/* Generate and its time budget read as one control: the budget is how long
+   that very button may search. */
+.planner-genbar {
   display: flex;
+  flex: none;
+  align-items: stretch;
+}
+
+.btn.planner-generate {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.planner-genbar > .planner-generate:only-child {
+  border-radius: var(--radius);
+}
+
+.planner-time-budget-wrap {
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+}
+
+.planner-time-budget-wrap > svg {
+  position: absolute;
+  left: 9px;
+  width: 15px;
+  height: 15px;
+  color: var(--secondary);
+  pointer-events: none;
 }
 
 /* Compound selectors wherever a shared class is adjusted: the router pulls
@@ -51,14 +100,103 @@
    the shared rule of the same weight. */
 .select.planner-time-budget {
   width: auto;
-  min-width: 96px;
+  min-width: 0;
+  padding-left: 29px;
+  padding-right: 28px;
+  border-left: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  background-position: right 7px center;
+  background-color: var(--surface);
+  font-variant-numeric: tabular-nums;
 }
 
-/* Pushed to the far end: it is the one number that says whether the month is
-   finished, so it should not sit inside the legend's rhythm. */
+.planner-time-budget-wrap:has(.planner-time-budget:disabled) > svg {
+  opacity: 0.5;
+}
+
+.btn.planner-clear {
+  flex: none;
+  color: var(--text-p);
+}
+
+.btn.planner-clear:hover:not(:disabled) {
+  color: var(--danger);
+  background: var(--danger-background);
+}
+
+/* How much of the month is still unstaffed -- the one number that says
+   whether it is finished. It sits at the right end of the status bar under the
+   people grid, beside the conflicts: both answer "is this month done?". */
 .planner-missing {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0 11px 0 9px;
+  height: 28px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--danger-background);
+  color: var(--danger);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.planner-missing.is-done {
+  background: var(--success-background);
+  color: var(--success);
+}
+
+.planner-missing svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+
+/* The title and the save/approve buttons share a line only when there is room
+   for all of it; below that the buttons take a line of their own, always,
+   rather than dropping down whenever a badge happens to read longer. */
+.planner-bar-row:first-child > .schedule-edit-topbar-actions {
   margin-left: auto;
-  flex-shrink: 0;
+}
+
+@container (max-width: 759px) {
+  .planner-bar-row:first-child {
+    flex-wrap: wrap;
+  }
+
+  .planner-bar-row:first-child > .schedule-edit-topbar-actions {
+    flex: 1 0 100%;
+    justify-content: flex-end;
+  }
+}
+
+@container (min-width: 760px) {
+  .planner-bar-row:first-child {
+    flex-wrap: nowrap;
+  }
+}
+
+/* A narrow right column: the clear button keeps its icon, its words give way. */
+@container (max-width: 720px) {
+  .planner-clear-text {
+    display: none;
+  }
+
+  .btn.planner-clear {
+    width: var(--control-h);
+    padding: 0;
+  }
+}
+
+@container (max-width: 520px) {
+  .planner-bar-row.is-tools {
+    flex-wrap: wrap;
+  }
 }
 
 .planner-legend {
@@ -68,8 +206,7 @@
   gap: 6px 16px;
   list-style: none;
   margin: 0;
-  padding: 12px 0 0;
-  border-top: 1px solid var(--border);
+  padding: 0;
   min-width: 0;
 }
 
@@ -107,10 +244,6 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-width: 0;
-}
-
-.planner-header {
   min-width: 0;
 }
 
@@ -701,18 +834,23 @@
 .planner-conflicts {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 10px 14px 12px;
+  flex: none;
+  padding: 0;
   min-width: 0;
 }
 
+/* Always there, one line tall: "no conflicts" is an answer too, and a panel
+   that only exists once something is wrong would move the page the moment a
+   conflict appeared. */
 .planner-conflicts-head {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 2px 0;
+  min-height: 44px;
+  padding: 0 14px;
   border: 0;
+  border-radius: inherit;
   background: none;
   color: inherit;
   font: inherit;
@@ -720,18 +858,56 @@
   cursor: pointer;
 }
 
+.planner-conflicts-head:disabled {
+  cursor: default;
+}
+
+.planner-conflicts.is-open > .planner-conflicts-head {
+  border-bottom: 1px solid var(--border);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
 .planner-conflicts-head:focus-visible {
   outline: 2px solid var(--primary);
-  outline-offset: 2px;
-  border-radius: var(--radius-xs);
+  outline-offset: -2px;
+}
+
+.planner-conflicts-title {
+  margin: 0;
+  color: var(--text-h);
+  font-size: var(--fs-base);
+  font-weight: 600;
+}
+
+.planner-conflicts-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.planner-conflicts-icon.is-error {
+  color: var(--danger);
+}
+
+.planner-conflicts-icon.is-warning {
+  color: var(--warning);
+}
+
+.planner-conflicts-icon.is-ok {
+  color: var(--success);
+}
+
+.planner-conflicts-spacer {
+  flex: 1;
 }
 
 .planner-conflicts-chevron {
   width: 16px;
   height: 16px;
-  margin-left: auto;
+  margin-left: 2px;
   color: var(--secondary);
-  transform: rotate(-90deg);
+  transform: rotate(180deg);
   transition: transform var(--duration) var(--ease);
 }
 
@@ -743,6 +919,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  padding: 10px 14px 0;
 }
 
 .planner-conflict-type {
@@ -807,13 +984,11 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
-  max-height: 184px;
+  max-height: clamp(96px, calc(100svh - 620px), 220px);
   margin: 0;
-  padding: 0;
+  padding: 8px 8px 8px;
   overflow-y: auto;
   list-style: none;
-  border-top: 1px solid var(--border);
-  padding-top: 6px;
 }
 
 .planner-conflict-item {
@@ -1309,12 +1484,11 @@
     display: contents;
   }
 
-  .planner-header {
+  /* The command bar comes first, then the conflicts, ahead of the matrix. */
+  .planner-bar {
     order: -2;
   }
 
-  /* The conflicts come straight after the toolbar, ahead of the matrix. */
-  .planner-toolbar,
   .planner-conflicts {
     order: -1;
   }
@@ -1329,30 +1503,27 @@
     --planner-cell: calc(var(--planner-row) + 4px);
   }
 
-  .planner-pane,
-  .planner-toolbar {
+  .planner-pane {
     padding: 12px;
   }
 
-  .planner-missing {
-    margin-left: 0;
+  .planner-bar-row {
+    padding: 10px 12px;
   }
 
   /* The month gets a line of its own, stretched edge to edge, so the arrows
      sit at the two ends where a thumb finds them. */
-  .planner-toolbar-row > .period-stepper {
+  .planner-bar-row.is-tools > .period-stepper {
     flex: 1 1 100%;
   }
 
-  .planner-toolbar-row > .period-stepper .period-stepper-control {
+  .planner-bar-row.is-tools > .period-stepper .period-stepper-control {
     flex: 1;
     min-width: 0;
     justify-content: space-between;
   }
 
-  /* Its usual fixed width would push the arrow past the card's edge once
-     the "current month" button stands beside it; stretched, it needs none. */
-  .planner-toolbar-row > .period-stepper .period-stepper-label {
+  .planner-bar-row.is-tools > .period-stepper .period-stepper-label {
     flex: 1;
     min-width: 0;
   }
@@ -1535,4 +1706,29 @@
 
 .marks-key-mark.is-today {
   background: var(--primary-background-strong);
+}
+
+/* Side by side, the page does not scroll: the matrix is sized to the window,
+   and the right column takes exactly the matrix's height. Its content may not
+   ask for more (contain: size), so what overflows is the people grid, which
+   scrolls inside its own card -- the bar above and the conflicts dock below
+   stay where they are. */
+@media (min-width: 1101px) {
+  .planner-split {
+    align-items: stretch;
+  }
+
+  .planner-right {
+    contain: size;
+  }
+
+  .planner-pane-people {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .planner-scroll-people {
+    flex: 1 1 0;
+    min-height: 0;
+  }
 }

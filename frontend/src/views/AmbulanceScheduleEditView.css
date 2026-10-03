@@ -20,46 +20,6 @@
   gap: 12px;
 }
 
-/* --- Alerts above the planner (error / generation result) --- */
-
-/* Compound selectors wherever a shared class is adjusted: the router pulls
-   every view in ahead of styles/ui.css, so a bare class here would lose to
-   the shared rule of the same weight. */
-.alert.schedule-edit-alert {
-  align-items: center;
-}
-
-.schedule-edit-alert-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.schedule-edit-alert-close {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  margin: -4px -6px -4px 0;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--text-p);
-  cursor: pointer;
-  transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
-}
-
-.schedule-edit-alert-close:hover {
-  background: color-mix(in srgb, var(--text-h) 8%, transparent);
-  color: var(--text-h);
-}
-
-.schedule-edit-alert-close svg {
-  width: 16px;
-  height: 16px;
-}
-
 /* --- Layout: side column + calendar --- */
 
 .schedule-edit-layout {
@@ -134,10 +94,6 @@
 }
 
 .schedule-edit-identity {
-  min-width: 0;
-}
-
-.schedule-edit-title-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -145,17 +101,28 @@
   min-width: 0;
 }
 
-/* --- State badges (saved? approved?) ---
-   Passive information, so they sit beside the title rather than among the
-   buttons, where two loose labels used to read as captions for whichever
-   button happened to follow them. Neutral states carry no colour: only
-   "unsaved" asks for an action, and only "approved" reports one completed. */
+.schedule-edit-identity .page-title {
+  margin: 0;
+  white-space: nowrap;
+}
 
+/* State badges (saved? approved?): passive information, so they sit beside
+   the title rather than among the buttons. Neutral states carry no colour:
+   only "unsaved" asks for an action, and only "approved" reports one done. */
 .schedule-edit-state {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+}
+
+/* Each badge holds the width of its longer reading, so saving or approving
+   does not nudge the buttons beside them. */
+.schedule-edit-state .badge:first-child {
+  min-width: 8.6em;
+}
+
+.schedule-edit-state .badge:last-child {
+  min-width: 6.8em;
 }
 
 .schedule-edit-controls {

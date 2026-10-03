@@ -254,6 +254,7 @@
     "current_month": "Current month"
   },
   "schedule_edit": {
+    "error_title": "Something went wrong",
     "title": "Workplace schedule",
     "loading": "Loading...",
     "no_ambulances": "No workplaces available.",
@@ -357,6 +358,7 @@
     "discard": "Discard changes",
     "keep_editing": "Keep editing",
     "conflicts": {
+      "none": "No conflicts",
       "title": "Conflicts",
       "more": "+ {{count}} more",
       "collapse": "Collapse conflicts",
