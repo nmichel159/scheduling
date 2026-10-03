@@ -32,7 +32,6 @@ from app.schemas.schedule import (
     ScheduleContextResponse,
 )
 from app.services.schedule_generation_service import (
-    PREFERRED_UNAVAILABILITY_REASON,
     REST_CALENDAR_MARGIN_DAYS,
     foreign_recovery_reader,
 )
@@ -82,8 +81,6 @@ def get_schedule_context(
         )
         for user_id, marked_date, reason in mark_rows:
             normalized = (reason or "").strip().upper() or DEFAULT_ABSENCE_REASON
-            if normalized == PREFERRED_UNAVAILABILITY_REASON:
-                continue
             marks[user_id].append(
                 ScheduleContextMark(work_date=marked_date, reason=normalized)
             )

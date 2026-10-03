@@ -375,7 +375,8 @@
         "understaffed": "Understaffed",
         "overstaffed": "Overstaffed",
         "over_wish": "Over the monthly wish",
-        "soft_decline": "Would rather not"
+        "soft_decline": "Would rather not",
+        "preferred": "Wants this day"
       },
       "reasons": {
         "UNAVAILABLE": "Cannot",
@@ -395,7 +396,30 @@
         "over_wish": "Over the wish: {{count}}/{{max}}"
       }
     },
-    "generate_tightened": "Strict: {{names}}."
+    "generate_tightened": "Strict: {{names}}.",
+    "marks_legend": {
+      "button": "Legend",
+      "picker": {
+        "unavailable": "Cannot – absent",
+        "unqualified": "Without the competence",
+        "double_role": "Already has a role that day",
+        "other_workplace": "On duty at another workplace",
+        "rest": "Rest not kept",
+        "over_wish": "Over the monthly wish",
+        "soft_decline": "Would rather not"
+      },
+      "grid": {
+        "duty": "Duty (colour = competence)",
+        "elsewhere": "Duty at another workplace",
+        "cannot": "Cannot, vacation, business trip",
+        "wanted": "Wants this day",
+        "rather_not": "Would rather not",
+        "conflict": "Rule broken",
+        "warning": "Wish or head-count",
+        "weekend": "Weekend and holiday",
+        "today": "Today"
+      }
+    }
   },
   "schedule_overview": {
     "title": "Schedule overview",

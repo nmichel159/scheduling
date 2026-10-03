@@ -11,11 +11,14 @@ import {
   CONFLICT_TYPES,
   COVERAGE_CONFLICT_TYPES,
   SOFT_DECLINE_REASON,
+  PREFERRED_REASON,
+  isHardReason,
   demandCellKey,
   personCellKey,
   severityOf,
 } from '../utils/scheduleConflicts';
 import ConflictIcon from './ConflictIcon';
+import PlannerLegend from './PlannerLegend';
 import { ChevronDownIcon, CloseIcon } from './NavIcons';
 import './SchedulePlannerView.css';
 
@@ -1208,9 +1211,12 @@ const SchedulePlannerView = ({
           )}
 
           <section className="card planner-pane planner-pane-people">
-            <h2 className="planner-pane-title">
-              {t('schedule_edit.planner_people_title')}
-            </h2>
+            <div className="planner-pane-head">
+              <h2 className="planner-pane-title">
+                {t('schedule_edit.planner_people_title')}
+              </h2>
+              <PlannerLegend kind="grid" />
+            </div>
             {people.length === 0 ? (
               <p className="planner-empty">{t('schedule_edit.planner_people_empty')}</p>
             ) : (
@@ -1281,14 +1287,14 @@ const SchedulePlannerView = ({
                             /* An absence or a duty elsewhere is marked even on a
                                free day: it is where the next conflict would be. */
                             const note = conflictReport?.notesByCell.get(cellKey);
-                            const isAbsent =
-                              note?.reason != null && note.reason !== SOFT_DECLINE_REASON;
+                            const isAbsent = isHardReason(note?.reason);
+                            const isWanted = note?.reason === PREFERRED_REASON;
+                            const isRatherNot = note?.reason === SOFT_DECLINE_REASON;
                             const isElsewhere = (note?.workplaces.length ?? 0) > 0;
                             const noteLines = [
                               isAbsent ? reasonLabel(note.reason) : null,
-                              note?.reason === SOFT_DECLINE_REASON
-                                ? typeLabel('soft_decline')
-                                : null,
+                              isRatherNot ? typeLabel('soft_decline') : null,
+                              isWanted ? typeLabel('preferred') : null,
                               isElsewhere
                                 ? t('schedule_edit.conflicts.candidate.other_workplace', {
                                     workplaces: note.workplaces.join(', '),
@@ -1322,6 +1328,8 @@ const SchedulePlannerView = ({
                                     : ''
                                 } ${dayInfo.isToday ? 'is-today' : ''} ${
                                   isAbsent ? 'is-absent' : ''
+                                } ${isWanted ? 'is-wanted' : ''} ${
+                                  isRatherNot ? 'is-rather-not' : ''
                                 } ${conflictClasses(cellConflicts, targetCells.has(cellKey))}`}
                                 data-person-cell={cellKey}
                               >
@@ -1440,6 +1448,7 @@ const SchedulePlannerView = ({
             <span className="planner-detail-count">
               {t('schedule_edit.planner_standard')}
             </span>
+            <PlannerLegend kind="picker" />
             <label className="planner-detail-toggle">
               <input
                 type="checkbox"

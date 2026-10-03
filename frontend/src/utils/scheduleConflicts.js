@@ -51,6 +51,11 @@ export const CONFLICT_SEVERITY = {
 export const COVERAGE_CONFLICT_TYPES = new Set(['understaffed', 'overstaffed']);
 
 export const SOFT_DECLINE_REASON = 'SOFT_DECLINE';
+export const PREFERRED_REASON = 'PREFERRED';
+
+/** A mark that rules the day out; the two wishes only lean one way. */
+export const isHardReason = (reason) =>
+  Boolean(reason) && reason !== SOFT_DECLINE_REASON && reason !== PREFERRED_REASON;
 
 const DAY_MS = 86400000;
 const pad = (n) => String(n).padStart(2, '0');
@@ -226,7 +231,7 @@ export function analyzeScheduleConflicts({
       cells: [cellKey],
       demandCells: demandCellsOf(dayShifts),
     };
-    if (reason && reason !== SOFT_DECLINE_REASON) {
+    if (isHardReason(reason)) {
       add('unavailable', { ...common, reason });
     } else if (reason === SOFT_DECLINE_REASON) {
       add('soft_decline', common);
@@ -402,7 +407,7 @@ export function analyzeScheduleConflicts({
     if (!held || !held.has(competenceId)) found.push({ type: 'unqualified' });
 
     const reason = marksByUser.get(userId)?.get(dateStr);
-    if (reason && reason !== SOFT_DECLINE_REASON) found.push({ type: 'unavailable', reason });
+    if (isHardReason(reason)) found.push({ type: 'unavailable', reason });
 
     const day = dayNumber(dateStr);
     const recovery = recoveryOf(competenceId, dateStr);

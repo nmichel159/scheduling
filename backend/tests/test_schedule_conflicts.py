@@ -187,7 +187,7 @@ class PlannerConflictTests(unittest.TestCase):
         self.assertEqual(employee.max_shifts_per_month, 3)
         self.assertEqual(
             [(mark.work_date.day, mark.reason) for mark in employee.marks],
-            [(12, "VACATION"), (13, "SOFT_DECLINE")],
+            [(12, "VACATION"), (13, "SOFT_DECLINE"), (14, "PREFERRED")],
         )
         self.assertEqual(
             [

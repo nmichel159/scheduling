@@ -376,7 +376,8 @@
         "understaffed": "Neobsadené",
         "overstaffed": "Nadpočet",
         "over_wish": "Nad mesačné želanie",
-        "soft_decline": "Nechce slúžiť"
+        "soft_decline": "Nechce slúžiť",
+        "preferred": "Chce slúžiť"
       },
       "reasons": {
         "UNAVAILABLE": "Nemôže",
@@ -396,7 +397,30 @@
         "over_wish": "Nad želanie: {{count}}/{{max}}"
       }
     },
-    "generate_tightened": "Striktné: {{names}}."
+    "generate_tightened": "Striktné: {{names}}.",
+    "marks_legend": {
+      "button": "Legenda",
+      "picker": {
+        "unavailable": "Nemôže – neprítomnosť",
+        "unqualified": "Bez kompetencie",
+        "double_role": "Už má rolu v ten deň",
+        "other_workplace": "Služba na inom pracovisku",
+        "rest": "Nedodržaný odpočinok",
+        "over_wish": "Nad mesačné želanie",
+        "soft_decline": "Nechce slúžiť"
+      },
+      "grid": {
+        "duty": "Služba (farba = kompetencia)",
+        "elsewhere": "Služba na inom pracovisku",
+        "cannot": "Nemôže, dovolenka, služobná cesta",
+        "wanted": "Chce slúžiť",
+        "rather_not": "Nechce slúžiť",
+        "conflict": "Porušené pravidlo",
+        "warning": "Želanie alebo počet obsadenia",
+        "weekend": "Víkend a sviatok",
+        "today": "Dnes"
+      }
+    }
   },
   "schedule_overview": {
     "title": "Prehľad rozvrhov",
