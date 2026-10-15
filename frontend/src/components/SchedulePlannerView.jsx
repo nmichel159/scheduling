@@ -117,6 +117,19 @@ const CONFLICT_LIST_LIMIT = 60;
 /* How many conflict glyphs a name in the people list carries; the tooltip
    has them all. */
 const ROW_GLYPH_LIMIT = 3;
+
+/* Among the candidates a pick would put in conflict, the ones easiest to free
+   come first: a rest gives way when the neighbouring duty moves, a second role
+   when the other one does, while a duty elsewhere or an absence does not give
+   way here at all. A person sits with the hardest of their errors. */
+const ERROR_ORDER = ['rest', 'double_role', 'other_workplace', 'unavailable'];
+const errorRank = (warnings) =>
+  Math.max(
+    0,
+    ...warnings
+      .filter((item) => item.severity === 'error')
+      .map((item) => ERROR_ORDER.indexOf(item.type))
+  );
 const NO_CONFLICTS = [];
 
 /**
@@ -698,7 +711,8 @@ const SchedulePlannerView = ({
       .sort((a, b) => {
         // Assigned first (so removing is easy), then the qualified who can
         // take the duty cleanly, least served first, then the qualified it
-        // would put in conflict, and last everybody without the competence.
+        // would put in conflict, by the kind of conflict, and last everybody
+        // without the competence.
         const rank = (row) => {
           if (row.shift) return 0;
           if (!row.qualified) return 3;
@@ -706,6 +720,7 @@ const SchedulePlannerView = ({
         };
         return (
           rank(a) - rank(b) ||
+          (rank(a) === 2 ? errorRank(a.warnings) - errorRank(b.warnings) : 0) ||
           a.stats.total - b.stats.total ||
           compareNames(a.employee.full_name, b.employee.full_name)
         );
