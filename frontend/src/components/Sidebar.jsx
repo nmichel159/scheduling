@@ -93,7 +93,8 @@ const SECTIONS = [
     Icon: ConstraintsIcon,
     collapsible: true,
     items: [
-      { to: '/constraints', labelKey: 'sidebar.constraints', Icon: ConstraintsIcon },
+      // Ohraničenia sú zatiaľ skryté z menu (trasa /constraints ostáva).
+      // { to: '/constraints', labelKey: 'sidebar.constraints', Icon: ConstraintsIcon },
       // Špeciálne dni patria adminovi — rozvrhár ich vidí, ale needituje.
       // Adminovi sa vypíšu v jeho sekcii, tu by boli druhýkrát.
       {
