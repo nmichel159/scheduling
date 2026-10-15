@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { SHIFT_PREFERENCE } from '../services/employeeService';
 import { personInitials } from '../utils/personInitials';
-import { stripTitles } from '../utils/formatEmployeeName';
+import { splitFullName } from '../utils/formatEmployeeName';
 import { CheckIcon, CloseIcon, PlusIcon } from './NavIcons';
 import './EmployeeDetailDialog.css';
 
@@ -43,26 +43,10 @@ import './EmployeeDetailDialog.css';
  * - saving: boolean — disables the form while a save is in flight
  * - error: string | null — why the last save failed; shown above the
  *   buttons, the form keeps what was typed
- * - onSave({ max_shifts_per_month, shift_preference, competence_ids })
+ * - onSave({ title_before, first_name, last_name, title_after, email,
+ *     max_shifts_per_month, shift_preference, competence_ids })
  * - onClose()
  */
-const splitName = (fullName) => {
-  /* Academic titles stay with the part of the name they stand next to —
-   * "MUDr. Adela" / "Benčurová, PhD." — so the bare name is what gets
-   * split and the given-name field never holds only "MUDr.". */
-  const full = (fullName || '').trim();
-  const bare = stripTitles(full);
-  const at = bare ? full.indexOf(bare) : -1;
-  const before = at > 0 ? full.slice(0, at) : '';
-  const after = at >= 0 ? full.slice(at + bare.length) : '';
-  const parts = (at >= 0 ? bare : full).split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return { first: full, last: '' };
-  return {
-    first: `${before}${parts[0]}`.trim(),
-    last: `${parts.slice(1).join(' ')}${after}`.trim(),
-  };
-};
-
 const PREFERENCE_ORDER = [
   SHIFT_PREFERENCE.SURCHARGE,
   SHIFT_PREFERENCE.STANDARD,
@@ -125,12 +109,8 @@ const EmployeeDetailDialog = ({
   );
   const [picked, setPicked] = useState(() => competences.map((c) => c.id));
   const [identity, setIdentity] = useState(() => {
-    const parts = splitName(employee ? employee.full_name : '');
-    return {
-      first: parts.first,
-      last: parts.last,
-      email: employee ? employee.email : '',
-    };
+    const parts = splitFullName(employee ? employee.full_name : '');
+    return { ...parts, email: employee ? employee.email : '' };
   });
   const titleId = useId();
 
@@ -158,7 +138,7 @@ const EmployeeDetailDialog = ({
 
   if (!employee) return null;
 
-  const name = splitName(employee.full_name);
+  const name = splitFullName(employee.full_name);
   const label = employee.full_name || employee.email;
   const editable = settings != null && typeof onSave === 'function';
   const editableCompetences = editable && Array.isArray(allCompetences);
@@ -184,8 +164,10 @@ const EmployeeDetailDialog = ({
 
   const handleSave = () => {
     onSave({
+      title_before: identity.before.trim(),
       first_name: identity.first.trim(),
       last_name: identity.last.trim(),
+      title_after: identity.after.trim(),
       email: identity.email.trim(),
       max_shifts_per_month: clampShifts(maxShifts),
       shift_preference: preference,
@@ -238,6 +220,18 @@ const EmployeeDetailDialog = ({
             </h3>
             {editable ? (
               <div className="empdlg-identity">
+                <div className="field empdlg-identity-title">
+                  <label className="field-label" htmlFor={`${titleId}-before`}>
+                    {t('employees.title_before')}
+                  </label>
+                  <input
+                    id={`${titleId}-before`}
+                    className="input input-sm"
+                    value={identity.before}
+                    disabled={saving}
+                    onChange={(e) => setIdentity({ ...identity, before: e.target.value })}
+                  />
+                </div>
                 <div className="field">
                   <label className="field-label" htmlFor={`${titleId}-first`}>
                     {t('competences.first_name')}
@@ -262,6 +256,18 @@ const EmployeeDetailDialog = ({
                     onChange={(e) => setIdentity({ ...identity, last: e.target.value })}
                   />
                 </div>
+                <div className="field empdlg-identity-title">
+                  <label className="field-label" htmlFor={`${titleId}-after`}>
+                    {t('employees.title_after')}
+                  </label>
+                  <input
+                    id={`${titleId}-after`}
+                    className="input input-sm"
+                    value={identity.after}
+                    disabled={saving}
+                    onChange={(e) => setIdentity({ ...identity, after: e.target.value })}
+                  />
+                </div>
                 <div className="field empdlg-identity-wide">
                   <label className="field-label" htmlFor={`${titleId}-email`}>
                     {t('competences.email')}
@@ -278,6 +284,12 @@ const EmployeeDetailDialog = ({
               </div>
             ) : (
               <dl className="empdlg-fields">
+                {name.before && (
+                  <div>
+                    <dt>{t('employees.title_before')}</dt>
+                    <dd>{name.before}</dd>
+                  </div>
+                )}
                 <div>
                   <dt>{t('competences.first_name')}</dt>
                   <dd>{name.first || '—'}</dd>
@@ -286,6 +298,12 @@ const EmployeeDetailDialog = ({
                   <dt>{t('competences.last_name')}</dt>
                   <dd>{name.last || '—'}</dd>
                 </div>
+                {name.after && (
+                  <div>
+                    <dt>{t('employees.title_after')}</dt>
+                    <dd>{name.after}</dd>
+                  </div>
+                )}
                 <div>
                   <dt>{t('competences.email')}</dt>
                   <dd>{employee.email}</dd>

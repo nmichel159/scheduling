@@ -16,7 +16,7 @@ import EmployeeDetailDialog from '../components/EmployeeDetailDialog';
 import EmployeeCreateDialog from '../components/EmployeeCreateDialog';
 import EmployeeAvailabilityDialog from '../components/EmployeeAvailabilityDialog';
 import { ChevronLeftIcon, CloseIcon, LimitsIcon, PlusIcon } from '../components/NavIcons';
-import { compareNames } from '../utils/formatEmployeeName';
+import { compareNames, composeFullName } from '../utils/formatEmployeeName';
 import { personInitials } from '../utils/personInitials';
 import PeriodStepper from '../components/PeriodStepper';
 import PageSkeleton, { SkeletonRows } from '../components/Skeleton';
@@ -266,13 +266,20 @@ const EmployeesView = () => {
    */
   const handleSave = async ({
     competence_ids: competenceIds,
+    title_before: titleBefore,
     first_name: firstName,
     last_name: lastName,
+    title_after: titleAfter,
     email,
     ...settings
   }) => {
     if (!detail || selectedId == null) return;
-    const fullName = `${firstName} ${lastName}`.trim();
+    const fullName = composeFullName({
+      before: titleBefore,
+      first: firstName,
+      last: lastName,
+      after: titleAfter,
+    });
     if (!firstName || !lastName || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       setSaveError(t('employees.invalid_identity'));
       return;

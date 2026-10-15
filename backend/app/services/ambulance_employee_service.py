@@ -278,7 +278,14 @@ def create_employee_account(
     needs an identity here; the e-mail is what the sign-in matches on.
     """
     email = _clean_email(data.email)
-    full_name = _clean_name(f"{data.first_name} {data.last_name}")
+    _clean_name(data.first_name)
+    _clean_name(data.last_name)
+    name = " ".join(
+        part for part in (data.title_before, data.first_name, data.last_name) if part.strip()
+    )
+    if data.title_after.strip():
+        name = f"{name}, {data.title_after}"
+    full_name = _clean_name(name)
     if _email_taken(db, email):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

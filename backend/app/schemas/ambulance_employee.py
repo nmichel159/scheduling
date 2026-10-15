@@ -20,8 +20,10 @@ class AmbulanceEmployeeAdd(BaseModel):
 class EmployeeAccountCreate(BaseModel):
     """A brand-new account that joins the manager's workplace at once."""
 
+    title_before: str = Field("", max_length=50)
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
+    title_after: str = Field("", max_length=50)
     email: str = Field(..., min_length=3, max_length=254)
 
 

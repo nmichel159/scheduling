@@ -323,9 +323,10 @@
   margin: 0 20px 12px;
 }
 
+/* Titles are short, so they take narrow columns either side of the name. */
 .empdlg-identity {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1fr) 96px;
   gap: 8px 12px;
 }
 
@@ -348,6 +349,6 @@
   }
 
   .empdlg-identity {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

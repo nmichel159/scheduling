@@ -544,6 +544,8 @@
     "inactive_badge": "Neaktívny"
   },
   "employees": {
+    "title_before": "Titul pred",
+    "title_after": "Titul za",
     "new_account": "Nový účet",
     "new_account_title": "Pridať účet",
     "create_account": "Vytvoriť účet",

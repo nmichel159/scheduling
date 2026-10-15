@@ -93,3 +93,37 @@ export function formatNameStyle(fullName, style) {
   if (style === 'full') return stripTitles(fullName) || fullName;
   return formatShortName(fullName) || fullName;
 }
+
+/**
+ * Splits a stored full name into the four parts the edit forms collect:
+ * titles before the name, given name, family name, titles after it.
+ * "MUDr. Adela Benčurová, PhD." -> MUDr. / Adela / Benčurová / PhD.
+ */
+export function splitFullName(fullName) {
+  const full = (fullName || '').trim();
+  const bare = stripTitles(full);
+  const at = bare ? full.indexOf(bare) : -1;
+  if (at < 0) return { before: '', first: full, last: '', after: '' };
+  const before = full.slice(0, at).trim();
+  const after = full
+    .slice(at + bare.length)
+    .replace(/^[\s,]+/, '')
+    .trim();
+  const parts = bare.split(/\s+/).filter(Boolean);
+  return {
+    before,
+    first: parts[0] || '',
+    last: parts.slice(1).join(' '),
+    after,
+  };
+}
+
+/** The inverse of splitFullName: "MUDr. Adela Benčurová, PhD." */
+export function composeFullName({ before = '', first = '', last = '', after = '' }) {
+  const name = [before, first, last]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(' ');
+  const trailing = after.trim();
+  return trailing ? `${name}, ${trailing}` : name;
+}

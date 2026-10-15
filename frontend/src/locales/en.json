@@ -542,6 +542,8 @@
     "inactive_badge": "Inactive"
   },
   "employees": {
+    "title_before": "Title before",
+    "title_after": "Title after",
     "new_account": "New account",
     "new_account_title": "Add account",
     "create_account": "Create account",

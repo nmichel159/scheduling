@@ -5,13 +5,13 @@ import { CloseIcon } from './NavIcons';
 
 /**
  * Small modal for creating a new account on the shown workplace; it is mounted per opening so the form starts empty: given
- * name, family name and e-mail. The account is matched on its e-mail at
+ * name, family name, titles and e-mail. The account is matched on its e-mail at
  * the person's first sign-in, so nothing else is asked here.
  *
  * Props:
  * - saving: boolean — disables the form while the request is in flight
  * - error: string | null — why the last attempt failed
- * - onCreate({ first_name, last_name, email })
+ * - onCreate({ title_before, first_name, last_name, title_after, email })
  * - onClose()
  */
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -20,7 +20,7 @@ const EmployeeCreateDialog = ({ saving = false, error = null, onCreate, onClose 
   const { t } = useTranslation();
   const titleId = useId();
   const firstRef = useRef(null);
-  const [form, setForm] = useState({ first: '', last: '', email: '' });
+  const [form, setForm] = useState({ before: '', first: '', last: '', after: '', email: '' });
 
   useEffect(() => {
     firstRef.current?.focus();
@@ -43,8 +43,10 @@ const EmployeeCreateDialog = ({ saving = false, error = null, onCreate, onClose 
     e.preventDefault();
     if (!valid || saving) return;
     onCreate({
+      title_before: form.before.trim(),
       first_name: form.first.trim(),
       last_name: form.last.trim(),
+      title_after: form.after.trim(),
       email: form.email.trim(),
     });
   };
@@ -79,7 +81,34 @@ const EmployeeCreateDialog = ({ saving = false, error = null, onCreate, onClose 
           </button>
         </header>
 
-        <div className="dialog-body" style={{ display: 'grid', gap: 10 }}>
+        <div
+          className="dialog-body"
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}
+        >
+          <div className="field">
+            <label className="field-label" htmlFor={`${titleId}-before`}>
+              {t('employees.title_before')}
+            </label>
+            <input
+              id={`${titleId}-before`}
+              className="input"
+              value={form.before}
+              disabled={saving}
+              onChange={set('before')}
+            />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor={`${titleId}-after`}>
+              {t('employees.title_after')}
+            </label>
+            <input
+              id={`${titleId}-after`}
+              className="input"
+              value={form.after}
+              disabled={saving}
+              onChange={set('after')}
+            />
+          </div>
           <div className="field">
             <label className="field-label" htmlFor={`${titleId}-first`}>
               {t('competences.first_name')}
@@ -105,7 +134,7 @@ const EmployeeCreateDialog = ({ saving = false, error = null, onCreate, onClose 
               onChange={set('last')}
             />
           </div>
-          <div className="field">
+          <div className="field" style={{ gridColumn: '1 / -1' }}>
             <label className="field-label" htmlFor={`${titleId}-email`}>
               {t('competences.email')}
             </label>

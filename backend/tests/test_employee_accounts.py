@@ -36,6 +36,20 @@ class EmployeeAccountTests(unittest.TestCase):
         link = self.db.query(UserAmbulance).filter_by(user_id=row.user_id).one()
         self.assertEqual(link.ambulance_id, self.ambulance.id)
 
+    def test_titles_are_composed_into_full_name(self) -> None:
+        row = create_employee_account(
+            self.db,
+            self.ambulance.id,
+            EmployeeAccountCreate(
+                title_before="MUDr.",
+                first_name="Adela",
+                last_name="Benčurová",
+                title_after="PhD.",
+                email="adela@b.sk",
+            ),
+        )
+        self.assertEqual(row.full_name, "MUDr. Adela Benčurová, PhD.")
+
     def test_duplicate_email_is_conflict(self) -> None:
         data = EmployeeAccountCreate(first_name="A", last_name="B", email="a@b.sk")
         create_employee_account(self.db, self.ambulance.id, data)
