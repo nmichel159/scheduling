@@ -362,10 +362,11 @@ def create_employee_account_endpoint(
 )
 def update_employee_profile_endpoint(
     data: EmployeeProfileUpdate,
+    ambulance: Ambulance = Depends(get_manager_ambulance),
     employee: User = Depends(get_managed_employee),
     db: Session = Depends(get_db),
 ) -> EmployeeListResponse:
-    return update_employee_profile(db, employee, data)
+    return update_employee_profile(db, ambulance.id, employee, data)
 
 
 @router.delete(

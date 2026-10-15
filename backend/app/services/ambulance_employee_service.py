@@ -296,11 +296,34 @@ def create_employee_account(
 
 
 def update_employee_profile(
-    db: Session, employee: User, data: EmployeeProfileUpdate
+    db: Session, ambulance_id: int, employee: User, data: EmployeeProfileUpdate
 ) -> EmployeeListResponse:
     """Change the name and e-mail of an employee of the workplace."""
     email = _clean_email(data.email)
     full_name = _clean_name(data.full_name)
+    if email != employee.email:
+        # The e-mail is the sign-in identity. Moving it on an account that
+        # holds a manager/admin role, or that works on other workplaces,
+        # would let one scheduler take over somebody else's access.
+        privileged = any(
+            link.role and link.role.is_active and link.role.level >= 2
+            for link in employee.user_roles
+        )
+        elsewhere = (
+            db.query(UserAmbulance.user_id)
+            .filter(
+                UserAmbulance.user_id == employee.id,
+                UserAmbulance.is_active.is_(True),
+                UserAmbulance.ambulance_id != ambulance_id,
+            )
+            .first()
+            is not None
+        )
+        if privileged or elsewhere:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="The e-mail of this account cannot be changed from here.",
+            )
     if _email_taken(db, email, except_user_id=employee.id):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

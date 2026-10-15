@@ -58,7 +58,7 @@ class EmployeeAccountTests(unittest.TestCase):
         )
         user = self.db.get(User, row.user_id)
         out = update_employee_profile(
-            self.db, user, EmployeeProfileUpdate(full_name="MUDr. Adam Boh", email="adam@b.sk")
+            self.db, self.ambulance.id, user, EmployeeProfileUpdate(full_name="MUDr. Adam Boh", email="adam@b.sk")
         )
         self.assertEqual((out.full_name, out.email), ("MUDr. Adam Boh", "adam@b.sk"))
 
