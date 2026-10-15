@@ -233,7 +233,7 @@ const SchedulePlannerView = ({
   const rootRef = useRef(null);
   // The conflict type whose cells are singled out, and the one conflict whose
   // cells are pointed at -- both picked in the conflicts panel.
-  const [conflictFocus, setConflictFocus] = useState(null);
+  const [conflictFocus, setConflictFocus] = useState(() => new Set());
   const [conflictTarget, setConflictTarget] = useState(null);
   const [conflictsOpen, setConflictsOpen] = useState(false);
   const [metrics, setMetrics] = useState({
@@ -591,12 +591,15 @@ const SchedulePlannerView = ({
     }
   };
 
-  /* The focused type counts only while the month still has one of it, and
-     the pointed-at conflict only while it still exists: a fix clears either
-     without anyone having to switch it off. */
+  /* Any number of types can be picked at once. A picked type counts only
+     while the month still has one of it, and the pointed-at conflict only
+     while it still exists: a fix clears either without anyone having to
+     switch it off. */
   const conflicts = conflictReport?.conflicts || NO_CONFLICTS;
-  const activeFocus =
-    conflictFocus && conflictReport?.counts[conflictFocus] ? conflictFocus : null;
+  const activeFocus = useMemo(
+    () => new Set([...conflictFocus].filter((type) => conflictReport?.counts[type])),
+    [conflictFocus, conflictReport]
+  );
   const target = useMemo(
     () => conflicts.find((conflict) => conflict.key === conflictTarget) || null,
     [conflicts, conflictTarget]
@@ -610,16 +613,15 @@ const SchedulePlannerView = ({
      month has hundreds of them. Picking their type lists them too. */
   const listedConflicts = useMemo(
     () =>
-      activeFocus
-        ? conflicts.filter((conflict) => conflict.type === activeFocus)
+      activeFocus.size > 0
+        ? conflicts.filter((conflict) => activeFocus.has(conflict.type))
         : conflicts.filter((conflict) => !COVERAGE_CONFLICT_TYPES.has(conflict.type)),
     [conflicts, activeFocus]
   );
 
   const conflictClasses = (cellConflicts, isTarget) => {
     const severity = severityOf(cellConflicts);
-    const isFocus =
-      activeFocus != null && cellConflicts.some((conflict) => conflict.type === activeFocus);
+    const isFocus = cellConflicts.some((conflict) => activeFocus.has(conflict.type));
     return [
       severity ? `has-conflict is-${severity}` : '',
       isFocus ? 'is-conflict-focus' : '',
@@ -631,7 +633,12 @@ const SchedulePlannerView = ({
 
   const toggleConflictFocus = (type) => {
     setConflictTarget(null);
-    setConflictFocus((current) => (current === type ? null : type));
+    setConflictFocus((current) => {
+      const next = new Set([...current].filter((picked) => conflictReport?.counts[picked]));
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
   };
 
   /** Point at one conflict's cells and bring the first of them into view. */
@@ -867,7 +874,7 @@ const SchedulePlannerView = ({
     <div
       ref={rootRef}
       className={`planner ${loading ? 'is-loading' : ''} ${
-        activeFocus || target ? 'has-conflict-focus' : ''
+        activeFocus.size > 0 || target ? 'has-conflict-focus' : ''
       }`}
       aria-busy={loading}
     >
@@ -973,9 +980,9 @@ const SchedulePlannerView = ({
                               (conflict) => !COVERAGE_CONFLICT_TYPES.has(conflict.type)
                             );
                             const markSeverity = severityOf(peopleConflicts);
-                            const isFocus =
-                              activeFocus != null &&
-                              cellConflicts.some((conflict) => conflict.type === activeFocus);
+                            const isFocus = cellConflicts.some((conflict) =>
+                              activeFocus.has(conflict.type)
+                            );
                             const cellTitle = [
                               t('schedule_edit.planner_cell_title', {
                                 date: dateFormatter.format(dayInfo.date),
@@ -1375,10 +1382,10 @@ const SchedulePlannerView = ({
                           key={type}
                           type="button"
                           className={`planner-conflict-type is-${CONFLICT_SEVERITY[type]} ${
-                            activeFocus === type ? 'is-active' : ''
+                            activeFocus.has(type) ? 'is-active' : ''
                           }`}
                           onClick={() => toggleConflictFocus(type)}
-                          aria-pressed={activeFocus === type}
+                          aria-pressed={activeFocus.has(type)}
                         >
                           <ConflictIcon type={type} className="planner-conflict-glyph" />
                           <span>{typeLabel(type)}</span>
@@ -1417,7 +1424,7 @@ const SchedulePlannerView = ({
                                   {personName(conflict.userId)}
                                 </span>
                               )}
-                              {!activeFocus && (
+                              {activeFocus.size !== 1 && (
                                 <span className="planner-conflict-kind">
                                   {typeLabel(conflict.type)}
                                 </span>
