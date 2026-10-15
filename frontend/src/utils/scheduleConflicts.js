@@ -12,7 +12,8 @@
  * What the planner cannot see by itself -- absences, duties at other
  * workplaces and at this one just outside the month, the monthly wish --
  * comes from GET /ambulances/{id}/schedule/context. Without it the checks
- * that need it are simply skipped.
+ * that need it are simply skipped. The rest is the exception: it is checked
+ * between the duties in the planner only, never against saved ones.
  */
 
 import {
@@ -269,6 +270,9 @@ export function analyzeScheduleConflicts({
           sameDayElsewhere.set(own.dateStr, entry);
           continue;
         }
+        // The rest is read from the duties in the planner only, so it follows
+        // every edit of the month, a clear included.
+        if (!first.shift || !second.shift) continue;
         const pairKey = `${first.dateStr}|${second.dateStr}`;
         const entry = restPairs.get(pairKey) || {
           firstDate: first.dateStr,
@@ -433,6 +437,7 @@ export function analyzeScheduleConflicts({
     }
     const resting = others.filter(
       (duty) =>
+        duty.shift &&
         duty.day !== day &&
         ((duty.day < day && day <= duty.day + duty.recovery) ||
           (day < duty.day && duty.day <= day + recovery))
