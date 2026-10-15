@@ -544,6 +544,13 @@
     "inactive_badge": "Neaktívny"
   },
   "employees": {
+    "new_account": "Nový účet",
+    "new_account_title": "Pridať účet",
+    "create_account": "Vytvoriť účet",
+    "email_taken": "Tento e-mail už má iný účet.",
+    "create_error": "Účet sa nepodarilo vytvoriť.",
+    "invalid_identity": "Meno a priezvisko musia byť vyplnené a e-mail platný.",
+    "cancel": "Zrušiť",
     "title": "Zamestnanci",
     "filter_placeholder": "Hľadať meno, e-mail alebo kompetenciu...",
     "no_competences": "Bez kompetencie",

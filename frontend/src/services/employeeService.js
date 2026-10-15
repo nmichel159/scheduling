@@ -48,3 +48,22 @@ export async function saveEmployeeSettings(ambulanceId, userId, settings) {
   );
   return data;
 }
+
+/** Create a new account and add it to the workplace in one step. */
+export async function createEmployeeAccount(ambulanceId, account) {
+  const { data } = await client.post(`/ambulances/${ambulanceId}/employees/accounts`, {
+    first_name: account.first_name,
+    last_name: account.last_name,
+    email: account.email,
+  });
+  return data;
+}
+
+/** Change one employee's name and e-mail. */
+export async function updateEmployeeProfile(ambulanceId, userId, profile) {
+  const { data } = await client.put(
+    `/ambulances/${ambulanceId}/employees/${userId}/profile`,
+    { full_name: profile.full_name, email: profile.email }
+  );
+  return data;
+}

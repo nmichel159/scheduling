@@ -6,13 +6,16 @@ import {
   saveEmployeeCompetenceTable,
 } from '../services/competenceService';
 import {
+  createEmployeeAccount,
   fetchEmployeeLoad,
   saveEmployeeSettings,
+  updateEmployeeProfile,
 } from '../services/employeeService';
 import { useWorkplace } from '../hooks/workplaceContext';
 import EmployeeDetailDialog from '../components/EmployeeDetailDialog';
+import EmployeeCreateDialog from '../components/EmployeeCreateDialog';
 import EmployeeAvailabilityDialog from '../components/EmployeeAvailabilityDialog';
-import { ChevronLeftIcon, CloseIcon, LimitsIcon } from '../components/NavIcons';
+import { ChevronLeftIcon, CloseIcon, LimitsIcon, PlusIcon } from '../components/NavIcons';
 import { compareNames } from '../utils/formatEmployeeName';
 import { personInitials } from '../utils/personInitials';
 import PeriodStepper from '../components/PeriodStepper';
@@ -78,7 +81,10 @@ const EmployeesView = () => {
   const [detailId, setDetailId] = useState(null);
   const [availabilityId, setAvailabilityId] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState(false);
+  const [saveError, setSaveError] = useState(null); // message | null
+  const [creating, setCreating] = useState(false);
+  const [createSaving, setCreateSaving] = useState(false);
+  const [createError, setCreateError] = useState(null);
   const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() });
   // Only the newest month's answer may land: stepping through months
   // quickly would otherwise let a slower, older request win.
@@ -258,11 +264,35 @@ const EmployeesView = () => {
    * given and leaves everyone else alone, so one person is sent here
    * rather than the whole table the matrix on /departments submits.
    */
-  const handleSave = async ({ competence_ids: competenceIds, ...settings }) => {
+  const handleSave = async ({
+    competence_ids: competenceIds,
+    first_name: firstName,
+    last_name: lastName,
+    email,
+    ...settings
+  }) => {
     if (!detail || selectedId == null) return;
+    const fullName = `${firstName} ${lastName}`.trim();
+    if (!firstName || !lastName || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      setSaveError(t('employees.invalid_identity'));
+      return;
+    }
     setSaving(true);
-    setSaveError(false);
+    setSaveError(null);
     try {
+      if (fullName !== (detail.full_name || '').trim() || email !== detail.email) {
+        const profile = await updateEmployeeProfile(selectedId, detail.user_id, {
+          full_name: fullName,
+          email,
+        });
+        setEmployees((prev) =>
+          prev.map((e) =>
+            e.user_id === detail.user_id
+              ? { ...e, full_name: profile.full_name, email: profile.email }
+              : e
+          )
+        );
+      }
       const before = detail.competences.map((c) => c.id);
       const changed =
         competenceIds.length !== before.length ||
@@ -294,17 +324,40 @@ const EmployeesView = () => {
         [detail.user_id]: { ...(prev[detail.user_id] || {}), ...saved },
       }));
       setDetailId(null);
-    } catch {
+    } catch (err) {
       /* Said inside the dialog, which stays open with the edit in it —
        * not as the page's "could not load" banner behind the overlay. */
-      setSaveError(true);
+      setSaveError(
+        err?.response?.status === 409
+          ? t('employees.email_taken')
+          : t('departments.save_error')
+      );
     } finally {
       setSaving(false);
     }
   };
 
+  const handleCreate = async (account) => {
+    if (selectedId == null) return;
+    setCreateSaving(true);
+    setCreateError(null);
+    try {
+      await createEmployeeAccount(selectedId, account);
+      setCreating(false);
+      await loadData();
+    } catch (err) {
+      setCreateError(
+        err?.response?.status === 409
+          ? t('employees.email_taken')
+          : t('employees.create_error')
+      );
+    } finally {
+      setCreateSaving(false);
+    }
+  };
+
   const openDetail = (userId) => {
-    setSaveError(false);
+    setSaveError(null);
     setDetailId(userId);
   };
 
@@ -349,6 +402,17 @@ const EmployeesView = () => {
         {/* The month is what every number in the list is about, so it
           * stands at the page level rather than among the list's filters. */}
         <div className="page-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              setCreateError(null);
+              setCreating(true);
+            }}
+          >
+            <PlusIcon />
+            {t('employees.new_account')}
+          </button>
           <PeriodStepper
             label={monthLabel}
             onPrevious={() => changeMonth(-1)}
@@ -647,10 +711,19 @@ const EmployeesView = () => {
           `${Number(d.work_date.slice(8, 10))}.${pad(Number(d.work_date.slice(5, 7)))}.`
         }
         saving={saving}
-        error={saveError ? t('departments.save_error') : null}
+        error={saveError}
         onSave={handleSave}
         onClose={() => setDetailId(null)}
       />
+
+      {creating && (
+        <EmployeeCreateDialog
+          saving={createSaving}
+          error={createError}
+          onCreate={handleCreate}
+          onClose={() => setCreating(false)}
+        />
+      )}
 
       <EmployeeAvailabilityDialog
         key={`cal-${availabilityId ?? 'none'}`}

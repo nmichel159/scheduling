@@ -112,6 +112,14 @@ const EmployeeDetailDialog = ({
     () => (settings && settings.shift_preference) || SHIFT_PREFERENCE.ANY
   );
   const [picked, setPicked] = useState(() => competences.map((c) => c.id));
+  const [identity, setIdentity] = useState(() => {
+    const parts = splitName(employee ? employee.full_name : '');
+    return {
+      first: parts.first,
+      last: parts.last,
+      email: employee ? employee.email : '',
+    };
+  });
   const titleId = useId();
 
   /* A modal takes the focus while it is open — otherwise Tab keeps walking
@@ -164,6 +172,9 @@ const EmployeeDetailDialog = ({
 
   const handleSave = () => {
     onSave({
+      first_name: identity.first.trim(),
+      last_name: identity.last.trim(),
+      email: identity.email.trim(),
       max_shifts_per_month: clampShifts(maxShifts),
       shift_preference: preference,
       competence_ids: editableCompetences ? picked : competences.map((c) => c.id),
@@ -213,20 +224,62 @@ const EmployeeDetailDialog = ({
             <h3 className="empdlg-section-title">
               {t('competences.employee_detail')}
             </h3>
-            <dl className="empdlg-fields">
-              <div>
-                <dt>{t('competences.first_name')}</dt>
-                <dd>{name.first || '—'}</dd>
+            {editable ? (
+              <div className="empdlg-identity">
+                <div className="field empdlg-field">
+                  <label className="field-label" htmlFor={`${titleId}-first`}>
+                    {t('competences.first_name')}
+                  </label>
+                  <input
+                    id={`${titleId}-first`}
+                    className="input"
+                    value={identity.first}
+                    disabled={saving}
+                    onChange={(e) => setIdentity({ ...identity, first: e.target.value })}
+                  />
+                </div>
+                <div className="field empdlg-field">
+                  <label className="field-label" htmlFor={`${titleId}-last`}>
+                    {t('competences.last_name')}
+                  </label>
+                  <input
+                    id={`${titleId}-last`}
+                    className="input"
+                    value={identity.last}
+                    disabled={saving}
+                    onChange={(e) => setIdentity({ ...identity, last: e.target.value })}
+                  />
+                </div>
+                <div className="field empdlg-field">
+                  <label className="field-label" htmlFor={`${titleId}-email`}>
+                    {t('competences.email')}
+                  </label>
+                  <input
+                    id={`${titleId}-email`}
+                    className="input"
+                    type="email"
+                    value={identity.email}
+                    disabled={saving}
+                    onChange={(e) => setIdentity({ ...identity, email: e.target.value })}
+                  />
+                </div>
               </div>
-              <div>
-                <dt>{t('competences.last_name')}</dt>
-                <dd>{name.last || '—'}</dd>
-              </div>
-              <div>
-                <dt>{t('competences.email')}</dt>
-                <dd>{employee.email}</dd>
-              </div>
-            </dl>
+            ) : (
+              <dl className="empdlg-fields">
+                <div>
+                  <dt>{t('competences.first_name')}</dt>
+                  <dd>{name.first || '—'}</dd>
+                </div>
+                <div>
+                  <dt>{t('competences.last_name')}</dt>
+                  <dd>{name.last || '—'}</dd>
+                </div>
+                <div>
+                  <dt>{t('competences.email')}</dt>
+                  <dd>{employee.email}</dd>
+                </div>
+              </dl>
+            )}
           </section>
 
           <section className="empdlg-section">

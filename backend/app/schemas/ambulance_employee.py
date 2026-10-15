@@ -17,6 +17,21 @@ class AmbulanceEmployeeAdd(BaseModel):
     user_id: int = Field(..., description="ID of the user to assign to the ambulance.")
 
 
+class EmployeeAccountCreate(BaseModel):
+    """A brand-new account that joins the manager's workplace at once."""
+
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+    email: str = Field(..., min_length=3, max_length=254)
+
+
+class EmployeeProfileUpdate(BaseModel):
+    """Identity fields of one account of the workplace."""
+
+    full_name: str = Field(..., min_length=1, max_length=200)
+    email: str = Field(..., min_length=3, max_length=254)
+
+
 class AmbulanceEmployeeResponse(BaseModel):
     """Schema for serializing an ambulance-employee assignment."""
 

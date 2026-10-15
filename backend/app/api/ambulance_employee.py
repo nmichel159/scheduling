@@ -20,7 +20,9 @@ from app.schemas.ambulance_employee import (
     AmbulanceEmployeeAdd,
     AmbulanceEmployeeResponse,
     AmbulanceMonthlyLoad,
+    EmployeeAccountCreate,
     EmployeeListResponse,
+    EmployeeProfileUpdate,
     EmployeeSchedulingSettings,
 )
 from app.schemas.ambulance_competences import (
@@ -35,11 +37,13 @@ from app.schemas.unavailability import (
 )
 from app.services.ambulance_employee_service import (
     add_employee,
+    create_employee_account,
     get_active_employee,
     list_employee_ambulances,
     list_employees,
     list_manager_ambulances,
     remove_employee,
+    update_employee_profile,
 )
 from app.services.employee_load_service import (
     get_monthly_employee_load,
@@ -335,6 +339,33 @@ def add_employee_endpoint(
 ) -> AmbulanceEmployeeResponse:
     """Assign an employee to the manager's ambulance."""
     return add_employee(db, ambulance.id, data.user_id)
+
+
+@router.post(
+    "/{ambulance_id}/employees/accounts",
+    response_model=EmployeeListResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new account and add it to an ambulance",
+)
+def create_employee_account_endpoint(
+    data: EmployeeAccountCreate,
+    ambulance: Ambulance = Depends(get_manager_ambulance),
+    db: Session = Depends(get_db),
+) -> EmployeeListResponse:
+    return create_employee_account(db, ambulance.id, data)
+
+
+@router.put(
+    "/{ambulance_id}/employees/{user_id}/profile",
+    response_model=EmployeeListResponse,
+    summary="Edit an employee's name and e-mail",
+)
+def update_employee_profile_endpoint(
+    data: EmployeeProfileUpdate,
+    employee: User = Depends(get_managed_employee),
+    db: Session = Depends(get_db),
+) -> EmployeeListResponse:
+    return update_employee_profile(db, employee, data)
 
 
 @router.delete(

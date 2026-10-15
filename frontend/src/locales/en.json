@@ -542,6 +542,13 @@
     "inactive_badge": "Inactive"
   },
   "employees": {
+    "new_account": "New account",
+    "new_account_title": "Add account",
+    "create_account": "Create account",
+    "email_taken": "Another account already uses this e-mail.",
+    "create_error": "The account could not be created.",
+    "invalid_identity": "Name and surname are required and the e-mail must be valid.",
+    "cancel": "Cancel",
     "title": "Employees",
     "filter_placeholder": "Search name, e-mail or competence...",
     "no_competences": "No competence",

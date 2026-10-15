@@ -7,13 +7,20 @@ Business rules enforced:
 - Validates that the target user exists and is active.
 """
 
+import re
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.ambulance import Ambulance
 from app.models.associations import UserAmbulance
 from app.models.user import User
-from app.schemas.ambulance_employee import AmbulanceListResponse, EmployeeListResponse
+from app.schemas.ambulance_employee import (
+    AmbulanceListResponse,
+    EmployeeAccountCreate,
+    EmployeeListResponse,
+    EmployeeProfileUpdate,
+)
 
 
 def list_employees(
@@ -230,3 +237,79 @@ def remove_employee(db: Session, ambulance_id: int, user_id: int) -> None:
         )
     db.delete(assignment)
     db.commit()
+
+
+_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _clean_email(value: str) -> str:
+    email = value.strip().lower()
+    if not _EMAIL_PATTERN.match(email):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid e-mail address.",
+        )
+    return email
+
+
+def _clean_name(value: str) -> str:
+    name = " ".join(value.split())
+    if not name:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Name must not be empty.",
+        )
+    return name
+
+
+def _email_taken(db: Session, email: str, except_user_id: int | None = None) -> bool:
+    query = db.query(User.id).filter(User.email == email)
+    if except_user_id is not None:
+        query = query.filter(User.id != except_user_id)
+    return query.first() is not None
+
+
+def create_employee_account(
+    db: Session, ambulance_id: int, data: EmployeeAccountCreate
+) -> EmployeeListResponse:
+    """Create a new account and assign it to the ambulance.
+
+    The default role is handed out on the first sign-in, so the account only
+    needs an identity here; the e-mail is what the sign-in matches on.
+    """
+    email = _clean_email(data.email)
+    full_name = _clean_name(f"{data.first_name} {data.last_name}")
+    if _email_taken(db, email):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this e-mail already exists.",
+        )
+    user = User(email=email, full_name=full_name, login_count=0, is_active=True)
+    db.add(user)
+    db.flush()
+    db.add(UserAmbulance(user_id=user.id, ambulance_id=ambulance_id, is_active=True))
+    db.commit()
+    db.refresh(user)
+    return EmployeeListResponse(
+        user_id=user.id, email=user.email, full_name=user.full_name
+    )
+
+
+def update_employee_profile(
+    db: Session, employee: User, data: EmployeeProfileUpdate
+) -> EmployeeListResponse:
+    """Change the name and e-mail of an employee of the workplace."""
+    email = _clean_email(data.email)
+    full_name = _clean_name(data.full_name)
+    if _email_taken(db, email, except_user_id=employee.id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this e-mail already exists.",
+        )
+    employee.email = email
+    employee.full_name = full_name
+    db.commit()
+    db.refresh(employee)
+    return EmployeeListResponse(
+        user_id=employee.id, email=employee.email, full_name=employee.full_name
+    )
