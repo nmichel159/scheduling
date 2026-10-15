@@ -1200,8 +1200,9 @@ const AmbulanceScheduleEditView = () => {
                   : t('schedule_edit.generate')
               }
               generateHint={t('schedule_edit.generate_hint')}
-              /* Solver time-budget picker is hidden for now: leaving
-                 onTimeBudgetChange unset keeps the default budget. */
+              timeBudget={timeBudget}
+              timeBudgetOptions={timeBudgetOptions}
+              onTimeBudgetChange={setTimeBudget}
               generateDisabled={
                 loading ||
                 saving ||
