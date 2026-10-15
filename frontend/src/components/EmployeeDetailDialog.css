@@ -6,7 +6,7 @@
  * the opening screen passes the data they edit. */
 
 .dialog.empdlg {
-  max-width: 520px;
+  max-width: 600px;
 }
 
 /* Focused on open only to take the focus off the page behind it. */
@@ -16,7 +16,7 @@
 
 .dialog-header.empdlg-head {
   align-items: center;
-  padding-bottom: 16px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -25,8 +25,8 @@
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: var(--primary-background);
   color: var(--primary);
@@ -65,7 +65,7 @@
 }
 
 .empdlg-section {
-  padding: 16px 0;
+  padding: 12px 0;
 }
 
 .empdlg-section + .empdlg-section {
@@ -77,7 +77,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   color: var(--text-p);
   font-size: var(--fs-xs);
   font-weight: 600;
@@ -136,8 +136,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 30px;
-  padding: 0 12px 0 9px;
+  height: 28px;
+  padding: 0 11px 0 8px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-full);
   background: var(--surface);
@@ -186,8 +186,13 @@
 }
 
 /* --- settings --- */
-.empdlg-field + .empdlg-field {
-  margin-top: 16px;
+/* The duty wish and the duty-kind preference share one row; they wrap
+ * under each other only when the dialog is too narrow for both. */
+.empdlg-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px 24px;
 }
 
 .empdlg-stepper {
@@ -201,8 +206,7 @@
 }
 
 .input.empdlg-input {
-  width: 72px;
-  font-size: var(--fs-md);
+  width: 56px;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   text-align: center;
@@ -239,8 +243,8 @@
  * faster than numbers in a paragraph. */
 .empdlg-tiles {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 6px;
 }
 
 .empdlg-tiles + .empdlg-none,
@@ -251,9 +255,9 @@
 .empdlg-tile {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
-  padding: 10px 12px;
+  padding: 6px 10px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: var(--surface-2);
@@ -266,7 +270,7 @@
 
 .empdlg-tile-value {
   color: var(--text-h);
-  font-size: var(--fs-lg);
+  font-size: var(--fs-md);
   font-variant-numeric: tabular-nums;
   font-weight: 650;
   line-height: 1.1;
@@ -279,7 +283,7 @@
 .empdlg-tile-label {
   overflow: hidden;
   color: var(--text-p);
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-overflow: ellipsis;
@@ -319,17 +323,31 @@
   margin: 0 20px 12px;
 }
 
+.empdlg-identity {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.empdlg-identity-wide {
+  grid-column: 1 / -1;
+}
+
+.empdlg-identity .field,
+.empdlg-settings .field {
+  gap: 4px;
+}
+
 @media (max-width: 560px) {
   .empdlg-fields > div {
     grid-template-columns: 96px minmax(0, 1fr);
   }
 
   .empdlg-tiles {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-}
 
-.empdlg-identity {
-  display: grid;
-  gap: 10px;
+  .empdlg-identity {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

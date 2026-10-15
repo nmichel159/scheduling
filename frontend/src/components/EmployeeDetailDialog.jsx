@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { SHIFT_PREFERENCE } from '../services/employeeService';
 import { personInitials } from '../utils/personInitials';
+import { stripTitles } from '../utils/formatEmployeeName';
 import { CheckIcon, CloseIcon, PlusIcon } from './NavIcons';
 import './EmployeeDetailDialog.css';
 
@@ -46,9 +47,20 @@ import './EmployeeDetailDialog.css';
  * - onClose()
  */
 const splitName = (fullName) => {
-  const parts = (fullName || '').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return { first: '', last: '' };
-  return { first: parts[0], last: parts.slice(1).join(' ') };
+  /* Academic titles stay with the part of the name they stand next to —
+   * "MUDr. Adela" / "Benčurová, PhD." — so the bare name is what gets
+   * split and the given-name field never holds only "MUDr.". */
+  const full = (fullName || '').trim();
+  const bare = stripTitles(full);
+  const at = bare ? full.indexOf(bare) : -1;
+  const before = at > 0 ? full.slice(0, at) : '';
+  const after = at >= 0 ? full.slice(at + bare.length) : '';
+  const parts = (at >= 0 ? bare : full).split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { first: full, last: '' };
+  return {
+    first: `${before}${parts[0]}`.trim(),
+    last: `${parts.slice(1).join(' ')}${after}`.trim(),
+  };
 };
 
 const PREFERENCE_ORDER = [
@@ -226,37 +238,37 @@ const EmployeeDetailDialog = ({
             </h3>
             {editable ? (
               <div className="empdlg-identity">
-                <div className="field empdlg-field">
+                <div className="field">
                   <label className="field-label" htmlFor={`${titleId}-first`}>
                     {t('competences.first_name')}
                   </label>
                   <input
                     id={`${titleId}-first`}
-                    className="input"
+                    className="input input-sm"
                     value={identity.first}
                     disabled={saving}
                     onChange={(e) => setIdentity({ ...identity, first: e.target.value })}
                   />
                 </div>
-                <div className="field empdlg-field">
+                <div className="field">
                   <label className="field-label" htmlFor={`${titleId}-last`}>
                     {t('competences.last_name')}
                   </label>
                   <input
                     id={`${titleId}-last`}
-                    className="input"
+                    className="input input-sm"
                     value={identity.last}
                     disabled={saving}
                     onChange={(e) => setIdentity({ ...identity, last: e.target.value })}
                   />
                 </div>
-                <div className="field empdlg-field">
+                <div className="field empdlg-identity-wide">
                   <label className="field-label" htmlFor={`${titleId}-email`}>
                     {t('competences.email')}
                   </label>
                   <input
                     id={`${titleId}-email`}
-                    className="input"
+                    className="input input-sm"
                     type="email"
                     value={identity.email}
                     disabled={saving}
@@ -330,14 +342,15 @@ const EmployeeDetailDialog = ({
             <section className="empdlg-section">
               <h3 className="empdlg-section-title">{t('employees.settings')}</h3>
 
-              <div className="field empdlg-field">
+              <div className="empdlg-settings">
+              <div className="field">
                 <label className="field-label" htmlFor={`${titleId}-max`}>
                   {t('employees.max_shifts')}
                 </label>
                 <div className="empdlg-stepper">
                   <button
                     type="button"
-                    className="btn btn-icon"
+                    className="btn btn-icon btn-sm"
                     onClick={() => stepShifts(-1)}
                     disabled={saving || maxShifts.trim() === '0'}
                     aria-label={t('employees.decrease')}
@@ -352,7 +365,7 @@ const EmployeeDetailDialog = ({
                     max={MAX_SHIFTS_LIMIT}
                     step="1"
                     inputMode="numeric"
-                    className="input empdlg-input"
+                    className="input input-sm empdlg-input"
                     value={maxShifts}
                     disabled={saving}
                     placeholder="—"
@@ -361,7 +374,7 @@ const EmployeeDetailDialog = ({
                   />
                   <button
                     type="button"
-                    className="btn btn-icon"
+                    className="btn btn-icon btn-sm"
                     onClick={() => stepShifts(1)}
                     disabled={saving || clampShifts(maxShifts) === MAX_SHIFTS_LIMIT}
                     aria-label={t('employees.increase')}
@@ -382,7 +395,7 @@ const EmployeeDetailDialog = ({
                 </div>
               </div>
 
-              <div className="field empdlg-field">
+              <div className="field">
                 <span className="field-label" id={`${titleId}-pref`}>
                   {t('employees.preference')}
                 </span>
@@ -403,6 +416,7 @@ const EmployeeDetailDialog = ({
                     </button>
                   ))}
                 </div>
+              </div>
               </div>
             </section>
           )}
