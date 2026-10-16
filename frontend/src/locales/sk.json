@@ -578,6 +578,8 @@
     "stat_hours": "Hodiny",
     "stat_hours_full": "Odslúžené hodiny",
     "stat_marked": "Vyplnené",
+    "marked_dates": "Vyplnené dni",
+    "no_marked_dates": "nevyplnené",
     "stat_marked_breakdown": "Vyplnený kalendár obsadenosti: {{preferred}} preferovaných, {{declined}} nerád, {{blocked}} blokovaných",
     "stat_standard": "Štandardné",
     "stat_avg_hours": "Ø hodín/službu",

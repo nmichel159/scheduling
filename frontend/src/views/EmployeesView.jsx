@@ -11,6 +11,7 @@ import {
   saveEmployeeSettings,
   updateEmployeeProfile,
 } from '../services/employeeService';
+import { MARKABLE_STATES, stateOfRecord } from '../services/unavailabilityService';
 import { useWorkplace } from '../hooks/workplaceContext';
 import EmployeeDetailDialog from '../components/EmployeeDetailDialog';
 import EmployeeCreateDialog from '../components/EmployeeCreateDialog';
@@ -56,6 +57,23 @@ const LATEST_MONTH_INDEX = monthIndex(2100, 11);
  * "+N" chip. Three keep a row on one line on a laptop; the profile the row
  * opens lists all of them. */
 const VISIBLE_TAGS = 3;
+
+/**
+ * The days one employee filled in, grouped by what they say, in the order
+ * the availability picker offers the states. Only the day of the month is
+ * kept: the month is the one the whole page is about.
+ */
+const markedGroups = (markedDates) => {
+  const byState = {};
+  (markedDates || []).forEach((d) => {
+    const state = stateOfRecord(d);
+    (byState[state] ||= []).push(Number(d.day.slice(8, 10)));
+  });
+  return MARKABLE_STATES.filter((state) => byState[state]).map((state) => ({
+    state,
+    days: byState[state],
+  }));
+};
 
 const EmployeesView = () => {
   const { t, i18n } = useTranslation();
@@ -522,6 +540,7 @@ const EmployeesView = () => {
               <div className="employees-legend" aria-hidden="true">
                 <span className="employees-legend-person">{t('competences.employee')}</span>
                 <span className="employees-legend-tags">{t('competences.title')}</span>
+                <span className="employees-legend-marked">{t('employees.marked_dates')}</span>
                 <span className="employees-stats">
                   <span className="employees-cell">{t('employees.stat_shifts')}</span>
                   <span className="employees-cell">{t('employees.stat_surcharge')}</span>
@@ -550,6 +569,7 @@ const EmployeesView = () => {
                         ];
                   const shownTags = tags.slice(0, VISIBLE_TAGS);
                   const hiddenTags = tags.slice(VISIBLE_TAGS);
+                  const marked = markedGroups(load[e.user_id]?.marked_dates);
                   return (
                     <li key={e.user_id} className="employees-item">
                       {/* The overlay is the row's button, so a click anywhere
@@ -607,6 +627,31 @@ const EmployeesView = () => {
                             >
                               +{hiddenTags.length}
                             </span>
+                          )}
+                        </span>
+
+                        <span className="employees-marked">
+                          {marked.length === 0 ? (
+                            <span className="employees-tag is-empty">
+                              {t('employees.no_marked_dates')}
+                            </span>
+                          ) : (
+                            marked.map(({ state, days }) => (
+                              <span
+                                key={state}
+                                className={`employees-mark is-${state}`}
+                                title={`${t(`workload.states.${state}`)}: ${days
+                                  .map((d) => `${d}.`)
+                                  .join(', ')}`}
+                              >
+                                <span className="employees-mark-label">
+                                  {t(`workload.states.${state}`)}
+                                </span>
+                                <span className="employees-mark-days">
+                                  {days.join(', ')}
+                                </span>
+                              </span>
+                            ))
                           )}
                         </span>
 

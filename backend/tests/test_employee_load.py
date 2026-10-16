@@ -193,11 +193,21 @@ class EmployeeLoadTests(unittest.TestCase):
         self.assertEqual(busy.preferred_days, 1)
         self.assertEqual(busy.declined_days, 1)
         self.assertEqual(busy.blocked_days, 2)
+        self.assertEqual(
+            [(d.day, d.reason) for d in busy.marked_dates],
+            [
+                (date(2026, 9, 10), "PREFERRED"),
+                (date(2026, 9, 11), "SOFT_DECLINE"),
+                (date(2026, 9, 12), "VACATION"),
+                (date(2026, 9, 13), None),
+            ],
+        )
 
         # An untouched calendar reports zeroes rather than being left out.
         idle = rows[self.idle.id]
         self.assertEqual(idle.marked_days, 0)
         self.assertEqual(idle.blocked_days, 0)
+        self.assertEqual(idle.marked_dates, [])
 
 
 if __name__ == "__main__":

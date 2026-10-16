@@ -37,6 +37,7 @@ from app.models.user import User
 from app.schemas.ambulance_employee import (
     AmbulanceMonthlyLoad,
     EmployeeDutyDay,
+    EmployeeMarkedDay,
     EmployeeMonthlyLoad,
     EmployeeSchedulingSettings,
 )
@@ -99,7 +100,7 @@ SOFT_DECLINE_REASON = "SOFT_DECLINE"
 
 def _availability_counts(
     db: Session, user_ids: list[int], first: date, last: date
-) -> dict[int, dict[str, int]]:
+) -> dict[int, dict]:
     """Count how each employee filled their availability calendar.
 
     The table stores a free-text ``reason``, and the application writes
@@ -108,27 +109,39 @@ def _availability_counts(
     were written with -- is an absence that blocks the day.
     """
     counts = {
-        user_id: {"marked": 0, "preferred": 0, "declined": 0, "blocked": 0}
+        user_id: {
+            "marked": 0,
+            "preferred": 0,
+            "declined": 0,
+            "blocked": 0,
+            "dates": [],
+        }
         for user_id in user_ids
     }
     if not user_ids:
         return counts
 
     rows = (
-        db.query(Unavailability.user_id, Unavailability.reason)
+        db.query(
+            Unavailability.user_id,
+            Unavailability.date_absent,
+            Unavailability.reason,
+        )
         .filter(
             Unavailability.user_id.in_(user_ids),
             Unavailability.is_active.is_(True),
             Unavailability.date_absent >= first,
             Unavailability.date_absent <= last,
         )
+        .order_by(Unavailability.date_absent)
         .all()
     )
-    for user_id, reason in rows:
+    for user_id, day, reason in rows:
         bucket = counts.get(user_id)
         if bucket is None:
             continue
         bucket["marked"] += 1
+        bucket["dates"].append(EmployeeMarkedDay(day=day, reason=reason))
         if reason == PREFERRED_REASON:
             bucket["preferred"] += 1
         elif reason == SOFT_DECLINE_REASON:
@@ -236,6 +249,7 @@ def get_monthly_employee_load(
                 preferred_days=availability[employee.id]["preferred"],
                 declined_days=availability[employee.id]["declined"],
                 blocked_days=availability[employee.id]["blocked"],
+                marked_dates=availability[employee.id]["dates"],
             )
             for employee in employees
         ],

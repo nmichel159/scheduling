@@ -106,6 +106,13 @@ class EmployeeDutyDay(BaseModel):
     hours: float = 0.0
 
 
+class EmployeeMarkedDay(BaseModel):
+    """One day of an employee's availability calendar and what it says."""
+
+    day: date
+    reason: Optional[str] = None
+
+
 class EmployeeMonthlyLoad(BaseModel):
     """One employee's duties in one month of one workplace.
 
@@ -134,6 +141,9 @@ class EmployeeMonthlyLoad(BaseModel):
     preferred_days: int = 0
     declined_days: int = 0
     blocked_days: int = 0
+    # The same days one by one, oldest first, so the roster can print
+    # which dates the counts are made of.
+    marked_dates: list[EmployeeMarkedDay] = Field(default_factory=list)
 
 
 class AmbulanceMonthlyLoad(BaseModel):

@@ -166,7 +166,7 @@
 .employees-row,
 .employees-legend {
   display: grid;
-  grid-template-columns: 36px minmax(180px, 1.1fr) minmax(0, 1.5fr) auto 30px 16px;
+  grid-template-columns: 36px minmax(160px, 1fr) minmax(0, 1fr) minmax(0, 1.3fr) auto 30px 16px;
   align-items: center;
   column-gap: 14px;
   padding: 0 16px;
@@ -320,6 +320,82 @@
   cursor: default;
 }
 
+/* --- the days the person filled in ---
+ * One pill per kind of day, coloured like the availability calendar, so
+ * the column reads down the list the same way the calendar reads. */
+.employees-marked {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.employees-mark {
+  --mark: var(--secondary);
+  --mark-text: var(--text);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  max-width: 100%;
+  padding: 3px 8px;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--mark) 45%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--mark) 12%, transparent);
+  color: var(--mark-text);
+  font-size: var(--fs-xs);
+  line-height: 1.3;
+  pointer-events: auto;
+}
+
+.employees-mark-label {
+  flex: none;
+  font-weight: 650;
+}
+
+.employees-mark-days {
+  min-width: 0;
+  color: var(--text-h);
+  font-variant-numeric: tabular-nums;
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+
+.employees-mark.is-preferred {
+  --mark: var(--success-solid);
+  --mark-text: var(--success);
+}
+
+.employees-mark.is-soft-decline {
+  --mark: var(--warning-solid);
+  --mark-text: var(--warning);
+}
+
+.employees-mark.is-unavailable {
+  --mark: var(--danger-solid);
+  --mark-text: var(--danger);
+}
+
+.employees-mark.is-vacation {
+  --mark: var(--info-solid);
+  --mark-text: var(--info);
+}
+
+/* Business trip has no status token; the same pair the calendar uses. */
+.employees-mark.is-business-trip {
+  --mark: #c026d3;
+  --mark-text: #a21caf;
+}
+
+:root[data-theme='dark'] .employees-mark.is-business-trip {
+  --mark: #d946ef;
+  --mark-text: #f0abfc;
+}
+
+.employees-marked .employees-tag.is-empty {
+  pointer-events: auto;
+}
+
 /* --- the numbers on the right ---
  * Five columns of their own grid, which both the row and the legend use,
  * so a label sits exactly above its number whatever the row is wide. */
@@ -444,19 +520,26 @@
 /* Medium width: the chips drop under the name and run on under the
  * numbers, which stay beside the name — a row is two short lines instead
  * of one squeezed one. */
-@container employees (max-width: 900px) {
+@container employees (max-width: 1100px) {
   .employees-row,
   .employees-legend {
     grid-template-columns: 36px minmax(0, 1fr) auto 30px 16px;
     row-gap: 6px;
   }
 
-  .employees-legend-tags {
+  .employees-legend-tags,
+  .employees-legend-marked {
     display: none;
   }
 
   .employees-avatar {
-    grid-row: 1 / 3;
+    grid-row: 1 / 4;
+    align-self: start;
+  }
+
+  .employees-marked {
+    grid-column: 2 / 4;
+    grid-row: 3;
   }
 
   .employees-identity {
@@ -501,6 +584,12 @@
 
   .employees-avatar {
     grid-row: 1;
+    align-self: center;
+  }
+
+  .employees-marked {
+    grid-column: 2 / 5;
+    grid-row: 3;
   }
 
   .btn.employees-calendar {
@@ -520,7 +609,7 @@
 
   .employees-stats {
     grid-column: 2 / 5;
-    grid-row: 3;
+    grid-row: 4;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     align-items: start;
     gap: 4px;

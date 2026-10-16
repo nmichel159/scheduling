@@ -576,6 +576,8 @@
     "stat_hours": "Hours",
     "stat_hours_full": "Hours worked",
     "stat_marked": "Filled in",
+    "marked_dates": "Filled-in days",
+    "no_marked_dates": "not filled in",
     "stat_marked_breakdown": "Availability calendar: {{preferred}} preferred, {{declined}} reluctant, {{blocked}} blocked",
     "stat_standard": "Standard",
     "stat_avg_hours": "Ø hours/duty",
