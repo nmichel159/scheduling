@@ -291,10 +291,13 @@ def set_employee_monthly_duty_wish_endpoint(
 def create_employee_unavailability_endpoint(
     data: UnavailabilityCreate,
     employee: User = Depends(get_managed_employee),
+    manager: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> UnavailabilityResponse:
     """Create a restriction for an employee of the manager's ambulance."""
-    return create_unavailability(db, employee.id, data, enforce_month_lock=False)
+    return create_unavailability(
+        db, employee.id, data, enforce_month_lock=False, entered_by_id=manager.id
+    )
 
 
 @router.put(
@@ -306,11 +309,17 @@ def update_employee_unavailability_endpoint(
     unavailability_id: int,
     data: UnavailabilityUpdate,
     employee: User = Depends(get_managed_employee),
+    manager: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> UnavailabilityResponse:
     """Update a restriction owned by an employee of the managed ambulance."""
     return update_unavailability(
-        db, unavailability_id, employee.id, data, enforce_month_lock=False
+        db,
+        unavailability_id,
+        employee.id,
+        data,
+        enforce_month_lock=False,
+        entered_by_id=manager.id,
     )
 
 

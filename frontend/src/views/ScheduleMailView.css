@@ -14,64 +14,6 @@
   margin-bottom: 16px;
 }
 
-/* ---------- restriction window ---------- */
-
-.smail-window {
-  margin-bottom: 16px;
-}
-
-.smail-window .card-header {
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.smail-window .smail-window-toggle {
-  margin-left: auto;
-}
-
-.smail-window-body {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px 24px;
-}
-
-.smail-window-facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 24px;
-  margin: 0;
-}
-
-.smail-window-facts dt {
-  font-size: 12px;
-  color: var(--text-p);
-}
-
-.smail-window-facts dd {
-  margin: 2px 0 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.smail-window-days {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
-}
-
-.smail-window-days .field {
-  width: 130px;
-  margin: 0;
-}
-
-.smail-window-body .field-error,
-.smail-window-body .alert {
-  flex-basis: 100%;
-  margin: 0;
-}
-
 /* Recipients beside the message on a wide screen -- the list is picked from
    while the text is read -- and stacked on a narrow one. */
 .smail-layout {

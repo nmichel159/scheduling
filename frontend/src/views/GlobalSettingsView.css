@@ -1,0 +1,263 @@
+/* Global settings: day limits, the restriction window and the overview
+   calendar. Cards, fields, badges, the dialog and the table are the shared
+   ones from styles/ui.css; compound selectors wherever a shared class is
+   adjusted, so the rule outweighs it whatever order the sheets load in.
+
+   The reason colours follow the restriction calendar (WorkloadView.css):
+   each .is-<state> sets --gs, and business trip carries its own pair. */
+
+.gset {
+  --gs-business-trip: #c026d3;
+  max-width: 1180px;
+}
+
+:root[data-theme='dark'] .gset {
+  --gs-business-trip: #d946ef;
+}
+
+.gset .is-preferred { --gs: var(--success-solid); }
+.gset .is-soft-decline { --gs: var(--warning-solid); }
+.gset .is-unavailable { --gs: var(--danger-solid); }
+.gset .is-vacation { --gs: var(--info-solid); }
+.gset .is-business-trip { --gs: var(--gs-business-trip); }
+
+.gset-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: var(--radius-full);
+  background: var(--gs);
+  flex: none;
+}
+
+/* ---------- top row: limits beside the window ---------- */
+
+.gset-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+
+.gset-top > .avail-window {
+  margin-bottom: 0;
+}
+
+@media (max-width: 900px) {
+  .gset-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.gset-limits-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.gset-limits-body .gset-limit {
+  width: 130px;
+  margin: 0;
+}
+
+.gset-limit .field-label {
+  display: inline-flex;
+  align-items: center;
+}
+
+.gset-limits-body .gset-limits-error {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* ---------- overview calendar ---------- */
+
+.gset-calendar .gset-calendar-header {
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.gset-stepper {
+  margin-left: auto;
+}
+
+.gset-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+  color: var(--text-p);
+}
+
+.gset-legend li {
+  display: inline-flex;
+  align-items: center;
+}
+
+.gset-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gset-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.gset-weekday {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-p);
+  text-align: center;
+}
+
+.gset-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-height: 82px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-h);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--duration) var(--ease), background var(--duration) var(--ease);
+}
+
+.gset-cell:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+.gset-cell:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.gset-cell.is-blank {
+  border-color: transparent;
+  background: transparent;
+  cursor: default;
+}
+
+.gset-cell.is-weekend:not(.is-blank) {
+  background: var(--surface-2);
+}
+
+.gset-cell.is-today .gset-day {
+  color: var(--primary);
+}
+
+.gset-cell.is-full {
+  border-color: var(--danger-solid);
+}
+
+.gset-day {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.gset-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.gset-count {
+  display: inline-flex;
+  align-items: baseline;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--gs) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gs) 45%, transparent);
+  color: var(--text-h);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.gset-count.is-over {
+  background: var(--gs);
+  color: #fff;
+}
+
+.gset-of {
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+@media (max-width: 640px) {
+  .gset-cell {
+    min-height: 60px;
+    padding: 4px;
+  }
+
+  .gset-row {
+    gap: 3px;
+  }
+
+  .gset-count {
+    padding: 0 4px;
+  }
+
+  .gset-of {
+    display: none;
+  }
+}
+
+/* ---------- day detail ---------- */
+
+.gset-dialog .dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.gset-group-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 8px;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.gset-group-title .badge {
+  margin-left: 6px;
+}
+
+.gset-table {
+  width: 100%;
+}
+
+.gset-table .gset-order {
+  width: 36px;
+  font-variant-numeric: tabular-nums;
+}
+
+.gset-table .gset-moment {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.gset-table tr.is-over td {
+  color: var(--danger);
+}
+
+.gset-muted {
+  color: var(--text-p);
+}

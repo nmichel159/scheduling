@@ -6,7 +6,7 @@ import {
   MARKABLE_STATES,
   REASON_BY_STATE,
 } from '../services/unavailabilityService';
-import { isMonthLockedError } from '../services/availabilityService';
+import { isDayLimitError, isMonthLockedError } from '../services/availabilityService';
 import PeriodStepper from './PeriodStepper';
 import Toast from './Toast';
 import { useToast } from '../hooks/useToast';
@@ -216,49 +216,75 @@ const WorkloadCalendar = ({
     }
   };
 
-  /** Advance one day to the next state in the cycle. */
+  /** Write one state onto a day; resolves to the record, rejects on refusal. */
+  const writeState = async (dateStr, existing, nextState) => {
+    const reason = REASON_BY_STATE[nextState];
+    if (existing == null) {
+      putEntry(dateStr, { id: null, date_absent: dateStr, reason });
+      try {
+        const record = await createEntry(dateStr, reason);
+        putEntry(dateStr, record);
+        return record;
+      } catch (error) {
+        dropEntry(dateStr);
+        throw error;
+      }
+    }
+    putEntry(dateStr, { ...existing, reason });
+    try {
+      const record = await updateEntry(existing.id, reason);
+      putEntry(dateStr, record);
+      return record;
+    } catch (error) {
+      putEntry(dateStr, existing);
+      throw error;
+    }
+  };
+
+  /** Advance one day to the next state in the cycle. A state whose limit for
+   *  the day is used up is stepped over to the one after it. */
   const cycleDay = async (dateStr) => {
     if (dateStr < todayStr || monthLocked) return;
     if (pendingRef.current.has(dateStr)) return;
 
     const existing = entries[dateStr] || null;
+    if (existing && existing.id == null) return;
     const current = stateOfRecord(existing);
-    const nextState =
-      STATE_CYCLE[(STATE_CYCLE.indexOf(current) + 1) % STATE_CYCLE.length];
     pendingRef.current.add(dateStr);
+    const full = [];
 
     try {
-      if (nextState === DAY_STATE.NONE) {
-        if (existing?.id == null) return;
-        dropEntry(dateStr);
-        try {
-          await deleteEntry(existing.id);
-        } catch (error) {
-          putEntry(dateStr, existing);
-          refuse(error);
-        }
-        return;
-      }
+      let index = STATE_CYCLE.indexOf(current);
+      for (;;) {
+        index = (index + 1) % STATE_CYCLE.length;
+        const nextState = STATE_CYCLE[index];
 
-      const reason = REASON_BY_STATE[nextState];
-      if (existing == null) {
-        putEntry(dateStr, { id: null, date_absent: dateStr, reason });
-        try {
-          putEntry(dateStr, await createEntry(dateStr, reason));
-        } catch (error) {
-          dropEntry(dateStr);
-          refuse(error);
+        if (nextState === DAY_STATE.NONE) {
+          if (existing?.id != null) {
+            dropEntry(dateStr);
+            try {
+              await deleteEntry(existing.id);
+            } catch (error) {
+              putEntry(dateStr, existing);
+              refuse(error);
+              return;
+            }
+          }
+          break;
         }
-      } else {
-        if (existing.id == null) return;
-        putEntry(dateStr, { ...existing, reason });
+
         try {
-          putEntry(dateStr, await updateEntry(existing.id, reason));
+          await writeState(dateStr, existing, nextState);
+          break;
         } catch (error) {
-          putEntry(dateStr, existing);
-          refuse(error);
+          if (!isDayLimitError(error)) {
+            refuse(error);
+            return;
+          }
+          full.push(t(`workload.states.${nextState}`));
         }
       }
+      if (full.length > 0) notify(t('workload.day_full', { states: full.join(', ') }));
     } finally {
       pendingRef.current.delete(dateStr);
     }

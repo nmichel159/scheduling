@@ -368,6 +368,24 @@
       "method": "GET",
       "path": "/availability/months/${BENCHMARK_YEAR}/${BENCHMARK_MONTH}",
       "expected_status": 200
+    },
+    {
+      "name": "availability_day_limits",
+      "method": "GET",
+      "path": "/availability/day-limits",
+      "expected_status": 200
+    },
+    {
+      "name": "availability_month_overview",
+      "method": "GET",
+      "path": "/availability/overview/${BENCHMARK_YEAR}/${BENCHMARK_MONTH}",
+      "expected_status": 200
+    },
+    {
+      "name": "availability_day_detail",
+      "method": "GET",
+      "path": "/availability/days/${BENCHMARK_DATE}",
+      "expected_status": 200
     }
   ]
 }

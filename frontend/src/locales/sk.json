@@ -67,7 +67,8 @@
     "special_days": "Špeciálne dni",
     "schedule_mail": "Výzva mailom",
     "schedule_print": "Tlač rozvrhu",
-    "constraints": "Ohraničenia"
+    "constraints": "Ohraničenia",
+    "global_settings": "Globálne nastavenia"
   },
   "workplace": {
     "loading": "Načítavam pracoviská...",
@@ -122,7 +123,8 @@
       "business-trip": "Služobná cesta",
       "none": "Bez označenia"
     },
-    "locked_month": "Obmedzenia na tento mesiac sú uzavreté."
+    "locked_month": "Obmedzenia na tento mesiac sú uzavreté.",
+    "day_full": "V tento deň je už plné: {{states}}."
   },
   "departments": {
     "col_max_shifts": "Max. služieb",
@@ -748,6 +750,37 @@
       "failed": "zlyhalo",
       "not-configured": "e-maily nie sú nastavené",
       "skipped": "neodoslané"
+    }
+  },
+  "global_settings": {
+    "title": "Globálne nastavenia",
+    "limits_title": "Najviac ľudí v jeden deň",
+    "no_limit": "bez limitu",
+    "save": "Uložiť",
+    "saved": "Uložené",
+    "save_error": "Uloženie zlyhalo, skúste to znova.",
+    "invalid_limit": "Zadajte celé číslo od 0 do 1000 alebo nechajte pole prázdne.",
+    "overview_title": "Prehľad vyplnenia",
+    "lock_month": "Uzavrieť mesiac",
+    "unlock_month": "Otvoriť mesiac",
+    "back_to_upcoming": "Mesiac, ktorý sa vypĺňa",
+    "load_error": "Prehľad sa nepodarilo načítať.",
+    "people_one": "{{count}} človek",
+    "people_few": "{{count}} ľudia",
+    "people_other": "{{count}} ľudí",
+    "close": "Zavrieť",
+    "nobody": "V tento deň nikto nič nevyplnil.",
+    "col_employee": "Zamestnanec",
+    "col_workplaces": "Pracoviská",
+    "col_entered_at": "Zadané",
+    "col_entered_by": "Zadal",
+    "entered_self": "sám",
+    "reasons": {
+      "VACATION": "Dovolenka",
+      "BUSINESS_TRIP": "Služobná cesta",
+      "UNAVAILABLE": "Nemôže",
+      "SOFT_DECLINE": "Nechce slúžiť",
+      "PREFERRED": "Chce slúžiť"
     }
   }
 }

@@ -70,3 +70,22 @@ class AvailabilityPeriod(Base):
     updated_at = Column(
         DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
     )
+
+
+class AvailabilityDayLimit(Base):
+    """How many people may have one kind of absence on the same day.
+
+    One row per reason (``VACATION``, ``BUSINESS_TRIP``, ``UNAVAILABLE``),
+    for the whole hospital; a reason without a row has no limit.
+    """
+
+    __tablename__ = "availability_day_limits"
+    __table_args__ = (
+        CheckConstraint("max_per_day >= 0", name="ck_availability_day_limits_max"),
+    )
+
+    reason = Column(String(32), primary_key=True)
+    max_per_day = Column(Integer, nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
+    )

@@ -52,7 +52,11 @@ class User(Base):
     user_ambulances = relationship("UserAmbulance", back_populates="user", cascade="all, delete-orphan")
     user_competences = relationship("UserCompetence", back_populates="user", cascade="all, delete-orphan")
     
-    unavailabilities = relationship("Unavailability", back_populates="user")
+    unavailabilities = relationship(
+        "Unavailability",
+        back_populates="user",
+        foreign_keys="Unavailability.user_id",
+    )
     schedules = relationship("Schedule", back_populates="user")
     managed_ambulances = relationship("Ambulance", back_populates="manager")
 

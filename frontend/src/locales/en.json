@@ -67,7 +67,8 @@
     "special_days": "Special days",
     "schedule_mail": "Fill-in request",
     "schedule_print": "Print schedule",
-    "constraints": "Constraints"
+    "constraints": "Constraints",
+    "global_settings": "Global settings"
   },
   "workplace": {
     "loading": "Loading workplaces...",
@@ -122,7 +123,8 @@
       "business-trip": "Business trip",
       "none": "Unmarked"
     },
-    "locked_month": "Restrictions for this month are closed."
+    "locked_month": "Restrictions for this month are closed.",
+    "day_full": "Already full on this day: {{states}}."
   },
   "departments": {
     "col_max_shifts": "Max. duties",
@@ -745,6 +747,36 @@
       "failed": "failed",
       "not-configured": "mail is not configured",
       "skipped": "not sent"
+    }
+  },
+  "global_settings": {
+    "title": "Global settings",
+    "limits_title": "Most people on one day",
+    "no_limit": "no limit",
+    "save": "Save",
+    "saved": "Saved",
+    "save_error": "Saving failed, please try again.",
+    "invalid_limit": "Enter a whole number from 0 to 1000 or leave the field empty.",
+    "overview_title": "Filling overview",
+    "lock_month": "Close month",
+    "unlock_month": "Open month",
+    "back_to_upcoming": "Month being filled in",
+    "load_error": "The overview could not be loaded.",
+    "people_one": "{{count}} person",
+    "people_other": "{{count}} people",
+    "close": "Close",
+    "nobody": "Nobody entered anything on this day.",
+    "col_employee": "Employee",
+    "col_workplaces": "Workplaces",
+    "col_entered_at": "Entered",
+    "col_entered_by": "Entered by",
+    "entered_self": "themself",
+    "reasons": {
+      "VACATION": "Vacation",
+      "BUSINESS_TRIP": "Business trip",
+      "UNAVAILABLE": "Cannot",
+      "SOFT_DECLINE": "Would rather not",
+      "PREFERRED": "Wants to"
     }
   }
 }

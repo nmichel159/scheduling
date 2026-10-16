@@ -93,6 +93,7 @@ const SECTIONS = [
     Icon: ConstraintsIcon,
     collapsible: true,
     items: [
+      { to: '/global-settings', labelKey: 'sidebar.global_settings', Icon: SettingsIcon },
       // Ohraničenia sú zatiaľ skryté z menu (trasa /constraints ostáva).
       // { to: '/constraints', labelKey: 'sidebar.constraints', Icon: ConstraintsIcon },
       // Špeciálne dni patria adminovi — rozvrhár ich vidí, ale needituje.

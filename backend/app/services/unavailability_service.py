@@ -8,9 +8,13 @@ Encapsulates business rules:
   current month cannot be created, updated or deleted.
 - A month the scheduler's window has closed is locked for the employee;
   the scheduler editing on their behalf passes ``enforce_month_lock=False``.
+- A day whose limit for the reason is used up is refused to the employee in
+  the same way; the scheduler's ``enforce_month_lock=False`` passes it too.
+- Every record remembers when its present reason was set and by whom, so a
+  day's restrictions can be read back in the order they were entered.
 """
 
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException, status
@@ -23,6 +27,10 @@ from app.schemas.unavailability import (
     MonthlyDutyWish,
     UnavailabilityCreate,
     UnavailabilityUpdate,
+)
+from app.services.availability_overview_service import (
+    ensure_day_has_room,
+    normalize_reason,
 )
 from app.services.availability_window_service import ensure_month_open
 from app.services.database_conflict import commit_or_conflict
@@ -88,6 +96,7 @@ def create_unavailability(
     user_id: int,
     data: UnavailabilityCreate,
     enforce_month_lock: bool = True,
+    entered_by_id: Optional[int] = None,
 ) -> Unavailability:
     """Create a new unavailability record for a user.
 
@@ -95,18 +104,23 @@ def create_unavailability(
         db: Active database session.
         user_id: The ID of the user creating the record.
         data: Validated creation payload.
+        entered_by_id: Who is entering it, the user themself when omitted.
 
     Returns:
         The newly created :class:`Unavailability` instance.
     """
     _ensure_writable(db, data.date_absent, enforce_month_lock)
     _check_duplicate(db, user_id, data.date_absent)
+    if enforce_month_lock:
+        ensure_day_has_room(db, data.date_absent, data.reason)
 
     record = Unavailability(
         user_id=user_id,
         date_absent=data.date_absent,
         reason=data.reason,
         is_active=True,
+        entered_at=datetime.now(timezone.utc),
+        entered_by_user_id=entered_by_id if entered_by_id is not None else user_id,
     )
     db.add(record)
     commit_or_conflict(
@@ -215,6 +229,7 @@ def update_unavailability(
     user_id: int,
     data: UnavailabilityUpdate,
     enforce_month_lock: bool = True,
+    entered_by_id: Optional[int] = None,
 ) -> Unavailability:
     """Update an existing unavailability record with partial data.
 
@@ -223,6 +238,7 @@ def update_unavailability(
         unavailability_id: The ID of the record to update.
         user_id: The expected owner of the record.
         data: Validated update payload (only set fields are applied).
+        entered_by_id: Who is changing it, the user themself when omitted.
 
     Returns:
         The updated :class:`Unavailability` instance.
@@ -241,8 +257,19 @@ def update_unavailability(
         _ensure_writable(db, update_data["date_absent"], enforce_month_lock)
         _check_duplicate(db, user_id, update_data["date_absent"], exclude_id=unavailability_id)
 
+    target = update_data.get("date_absent", record.date_absent)
+    reason = update_data.get("reason", record.reason)
+    reason_changed = normalize_reason(reason) != normalize_reason(record.reason)
+    moved = target != record.date_absent
+    if enforce_month_lock and (reason_changed or moved):
+        ensure_day_has_room(db, target, reason, exclude_id=record.id)
+
     for field, value in update_data.items():
         setattr(record, field, value)
+    if reason_changed or moved:
+        # A new reason, or the same one on another day, queues afresh.
+        record.entered_at = datetime.now(timezone.utc)
+        record.entered_by_user_id = entered_by_id if entered_by_id is not None else user_id
 
     commit_or_conflict(
         db,

@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import {
   fetchAvailabilityWindow,
   saveAvailabilityWindow,
-  setMonthLock,
 } from '../services/availabilityService';
 import { capitalizeFirst, localeFor } from '../utils/calendar';
+import './AvailabilityWindowCard.css';
 
 /** Only whole days that exist in every month. */
 const parseDay = (text) => {
@@ -15,13 +15,14 @@ const parseDay = (text) => {
 
 /**
  * The window in which employees fill in next month: the day the server
- * reminds them, the day the month closes, and the switch that closes or
- * opens it by hand.
+ * reminds them and the day the month closes. Closing or opening a month by
+ * hand is done on the overview calendar beside it, for whichever month it
+ * shows.
  *
- * `onDaysSaved` lets the page refresh the message below, whose due date
- * follows the lock day.
+ * `onDaysSaved` lets the page refresh what follows the lock day.
+ * `refreshKey` reloads the card when the page changed the month's state.
  */
-const AvailabilityWindowCard = ({ onDaysSaved }) => {
+const AvailabilityWindowCard = ({ onDaysSaved, refreshKey }) => {
   const { t, i18n } = useTranslation();
   const [windowState, setWindowState] = useState(null);
   const [reminderDay, setReminderDay] = useState('');
@@ -39,7 +40,7 @@ const AvailabilityWindowCard = ({ onDaysSaved }) => {
     fetchAvailabilityWindow()
       .then(adopt)
       .catch(() => setError(t('availability_window.load_error')));
-  }, [adopt, t]);
+  }, [adopt, t, refreshKey]);
 
   const locale = localeFor(i18n.language);
   const formatDate = useCallback(
@@ -64,7 +65,7 @@ const AvailabilityWindowCard = ({ onDaysSaved }) => {
 
   if (!windowState) {
     return error ? (
-      <div className="alert alert-danger smail-alert" role="alert">
+      <div className="alert alert-danger avail-window-alert" role="alert">
         {error}
       </div>
     ) : null;
@@ -90,19 +91,6 @@ const AvailabilityWindowCard = ({ onDaysSaved }) => {
     }
   };
 
-  const toggleLock = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const status = await setMonthLock(upcoming.year, upcoming.month, !upcoming.locked);
-      setWindowState((current) => ({ ...current, upcoming: status }));
-    } catch {
-      setError(t('availability_window.save_failed'));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const reminderState = upcoming.reminder_status
     ? t(`availability_window.reminder_status.${upcoming.reminder_status}`, {
         count: upcoming.reminder_recipients ?? 0,
@@ -110,9 +98,9 @@ const AvailabilityWindowCard = ({ onDaysSaved }) => {
     : t('availability_window.reminder_status.planned');
 
   return (
-    <section className="card smail-window" aria-labelledby="smail-window-title">
+    <section className="card avail-window" aria-labelledby="avail-window-title">
       <div className="card-header">
-        <h2 id="smail-window-title" className="card-title">
+        <h2 id="avail-window-title" className="card-title">
           {t('availability_window.title', { month: monthLabel })}
         </h2>
         <span
@@ -124,20 +112,10 @@ const AvailabilityWindowCard = ({ onDaysSaved }) => {
             : t('availability_window.open')}
           {upcoming.manual != null && ` · ${t('availability_window.manual')}`}
         </span>
-        <button
-          type="button"
-          className={`btn btn-sm smail-window-toggle ${
-            upcoming.locked ? 'btn-secondary' : 'btn-danger-outline'
-          }`}
-          disabled={busy}
-          onClick={toggleLock}
-        >
-          {upcoming.locked ? t('availability_window.unlock') : t('availability_window.lock')}
-        </button>
       </div>
 
-      <div className="card-pad smail-window-body">
-        <dl className="smail-window-facts">
+      <div className="card-pad avail-window-body">
+        <dl className="avail-window-facts">
           <div>
             <dt>{t('availability_window.reminder')}</dt>
             <dd>
@@ -150,7 +128,7 @@ const AvailabilityWindowCard = ({ onDaysSaved }) => {
           </div>
         </dl>
 
-        <div className="smail-window-days">
+        <div className="avail-window-days">
           <label className="field">
             <span className="field-label">{t('availability_window.reminder_day')}</span>
             <input

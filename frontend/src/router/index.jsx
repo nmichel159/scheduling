@@ -11,6 +11,7 @@ import CompetenceManagerView from '../views/CompetenceManagerView';
 import SpecialDaysView from '../views/SpecialDaysView';
 import ConstraintsView from '../views/ConstraintsView';
 import ScheduleMailView from '../views/ScheduleMailView';
+import GlobalSettingsView from '../views/GlobalSettingsView';
 import AdminView from '../views/AdminView';
 import ScheduleOverviewView from '../views/ScheduleOverviewView';
 import StatisticsView from '../views/StatisticsView';
@@ -111,6 +112,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole flag="hasManager">
             <ScheduleMailView />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "/global-settings",
+        element: (
+          <RequireRole flag="hasManager">
+            <GlobalSettingsView />
           </RequireRole>
         ),
       },

@@ -47,6 +47,9 @@ class UnavailabilityResponse(UnavailabilityBase):
     user_id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    #: When the present reason was set, and by whom.
+    entered_at: Optional[datetime] = None
+    entered_by_user_id: Optional[int] = None
     is_active: Optional[bool] = None
 
     class Config:
