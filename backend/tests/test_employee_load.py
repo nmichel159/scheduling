@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.db.session import Base
 from app.models import Ambulance, Competence, Schedule, User
-from app.models.associations import UserAmbulance
+from app.models.associations import UserAmbulance, UserCompetence
 from app.models.competence_scenario import CompetenceScenario
 from app.models.competence_weekday_requirement import CompetenceWeekdayRequirement
 from app.models.special_day import SpecialDay
@@ -18,6 +18,7 @@ from app.services.employee_load_service import (
     get_monthly_employee_load,
     set_scheduling_settings,
 )
+from app.services.schedule_generation_service import generate_ambulance_monthly_schedule
 
 
 class EmployeeLoadTests(unittest.TestCase):
@@ -144,6 +145,53 @@ class EmployeeLoadTests(unittest.TestCase):
         # Untouched employees keep the default, which is "no opinion".
         self.assertIsNone(rows[self.idle.id].max_shifts_per_month)
         self.assertEqual(rows[self.idle.id].shift_preference, "any")
+
+    def test_inactive_employee_is_reported_but_never_planned(self) -> None:
+        """Switched off stays on the roster and out of every new plan."""
+        # A day of recovery after each duty takes two people to cover a month.
+        spare = User(email="spare@example.com", full_name="Spare", is_active=True)
+        self.db.add(spare)
+        self.db.flush()
+        self.db.add(
+            UserAmbulance(user_id=spare.id, ambulance_id=self.ambulance.id, is_active=True)
+        )
+        self.db.add_all(
+            [
+                UserCompetence(
+                    user_id=user.id, competence_id=self.competence.id, is_active=True
+                )
+                for user in (self.busy, self.idle, spare)
+            ]
+        )
+        self.db.commit()
+        set_scheduling_settings(
+            self.db,
+            self.busy,
+            EmployeeSchedulingSettings(scheduling_active=False),
+        )
+
+        report = get_monthly_employee_load(self.db, self.ambulance.id, 9, 2026)
+        rows = {row.user_id: row for row in report.employees}
+        self.assertFalse(rows[self.busy.id].scheduling_active)
+        self.assertTrue(rows[self.idle.id].scheduling_active)
+
+        response = generate_ambulance_monthly_schedule(
+            self.db, self.ambulance.id, 10, 2026
+        )
+        self.assertGreater(response.assignment_count, 0)
+        self.assertEqual(
+            {entry.user_id for entry in response.entries}, {self.idle.id, spare.id}
+        )
+
+    def test_settings_left_out_keep_the_active_flag(self) -> None:
+        """An older client that knows nothing of the flag does not reset it."""
+        set_scheduling_settings(
+            self.db, self.busy, EmployeeSchedulingSettings(scheduling_active=False)
+        )
+        set_scheduling_settings(
+            self.db, self.busy, EmployeeSchedulingSettings(max_shifts_per_month=4)
+        )
+        self.assertFalse(self.busy.scheduling_active)
 
     def test_availability_calendar_is_counted_by_what_it_says(self) -> None:
         """Wishes and absences are split; an unknown reason blocks the day."""
