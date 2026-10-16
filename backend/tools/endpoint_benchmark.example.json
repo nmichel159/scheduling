@@ -356,6 +356,18 @@
         "year": "${BENCHMARK_YEAR}"
       },
       "expected_status": 200
+    },
+    {
+      "name": "availability_window",
+      "method": "GET",
+      "path": "/availability/window",
+      "expected_status": 200
+    },
+    {
+      "name": "availability_month_status",
+      "method": "GET",
+      "path": "/availability/months/${BENCHMARK_YEAR}/${BENCHMARK_MONTH}",
+      "expected_status": 200
     }
   ]
 }

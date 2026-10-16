@@ -18,6 +18,8 @@ PLACEHOLDER_TO_PATH_PARAMETER = {
     "${BENCHMARK_CURRENT_USER_ID}": "{user_id}",
     "${BENCHMARK_TARGET_USER_ID}": "{user_id}",
     "${BENCHMARK_UNAVAILABILITY_ID}": "{unavailability_id}",
+    "${BENCHMARK_YEAR}": "{year}",
+    "${BENCHMARK_MONTH}": "{month}",
 }
 
 
@@ -57,8 +59,8 @@ class BenchmarkScenarioCoverageTests(unittest.TestCase):
         }
 
         self.assertEqual(benchmarked_routes, application_get_routes)
-        self.assertEqual(len(benchmarked_routes), 48)
-        self.assertEqual(len(application_operations), 101)
+        self.assertEqual(len(benchmarked_routes), 50)
+        self.assertEqual(len(application_operations), 107)
 
 
 if __name__ == "__main__":

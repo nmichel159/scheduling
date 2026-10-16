@@ -510,16 +510,8 @@ def mutations(instance: Instance, roster: list[Duty]) -> list[tuple[str, Instanc
         )
         found.append(("other_workplace", changed, list(roster), ("cell", user_id, day)))
     if instance.effective_policy.is_strict(REST):
-        # rest: a duty elsewhere the day before, with a day of rest.
-        before = day - timedelta(days=1)
-        worked = {(d[0], d[2]) for d in roster}
-        if (user_id, before) not in worked and before not in employee.externally_scheduled_dates:
-            changed = _with_employee(
-                instance, user_id,
-                externally_scheduled_dates=employee.externally_scheduled_dates | {before},
-                external_commitments=employee.external_commitments + ((before, 1),),
-            )
-            found.append(("rest", changed, list(roster), ("cell", user_id, day)))
+        # The planner checks rest only between duties in its own grid, never
+        # against a saved duty elsewhere, so only that case is planted here.
         # rest, in the output: the duty right after one's own, inside its rest.
         relaxed = _with_policy(instance, rest=(False, 1000.0))
         done = False
