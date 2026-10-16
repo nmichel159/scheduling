@@ -59,8 +59,9 @@ def list_fill_request_groups_endpoint(
 )
 def fill_request_template_endpoint(
     _current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> FillRequestTemplate:
-    return FillRequestTemplate(**fill_request_template())
+    return FillRequestTemplate(**fill_request_template(db))
 
 
 @router.post(

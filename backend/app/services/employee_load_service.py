@@ -243,7 +243,9 @@ def get_monthly_employee_load(
                 surcharge_shift_count=int(totals[employee.id]["surcharge"]),
                 total_hours=round(totals[employee.id]["hours"], 2),
                 max_shifts_per_month=employee.max_shifts_per_month,
+                max_surcharge_shifts_per_month=employee.max_surcharge_shifts_per_month,
                 shift_preference=employee.shift_preference or "any",
+                scheduling_active=employee.scheduling_active is not False,
                 days=days[employee.id],
                 marked_days=availability[employee.id]["marked"],
                 preferred_days=availability[employee.id]["preferred"],
@@ -260,16 +262,26 @@ def get_scheduling_settings(db: Session, user: User) -> EmployeeSchedulingSettin
     """Read the duty wish and duty-kind preference of one employee."""
     return EmployeeSchedulingSettings(
         max_shifts_per_month=user.max_shifts_per_month,
+        max_surcharge_shifts_per_month=user.max_surcharge_shifts_per_month,
         shift_preference=user.shift_preference or "any",
+        scheduling_active=user.scheduling_active is not False,
     )
 
 
 def set_scheduling_settings(
     db: Session, user: User, data: EmployeeSchedulingSettings
 ) -> EmployeeSchedulingSettings:
-    """Store both preferences of one employee; a null wish clears it."""
+    """Store the preferences of one employee; a null wish clears it.
+
+    A field the request leaves out keeps its stored value, so an older
+    client that knows only the duty wish does not wipe the surcharge one.
+    """
     user.max_shifts_per_month = data.max_shifts_per_month
+    if "max_surcharge_shifts_per_month" in data.model_fields_set:
+        user.max_surcharge_shifts_per_month = data.max_surcharge_shifts_per_month
     user.shift_preference = data.shift_preference
+    if "scheduling_active" in data.model_fields_set:
+        user.scheduling_active = data.scheduling_active
     commit_or_conflict(db, "Could not save the employee settings.")
     db.refresh(user)
     return get_scheduling_settings(db, user)

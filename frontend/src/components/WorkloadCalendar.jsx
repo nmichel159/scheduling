@@ -6,6 +6,7 @@ import {
   MARKABLE_STATES,
   REASON_BY_STATE,
 } from '../services/unavailabilityService';
+import { isMonthLockedError } from '../services/availabilityService';
 import PeriodStepper from './PeriodStepper';
 import Toast from './Toast';
 import { useToast } from '../hooks/useToast';
@@ -52,6 +53,17 @@ const MARK_BY_STATE = {
 /** The order one day walks through, one click at a time. */
 const STATE_CYCLE = [DAY_STATE.NONE, ...MARKABLE_STATES];
 
+/* Both wishes as the inputs hold them: an empty string is "no opinion". */
+const EMPTY_WISH = { max_shifts_per_month: '', max_surcharge_shifts_per_month: '' };
+const wishText = (wish) => ({
+  max_shifts_per_month:
+    wish?.max_shifts_per_month == null ? '' : String(wish.max_shifts_per_month),
+  max_surcharge_shifts_per_month:
+    wish?.max_surcharge_shifts_per_month == null
+      ? ''
+      : String(wish.max_surcharge_shifts_per_month),
+});
+
 /**
  * Reusable monthly restriction calendar; a click walks a day through the states.
  *
@@ -68,17 +80,21 @@ const WorkloadCalendar = ({
   deleteEntry,
   fetchMonthlyWish,
   saveMonthlyWish,
+  fetchMonthStatus,
 }) => {
   const { t, i18n } = useTranslation();
   const TitleTag = `h${titleLevel}`;
   const wishInputId = useId();
+  const surchargeWishInputId = useId();
   const today = useMemo(() => new Date(), []);
   const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() });
   const [entries, setEntries] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [toast, notify] = useToast();
-  const [wish, setWish] = useState('');
+  const [wish, setWish] = useState(EMPTY_WISH);
+  // Closed by the scheduler's window; only the employee's own calendar asks.
+  const [monthLocked, setMonthLocked] = useState(false);
   const pendingRef = useRef(new Set());
   // Only the month asked for last may fill the grid; a slow answer for the
   // month stepped away from would otherwise land under the new month's name.
@@ -140,6 +156,22 @@ const WorkloadCalendar = ({
     loadMonth();
   }, [loadMonth]);
 
+  useEffect(() => {
+    setMonthLocked(false);
+    if (!fetchMonthStatus) return undefined;
+    let cancelled = false;
+    fetchMonthStatus(view.y, view.m + 1)
+      .then((status) => {
+        if (!cancelled) setMonthLocked(Boolean(status.locked));
+      })
+      .catch(() => {
+        // The server refuses a closed month anyway; the grid stays usable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchMonthStatus, view]);
+
   // The wish belongs to the employee, not to the month on screen, so it is
   // loaded once per calendar rather than again with every month change.
   useEffect(() => {
@@ -148,7 +180,7 @@ const WorkloadCalendar = ({
     (async () => {
       try {
         const value = await fetchMonthlyWish();
-        if (!cancelled) setWish(value == null ? '' : String(value));
+        if (!cancelled) setWish(wishText(value));
       } catch {
         // A wish that cannot be read must not hide the calendar.
       }
@@ -175,9 +207,18 @@ const WorkloadCalendar = ({
       return next;
     });
 
+  const refuse = (error) => {
+    if (isMonthLockedError(error)) {
+      setMonthLocked(true);
+      notify(t('workload.locked_month'));
+    } else {
+      notify(t('workload.save_error'));
+    }
+  };
+
   /** Advance one day to the next state in the cycle. */
   const cycleDay = async (dateStr) => {
-    if (dateStr < todayStr) return;
+    if (dateStr < todayStr || monthLocked) return;
     if (pendingRef.current.has(dateStr)) return;
 
     const existing = entries[dateStr] || null;
@@ -192,9 +233,9 @@ const WorkloadCalendar = ({
         dropEntry(dateStr);
         try {
           await deleteEntry(existing.id);
-        } catch {
+        } catch (error) {
           putEntry(dateStr, existing);
-          notify(t('workload.save_error'));
+          refuse(error);
         }
         return;
       }
@@ -204,18 +245,18 @@ const WorkloadCalendar = ({
         putEntry(dateStr, { id: null, date_absent: dateStr, reason });
         try {
           putEntry(dateStr, await createEntry(dateStr, reason));
-        } catch {
+        } catch (error) {
           dropEntry(dateStr);
-          notify(t('workload.save_error'));
+          refuse(error);
         }
       } else {
         if (existing.id == null) return;
         putEntry(dateStr, { ...existing, reason });
         try {
           putEntry(dateStr, await updateEntry(existing.id, reason));
-        } catch {
+        } catch (error) {
           putEntry(dateStr, existing);
-          notify(t('workload.save_error'));
+          refuse(error);
         }
       }
     } finally {
@@ -223,7 +264,7 @@ const WorkloadCalendar = ({
     }
   };
 
-  const commitWish = async (raw) => {
+  const commitWish = async (field, raw) => {
     if (!saveMonthlyWish) return;
     const trimmed = raw.trim();
     const value = trimmed === '' ? null : Number(trimmed);
@@ -232,12 +273,37 @@ const WorkloadCalendar = ({
       return;
     }
     try {
-      const saved = await saveMonthlyWish(value);
-      setWish(saved == null ? '' : String(saved));
+      setWish(wishText(await saveMonthlyWish({ [field]: value })));
     } catch {
       notify(t('workload.save_error'));
     }
   };
+
+  const wishField = (field, inputId, labelKey) => (
+    <div className="workload-wish">
+      <label className="workload-wish-label" htmlFor={inputId}>
+        {t(labelKey)}
+      </label>
+      <input
+        id={inputId}
+        className="input input-sm workload-wish-input"
+        type="number"
+        min="0"
+        max="31"
+        inputMode="numeric"
+        placeholder={t('workload.wish_placeholder')}
+        value={wish[field]}
+        onChange={(event) => {
+          const { value } = event.target;
+          setWish((previous) => ({ ...previous, [field]: value }));
+        }}
+        onBlur={(event) => commitWish(field, event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur();
+        }}
+      />
+    </div>
+  );
 
   const stepper = (
     <PeriodStepper
@@ -268,6 +334,9 @@ const WorkloadCalendar = ({
       )}
 
       {isPastMonth && <div className="alert alert-info workload-alert">{t('workload.past_month')}</div>}
+      {!isPastMonth && monthLocked && (
+        <div className="alert alert-info workload-alert">{t('workload.locked_month')}</div>
+      )}
       {error && (
         <div className="alert alert-danger workload-alert" role="alert">
           <span>{error}</span>
@@ -295,25 +364,13 @@ const WorkloadCalendar = ({
           {/* The wish is about the employee rather than this month, but it is
               set about as often as the days are marked, so it rides along. */}
           {saveMonthlyWish && (
-            <div className="workload-wish">
-              <label className="workload-wish-label" htmlFor={wishInputId}>
-                {t('workload.wish_label')}
-              </label>
-              <input
-                id={wishInputId}
-                className="input input-sm workload-wish-input"
-                type="number"
-                min="0"
-                max="31"
-                inputMode="numeric"
-                placeholder={t('workload.wish_placeholder')}
-                value={wish}
-                onChange={(event) => setWish(event.target.value)}
-                onBlur={(event) => commitWish(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') event.currentTarget.blur();
-                }}
-              />
+            <div className="workload-wishes">
+              {wishField('max_shifts_per_month', wishInputId, 'workload.wish_label')}
+              {wishField(
+                'max_surcharge_shifts_per_month',
+                surchargeWishInputId,
+                'workload.surcharge_wish_label'
+              )}
             </div>
           )}
         </div>
@@ -335,6 +392,7 @@ const WorkloadCalendar = ({
             const state = stateOfRecord(entries[dateStr]);
             const isToday = dateStr === todayStr;
             const isPast = dateStr < todayStr;
+            const isClosed = isPast || monthLocked;
             const stateLabel = state === DAY_STATE.NONE ? '' : t(`workload.states.${state}`);
             return (
               <button
@@ -344,7 +402,7 @@ const WorkloadCalendar = ({
                   isToday ? ' is-today' : ''
                 }${isPast ? ' is-past' : ''}`}
                 onClick={() => cycleDay(dateStr)}
-                disabled={isPast}
+                disabled={isClosed}
                 aria-label={`${day}. ${monthLabel}${stateLabel ? `, ${stateLabel}` : ''}`}
                 title={stateLabel || undefined}
               >

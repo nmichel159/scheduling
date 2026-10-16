@@ -66,3 +66,9 @@ class MonthlyDutyWish(BaseModel):
         le=31,
         description="Preferred maximum number of duties per month.",
     )
+    max_surcharge_shifts_per_month: Optional[int] = Field(
+        None,
+        ge=0,
+        le=31,
+        description="Preferred maximum number of surcharged duties per month.",
+    )

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Index
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, true as sa_true
 from app.db.session import Base
 from sqlalchemy.ext.associationproxy import association_proxy
 from app.models.associations import UserRole, UserAmbulance, UserCompetence
@@ -26,11 +26,21 @@ class User(Base):
     # How many duties a month the employee wants at most. NULL means no
     # opinion, which is not the same as wishing for zero duties.
     max_shifts_per_month = Column(Integer, nullable=True)
+    # The same wish narrowed to surcharged duties; NULL again means no
+    # opinion, while zero asks for no surcharged duty at all.
+    max_surcharge_shifts_per_month = Column(Integer, nullable=True)
     # Which kind of duty the employee would rather be given: "surcharge",
     # "standard" or "any". It is a preference and not a filter -- the
     # solver may still hand out the other kind when a day needs staffing.
     shift_preference = Column(
         String(16), nullable=False, default="any", server_default="any"
+    )
+    # Whether the generator may give the employee duties. An inactive
+    # employee -- on long leave, say -- stays in the workplace with their
+    # competences and wishes, but is left out of every new plan. Not to be
+    # confused with is_active, which removes the account itself.
+    scheduling_active = Column(
+        Boolean, nullable=False, default=True, server_default=sa_true()
     )
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())

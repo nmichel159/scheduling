@@ -30,7 +30,8 @@ import './EmployeeDetailDialog.css';
  * - competences: [{ id, name }] — the ones the employee holds
  * - allCompetences: [{ id, name }] — the workplace's whole codebook;
  *   passing it (together with `settings`) makes the section editable
- * - settings: { max_shifts_per_month, shift_preference } | null — when
+ * - settings: { max_shifts_per_month, max_surcharge_shifts_per_month,
+ *     shift_preference, scheduling_active } | null — when
  *   given, the dialog becomes an edit form
  * - stats: the shown month's counts — duties, hours, weekends, the
  *   longest run of consecutive days, and how the person filled their
@@ -44,7 +45,9 @@ import './EmployeeDetailDialog.css';
  * - error: string | null — why the last save failed; shown above the
  *   buttons, the form keeps what was typed
  * - onSave({ title_before, first_name, last_name, title_after, email,
- *     max_shifts_per_month, shift_preference, competence_ids })
+ *     max_shifts_per_month, max_surcharge_shifts_per_month, shift_preference,
+ *     scheduling_active,
+ *     competence_ids })
  * - onClose()
  */
 const PREFERENCE_ORDER = [
@@ -65,6 +68,72 @@ const clampShifts = (text) => {
   const value = Number(trimmed);
   if (!Number.isFinite(value)) return null;
   return Math.min(MAX_SHIFTS_LIMIT, Math.max(0, Math.round(value)));
+};
+
+/** A monthly wish typed or stepped, with a way back to "no opinion". */
+const WishStepper = ({ id, value, onChange, disabled }) => {
+  const { t } = useTranslation();
+
+  /** Step the wish, treating "no opinion" as zero. */
+  const step = (delta) => {
+    const current = clampShifts(value) ?? 0;
+    onChange(String(Math.min(MAX_SHIFTS_LIMIT, Math.max(0, current + delta))));
+  };
+
+  /** Leaving the field shows the number that will actually be saved. */
+  const commit = () => {
+    const clamped = clampShifts(value);
+    onChange(clamped == null ? '' : String(clamped));
+  };
+
+  return (
+    <div className="empdlg-stepper">
+      <button
+        type="button"
+        className="btn btn-icon btn-sm"
+        onClick={() => step(-1)}
+        disabled={disabled || value.trim() === '0'}
+        aria-label={t('employees.decrease')}
+        title={t('employees.decrease')}
+      >
+        −
+      </button>
+      <input
+        id={id}
+        type="number"
+        min="0"
+        max={MAX_SHIFTS_LIMIT}
+        step="1"
+        inputMode="numeric"
+        className="input input-sm empdlg-input"
+        value={value}
+        disabled={disabled}
+        placeholder="—"
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={commit}
+      />
+      <button
+        type="button"
+        className="btn btn-icon btn-sm"
+        onClick={() => step(1)}
+        disabled={disabled || clampShifts(value) === MAX_SHIFTS_LIMIT}
+        aria-label={t('employees.increase')}
+        title={t('employees.increase')}
+      >
+        +
+      </button>
+      {value.trim() !== '' && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm empdlg-clear"
+          onClick={() => onChange('')}
+          disabled={disabled}
+        >
+          {t('employees.no_limit')}
+        </button>
+      )}
+    </div>
+  );
 };
 
 /** One number with its label; the dialog prints a grid of them. */
@@ -104,8 +173,16 @@ const EmployeeDetailDialog = ({
       ? String(settings.max_shifts_per_month)
       : ''
   );
+  const [maxSurcharge, setMaxSurcharge] = useState(() =>
+    settings && settings.max_surcharge_shifts_per_month != null
+      ? String(settings.max_surcharge_shifts_per_month)
+      : ''
+  );
   const [preference, setPreference] = useState(
     () => (settings && settings.shift_preference) || SHIFT_PREFERENCE.ANY
+  );
+  const [active, setActive] = useState(
+    () => !settings || settings.scheduling_active !== false
   );
   const [picked, setPicked] = useState(() => competences.map((c) => c.id));
   const [identity, setIdentity] = useState(() => {
@@ -143,19 +220,6 @@ const EmployeeDetailDialog = ({
   const editable = settings != null && typeof onSave === 'function';
   const editableCompetences = editable && Array.isArray(allCompetences);
 
-  /** Step the duty wish, treating "no opinion" as the current count. */
-  const stepShifts = (delta) => {
-    const current = clampShifts(maxShifts) ?? 0;
-    const next = Math.min(MAX_SHIFTS_LIMIT, Math.max(0, current + delta));
-    setMaxShifts(String(next));
-  };
-
-  /** Leaving the field shows the number that will actually be saved. */
-  const commitShifts = () => {
-    const value = clampShifts(maxShifts);
-    setMaxShifts(value == null ? '' : String(value));
-  };
-
   const toggleCompetence = (id) => {
     setPicked((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -170,7 +234,9 @@ const EmployeeDetailDialog = ({
       title_after: identity.after.trim(),
       email: identity.email.trim(),
       max_shifts_per_month: clampShifts(maxShifts),
+      max_surcharge_shifts_per_month: clampShifts(maxSurcharge),
       shift_preference: preference,
+      scheduling_active: active,
       competence_ids: editableCompetences ? picked : competences.map((c) => c.id),
     });
   };
@@ -362,55 +428,50 @@ const EmployeeDetailDialog = ({
 
               <div className="empdlg-settings">
               <div className="field">
+                <span className="field-label" id={`${titleId}-active`}>
+                  {t('employees.scheduling_active')}
+                </span>
+                <div
+                  className="segmented empdlg-choice"
+                  role="group"
+                  aria-labelledby={`${titleId}-active`}
+                >
+                  {[true, false].map((value) => (
+                    <button
+                      key={String(value)}
+                      type="button"
+                      aria-pressed={active === value}
+                      disabled={saving}
+                      onClick={() => setActive(value)}
+                    >
+                      {t(value ? 'employees.active' : 'employees.inactive')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="field">
                 <label className="field-label" htmlFor={`${titleId}-max`}>
                   {t('employees.max_shifts')}
                 </label>
-                <div className="empdlg-stepper">
-                  <button
-                    type="button"
-                    className="btn btn-icon btn-sm"
-                    onClick={() => stepShifts(-1)}
-                    disabled={saving || maxShifts.trim() === '0'}
-                    aria-label={t('employees.decrease')}
-                    title={t('employees.decrease')}
-                  >
-                    −
-                  </button>
-                  <input
-                    id={`${titleId}-max`}
-                    type="number"
-                    min="0"
-                    max={MAX_SHIFTS_LIMIT}
-                    step="1"
-                    inputMode="numeric"
-                    className="input input-sm empdlg-input"
-                    value={maxShifts}
-                    disabled={saving}
-                    placeholder="—"
-                    onChange={(e) => setMaxShifts(e.target.value)}
-                    onBlur={commitShifts}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-icon btn-sm"
-                    onClick={() => stepShifts(1)}
-                    disabled={saving || clampShifts(maxShifts) === MAX_SHIFTS_LIMIT}
-                    aria-label={t('employees.increase')}
-                    title={t('employees.increase')}
-                  >
-                    +
-                  </button>
-                  {maxShifts.trim() !== '' && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm empdlg-clear"
-                      onClick={() => setMaxShifts('')}
-                      disabled={saving}
-                    >
-                      {t('employees.no_limit')}
-                    </button>
-                  )}
-                </div>
+                <WishStepper
+                  id={`${titleId}-max`}
+                  value={maxShifts}
+                  onChange={setMaxShifts}
+                  disabled={saving}
+                />
+              </div>
+
+              <div className="field">
+                <label className="field-label" htmlFor={`${titleId}-max-surcharge`}>
+                  {t('employees.max_surcharge_shifts')}
+                </label>
+                <WishStepper
+                  id={`${titleId}-max-surcharge`}
+                  value={maxSurcharge}
+                  onChange={setMaxSurcharge}
+                  disabled={saving}
+                />
               </div>
 
               <div className="field">

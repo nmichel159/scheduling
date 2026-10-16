@@ -111,6 +111,7 @@
       "6": "Su"
     },
     "wish_label": "Max duties per month",
+    "surcharge_wish_label": "Max surcharged duties",
     "wish_placeholder": "no limit",
     "wish_invalid": "Enter a whole number between 0 and 31.",
     "states": {
@@ -120,9 +121,12 @@
       "vacation": "Vacation",
       "business-trip": "Business trip",
       "none": "Unmarked"
-    }
+    },
+    "locked_month": "Restrictions for this month are closed."
   },
   "departments": {
+    "col_max_shifts": "Max. duties",
+    "col_max_surcharge": "Max. surcharged",
     "title": "My workplaces",
     "subtitle": "Manage employees of the workplaces you lead. You can add or remove an employee at any time.",
     "loading": "Loading...",
@@ -557,10 +561,15 @@
     "no_shifts": "No duty",
     "stat_shifts": "Duties",
     "max_shifts": "Max duties per month",
+    "max_surcharge_shifts": "Max surcharged duties per month",
     "preference": "Prefers duties",
     "preference_surcharge": "Surcharged",
     "preference_standard": "Standard",
     "preference_any": "No preference",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "scheduling_active": "Schedule for duties",
     "save": "Save",
     "saving": "Saving...",
     "sort": "Sorting",
@@ -712,6 +721,30 @@
       "soft_decline": "Rather not",
       "preferred": "Want to work",
       "spread": "Duty spacing"
+    }
+  },
+  "availability_window": {
+    "title": "Restriction deadline – {{month}}",
+    "open": "Open",
+    "locked": "Closed",
+    "manual": "manually",
+    "lock": "Close",
+    "unlock": "Open",
+    "reminder": "Reminder",
+    "lock_date": "Deadline",
+    "reminder_day": "Reminder day",
+    "lock_day": "Closing day",
+    "save": "Save",
+    "invalid_days": "The reminder day must come before the closing day (1 – 28).",
+    "load_error": "The deadline could not be loaded.",
+    "save_failed": "The change could not be saved.",
+    "reminder_status": {
+      "planned": "scheduled",
+      "sent": "sent ({{count}})",
+      "dry-run": "sent as a dry run ({{count}})",
+      "failed": "failed",
+      "not-configured": "mail is not configured",
+      "skipped": "not sent"
     }
   }
 }

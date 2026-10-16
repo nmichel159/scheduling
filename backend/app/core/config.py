@@ -45,6 +45,16 @@ class Settings(BaseSettings):
         1,
         int(os.getenv("AUTOMATIC_SCHEDULE_GENERATION_POLL_SECONDS", "60")),
     )
+    # The reminder to fill in next month's restrictions goes out on the
+    # scheduler's reminder day, at this local hour, on the same clock as the
+    # automatic generation.
+    AVAILABILITY_REMINDER_ENABLED: bool = (
+        os.getenv("AVAILABILITY_REMINDER_ENABLED", "true").lower() == "true"
+    )
+    AVAILABILITY_REMINDER_HOUR: int = min(
+        23,
+        max(0, int(os.getenv("AVAILABILITY_REMINDER_HOUR", "8"))),
+    )
 
     # --- Outgoing mail -------------------------------------------------
     # An unset SMTP_HOST is not a misconfiguration: local and test runs are

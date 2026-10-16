@@ -12,7 +12,7 @@ import {
 } from '../services/competenceService';
 import {
   SHIFT_PREFERENCE,
-  fetchEmployeeSettings,
+  fetchEmployeeLoad,
   saveEmployeeSettings,
 } from '../services/employeeService';
 import { useWorkplace, useWorkplaceSwitchGuard } from '../hooks/workplaceContext';
@@ -31,12 +31,37 @@ import {
 import PageSkeleton from '../components/Skeleton';
 import './DepartmentsView.css';
 
+/** The scheduling record of somebody nothing is stored for yet. */
+const DEFAULT_SETTINGS = {
+  scheduling_active: true,
+  max_shifts_per_month: null,
+  max_surcharge_shifts_per_month: null,
+  shift_preference: SHIFT_PREFERENCE.ANY,
+};
+
+/** One person's scheduling record, read off a load row. */
+const settingsOf = (row) => ({
+  scheduling_active: !row || row.scheduling_active !== false,
+  max_shifts_per_month: row?.max_shifts_per_month ?? null,
+  max_surcharge_shifts_per_month: row?.max_surcharge_shifts_per_month ?? null,
+  shift_preference: row?.shift_preference || SHIFT_PREFERENCE.ANY,
+});
+
+const fingerprintSettings = (settings) =>
+  JSON.stringify([
+    settings.scheduling_active,
+    settings.max_shifts_per_month,
+    settings.max_surcharge_shifts_per_month,
+    settings.shift_preference,
+  ]);
+
 /** Deep-copies rows so edits to the draft never mutate the loaded snapshot.
  *  competenceDays maps competenceId -> sorted array of active ISO weekdays
  *  (0=Po..6=Ne); a missing or empty entry means the competence isn't held. */
 const cloneRows = (list) =>
   list.map((r) => ({
     ...r,
+    settings: { ...r.settings },
     competenceDays: Object.fromEntries(
       Object.entries(r.competenceDays).map(([id, days]) => [id, [...days]])
     ),
@@ -56,6 +81,7 @@ const fingerprintRows = (list) =>
     [...list]
       .map((r) => ({
         user_id: r.user_id,
+        settings: fingerprintSettings(r.settings),
         competence_days: Object.entries(r.competenceDays)
           .filter(([, days]) => days.length > 0)
           .map(([id, days]) => [Number(id), [...days].sort((a, b) => a - b)])
@@ -74,6 +100,12 @@ const fingerprintRows = (list) =>
  * "Save": added/removed employees are synced first (membership calls),
  * then the whole competence table is written in a single bulk PUT, and
  * any changed required_counts are patched per-competence.
+ *
+ * Beside the competences every row carries the person's own scheduling
+ * record — active or not, the two monthly limits and which duties they
+ * prefer — so a whole workplace is filled in from this one table. The
+ * record is read in bulk with the month's load and only the rows whose
+ * record changed are written, one call each, in the same Save.
  *
  * A name in the table opens that person's profile — the same editable
  * dialog the employees screen opens, so the competences of one person can
@@ -105,8 +137,7 @@ const DepartmentsView = () => {
   const [tableLoading, setTableLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmState, setConfirmState] = useState(null);
-  const [profile, setProfile] = useState(null); // { userId, settings }
-  const [openingProfile, setOpeningProfile] = useState(null); // user id
+  const [profileId, setProfileId] = useState(null); // user id
 
   // Only the newest table request may write state: switching workplaces
   // quickly must not let a slower, older answer land on the new one.
@@ -130,14 +161,23 @@ const DepartmentsView = () => {
     const seq = ++loadSeq.current;
     setTableLoading(true);
     try {
-      const [tableResult, compsResult, usersResult] = await Promise.allSettled([
+      const [tableResult, compsResult, usersResult, loadResult] = await Promise.allSettled([
         fetchEmployeeCompetenceTable(selectedId),
         fetchCompetences(selectedId),
         fetchAllUsers(),
+        // Any month will do: only the stored preferences are read from it.
+        fetchEmployeeLoad(selectedId),
       ]);
       if (seq !== loadSeq.current) return;
       if (tableResult.status === 'rejected') throw tableResult.reason;
       if (compsResult.status === 'rejected') throw compsResult.reason;
+      /* Without the stored records the table would show defaults, and a
+       * save would write them over what is really there. */
+      if (loadResult.status === 'rejected') throw loadResult.reason;
+
+      const loadById = new Map(
+        (loadResult.value.employees || []).map((row) => [row.user_id, row])
+      );
 
       const table = tableResult.value;
       const comps = compsResult.value.map(normalizeCompetenceRequirements);
@@ -145,6 +185,7 @@ const DepartmentsView = () => {
         user_id: row.user_id,
         email: row.email,
         full_name: row.full_name,
+        settings: settingsOf(loadById.get(row.user_id)),
         // The backend only knows "has this competence" today, not on which
         // days — so a loaded assignment starts out as the whole week. Once
         // the API returns per-weekday data this can read it directly instead.
@@ -250,10 +291,25 @@ const DepartmentsView = () => {
     );
   };
 
+  /** Merge a change into one person's scheduling record. */
+  const changeSettings = (userId, patch) => {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.user_id === userId ? { ...r, settings: { ...r.settings, ...patch } } : r
+      )
+    );
+  };
+
   const addRow = (user) => {
     setRows((prev) => [
       ...prev,
-      { user_id: user.id, email: user.email, full_name: user.full_name, competenceDays: {} },
+      {
+        user_id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        settings: { ...DEFAULT_SETTINGS },
+        competenceDays: {},
+      },
     ]);
   };
 
@@ -270,14 +326,11 @@ const DepartmentsView = () => {
    * profile dialog folds its own picks in and saves in the same tick, and
    * state set a moment earlier is not visible here yet.
    *
-   * `profileWrite` carries the one person's scheduling preferences the
-   * dialog collected. They are not part of the table draft — they are a
-   * record of their own — but they go in the same pass, so the dialog's
-   * button means one thing and lands either wholly or not at all. It is
-   * written last on purpose: somebody added to the draft a moment ago only
-   * becomes an employee of this workplace in the membership step above.
+   * The scheduling records go last on purpose: somebody added to the
+   * draft a moment ago only becomes an employee of this workplace in the
+   * membership step above.
    */
-  const persist = async (draftRows, profileWrite = null) => {
+  const persist = async (draftRows) => {
     if (selectedId == null || saving) return;
     setSaving(true);
     // A step that fails does not stop the rest, but it must not end in
@@ -352,20 +405,23 @@ const DepartmentsView = () => {
         }
       }
 
-      if (profileWrite) {
+      const originalSettings = new Map(
+        originalRows.map((r) => [r.user_id, fingerprintSettings(r.settings)])
+      );
+      for (const row of draftRows) {
+        if (failedAdds.has(row.user_id)) continue;
+        const before =
+          originalSettings.get(row.user_id) ?? fingerprintSettings(DEFAULT_SETTINGS);
+        if (before === fingerprintSettings(row.settings)) continue;
         try {
-          await saveEmployeeSettings(
-            selectedId,
-            profileWrite.userId,
-            profileWrite.settings
-          );
+          await saveEmployeeSettings(selectedId, row.user_id, row.settings);
         } catch {
           failed = true;
         }
       }
 
       await loadTable();
-      setProfile(null);
+      setProfileId(null);
       notify(failed ? t('departments.action_error') : t('departments.saved'));
     } catch {
       notify(t('departments.save_error'));
@@ -379,9 +435,8 @@ const DepartmentsView = () => {
   /* ---------- one person's profile ----------
    *
    * The same dialog the employees screen opens, and editable here too:
-   * competences are what this screen is about, and the duty wish and
-   * duty-kind preference travel with the person rather than with the
-   * table, so they are read when the dialog opens.
+   * it shows the row's draft — competences and scheduling record alike —
+   * so the dialog and the table never disagree about one person.
    *
    * Without the month panels the employees screen shows, though. This
    * screen has no month and no way to leave one, so a column of September
@@ -389,40 +444,29 @@ const DepartmentsView = () => {
    * where a month is a question that can be asked.
    */
 
-  const openProfile = async (userId) => {
-    if (selectedId == null || openingProfile != null) return;
-    /* Somebody added to the draft a moment ago is not an employee of the
-     * workplace yet, so there is nothing on the server to read for them. */
-    if (!originalRows.some((r) => r.user_id === userId)) {
-      setProfile({
-        userId,
-        settings: {
-          max_shifts_per_month: null,
-          shift_preference: SHIFT_PREFERENCE.ANY,
-        },
-      });
-      return;
-    }
-    setOpeningProfile(userId);
-    try {
-      setProfile({ userId, settings: await fetchEmployeeSettings(selectedId, userId) });
-    } catch {
-      notify(t('departments.load_error'));
-    } finally {
-      setOpeningProfile(null);
-    }
-  };
+  const openProfile = (userId) => setProfileId(userId);
 
   /** Fold the dialog's picks into the draft, then let `persist` write it.
-   *  The dialog never writes the table on its own, so it cannot undo an
-   *  edit made in the matrix behind it. */
-  const handleProfileSave = ({ competence_ids: competenceIds, ...settings }) => {
-    if (!profile) return undefined;
-    const { userId } = profile;
+   *  The dialog never writes on its own, so it cannot undo an edit made in
+   *  the table behind it. */
+  const handleProfileSave = ({
+    competence_ids: competenceIds,
+    scheduling_active: schedulingActive,
+    max_shifts_per_month: maxShifts,
+    max_surcharge_shifts_per_month: maxSurcharge,
+    shift_preference: shiftPreference,
+  }) => {
+    if (profileId == null) return undefined;
     const nextRows = rows.map((row) =>
-      row.user_id === userId
+      row.user_id === profileId
         ? {
             ...row,
+            settings: {
+              scheduling_active: schedulingActive,
+              max_shifts_per_month: maxShifts,
+              max_surcharge_shifts_per_month: maxSurcharge,
+              shift_preference: shiftPreference,
+            },
             competenceDays: Object.fromEntries(
               competenceIds.map((id) => [id, [...ISO_WEEKDAYS]])
             ),
@@ -430,7 +474,7 @@ const DepartmentsView = () => {
         : row
     );
     setRows(nextRows);
-    return persist(nextRows, { userId, settings });
+    return persist(nextRows);
   };
 
   /* ---------- render ---------- */
@@ -459,7 +503,7 @@ const DepartmentsView = () => {
   }
 
   const profileRow =
-    (profile && rows.find((r) => r.user_id === profile.userId)) || null;
+    (profileId != null && rows.find((r) => r.user_id === profileId)) || null;
   const profileCompetences = profileRow
     ? columns.filter((c) => (profileRow.competenceDays[c.id] || []).length > 0)
     : [];
@@ -514,6 +558,7 @@ const DepartmentsView = () => {
           loading={tableLoading}
           onToggleDay={toggleDay}
           onToggleWeek={toggleWeek}
+          onChangeSettings={changeSettings}
           onAddRow={addRow}
           onRemoveRow={removeRow}
           onOpenProfile={openProfile}
@@ -523,14 +568,14 @@ const DepartmentsView = () => {
       <Toast message={toast} />
 
       <EmployeeDetailDialog
-        key={profile ? profile.userId : 'none'}
+        key={profileId ?? 'none'}
         employee={profileRow}
         competences={profileCompetences}
         allCompetences={columns}
-        settings={profile ? profile.settings : null}
+        settings={profileRow ? profileRow.settings : null}
         saving={saving}
         onSave={handleProfileSave}
-        onClose={() => setProfile(null)}
+        onClose={() => setProfileId(null)}
       />
 
       <ConfirmDialog

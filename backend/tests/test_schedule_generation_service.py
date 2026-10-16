@@ -40,6 +40,7 @@ def _employee(
     soft_declined_dates: frozenset[date] = frozenset(),
     max_shifts_per_month: int | None = None,
     shift_preference: str = "any",
+    max_surcharge_shifts_per_month: int | None = None,
 ) -> SchedulingEmployee:
     """Build a concise employee fixture for solver tests."""
     return SchedulingEmployee(
@@ -52,6 +53,7 @@ def _employee(
         preferred_dates=preferred_dates,
         soft_declined_dates=soft_declined_dates,
         max_shifts_per_month=max_shifts_per_month,
+        max_surcharge_shifts_per_month=max_surcharge_shifts_per_month,
         shift_preference=shift_preference,
     )
 
@@ -718,6 +720,30 @@ class ScheduleGenerationBalanceTests(unittest.TestCase):
 
         self.assertEqual(sorted(surcharged.values()), [2, 2, 3, 3])
         self.assertLessEqual(max(ordinary.values()) - min(ordinary.values()), 1)
+
+    def test_surcharge_wish_caps_the_surcharged_days_only(self) -> None:
+        """Zero surcharged duties is a real wish; the weekdays are still shared."""
+        employees = [
+            _employee(1, competence_ids=frozenset({1})),
+            _employee(2, competence_ids=frozenset({1})),
+            _employee(3, competence_ids=frozenset({1}), max_surcharge_shifts_per_month=0),
+            _employee(4, competence_ids=frozenset({1}), max_surcharge_shifts_per_month=1),
+        ]
+        assignments = solve_monthly_schedule(
+            employees,
+            [SchedulingCompetence(id=1, name="Triage", required_count=1)],
+            month=8,
+            year=2026,
+        )
+
+        surcharged = Counter(
+            item.user_id for item in assignments if item.work_date in self.SURCHARGE_DAYS
+        )
+        workload = Counter(item.user_id for item in assignments)
+        self.assertEqual(surcharged[3], 0)
+        self.assertEqual(surcharged[4], 1)
+        self.assertGreater(workload[3], 0)
+        self.assertEqual(sum(workload.values()), 31)
 
     def test_duty_kind_wishes_trade_weekends_for_weekdays(self) -> None:
         """Who wants the surcharged days gets more of them, not more duties."""

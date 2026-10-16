@@ -42,6 +42,13 @@ from app.services.ambulance_employee_service import (
     list_employees,
     list_manager_ambulances,
 )
+from app.services.availability_window_service import (
+    fill_deadline,
+    local_today,
+    period_dates,
+    reminder_message,
+    upcoming_month,
+)
 from app.services.database_conflict import commit_or_conflict
 from app.services.email_service import (
     EmailError,
@@ -454,25 +461,20 @@ def list_dispatches(
 # --------------------------------------------------------------------------
 
 
-#: Day of the month by which employees are asked to have filled in the
-#: following month; the schedule is built after it.
-FILL_REQUEST_DEADLINE_DAY = 20
-
-
-def fill_request_period(today: date | None = None) -> tuple[int, int, date]:
+def fill_request_period(db: Session, today: date | None = None) -> tuple[int, int, date]:
     """Which month the request is about and by when it is due.
 
-    Sent on or before the deadline day, it asks about next month with this
-    month's deadline; sent later, that month is already being scheduled, so
-    it asks about the month after and gives next month's deadline.
+    Sent before next month closes, it asks about next month; sent later,
+    that month is already closed, so it asks about the month after. The due
+    date is the last day before the scheduler's lock day.
     """
-    today = today or date.today()
-    step = 1 if today.day <= FILL_REQUEST_DEADLINE_DAY else 2
-    index = today.year * 12 + today.month - 1
-    target_year, target_month = divmod(index + step, 12)
-    deadline_year, deadline_month = divmod(index + step - 1, 12)
-    deadline = date(deadline_year, deadline_month + 1, FILL_REQUEST_DEADLINE_DAY)
-    return target_month + 1, target_year, deadline
+    today = today or local_today()
+    year, month = upcoming_month(today)
+    _reminder, lock_date = period_dates(db, year, month)
+    if today >= lock_date:
+        year, month = year + month // 12, month % 12 + 1
+        _reminder, lock_date = period_dates(db, year, month)
+    return month, year, fill_deadline(lock_date)
 
 
 def list_fill_request_groups(db: Session, manager: User) -> list[dict]:
@@ -503,28 +505,15 @@ def list_fill_request_groups(db: Session, manager: User) -> list[dict]:
     return groups
 
 
-def fill_request_template(today: date | None = None) -> dict:
+def fill_request_template(db: Session, today: date | None = None) -> dict:
     """The default message, dated for the month it asks about.
 
     The scheduler edits this before sending, so it is a starting point,
     not a fixed format -- the only thing the send really needs is an
     address list.
     """
-    month, year, deadline = fill_request_period(today)
-    period = _period_label(month, year)
-    due = f"{deadline.day}. {deadline.month}. {deadline.year}"
-    return {
-        "subject": f"Vyplnenie obmedzení na {period} – do {due}",
-        "body": (
-            "Dobrý deň,\n\n"
-            f"prosím, vyplňte si obmedzenia, dovolenky a želania na {period} "
-            f"najneskôr do {due}.\n\n"
-            "Po tomto termíne začneme pripravovať rozpis služieb a neskoršie "
-            "zmeny už nemusia byť zohľadnené.\n\n"
-            f"{settings.APP_URL}\n\n"
-            "Ďakujem."
-        ),
-    }
+    month, year, _deadline = fill_request_period(db, today)
+    return reminder_message(db, year, month)
 
 
 def send_fill_request(
@@ -570,7 +559,7 @@ def send_fill_request(
             },
         )
 
-    template = fill_request_template()
+    template = fill_request_template(db)
     final_subject = (subject if subject is not None else template["subject"]).strip()
     final_body = (body if body is not None else template["body"]).strip()
     if not final_subject or not final_body:

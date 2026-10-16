@@ -147,6 +147,7 @@ def get_schedule_context(
             EmployeeScheduleContext(
                 user_id=employee.id,
                 max_shifts_per_month=employee.max_shifts_per_month,
+                max_surcharge_shifts_per_month=employee.max_surcharge_shifts_per_month,
                 marks=marks[employee.id],
                 duties=duties[employee.id],
             )

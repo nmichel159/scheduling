@@ -43,7 +43,9 @@ export async function saveEmployeeSettings(ambulanceId, userId, settings) {
     `/ambulances/${ambulanceId}/employees/${userId}/settings`,
     {
       max_shifts_per_month: settings.max_shifts_per_month,
+      max_surcharge_shifts_per_month: settings.max_surcharge_shifts_per_month,
       shift_preference: settings.shift_preference,
+      scheduling_active: settings.scheduling_active,
     }
   );
   return data;

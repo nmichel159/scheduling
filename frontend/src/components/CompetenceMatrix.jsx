@@ -7,7 +7,28 @@ import {
   SPECIAL_DAY_SLOT,
   requiredCountForGroup,
 } from '../utils/competenceRequirements';
+import { SHIFT_PREFERENCE } from '../services/employeeService';
 import './CompetenceMatrix.css';
+
+/** Active, two monthly limits and the duty-kind preference. */
+const SETTING_COLUMNS = 4;
+
+const PREFERENCE_ORDER = [
+  SHIFT_PREFERENCE.SURCHARGE,
+  SHIFT_PREFERENCE.STANDARD,
+  SHIFT_PREFERENCE.ANY,
+];
+
+/** What a monthly-limit field holds while typing ('' is "no limit"). */
+const limitValue = (value) => (value == null ? '' : String(value));
+
+/** The typed limit as the API wants it: null when empty, else 0..31. */
+const parseLimit = (raw) => {
+  if (raw === '') return null;
+  const n = Math.round(Number(raw));
+  if (!Number.isFinite(n)) return null;
+  return Math.min(31, Math.max(0, n));
+};
 
 /**
  * Presentational employee x competence table for one ambulance.
@@ -45,13 +66,18 @@ import './CompetenceMatrix.css';
  * - columns: [{ id, name, description }] — competences of the ambulance
  * - dayGroups: [{ id, weekdays }] — slot groups the required counts are shown
  *   for; `weekdays` may include SPECIAL_DAY_SLOT alongside real weekdays
- * - rows: [{ user_id, email, full_name, competenceDays: { [competenceId]: number[] } }] — draft state.
+ * - rows: [{ user_id, email, full_name, settings, competenceDays: { [competenceId]: number[] } }] — draft state.
+ *   `settings` holds the person's own scheduling record — scheduling_active,
+ *   max_shifts_per_month, max_surcharge_shifts_per_month, shift_preference —
+ *   edited right in the row, so a whole workplace can be filled in from
+ *   one table rather than one profile at a time.
  *   competenceDays[competenceId] holds the ISO weekdays (0=Po..6=Ne) on which
  *   that employee holds that competence; a missing/empty entry means "not assigned".
  *   This view only ever sets it to "all 7 days" or empty (see onToggleWeek).
  * - allUsers: [{ id, email, full_name }] — hospital-wide pool for the add box
  * - loading: table is (re)loading
  * - onToggleWeek(userId, competenceId) — assign/clear the competence for the whole week
+ * - onChangeSettings(userId, patch) — merge `patch` into the row's settings
  * - onAddRow(user)
  * - onRemoveRow(userId)
  * - onOpenProfile(userId) — the name is a link to the person's profile; the
@@ -69,6 +95,7 @@ const CompetenceMatrix = ({
   allUsers,
   loading,
   onToggleWeek,
+  onChangeSettings,
   onAddRow,
   onRemoveRow,
   onOpenProfile,
@@ -262,7 +289,10 @@ const CompetenceMatrix = ({
 
   /* ---------- render ---------- */
 
-  const competenceColSpan = Math.max(columns.length, 1);
+  const competenceColSpan = Math.max(columns.length, 1) + SETTING_COLUMNS;
+  /* The settings columns have no head-count to show, so their headers run
+   * down through the requirement rows instead of leaving empty cells. */
+  const headRowSpan = 1 + (columns.length > 0 ? dayGroups.length : 0);
   const removingRow = rows.find((r) => r.user_id === removingRowId) || null;
 
   /* Below the anchor when it fits, above it when it doesn't, always inside
@@ -369,6 +399,80 @@ const CompetenceMatrix = ({
     );
   };
 
+  /* The person's own scheduling record, one control per cell. Inputs
+   * rather than click-to-edit: Tab walks a row and the table fills in
+   * like a spreadsheet. */
+  const renderSettingCells = (r) => {
+    const settings = r.settings;
+    const name = r.full_name || r.email;
+    const active = settings.scheduling_active !== false;
+    return (
+      <>
+        <td className="cmatrix-cell-td cmatrix-setting-td is-toggle">
+          <button
+            type="button"
+            className={`cmatrix-toggle ${active ? 'is-on' : ''}`.trim()}
+            onClick={() => onChangeSettings(r.user_id, { scheduling_active: !active })}
+            aria-pressed={active}
+            aria-label={`${name} — ${t('employees.active')}`}
+          >
+            <span className="cmatrix-check" aria-hidden="true">
+              {active && <CheckIcon />}
+            </span>
+          </button>
+        </td>
+        <td className="cmatrix-cell-td cmatrix-setting-td">
+          <input
+            type="number"
+            min={0}
+            max={31}
+            inputMode="numeric"
+            className="input input-sm cmatrix-number"
+            value={limitValue(settings.max_shifts_per_month)}
+            placeholder="—"
+            onChange={(e) =>
+              onChangeSettings(r.user_id, { max_shifts_per_month: parseLimit(e.target.value) })
+            }
+            aria-label={`${name} — ${t('employees.max_shifts')}`}
+          />
+        </td>
+        <td className="cmatrix-cell-td cmatrix-setting-td">
+          <input
+            type="number"
+            min={0}
+            max={31}
+            inputMode="numeric"
+            className="input input-sm cmatrix-number"
+            value={limitValue(settings.max_surcharge_shifts_per_month)}
+            placeholder="—"
+            onChange={(e) =>
+              onChangeSettings(r.user_id, {
+                max_surcharge_shifts_per_month: parseLimit(e.target.value),
+              })
+            }
+            aria-label={`${name} — ${t('employees.max_surcharge_shifts')}`}
+          />
+        </td>
+        <td className="cmatrix-cell-td cmatrix-setting-td is-group-end">
+          <select
+            className="select input-sm cmatrix-select"
+            value={settings.shift_preference || SHIFT_PREFERENCE.ANY}
+            onChange={(e) =>
+              onChangeSettings(r.user_id, { shift_preference: e.target.value })
+            }
+            aria-label={`${name} — ${t('employees.preference')}`}
+          >
+            {PREFERENCE_ORDER.map((value) => (
+              <option key={value} value={value}>
+                {t(`employees.preference_${value}`)}
+              </option>
+            ))}
+          </select>
+        </td>
+      </>
+    );
+  };
+
   return (
     <section className="cmatrix card">
       {/* Filter (left) and add (right) are deliberately two separate
@@ -448,6 +552,32 @@ const CompetenceMatrix = ({
               <th className="cmatrix-first cmatrix-corner" scope="col">
                 {t('competences.employee')}
               </th>
+              <th className="cmatrix-col cmatrix-setting-col" scope="col" rowSpan={headRowSpan}>
+                {t('employees.active')}
+              </th>
+              <th
+                className="cmatrix-col cmatrix-setting-col"
+                scope="col"
+                rowSpan={headRowSpan}
+                title={t('employees.max_shifts')}
+              >
+                {t('departments.col_max_shifts')}
+              </th>
+              <th
+                className="cmatrix-col cmatrix-setting-col"
+                scope="col"
+                rowSpan={headRowSpan}
+                title={t('employees.max_surcharge_shifts')}
+              >
+                {t('departments.col_max_surcharge')}
+              </th>
+              <th
+                className="cmatrix-col cmatrix-setting-col is-group-end"
+                scope="col"
+                rowSpan={headRowSpan}
+              >
+                {t('employees.preference')}
+              </th>
               {columns.map((c) => (
                 <th
                   key={c.id}
@@ -502,6 +632,7 @@ const CompetenceMatrix = ({
                       </button>
                     </div>
                   </th>
+                  {renderSettingCells(r)}
                   {columns.map((c) => {
                     const assigned = (r.competenceDays[c.id] || []).length > 0;
                     return (

@@ -166,7 +166,7 @@
 .employees-row,
 .employees-legend {
   display: grid;
-  grid-template-columns: 36px minmax(160px, 1fr) minmax(0, 1fr) minmax(0, 1.3fr) auto 30px 16px;
+  grid-template-columns: 36px minmax(160px, 1fr) 84px minmax(0, 1fr) minmax(0, 1.3fr) auto 30px 16px;
   align-items: center;
   column-gap: 14px;
   padding: 0 16px;
@@ -249,6 +249,19 @@
 .employees-email {
   color: var(--text-p);
   font-size: var(--fs-xs);
+}
+
+/* Someone switched off for scheduling stays on the list, only quieter. */
+.employees-item.is-inactive .employees-avatar,
+.employees-item.is-inactive .employees-identity,
+.employees-item.is-inactive .employees-tags,
+.employees-item.is-inactive .employees-stats {
+  opacity: 0.55;
+}
+
+.employees-status {
+  display: flex;
+  min-width: 0;
 }
 
 /* `min-width: 0` matters: a grid item defaults to min-width:auto, so a row
@@ -527,19 +540,25 @@
     row-gap: 6px;
   }
 
+  .employees-legend-status,
   .employees-legend-tags,
   .employees-legend-marked {
     display: none;
   }
 
   .employees-avatar {
-    grid-row: 1 / 4;
+    grid-row: 1 / 5;
     align-self: start;
+  }
+
+  .employees-status {
+    grid-column: 2 / 4;
+    grid-row: 2;
   }
 
   .employees-marked {
     grid-column: 2 / 4;
-    grid-row: 3;
+    grid-row: 4;
   }
 
   .employees-identity {
@@ -549,7 +568,7 @@
 
   .employees-tags {
     grid-column: 2 / 4;
-    grid-row: 2;
+    grid-row: 3;
   }
 
   .employees-stats {
@@ -587,9 +606,14 @@
     align-self: center;
   }
 
+  .employees-status {
+    grid-column: 2 / 5;
+    grid-row: 2;
+  }
+
   .employees-marked {
     grid-column: 2 / 5;
-    grid-row: 3;
+    grid-row: 4;
   }
 
   .btn.employees-calendar {
@@ -604,12 +628,12 @@
 
   .employees-tags {
     grid-column: 2 / 5;
-    grid-row: 2;
+    grid-row: 3;
   }
 
   .employees-stats {
     grid-column: 2 / 5;
-    grid-row: 4;
+    grid-row: 5;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     align-items: start;
     gap: 4px;

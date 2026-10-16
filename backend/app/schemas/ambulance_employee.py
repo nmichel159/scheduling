@@ -90,9 +90,19 @@ class EmployeeSchedulingSettings(BaseModel):
         le=31,
         description="Preferred maximum number of duties per month; null means no opinion.",
     )
+    max_surcharge_shifts_per_month: Optional[int] = Field(
+        None,
+        ge=0,
+        le=31,
+        description="Preferred maximum number of surcharged duties per month; null means no opinion.",
+    )
     shift_preference: Literal["surcharge", "standard", "any"] = Field(
         "any",
         description="Which kind of duty the employee would rather be given.",
+    )
+    scheduling_active: bool = Field(
+        True,
+        description="Whether the generator may give the employee duties.",
     )
 
 
@@ -129,7 +139,9 @@ class EmployeeMonthlyLoad(BaseModel):
     surcharge_shift_count: int
     total_hours: float
     max_shifts_per_month: Optional[int] = None
+    max_surcharge_shifts_per_month: Optional[int] = None
     shift_preference: str = "any"
+    scheduling_active: bool = True
     days: list[EmployeeDutyDay] = Field(default_factory=list)
 
     # How the employee filled their availability calendar for this month.

@@ -6,6 +6,8 @@ Encapsulates business rules:
 - Duplicate records (same user + date) are prevented.
 - Past months are locked: records dated before the first day of the
   current month cannot be created, updated or deleted.
+- A month the scheduler's window has closed is locked for the employee;
+  the scheduler editing on their behalf passes ``enforce_month_lock=False``.
 """
 
 from datetime import date
@@ -22,6 +24,7 @@ from app.schemas.unavailability import (
     UnavailabilityCreate,
     UnavailabilityUpdate,
 )
+from app.services.availability_window_service import ensure_month_open
 from app.services.database_conflict import commit_or_conflict
 
 
@@ -45,6 +48,13 @@ def _ensure_editable_date(target: date) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Records in past months are read-only and cannot be modified.",
         )
+
+
+def _ensure_writable(db: Session, target: date, enforce_month_lock: bool) -> None:
+    """Both locks: the past month always, the closed month for the employee."""
+    _ensure_editable_date(target)
+    if enforce_month_lock:
+        ensure_month_open(db, target)
 
 
 def _check_duplicate(db: Session, user_id: int, date_absent: date, exclude_id: Optional[int] = None) -> None:
@@ -73,7 +83,12 @@ def _check_duplicate(db: Session, user_id: int, date_absent: date, exclude_id: O
         )
 
 
-def create_unavailability(db: Session, user_id: int, data: UnavailabilityCreate) -> Unavailability:
+def create_unavailability(
+    db: Session,
+    user_id: int,
+    data: UnavailabilityCreate,
+    enforce_month_lock: bool = True,
+) -> Unavailability:
     """Create a new unavailability record for a user.
 
     Args:
@@ -84,7 +99,7 @@ def create_unavailability(db: Session, user_id: int, data: UnavailabilityCreate)
     Returns:
         The newly created :class:`Unavailability` instance.
     """
-    _ensure_editable_date(data.date_absent)
+    _ensure_writable(db, data.date_absent, enforce_month_lock)
     _check_duplicate(db, user_id, data.date_absent)
 
     record = Unavailability(
@@ -195,7 +210,11 @@ def get_unavailability(db: Session, unavailability_id: int, user_id: int) -> Una
 
 
 def update_unavailability(
-    db: Session, unavailability_id: int, user_id: int, data: UnavailabilityUpdate
+    db: Session,
+    unavailability_id: int,
+    user_id: int,
+    data: UnavailabilityUpdate,
+    enforce_month_lock: bool = True,
 ) -> Unavailability:
     """Update an existing unavailability record with partial data.
 
@@ -212,14 +231,14 @@ def update_unavailability(
         HTTPException 400: If the record or target date is in a locked month.
     """
     record = get_unavailability(db, unavailability_id, user_id)
-    _ensure_editable_date(record.date_absent)
+    _ensure_writable(db, record.date_absent, enforce_month_lock)
 
     update_data = data.model_dump(exclude_unset=True)
 
     # If date_absent is being changed, the target date must also be editable
     # and free of duplicates.
     if "date_absent" in update_data:
-        _ensure_editable_date(update_data["date_absent"])
+        _ensure_writable(db, update_data["date_absent"], enforce_month_lock)
         _check_duplicate(db, user_id, update_data["date_absent"], exclude_id=unavailability_id)
 
     for field, value in update_data.items():
@@ -233,7 +252,12 @@ def update_unavailability(
     return record
 
 
-def delete_unavailability(db: Session, unavailability_id: int, user_id: int) -> None:
+def delete_unavailability(
+    db: Session,
+    unavailability_id: int,
+    user_id: int,
+    enforce_month_lock: bool = True,
+) -> None:
     """Delete an unavailability record, enforcing ownership and month lock.
 
     Args:
@@ -246,9 +270,17 @@ def delete_unavailability(db: Session, unavailability_id: int, user_id: int) -> 
         HTTPException 400: If the record belongs to a locked (past) month.
     """
     record = get_unavailability(db, unavailability_id, user_id)
-    _ensure_editable_date(record.date_absent)
+    _ensure_writable(db, record.date_absent, enforce_month_lock)
     db.delete(record)
     db.commit()
+
+
+def _duty_wish_of(user: User) -> MonthlyDutyWish:
+    """Both monthly wishes of one user, as the API returns them."""
+    return MonthlyDutyWish(
+        max_shifts_per_month=user.max_shifts_per_month,
+        max_surcharge_shifts_per_month=user.max_surcharge_shifts_per_month,
+    )
 
 
 def get_monthly_duty_wish(db: Session, user_id: int) -> MonthlyDutyWish:
@@ -259,20 +291,28 @@ def get_monthly_duty_wish(db: Session, user_id: int) -> MonthlyDutyWish:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found.",
         )
-    return MonthlyDutyWish(max_shifts_per_month=user.max_shifts_per_month)
+    return _duty_wish_of(user)
 
 
 def set_monthly_duty_wish(
     db: Session, user_id: int, data: MonthlyDutyWish
 ) -> MonthlyDutyWish:
-    """Store the user's monthly duty wish; ``None`` clears it."""
+    """Store the user's monthly duty wishes; ``None`` clears one.
+
+    Only the fields the request names are written, so the calendar can save
+    either wish on its own without touching the other.
+    """
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found.",
         )
-    user.max_shifts_per_month = data.max_shifts_per_month
+    sent = data.model_fields_set
+    if "max_shifts_per_month" in sent:
+        user.max_shifts_per_month = data.max_shifts_per_month
+    if "max_surcharge_shifts_per_month" in sent:
+        user.max_surcharge_shifts_per_month = data.max_surcharge_shifts_per_month
     commit_or_conflict(db, "Could not save the monthly duty wish.")
     db.refresh(user)
-    return MonthlyDutyWish(max_shifts_per_month=user.max_shifts_per_month)
+    return _duty_wish_of(user)

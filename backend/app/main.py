@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth  # Ak si vytvoríš router v api
+from app.api import availability_window
 from app.api import unavailability
 from app.api import ambulance_employee
 from app.api import competence
@@ -24,6 +25,7 @@ from app.services.audit_service import install_audit_hooks
 from app.services.automatic_schedule_generation_service import (
     automatic_schedule_generation_loop,
 )
+from app.services.availability_window_service import check_and_send_reminder
 
 # Register transactional audit hooks once for all application sessions.
 install_audit_hooks()
@@ -31,20 +33,32 @@ install_audit_hooks()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    """Run the monthly schedule clock for the lifetime of this server process."""
+    """Run the monthly clocks for the lifetime of this server process."""
     stop_event = asyncio.Event()
-    scheduler_task = None
+    tasks = []
     if settings.AUTOMATIC_SCHEDULE_GENERATION_ENABLED:
-        scheduler_task = asyncio.create_task(
-            automatic_schedule_generation_loop(stop_event),
-            name="automatic-monthly-schedule-generation",
+        tasks.append(
+            asyncio.create_task(
+                automatic_schedule_generation_loop(stop_event),
+                name="automatic-monthly-schedule-generation",
+            )
+        )
+    if settings.AVAILABILITY_REMINDER_ENABLED:
+        # The same polling clock, checking a different thing.
+        tasks.append(
+            asyncio.create_task(
+                automatic_schedule_generation_loop(
+                    stop_event, check=check_and_send_reminder
+                ),
+                name="availability-reminder",
+            )
         )
     try:
         yield
     finally:
         stop_event.set()
-        if scheduler_task is not None:
-            await scheduler_task
+        for task in tasks:
+            await task
 
 
 app = FastAPI(title="Scheduling API", lifespan=lifespan)
@@ -60,6 +74,7 @@ app.add_middleware(
 # Pripojenie routerov
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(unavailability.router, prefix="/unavailabilities", tags=["Unavailabilities"])
+app.include_router(availability_window.router, prefix="/availability", tags=["Availability Window"])
 app.include_router(ambulance_employee.router, prefix="/ambulances", tags=["Ambulance Employees"])
 app.include_router(competence.router, prefix="/ambulances", tags=["Competences"])
 app.include_router(competence_scenario.router, prefix="/ambulances", tags=["Competence Scenarios"])

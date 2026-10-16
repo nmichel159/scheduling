@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import AvailabilityWindowCard from '../components/AvailabilityWindowCard';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Toast from '../components/Toast';
 import { ChevronDownIcon, MailIcon } from '../components/NavIcons';
@@ -55,6 +56,8 @@ const ScheduleMailView = () => {
   // The shared hook: it clears its timer on unmount, and a newer message
   // restarts the clock instead of being cut short by the older one's timer.
   const [toast, notify] = useToast(3200);
+  // The wording last offered, so a refresh replaces it only while untouched.
+  const templateRef = useRef({ subject: '', body: '' });
 
   const load = useCallback(async () => {
     const [groupList, template] = await Promise.all([
@@ -62,8 +65,22 @@ const ScheduleMailView = () => {
       fetchFillRequestTemplate(),
     ]);
     setGroups(groupList);
+    templateRef.current = template;
     setSubject(template.subject);
     setBody(template.body);
+  }, []);
+
+  /* The due date in the message follows the lock day. */
+  const refreshTemplate = useCallback(async () => {
+    try {
+      const template = await fetchFillRequestTemplate();
+      const previous = templateRef.current;
+      templateRef.current = template;
+      setSubject((current) => (current === previous.subject ? template.subject : current));
+      setBody((current) => (current === previous.body ? template.body : current));
+    } catch {
+      // The old wording stays; it can be edited by hand.
+    }
   }, []);
 
   useEffect(() => {
@@ -182,6 +199,8 @@ const ScheduleMailView = () => {
           {t('schedule_mail.load_error')}
         </div>
       )}
+
+      <AvailabilityWindowCard onDaysSaved={refreshTemplate} />
 
       <div className="smail-layout">
         <section className="card smail-recipients" aria-labelledby="smail-recipients-title">

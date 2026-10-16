@@ -42,7 +42,7 @@ class FreshDatabaseMigrationTests(unittest.TestCase):
             with engine.connect() as connection:
                 self.assertEqual(
                     connection.scalar(sa.text("SELECT version_num FROM alembic_version")),
-                    "20260928_01",
+                    "20261016_03",
                 )
         finally:
             engine.dispose()

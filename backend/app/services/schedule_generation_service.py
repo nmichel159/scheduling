@@ -295,6 +295,9 @@ class SchedulingEmployee:
     soft_declined_dates: frozenset[date] = frozenset()
     #: The most duties a month the employee wants; None means no opinion.
     max_shifts_per_month: int | None = None
+    #: The most surcharged duties a month; None means no opinion and zero
+    #: asks for none at all.
+    max_surcharge_shifts_per_month: int | None = None
     #: Which kind of duty the employee would rather be given. It tilts the
     #: balance rather than filtering anything out.
     shift_preference: str = ANY_PREFERENCE
@@ -1130,6 +1133,12 @@ def solve_monthly_schedule(
     max_shifts_is_strict = policy.is_strict(MAX_SHIFTS)
     max_shifts_weight = policy.weight(MAX_SHIFTS)
     placed_by_user = Counter(user_id for user_id, _competence_id, _date in fixed_assignments)
+    placed_surcharge_by_user = Counter(
+        user_id
+        for user_id, competence_id, work_date in fixed_assignments
+        if competence_id in competences_by_id
+        and competences_by_id[competence_id].is_surcharge_on(work_date)
+    )
 
     objective_terms: list[LpAffineExpression] = []
     spread_terms: list[LpAffineExpression] = []
@@ -1288,6 +1297,26 @@ def solve_monthly_schedule(
                     f"wish_{employee.id}",
                 )
                 objective_terms.append(max_shifts_weight * over_wish)
+
+        # The surcharge wish follows the same rule as the duty wish, except
+        # that zero is a real answer here: no surcharged duty at all.
+        surcharge_wish = employee.max_surcharge_shifts_per_month
+        if surcharge_wish is not None and surcharge_variables:
+            if max_shifts_is_strict:
+                problem += (
+                    lpSum(surcharge_variables)
+                    <= max(surcharge_wish, placed_surcharge_by_user[employee.id]),
+                    f"surcharge_wish_{employee.id}",
+                )
+            elif max_shifts_weight > 0:
+                over_surcharge = LpVariable(
+                    f"over_surcharge_wish_{employee.id}", lowBound=0
+                )
+                problem += (
+                    over_surcharge >= lpSum(surcharge_variables) - surcharge_wish,
+                    f"surcharge_wish_{employee.id}",
+                )
+                objective_terms.append(max_shifts_weight * over_surcharge)
 
     balance = lpSum(objective_terms) + lpSum(overstaff_terms) + lpSum(breach_terms)
 
@@ -1496,6 +1525,9 @@ def generate_ambulance_monthly_schedule(
             UserAmbulance.ambulance_id == ambulance_id,
             UserAmbulance.is_active.is_(True),
             User.is_active.is_(True),
+            # An employee switched off for scheduling keeps their place in
+            # the workplace but is given no duty in a new plan.
+            User.scheduling_active.is_not(False),
         )
         .order_by(User.id)
         .all()
@@ -1639,6 +1671,7 @@ def generate_ambulance_monthly_schedule(
             preferred_dates=frozenset(preferred_dates[user.id]),
             soft_declined_dates=frozenset(soft_declined_dates[user.id]),
             max_shifts_per_month=user.max_shifts_per_month,
+            max_surcharge_shifts_per_month=user.max_surcharge_shifts_per_month,
             shift_preference=user.shift_preference or ANY_PREFERENCE,
             external_commitments=tuple(external_commitments[user.id]),
             absence_rules=tuple(sorted(absence_rules[user.id].items())),

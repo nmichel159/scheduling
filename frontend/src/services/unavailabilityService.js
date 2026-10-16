@@ -98,17 +98,22 @@ export async function deleteUnavailability(id) {
 
 /* ---------- monthly duty wish ---------- */
 
-/** How many duties a month the user wants at most (null = no opinion). */
+/** Both wishes as the calendar keeps them; null means no opinion. */
+const wishOf = (data) => ({
+  max_shifts_per_month: data.max_shifts_per_month ?? null,
+  max_surcharge_shifts_per_month: data.max_surcharge_shifts_per_month ?? null,
+});
+
+/** How many duties, and how many surcharged ones, the user wants at most. */
 export async function fetchMonthlyWish() {
   const { data } = await client.get('/unavailabilities/monthly-wish');
-  return data.max_shifts_per_month ?? null;
+  return wishOf(data);
 }
 
-export async function saveMonthlyWish(maxShiftsPerMonth) {
-  const { data } = await client.put('/unavailabilities/monthly-wish', {
-    max_shifts_per_month: maxShiftsPerMonth,
-  });
-  return data.max_shifts_per_month ?? null;
+/** Store the wishes named in `changes`; the others keep their value. */
+export async function saveMonthlyWish(changes) {
+  const { data } = await client.put('/unavailabilities/monthly-wish', changes);
+  return wishOf(data);
 }
 
 /* ---------- the same calendar, read and written by a manager ----------
@@ -168,18 +173,18 @@ export async function deleteEmployeeUnavailability(ambulanceId, userId, id) {
   );
 }
 
-/** One employee's monthly duty wish (null = no opinion). */
+/** One employee's monthly duty wishes (null = no opinion). */
 export async function fetchEmployeeMonthlyWish(ambulanceId, userId) {
   const { data } = await client.get(
     `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities/monthly-wish`
   );
-  return data.max_shifts_per_month ?? null;
+  return wishOf(data);
 }
 
-export async function saveEmployeeMonthlyWish(ambulanceId, userId, maxShiftsPerMonth) {
+export async function saveEmployeeMonthlyWish(ambulanceId, userId, changes) {
   const { data } = await client.put(
     `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities/monthly-wish`,
-    { max_shifts_per_month: maxShiftsPerMonth }
+    changes
   );
-  return data.max_shifts_per_month ?? null;
+  return wishOf(data);
 }

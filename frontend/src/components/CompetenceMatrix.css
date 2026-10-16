@@ -496,6 +496,39 @@
   }
 }
 
+/* --- the person's own settings, before the competences --- */
+
+.cmatrix-table .cmatrix-setting-col {
+  min-width: 0;
+  max-width: 120px;
+  white-space: normal;
+  vertical-align: middle;
+}
+
+.cmatrix-table .is-group-end {
+  border-right: 2px solid var(--border-strong);
+}
+
+.cmatrix-table td.cmatrix-setting-td {
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.cmatrix-table td.cmatrix-setting-td.is-toggle {
+  min-width: 72px;
+  padding: 0;
+}
+
+.cmatrix-number {
+  width: 64px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.cmatrix-select {
+  width: 150px;
+}
+
 /* The competence cell — the whole cell is one clickable button, with a
  * checkbox drawn in its middle. An assigned cell is also faintly tinted,
  * so who can do what reads down a column at a glance. */

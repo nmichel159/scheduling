@@ -9,6 +9,7 @@ import {
   fetchMonthlyWish,
   saveMonthlyWish,
 } from '../services/unavailabilityService';
+import { fetchMonthStatus } from '../services/availabilityService';
 import './WorkloadView.css';
 
 /** The authenticated employee's own restriction calendar. */
@@ -37,6 +38,7 @@ const WorkloadView = () => {
         deleteEntry={deleteEntry}
         fetchMonthlyWish={loadWish}
         saveMonthlyWish={storeWish}
+        fetchMonthStatus={fetchMonthStatus}
       />
     </div>
   );

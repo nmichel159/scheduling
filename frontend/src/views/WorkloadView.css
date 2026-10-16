@@ -66,6 +66,12 @@
   margin-bottom: 16px;
 }
 
+.workload-wishes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+}
+
 .workload-wish {
   display: flex;
   align-items: center;
@@ -346,8 +352,12 @@
     font-size: var(--fs-xs);
   }
 
-  .workload-wish {
+  .workload-wishes {
     flex: 1;
+    flex-direction: column;
+  }
+
+  .workload-wish {
     justify-content: space-between;
   }
 }

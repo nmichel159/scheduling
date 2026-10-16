@@ -294,7 +294,7 @@ def create_employee_unavailability_endpoint(
     db: Session = Depends(get_db),
 ) -> UnavailabilityResponse:
     """Create a restriction for an employee of the manager's ambulance."""
-    return create_unavailability(db, employee.id, data)
+    return create_unavailability(db, employee.id, data, enforce_month_lock=False)
 
 
 @router.put(
@@ -309,7 +309,9 @@ def update_employee_unavailability_endpoint(
     db: Session = Depends(get_db),
 ) -> UnavailabilityResponse:
     """Update a restriction owned by an employee of the managed ambulance."""
-    return update_unavailability(db, unavailability_id, employee.id, data)
+    return update_unavailability(
+        db, unavailability_id, employee.id, data, enforce_month_lock=False
+    )
 
 
 @router.delete(
@@ -323,7 +325,7 @@ def delete_employee_unavailability_endpoint(
     db: Session = Depends(get_db),
 ) -> None:
     """Delete a restriction owned by an employee of the managed ambulance."""
-    delete_unavailability(db, unavailability_id, employee.id)
+    delete_unavailability(db, unavailability_id, employee.id, enforce_month_lock=False)
 
 
 @router.post(

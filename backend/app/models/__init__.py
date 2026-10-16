@@ -13,6 +13,7 @@ from app.models.constraint_setting import ConstraintSetting
 from app.models.audit import AuditLog
 from app.models.seed_version import SeedVersion
 from app.models.automatic_schedule_generation_run import AutomaticScheduleGenerationRun
+from app.models.availability_window import AvailabilityPeriod, AvailabilitySettings
 
 __all__ = [
     "User",
@@ -33,4 +34,6 @@ __all__ = [
     "UserCompetence",
     "SeedVersion",
     "AutomaticScheduleGenerationRun",
+    "AvailabilitySettings",
+    "AvailabilityPeriod",
 ]

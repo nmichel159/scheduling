@@ -182,6 +182,7 @@ class EmployeeScheduleContext(BaseModel):
 
     user_id: int
     max_shifts_per_month: int | None = None
+    max_surcharge_shifts_per_month: int | None = None
     marks: list[ScheduleContextMark] = Field(default_factory=list)
     duties: list[ScheduleContextDuty] = Field(default_factory=list)
 

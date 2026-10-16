@@ -111,6 +111,7 @@
       "6": "Ne"
     },
     "wish_label": "Max. služieb za mesiac",
+    "surcharge_wish_label": "Max. príplatkových služieb",
     "wish_placeholder": "bez limitu",
     "wish_invalid": "Zadajte celé číslo od 0 do 31.",
     "states": {
@@ -120,9 +121,12 @@
       "vacation": "Dovolenka",
       "business-trip": "Služobná cesta",
       "none": "Bez označenia"
-    }
+    },
+    "locked_month": "Obmedzenia na tento mesiac sú uzavreté."
   },
   "departments": {
+    "col_max_shifts": "Max. služieb",
+    "col_max_surcharge": "Max. príplatkových",
     "title": "Moje pracoviská",
     "subtitle": "Spravujte zamestnancov pracovísk, ktoré vediete. Zamestnanca môžete kedykoľvek pridať alebo odobrať.",
     "loading": "Načítavam...",
@@ -559,10 +563,15 @@
     "no_shifts": "Bez služby",
     "stat_shifts": "Služby",
     "max_shifts": "Max. počet služieb za mesiac",
+    "max_surcharge_shifts": "Max. počet príplatkových služieb za mesiac",
     "preference": "Preferuje služby",
     "preference_surcharge": "Príplatkové",
     "preference_standard": "Štandardné",
     "preference_any": "Je mu to jedno",
+    "status": "Stav",
+    "active": "Aktívny",
+    "inactive": "Neaktívny",
+    "scheduling_active": "Plánovať do služieb",
     "save": "Uložiť",
     "saving": "Ukladám...",
     "sort": "Zoradenie",
@@ -715,6 +724,30 @@
       "soft_decline": "Nechcem",
       "preferred": "Chcem",
       "spread": "Rozostup služieb"
+    }
+  },
+  "availability_window": {
+    "title": "Uzávierka obmedzení – {{month}}",
+    "open": "Otvorené",
+    "locked": "Uzavreté",
+    "manual": "ručne",
+    "lock": "Uzavrieť",
+    "unlock": "Otvoriť",
+    "reminder": "Upozornenie",
+    "lock_date": "Uzávierka",
+    "reminder_day": "Deň upozornenia",
+    "lock_day": "Deň uzávierky",
+    "save": "Uložiť",
+    "invalid_days": "Deň upozornenia musí byť pred dňom uzávierky (1 – 28).",
+    "load_error": "Uzávierku sa nepodarilo načítať.",
+    "save_failed": "Zmenu sa nepodarilo uložiť.",
+    "reminder_status": {
+      "planned": "naplánované",
+      "sent": "odoslané ({{count}})",
+      "dry-run": "odoslané skúšobne ({{count}})",
+      "failed": "zlyhalo",
+      "not-configured": "e-maily nie sú nastavené",
+      "skipped": "neodoslané"
     }
   }
 }

@@ -539,6 +539,7 @@ const EmployeesView = () => {
                 * stands over the numbers it names. */}
               <div className="employees-legend" aria-hidden="true">
                 <span className="employees-legend-person">{t('competences.employee')}</span>
+                <span className="employees-legend-status">{t('employees.status')}</span>
                 <span className="employees-legend-tags">{t('competences.title')}</span>
                 <span className="employees-legend-marked">{t('employees.marked_dates')}</span>
                 <span className="employees-stats">
@@ -570,8 +571,12 @@ const EmployeesView = () => {
                   const shownTags = tags.slice(0, VISIBLE_TAGS);
                   const hiddenTags = tags.slice(VISIBLE_TAGS);
                   const marked = markedGroups(load[e.user_id]?.marked_dates);
+                  const isActive = load[e.user_id]?.scheduling_active !== false;
                   return (
-                    <li key={e.user_id} className="employees-item">
+                    <li
+                      key={e.user_id}
+                      className={`employees-item ${isActive ? '' : 'is-inactive'}`.trim()}
+                    >
                       {/* The overlay is the row's button, so a click anywhere
                         * that is not a competence chip opens the profile —
                         * the chips sit above it and filter instead. */}
@@ -594,6 +599,14 @@ const EmployeesView = () => {
                               {e.email}
                             </span>
                           )}
+                        </span>
+
+                        <span className="employees-status">
+                          <span
+                            className={`badge ${isActive ? 'badge-success' : ''}`.trim()}
+                          >
+                            {t(isActive ? 'employees.active' : 'employees.inactive')}
+                          </span>
                         </span>
 
                         <span className="employees-tags">
@@ -754,7 +767,12 @@ const EmployeesView = () => {
                   detailLoad && detailLoad.max_shifts_per_month != null
                     ? detailLoad.max_shifts_per_month
                     : null,
+                max_surcharge_shifts_per_month:
+                  detailLoad && detailLoad.max_surcharge_shifts_per_month != null
+                    ? detailLoad.max_surcharge_shifts_per_month
+                    : null,
                 shift_preference: (detailLoad && detailLoad.shift_preference) || 'any',
+                scheduling_active: !detailLoad || detailLoad.scheduling_active !== false,
               }
             : null
         }
