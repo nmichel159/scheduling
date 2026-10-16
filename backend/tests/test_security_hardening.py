@@ -43,7 +43,13 @@ class ApiSecurityRegressionTests(unittest.TestCase):
             "require_admin_role",
             "require_manager_role",
         }
-        intentionally_public = {"/", "/auth/google"}
+        intentionally_public = {
+            "/",
+            "/auth/google",
+            "/auth/login",
+            "/auth/password/forgot",
+            "/auth/password/reset",
+        }
 
         for route in app.routes:
             if not isinstance(route, APIRoute) or route.path in intentionally_public:

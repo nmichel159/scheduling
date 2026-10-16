@@ -143,3 +143,58 @@
     padding: 28px 20px 22px;
   }
 }
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+.login-link {
+  align-self: center;
+  padding: 2px 4px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--primary);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.login-link:hover {
+  text-decoration: underline;
+}
+
+.login-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.login-forgot {
+  align-self: flex-end;
+  margin-top: -4px;
+}
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: var(--secondary);
+  font-size: var(--fs-xs);
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.login-title + .login-form,
+.login-title + .login-error {
+  margin-top: 24px;
+}

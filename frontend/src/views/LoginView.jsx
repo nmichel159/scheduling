@@ -4,6 +4,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
 import client from '../api/client';
 import { fetchMyRoles } from '../services/roleService';
+import { loginWithPassword, requestPasswordReset } from '../services/authService';
 import { getStoredRoles, landingPathFor, storeRoles } from '../hooks/useRoles';
 import logo from '../assets/logo.jpg';
 import './LoginView.css';
@@ -29,7 +30,12 @@ const LoginView = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [signingIn, setSigningIn] = useState(false);
+  // 'login' = e-mail + heslo a Google, 'forgot' = žiadosť o odkaz na nové heslo.
+  const [mode, setMode] = useState('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   useEffect(() => {
     if (localStorage.getItem('user')) {
@@ -50,6 +56,21 @@ const LoginView = () => {
     }
   }, [navigate]);
 
+  const finishLogin = async (user) => {
+    localStorage.setItem('user', JSON.stringify(user));
+
+    // Role rozhodujú o tom, čo sa v UI zobrazí (pokyn: podľa GET /roles/me).
+    let roles = [];
+    try {
+      roles = await fetchMyRoles();
+    } catch {
+      roles = [];
+    }
+    storeRoles(roles);
+
+    navigate(landingPathFor(roles));
+  };
+
   const login = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setSigningIn(true);
@@ -58,18 +79,7 @@ const LoginView = () => {
         const response = await client.post('/auth/google', {
           token: tokenResponse.access_token,
         });
-        localStorage.setItem('user', JSON.stringify(response.data));
-
-        // Role rozhodujú o tom, čo sa v UI zobrazí (pokyn: podľa GET /roles/me).
-        let roles = [];
-        try {
-          roles = await fetchMyRoles();
-        } catch {
-          roles = [];
-        }
-        storeRoles(roles);
-
-        navigate(landingPathFor(roles));
+        await finishLogin(response.data);
       } catch (err) {
         console.error('Chyba pri prihlasovaní na backend:', err);
         setError(t('login_error_backend'));
@@ -83,6 +93,45 @@ const LoginView = () => {
     // Zatvorené okno Google nie je chyba — len vrátime tlačidlo do pôvodného stavu.
     onNonOAuthError: () => setSigningIn(false),
   });
+
+  const submitPassword = async (e) => {
+    e.preventDefault();
+    setError('');
+    setNotice('');
+    setSigningIn(true);
+    try {
+      await finishLogin(await loginWithPassword(email.trim(), password));
+    } catch (err) {
+      const status = err.response?.status;
+      if (status === 401) setError(t('password.invalid_credentials'));
+      else if (status === 429) setError(t('password.too_many'));
+      else setError(t('login_error_backend'));
+      setSigningIn(false);
+    }
+  };
+
+  const submitForgot = async (e) => {
+    e.preventDefault();
+    setError('');
+    setNotice('');
+    setSigningIn(true);
+    try {
+      await requestPasswordReset(email.trim());
+      setNotice(t('password.forgot_sent'));
+    } catch (err) {
+      setError(
+        err.response?.status === 503 ? t('password.mail_unavailable') : t('login_error_backend')
+      );
+    } finally {
+      setSigningIn(false);
+    }
+  };
+
+  const switchMode = (next) => {
+    setMode(next);
+    setError('');
+    setNotice('');
+  };
 
   const currentLanguage = i18n.resolvedLanguage || 'sk';
 
@@ -108,29 +157,119 @@ const LoginView = () => {
           <span className="login-brand-name">{t('app_title')}</span>
         </div>
 
-        <h1 id="login-title" className="login-title">{t('login_heading')}</h1>
-        <p className="login-subtitle">{t('login_subtitle')}</p>
+        <h1 id="login-title" className="login-title">
+          {mode === 'forgot' ? t('password.forgot_title') : t('login_heading')}
+        </h1>
+        {mode === 'login' && <p className="login-subtitle">{t('login_subtitle')}</p>}
 
         {error && (
           <div className="alert alert-danger login-error" role="alert">
             {error}
           </div>
         )}
+        {notice && (
+          <div className="alert alert-success login-error" role="status">
+            {notice}
+          </div>
+        )}
 
-        <button
-          type="button"
-          className="btn btn-lg btn-block login-google"
-          onClick={() => {
-            setError('');
-            setSigningIn(true);
-            login();
-          }}
-          disabled={signingIn}
-        >
-          {signingIn ? <span className="spinner" aria-hidden="true" /> : <GoogleLogo />}
-          {signingIn ? t('login_signing_in') : t('login_google')}
-        </button>
-        <p className="login-hint">{t('login_hint')}</p>
+        {mode === 'login' ? (
+          <>
+            <form className="login-form" onSubmit={submitPassword}>
+              <div className="field">
+                <label className="field-label" htmlFor="login-email">
+                  {t('password.email')}
+                </label>
+                <input
+                  id="login-email"
+                  className="input"
+                  type="email"
+                  autoComplete="username"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={signingIn}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="login-password">
+                  {t('password.password')}
+                </label>
+                <input
+                  id="login-password"
+                  className="input"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={signingIn}
+                  required
+                />
+              </div>
+              <button
+                type="button"
+                className="login-link login-forgot"
+                onClick={() => switchMode('forgot')}
+              >
+                {t('password.forgot')}
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary btn-lg btn-block"
+                disabled={signingIn || !email.trim() || !password}
+              >
+                {t('password.sign_in')}
+              </button>
+            </form>
+
+            <div className="login-divider" role="separator">
+              <span>{t('password.or')}</span>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-lg btn-block login-google"
+              onClick={() => {
+                setError('');
+                setNotice('');
+                setSigningIn(true);
+                login();
+              }}
+              disabled={signingIn}
+            >
+              {signingIn ? <span className="spinner" aria-hidden="true" /> : <GoogleLogo />}
+              {signingIn ? t('login_signing_in') : t('login_google')}
+            </button>
+          </>
+        ) : (
+          <form className="login-form" onSubmit={submitForgot}>
+            <div className="field">
+              <label className="field-label" htmlFor="forgot-email">
+                {t('password.email')}
+              </label>
+              <input
+                id="forgot-email"
+                className="input"
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={signingIn}
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="btn btn-primary btn-lg btn-block"
+              disabled={signingIn || !email.trim()}
+            >
+              {t('password.send_link')}
+            </button>
+            <button type="button" className="login-link" onClick={() => switchMode('login')}>
+              {t('password.back_to_login')}
+            </button>
+          </form>
+        )}
       </section>
 
       <p className="login-footer">

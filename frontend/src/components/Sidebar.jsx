@@ -3,9 +3,12 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useRoles } from '../hooks/useRoles';
 import { useMediaQuery, DESKTOP_QUERY } from '../hooks/useMediaQuery';
+import { useToast } from '../hooks/useToast';
+import ChangePasswordDialog from './ChangePasswordDialog';
 import ConfirmDialog from './ConfirmDialog';
 import QuickJump from './QuickJump';
 import SettingsDialog from './SettingsDialog';
+import Toast from './Toast';
 import WorkplaceSwitcher from './WorkplaceSwitcher';
 import {
   AdminIcon,
@@ -15,6 +18,7 @@ import {
   EmployeesIcon,
   HomeIcon,
   LimitsIcon,
+  LockIcon,
   LogoutIcon,
   MailIcon,
   MoreIcon,
@@ -181,6 +185,9 @@ const Sidebar = ({ open, onToggle, onClose }) => {
   const [workplaceMenuOpen, setWorkplaceMenuOpen] = useState(false);
   const [quickJumpOpen, setQuickJumpOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [toast, notify] = useToast();
+  const closePasswordDialog = useCallback(() => setPasswordOpen(false), []);
   const [logoutAsked, setLogoutAsked] = useState(false);
 
   const closeTimer = useRef(null);
@@ -360,6 +367,17 @@ const Sidebar = ({ open, onToggle, onClose }) => {
       >
         <SettingsIcon className="nav-icon" />
         {t('sidebar.settings')}
+      </button>
+      <button
+        type="button"
+        className="nav-menu-item"
+        onClick={() => {
+          setUserMenu(null);
+          setPasswordOpen(true);
+        }}
+      >
+        <LockIcon className="nav-icon" />
+        {t('password.change')}
       </button>
       <hr className="nav-menu-divider" />
       <button
@@ -580,6 +598,13 @@ const Sidebar = ({ open, onToggle, onClose }) => {
       />
 
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      <ChangePasswordDialog
+        open={passwordOpen}
+        onClose={closePasswordDialog}
+        onChanged={() => notify(t('password.changed'))}
+      />
+      <Toast message={toast} tone="success" />
 
       <ConfirmDialog
         open={logoutAsked}

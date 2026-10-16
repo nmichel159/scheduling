@@ -22,6 +22,13 @@ class User(Base):
     # Stores only a SHA-256 digest of an opaque browser-session token.
     auth_token = Column(String(64), nullable=True, index=True)
     auth_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    # Scrypt hash of the password the employee chose. NULL means none was
+    # chosen yet, and the account still signs in with its e-mail as the
+    # password -- the one it was given when a scheduler or admin created it.
+    password_hash = Column(String(255), nullable=True)
+    # SHA-256 digest of the single outstanding "forgot password" link.
+    password_reset_token = Column(String(64), nullable=True, index=True)
+    password_reset_expires_at = Column(DateTime(timezone=True), nullable=True)
     login_count = Column(Integer, default=0)
     # How many duties a month the employee wants at most. NULL means no
     # opinion, which is not the same as wishing for zero duties.

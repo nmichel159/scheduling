@@ -14,7 +14,7 @@ const client = axios.create({
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    const isLoginRequest = error.config?.url === '/auth/google';
+    const isLoginRequest = ['/auth/google', '/auth/login'].includes(error.config?.url);
     if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem('user');
       localStorage.removeItem('roles');

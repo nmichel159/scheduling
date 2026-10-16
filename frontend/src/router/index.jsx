@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
 import LoginView from '../views/LoginView';
+import ResetPasswordView from '../views/ResetPasswordView';
 import DashboardView from '../views/DashboardView';
 import WorkloadView from '../views/WorkloadView';
 import ScheduleView from '../views/ScheduleView';
@@ -26,6 +27,11 @@ export const router = createBrowserRouter([
     path: "/",
     element: <LoginView />,
     // Neznámu adresu router ohlási ako 404 práve na tejto koreňovej ceste.
+    errorElement: <RouteErrorView />,
+  },
+  {
+    path: "/reset-password",
+    element: <ResetPasswordView />,
     errorElement: <RouteErrorView />,
   },
   {
