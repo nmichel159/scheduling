@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { changePassword, passwordErrorMessage } from '../services/authService';
+import { changePassword, fetchMe, passwordErrorMessage } from '../services/authService';
 import { CloseIcon } from './NavIcons';
 
 const EMPTY = { current: '', next: '', confirm: '' };
@@ -14,11 +14,17 @@ const ChangePasswordDialog = ({ open, onClose, onChanged }) => {
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  // Kto sa prihlásil cez Google a heslo ešte nemá, súčasné nezadáva.
+  const [hasPassword, setHasPassword] = useState(true);
 
   useEffect(() => {
     if (!open) return undefined;
     setForm(EMPTY);
     setError('');
+    setHasPassword(true);
+    fetchMe()
+      .then((me) => setHasPassword(Boolean(me.has_password)))
+      .catch(() => {});
     firstRef.current?.focus();
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onClose();
@@ -30,7 +36,7 @@ const ChangePasswordDialog = ({ open, onClose, onChanged }) => {
   if (!open) return null;
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
-  const valid = form.current && form.next && form.confirm;
+  const valid = (form.current || !hasPassword) && form.next && form.confirm;
 
   const submit = async (e) => {
     e.preventDefault();
@@ -52,10 +58,10 @@ const ChangePasswordDialog = ({ open, onClose, onChanged }) => {
   };
 
   const fields = [
-    { key: 'current', label: t('password.current'), autoComplete: 'current-password' },
+    hasPassword && { key: 'current', label: t('password.current'), autoComplete: 'current-password' },
     { key: 'next', label: t('password.new'), autoComplete: 'new-password' },
     { key: 'confirm', label: t('password.confirm'), autoComplete: 'new-password' },
-  ];
+  ].filter(Boolean);
 
   return createPortal(
     <div

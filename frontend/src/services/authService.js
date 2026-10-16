@@ -3,6 +3,8 @@ import client from '../api/client';
 export const loginWithPassword = (email, password) =>
   client.post('/auth/login', { email, password }).then((response) => response.data);
 
+export const fetchMe = () => client.get('/auth/me').then((response) => response.data);
+
 export const changePassword = (currentPassword, newPassword) =>
   client.post('/auth/password/change', {
     current_password: currentPassword,

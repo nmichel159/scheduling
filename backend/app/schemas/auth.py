@@ -9,6 +9,7 @@ class UserResponse(BaseModel):
     email: str
     full_name: Optional[str]
     login_count: int
+    has_password: bool = False
     
     class Config:
         from_attributes = True

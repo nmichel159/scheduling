@@ -50,6 +50,19 @@ def _start_session(db: Session, user: User, request: Request, response: Response
     )
 
 
+def _client_address(request: Request) -> str:
+    """The address the sign-in came from, for throttling failed attempts.
+
+    Behind the hosting proxy every request arrives from the proxy itself, so
+    the last X-Forwarded-For entry -- the one the proxy appended -- is used;
+    earlier entries are whatever the client claimed and are not trusted.
+    """
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded.strip():
+        return forwarded.split(",")[-1].strip()
+    return request.client.host if request.client else ""
+
+
 def get_authentication_provider() -> GoogleAuthenticationProvider:
     """Dependency seam for swapping Google for another identity provider."""
     return GoogleAuthenticationProvider()
@@ -70,6 +83,11 @@ def google_auth(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
 
 
+@router.get("/me", response_model=UserResponse)
+def me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(response: Response, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Revoke the active server-side session and remove the browser cookie."""
@@ -86,7 +104,9 @@ def password_login(
 ):
     """Sign in with the e-mail and password of an existing account."""
     try:
-        user = authenticate_with_password(db, data.email, data.password)
+        user = authenticate_with_password(
+            db, data.email, data.password, _client_address(request)
+        )
     except TooManyAttemptsError as exc:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,

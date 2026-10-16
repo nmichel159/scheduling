@@ -1,7 +1,8 @@
-"""Signing in with an e-mail and a password, changing it and resetting it."""
+"""Signing in with an e-mail and a password, setting, changing and resetting it."""
 
 import unittest
 from datetime import datetime, timedelta, timezone
+import unittest.mock
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -12,8 +13,18 @@ from sqlalchemy.pool import StaticPool
 from app.core.config import settings
 from app.db.session import Base, get_db
 from app.main import app
-from app.models import Role, User
+from app.models import Ambulance, Role, User
+from app.schemas.ambulance_employee import EmployeeAccountCreate
 from app.services import password_service
+from app.services.ambulance_employee_service import create_employee_account
+from app.services.auth_service import issue_session
+
+LINK_PREFIX = "https://app.example.com/reset-password?token="
+
+
+def _token_from(message) -> str:
+    body = message.get_content()
+    return body[body.index(LINK_PREFIX) + len(LINK_PREFIX):].split()[0]
 
 
 class PasswordLoginTests(unittest.TestCase):
@@ -48,25 +59,73 @@ class PasswordLoginTests(unittest.TestCase):
         app.dependency_overrides.pop(get_db, None)
         self.engine.dispose()
 
+    def _mail(self, sent: list):
+        """Patches under which mail 'goes out' into ``sent``."""
+        return (
+            patch.object(settings, "MAIL_DRY_RUN", True),
+            patch.object(settings, "MAIL_FROM", "noreply@example.com"),
+            patch.object(settings, "APP_URL", "https://app.example.com"),
+            patch.object(password_service, "send_message", side_effect=sent.append),
+        )
+
     def _user(self) -> User:
         db = self.Session()
         user = db.query(User).filter_by(email="jana@example.com").one()
         db.close()
         return user
 
-    def _login(self, email: str, password: str):
-        return self.client.post("/auth/login", json={"email": email, "password": password})
+    def _login(self, email: str, password: str, address: str | None = None):
+        headers = {"X-Forwarded-For": address} if address else None
+        return self.client.post(
+            "/auth/login", json={"email": email, "password": password}, headers=headers
+        )
 
-    def test_initial_password_is_the_email(self) -> None:
-        response = self._login(" Jana@Example.com", "jana@example.com")
+    def _set_password(self, password: str) -> None:
+        db = self.Session()
+        user = db.query(User).filter_by(email="jana@example.com").one()
+        user.password_hash = password_service.hash_password(password)
+        db.commit()
+        db.close()
+
+    def _google_session(self) -> None:
+        """Sign Jana in the way Google does: a session, but no password."""
+        db = self.Session()
+        user = db.query(User).filter_by(email="jana@example.com").one()
+        token = issue_session(db, user)
+        db.close()
+        self.client.cookies.set(settings.SESSION_COOKIE_NAME, token)
+
+    def _create_account(self, email: str):
+        db = self.Session()
+        ambulance = Ambulance(name="A")
+        db.add(ambulance)
+        db.commit()
+        row = create_employee_account(
+            db,
+            ambulance.id,
+            EmployeeAccountCreate(first_name="A", last_name="B", email=email),
+        )
+        token = db.get(User, row.user_id).password_reset_token
+        db.close()
+        return token
+
+    def test_no_password_login_until_one_is_set(self) -> None:
+        self.assertEqual(self._login("jana@example.com", "jana@example.com").status_code, 401)
+        self.assertEqual(self._login("jana@example.com", "").status_code, 401)
+
+        self._set_password("secret-123")
+        response = self._login(" Jana@Example.com", "secret-123")
         self.assertEqual(response.status_code, 200)
         self.assertIn(settings.SESSION_COOKIE_NAME, response.cookies)
         self.assertEqual(response.json()["login_count"], 1)
+        self.assertTrue(response.json()["has_password"])
         self.assertEqual(self.client.get("/roles/me").status_code, 200)
+        self.assertTrue(self.client.get("/auth/me").json()["has_password"])
 
     def test_unknown_inactive_and_wrong_password_are_rejected_alike(self) -> None:
+        self._set_password("secret-123")
         for email, password in (
-            ("nobody@example.com", "nobody@example.com"),
+            ("nobody@example.com", "secret-123"),
             ("off@example.com", "off@example.com"),
             ("jana@example.com", "wrong"),
         ):
@@ -75,42 +134,66 @@ class PasswordLoginTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 401)
                 self.assertEqual(response.json()["detail"], "Invalid e-mail or password")
 
-    def test_repeated_failures_are_throttled(self) -> None:
+    def test_failures_are_throttled_per_client(self) -> None:
+        self._set_password("secret-123")
         for _ in range(password_service.MAX_FAILED_LOGINS):
-            self.assertEqual(self._login("jana@example.com", "wrong").status_code, 401)
-        response = self._login("jana@example.com", "jana@example.com")
-        self.assertEqual(response.status_code, 429)
-        self.assertIn("retry-after", response.headers)
+            self.assertEqual(self._login("jana@example.com", "wrong", "10.0.0.66").status_code, 401)
+        blocked = self._login("jana@example.com", "secret-123", "10.0.0.66")
+        self.assertEqual(blocked.status_code, 429)
+        self.assertIn("retry-after", blocked.headers)
+        # Somebody else failing on purpose does not lock the owner out, and a
+        # forged first entry does not make the same client somebody else.
+        self.assertEqual(self._login("jana@example.com", "secret-123", "10.0.0.7").status_code, 200)
+        self.assertEqual(
+            self._login("jana@example.com", "secret-123", "1.2.3.4, 10.0.0.66").status_code, 429
+        )
 
-    def test_change_password_replaces_the_initial_one(self) -> None:
-        self._login("jana@example.com", "jana@example.com")
+    def test_many_clients_together_are_throttled_per_account(self) -> None:
+        self._set_password("secret-123")
+        for i in range(password_service.MAX_FAILED_LOGINS_PER_ACCOUNT):
+            self._login("jana@example.com", "wrong", f"10.1.0.{i}")
+        self.assertEqual(self._login("jana@example.com", "secret-123", "10.9.9.9").status_code, 429)
+
+    def test_signed_in_without_password_sets_one_without_current(self) -> None:
+        self._google_session()
+        self.assertFalse(self.client.get("/auth/me").json()["has_password"])
+        ok = self.client.post(
+            "/auth/password/change",
+            json={"current_password": "", "new_password": "secret-123"},
+        )
+        self.assertEqual(ok.status_code, 204)
+        self.assertEqual(self._login("jana@example.com", "secret-123").status_code, 200)
+
+    def test_change_password_checks_the_current_one(self) -> None:
+        self._set_password("secret-123")
+        self._login("jana@example.com", "secret-123")
         wrong = self.client.post(
             "/auth/password/change",
-            json={"current_password": "nope", "new_password": "secret-123"},
+            json={"current_password": "nope", "new_password": "other-1234"},
         )
         self.assertEqual(wrong.status_code, 400)
         self.assertEqual(wrong.json()["detail"], "wrong_current_password")
         for new, code in (("short", "password_too_short"), ("JANA@example.com", "password_equals_email")):
             response = self.client.post(
                 "/auth/password/change",
-                json={"current_password": "jana@example.com", "new_password": new},
+                json={"current_password": "secret-123", "new_password": new},
             )
             self.assertEqual(response.json()["detail"], code)
 
         ok = self.client.post(
             "/auth/password/change",
-            json={"current_password": "jana@example.com", "new_password": "secret-123"},
+            json={"current_password": "secret-123", "new_password": "other-1234"},
         )
         self.assertEqual(ok.status_code, 204)
         self.assertTrue(self._user().password_hash.startswith("scrypt$"))
 
         fresh = TestClient(app)
         self.assertEqual(
-            fresh.post("/auth/login", json={"email": "jana@example.com", "password": "jana@example.com"}).status_code,
+            fresh.post("/auth/login", json={"email": "jana@example.com", "password": "secret-123"}).status_code,
             401,
         )
         self.assertEqual(
-            fresh.post("/auth/login", json={"email": "jana@example.com", "password": "secret-123"}).status_code,
+            fresh.post("/auth/login", json={"email": "jana@example.com", "password": "other-1234"}).status_code,
             200,
         )
 
@@ -121,22 +204,38 @@ class PasswordLoginTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 401)
 
-    def test_forgot_and_reset_password(self) -> None:
+    def test_new_account_is_mailed_a_setup_link(self) -> None:
         sent = []
-        with (
-            patch.object(settings, "MAIL_DRY_RUN", True),
-            patch.object(settings, "MAIL_FROM", "noreply@example.com"),
-            patch.object(settings, "APP_URL", "https://app.example.com"),
-            patch.object(password_service, "send_message", side_effect=sent.append),
-        ):
+        patches = self._mail(sent)
+        with patches[0], patches[1], patches[2], patches[3]:
+            self._create_account("novy@example.com")
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(sent[0]["To"], "novy@example.com")
+        self.assertEqual(sent[0]["Subject"], "Nastavenie hesla")
+        token = _token_from(sent[0])
+
+        self.assertEqual(self._login("novy@example.com", "novy@example.com").status_code, 401)
+        ok = self.client.post("/auth/password/reset", json={"token": token, "new_password": "secret-123"})
+        self.assertEqual(ok.status_code, 204)
+        self.assertEqual(self._login("novy@example.com", "secret-123").status_code, 200)
+
+    def test_new_account_without_mail_server_is_still_created(self) -> None:
+        with patch.object(settings, "MAIL_DRY_RUN", False), patch.object(settings, "SMTP_HOST", ""):
+            token = self._create_account("ab@example.com")
+        self.assertIsNone(token)
+
+    def test_forgot_and_reset_password(self) -> None:
+        self._set_password("old-password")
+        sent = []
+        patches = self._mail(sent)
+        with patches[0], patches[1], patches[2], patches[3]:
             unknown = self.client.post("/auth/password/forgot", json={"email": "nobody@example.com"})
             response = self.client.post("/auth/password/forgot", json={"email": "JANA@example.com"})
         self.assertEqual(unknown.status_code, 204)
         self.assertEqual(response.status_code, 204)
         self.assertEqual(len(sent), 1)
-        body = sent[0].get_content()
-        prefix = "https://app.example.com/reset-password?token="
-        token = body[body.index(prefix) + len(prefix):].split()[0]
+        self.assertEqual(sent[0]["Subject"], "Zmena hesla")
+        token = _token_from(sent[0])
         self.assertNotEqual(self._user().password_reset_token, token)
 
         bad = self.client.post("/auth/password/reset", json={"token": "x", "new_password": "secret-123"})
@@ -145,7 +244,30 @@ class PasswordLoginTests(unittest.TestCase):
         self.assertEqual(ok.status_code, 204)
         again = self.client.post("/auth/password/reset", json={"token": token, "new_password": "other-1234"})
         self.assertEqual(again.status_code, 400)
+        self.assertEqual(self._login("jana@example.com", "old-password").status_code, 401)
         self.assertEqual(self._login("jana@example.com", "secret-123").status_code, 200)
+
+    def test_forgot_without_a_password_sends_a_setup_mail(self) -> None:
+        sent = []
+        patches = self._mail(sent)
+        with patches[0], patches[1], patches[2], patches[3]:
+            self.client.post("/auth/password/forgot", json={"email": "jana@example.com"})
+        self.assertEqual(sent[0]["Subject"], "Nastavenie hesla")
+
+    def test_google_and_password_sign_in_to_the_same_account(self) -> None:
+        self._set_password("secret-123")
+        jana_id = self._user().id
+        google = unittest.mock.Mock(status_code=200)
+        google.json.return_value = {"email": "Jana@Example.com", "email_verified": True, "name": "Jana"}
+        with patch("app.services.auth_service.requests.get", return_value=google):
+            by_google = TestClient(app).post("/auth/google", json={"token": "t"})
+        by_password = self._login("jana@example.com", "secret-123")
+        self.assertEqual(by_google.status_code, 200)
+        self.assertEqual(by_google.json()["id"], jana_id)
+        self.assertEqual(by_password.json()["id"], jana_id)
+        db = self.Session()
+        self.assertEqual(db.query(User).filter(User.email.ilike("jana@example.com")).count(), 1)
+        db.close()
 
     def test_expired_reset_link_is_rejected(self) -> None:
         db = self.Session()

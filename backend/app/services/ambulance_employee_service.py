@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.ambulance import Ambulance
 from app.models.associations import UserAmbulance
 from app.models.user import User
+from app.services.password_service import send_setup_link
 from app.schemas.ambulance_employee import (
     AmbulanceListResponse,
     EmployeeAccountCreate,
@@ -297,6 +298,7 @@ def create_employee_account(
     db.add(UserAmbulance(user_id=user.id, ambulance_id=ambulance_id, is_active=True))
     db.commit()
     db.refresh(user)
+    send_setup_link(db, user)
     return EmployeeListResponse(
         user_id=user.id, email=user.email, full_name=user.full_name
     )

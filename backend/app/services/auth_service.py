@@ -4,6 +4,7 @@ import secrets
 from typing import Any
 
 import requests
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.associations import UserRole
 from app.models.role import Role
@@ -23,11 +24,13 @@ class GoogleAuthenticationProvider:
         if res.status_code != 200:
             raise ValueError("Invalid Google token")
         info: dict[str, Any] = res.json()
-        email = info.get("email")
+        # One person, one account: the e-mail a scheduler created the account
+        # with is the same account Google signs in, whatever the letter case.
+        email = (info.get("email") or "").strip().lower()
         if not email or info.get("email_verified") is not True:
             raise ValueError("Google account does not have a verified email address")
 
-        user = db.query(User).filter(User.email == email).first()
+        user = db.query(User).filter(func.lower(User.email) == email).first()
         if not user:
             user = User(email=email, full_name=info.get("name"), login_count=0)
             db.add(user)
