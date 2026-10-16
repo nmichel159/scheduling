@@ -540,6 +540,7 @@ const EmployeesView = () => {
               <div className="employees-legend" aria-hidden="true">
                 <span className="employees-legend-person">{t('competences.employee')}</span>
                 <span className="employees-legend-status">{t('employees.status')}</span>
+                <span className="employees-legend-vip">{t('employees.vip')}</span>
                 <span className="employees-legend-tags">{t('competences.title')}</span>
                 <span className="employees-legend-marked">{t('employees.marked_dates')}</span>
                 <span className="employees-stats">
@@ -572,6 +573,7 @@ const EmployeesView = () => {
                   const hiddenTags = tags.slice(VISIBLE_TAGS);
                   const marked = markedGroups(load[e.user_id]?.marked_dates);
                   const isActive = load[e.user_id]?.scheduling_active !== false;
+                  const isVip = load[e.user_id]?.is_vip === true;
                   return (
                     <li
                       key={e.user_id}
@@ -607,6 +609,12 @@ const EmployeesView = () => {
                           >
                             {t(isActive ? 'employees.active' : 'employees.inactive')}
                           </span>
+                        </span>
+
+                        <span className="employees-vip">
+                          {isVip && (
+                            <span className="badge badge-warning">{t('employees.vip')}</span>
+                          )}
                         </span>
 
                         <span className="employees-tags">
@@ -773,6 +781,7 @@ const EmployeesView = () => {
                     : null,
                 shift_preference: (detailLoad && detailLoad.shift_preference) || 'any',
                 scheduling_active: !detailLoad || detailLoad.scheduling_active !== false,
+                is_vip: detailLoad?.is_vip === true,
               }
             : null
         }

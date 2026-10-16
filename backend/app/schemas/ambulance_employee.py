@@ -104,6 +104,10 @@ class EmployeeSchedulingSettings(BaseModel):
         True,
         description="Whether the generator may give the employee duties.",
     )
+    is_vip: bool = Field(
+        False,
+        description="Whether the employee is marked as a VIP.",
+    )
 
 
 class EmployeeDutyDay(BaseModel):
@@ -142,6 +146,7 @@ class EmployeeMonthlyLoad(BaseModel):
     max_surcharge_shifts_per_month: Optional[int] = None
     shift_preference: str = "any"
     scheduling_active: bool = True
+    is_vip: bool = False
     days: list[EmployeeDutyDay] = Field(default_factory=list)
 
     # How the employee filled their availability calendar for this month.

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Index
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func, true as sa_true
+from sqlalchemy.sql import false as sa_false, func, true as sa_true
 from app.db.session import Base
 from sqlalchemy.ext.associationproxy import association_proxy
 from app.models.associations import UserRole, UserAmbulance, UserCompetence
@@ -49,6 +49,9 @@ class User(Base):
     scheduling_active = Column(
         Boolean, nullable=False, default=True, server_default=sa_true()
     )
+    # A VIP employee, marked by the scheduler. Only a label for now; the
+    # generator plans a VIP like anyone else.
+    is_vip = Column(Boolean, nullable=False, default=False, server_default=sa_false())
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())

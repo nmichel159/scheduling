@@ -34,6 +34,7 @@ import './DepartmentsView.css';
 /** The scheduling record of somebody nothing is stored for yet. */
 const DEFAULT_SETTINGS = {
   scheduling_active: true,
+  is_vip: false,
   max_shifts_per_month: null,
   max_surcharge_shifts_per_month: null,
   shift_preference: SHIFT_PREFERENCE.ANY,
@@ -42,6 +43,7 @@ const DEFAULT_SETTINGS = {
 /** One person's scheduling record, read off a load row. */
 const settingsOf = (row) => ({
   scheduling_active: !row || row.scheduling_active !== false,
+  is_vip: row?.is_vip === true,
   max_shifts_per_month: row?.max_shifts_per_month ?? null,
   max_surcharge_shifts_per_month: row?.max_surcharge_shifts_per_month ?? null,
   shift_preference: row?.shift_preference || SHIFT_PREFERENCE.ANY,
@@ -50,6 +52,7 @@ const settingsOf = (row) => ({
 const fingerprintSettings = (settings) =>
   JSON.stringify([
     settings.scheduling_active,
+    settings.is_vip,
     settings.max_shifts_per_month,
     settings.max_surcharge_shifts_per_month,
     settings.shift_preference,
@@ -452,6 +455,7 @@ const DepartmentsView = () => {
   const handleProfileSave = ({
     competence_ids: competenceIds,
     scheduling_active: schedulingActive,
+    is_vip: isVip,
     max_shifts_per_month: maxShifts,
     max_surcharge_shifts_per_month: maxSurcharge,
     shift_preference: shiftPreference,
@@ -463,6 +467,7 @@ const DepartmentsView = () => {
             ...row,
             settings: {
               scheduling_active: schedulingActive,
+              is_vip: isVip,
               max_shifts_per_month: maxShifts,
               max_surcharge_shifts_per_month: maxSurcharge,
               shift_preference: shiftPreference,

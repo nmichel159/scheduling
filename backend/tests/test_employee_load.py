@@ -193,6 +193,19 @@ class EmployeeLoadTests(unittest.TestCase):
         )
         self.assertFalse(self.busy.scheduling_active)
 
+    def test_vip_flag_is_stored_and_kept_when_left_out(self) -> None:
+        """The VIP mark is reported back and survives a save that omits it."""
+        set_scheduling_settings(
+            self.db, self.busy, EmployeeSchedulingSettings(is_vip=True)
+        )
+        set_scheduling_settings(
+            self.db, self.busy, EmployeeSchedulingSettings(max_shifts_per_month=4)
+        )
+        report = get_monthly_employee_load(self.db, self.ambulance.id, 9, 2026)
+        rows = {row.user_id: row for row in report.employees}
+        self.assertTrue(rows[self.busy.id].is_vip)
+        self.assertFalse(rows[self.idle.id].is_vip)
+
     def test_availability_calendar_is_counted_by_what_it_says(self) -> None:
         """Wishes and absences are split; an unknown reason blocks the day."""
         self.db.add_all(

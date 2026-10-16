@@ -11,7 +11,7 @@ import { SHIFT_PREFERENCE } from '../services/employeeService';
 import './CompetenceMatrix.css';
 
 /** Active, two monthly limits and the duty-kind preference. */
-const SETTING_COLUMNS = 4;
+const SETTING_COLUMNS = 5;
 
 const PREFERENCE_ORDER = [
   SHIFT_PREFERENCE.SURCHARGE,
@@ -67,7 +67,7 @@ const parseLimit = (raw) => {
  * - dayGroups: [{ id, weekdays }] — slot groups the required counts are shown
  *   for; `weekdays` may include SPECIAL_DAY_SLOT alongside real weekdays
  * - rows: [{ user_id, email, full_name, settings, competenceDays: { [competenceId]: number[] } }] — draft state.
- *   `settings` holds the person's own scheduling record — scheduling_active,
+ *   `settings` holds the person's own scheduling record — scheduling_active, is_vip,
  *   max_shifts_per_month, max_surcharge_shifts_per_month, shift_preference —
  *   edited right in the row, so a whole workplace can be filled in from
  *   one table rather than one profile at a time.
@@ -406,6 +406,7 @@ const CompetenceMatrix = ({
     const settings = r.settings;
     const name = r.full_name || r.email;
     const active = settings.scheduling_active !== false;
+    const vip = settings.is_vip === true;
     return (
       <>
         <td className="cmatrix-cell-td cmatrix-setting-td is-toggle">
@@ -418,6 +419,19 @@ const CompetenceMatrix = ({
           >
             <span className="cmatrix-check" aria-hidden="true">
               {active && <CheckIcon />}
+            </span>
+          </button>
+        </td>
+        <td className="cmatrix-cell-td cmatrix-setting-td is-toggle">
+          <button
+            type="button"
+            className={`cmatrix-toggle ${vip ? 'is-on' : ''}`.trim()}
+            onClick={() => onChangeSettings(r.user_id, { is_vip: !vip })}
+            aria-pressed={vip}
+            aria-label={`${name} — ${t('employees.vip')}`}
+          >
+            <span className="cmatrix-check" aria-hidden="true">
+              {vip && <CheckIcon />}
             </span>
           </button>
         </td>
@@ -554,6 +568,9 @@ const CompetenceMatrix = ({
               </th>
               <th className="cmatrix-col cmatrix-setting-col" scope="col" rowSpan={headRowSpan}>
                 {t('employees.active')}
+              </th>
+              <th className="cmatrix-col cmatrix-setting-col" scope="col" rowSpan={headRowSpan}>
+                {t('employees.vip')}
               </th>
               <th
                 className="cmatrix-col cmatrix-setting-col"

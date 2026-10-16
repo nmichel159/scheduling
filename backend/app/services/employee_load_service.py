@@ -246,6 +246,7 @@ def get_monthly_employee_load(
                 max_surcharge_shifts_per_month=employee.max_surcharge_shifts_per_month,
                 shift_preference=employee.shift_preference or "any",
                 scheduling_active=employee.scheduling_active is not False,
+                is_vip=bool(employee.is_vip),
                 days=days[employee.id],
                 marked_days=availability[employee.id]["marked"],
                 preferred_days=availability[employee.id]["preferred"],
@@ -265,6 +266,7 @@ def get_scheduling_settings(db: Session, user: User) -> EmployeeSchedulingSettin
         max_surcharge_shifts_per_month=user.max_surcharge_shifts_per_month,
         shift_preference=user.shift_preference or "any",
         scheduling_active=user.scheduling_active is not False,
+        is_vip=bool(user.is_vip),
     )
 
 
@@ -282,6 +284,8 @@ def set_scheduling_settings(
     user.shift_preference = data.shift_preference
     if "scheduling_active" in data.model_fields_set:
         user.scheduling_active = data.scheduling_active
+    if "is_vip" in data.model_fields_set:
+        user.is_vip = data.is_vip
     commit_or_conflict(db, "Could not save the employee settings.")
     db.refresh(user)
     return get_scheduling_settings(db, user)

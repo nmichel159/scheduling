@@ -31,7 +31,7 @@ import './EmployeeDetailDialog.css';
  * - allCompetences: [{ id, name }] — the workplace's whole codebook;
  *   passing it (together with `settings`) makes the section editable
  * - settings: { max_shifts_per_month, max_surcharge_shifts_per_month,
- *     shift_preference, scheduling_active } | null — when
+ *     shift_preference, scheduling_active, is_vip } | null — when
  *   given, the dialog becomes an edit form
  * - stats: the shown month's counts — duties, hours, weekends, the
  *   longest run of consecutive days, and how the person filled their
@@ -46,7 +46,7 @@ import './EmployeeDetailDialog.css';
  *   buttons, the form keeps what was typed
  * - onSave({ title_before, first_name, last_name, title_after, email,
  *     max_shifts_per_month, max_surcharge_shifts_per_month, shift_preference,
- *     scheduling_active,
+ *     scheduling_active, is_vip,
  *     competence_ids })
  * - onClose()
  */
@@ -184,6 +184,7 @@ const EmployeeDetailDialog = ({
   const [active, setActive] = useState(
     () => !settings || settings.scheduling_active !== false
   );
+  const [vip, setVip] = useState(() => settings?.is_vip === true);
   const [picked, setPicked] = useState(() => competences.map((c) => c.id));
   const [identity, setIdentity] = useState(() => {
     const parts = splitFullName(employee ? employee.full_name : '');
@@ -237,6 +238,7 @@ const EmployeeDetailDialog = ({
       max_surcharge_shifts_per_month: clampShifts(maxSurcharge),
       shift_preference: preference,
       scheduling_active: active,
+      is_vip: vip,
       competence_ids: editableCompetences ? picked : competences.map((c) => c.id),
     });
   };
@@ -445,6 +447,29 @@ const EmployeeDetailDialog = ({
                       onClick={() => setActive(value)}
                     >
                       {t(value ? 'employees.active' : 'employees.inactive')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="field">
+                <span className="field-label" id={`${titleId}-vip`}>
+                  {t('employees.vip')}
+                </span>
+                <div
+                  className="segmented empdlg-choice"
+                  role="group"
+                  aria-labelledby={`${titleId}-vip`}
+                >
+                  {[true, false].map((value) => (
+                    <button
+                      key={String(value)}
+                      type="button"
+                      aria-pressed={vip === value}
+                      disabled={saving}
+                      onClick={() => setVip(value)}
+                    >
+                      {t(value ? 'departments.yes' : 'departments.no')}
                     </button>
                   ))}
                 </div>
