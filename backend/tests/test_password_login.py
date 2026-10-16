@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import unittest.mock
 from unittest.mock import patch
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -14,9 +15,9 @@ from app.core.config import settings
 from app.db.session import Base, get_db
 from app.main import app
 from app.models import Ambulance, Role, User
-from app.schemas.ambulance_employee import EmployeeAccountCreate
+from app.schemas.ambulance_employee import EmployeeAccountCreate, EmployeeProfileUpdate
 from app.services import password_service
-from app.services.ambulance_employee_service import create_employee_account
+from app.services.ambulance_employee_service import create_employee_account, update_employee_profile
 from app.services.auth_service import issue_session
 
 LINK_PREFIX = "https://app.example.com/reset-password?token="
@@ -218,6 +219,36 @@ class PasswordLoginTests(unittest.TestCase):
         ok = self.client.post("/auth/password/reset", json={"token": token, "new_password": "secret-123"})
         self.assertEqual(ok.status_code, 204)
         self.assertEqual(self._login("novy@example.com", "secret-123").status_code, 200)
+
+    def test_changed_email_voids_the_old_link_and_mails_a_new_one(self) -> None:
+        sent = []
+        patches = self._mail(sent)
+        with patches[0], patches[1], patches[2], patches[3]:
+            self._create_account("preklep@example.com")
+            db = self.Session()
+            user = db.query(User).filter_by(email="preklep@example.com").one()
+            ambulance_id = user.user_ambulances[0].ambulance_id
+            update_employee_profile(
+                db, ambulance_id, user,
+                EmployeeProfileUpdate(full_name="A B", email="spravny@example.com"),
+            )
+            db.close()
+        old_token, new_token = _token_from(sent[0]), _token_from(sent[1])
+        self.assertEqual(sent[1]["To"], "spravny@example.com")
+        stale = self.client.post("/auth/password/reset", json={"token": old_token, "new_password": "secret-123"})
+        self.assertEqual(stale.status_code, 400)
+        ok = self.client.post("/auth/password/reset", json={"token": new_token, "new_password": "secret-123"})
+        self.assertEqual(ok.status_code, 204)
+
+    def test_duplicate_email_differing_in_case_is_a_conflict(self) -> None:
+        with patch.object(settings, "MAIL_DRY_RUN", False), patch.object(settings, "SMTP_HOST", ""):
+            db = self.Session()
+            db.add(User(email="Mixed@Example.com", full_name="Old", is_active=True))
+            db.commit()
+            db.close()
+            with self.assertRaises(HTTPException) as ctx:
+                self._create_account("mixed@example.com")
+        self.assertEqual(ctx.exception.status_code, 409)
 
     def test_new_account_without_mail_server_is_still_created(self) -> None:
         with patch.object(settings, "MAIL_DRY_RUN", False), patch.object(settings, "SMTP_HOST", ""):

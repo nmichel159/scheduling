@@ -10,6 +10,7 @@ Business rules enforced:
 import re
 
 from fastapi import HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.ambulance import Ambulance
@@ -264,7 +265,7 @@ def _clean_name(value: str) -> str:
 
 
 def _email_taken(db: Session, email: str, except_user_id: int | None = None) -> bool:
-    query = db.query(User.id).filter(User.email == email)
+    query = db.query(User.id).filter(func.lower(User.email) == email.lower())
     if except_user_id is not None:
         query = query.filter(User.id != except_user_id)
     return query.first() is not None
@@ -338,10 +339,21 @@ def update_employee_profile(
             status_code=status.HTTP_409_CONFLICT,
             detail="An account with this e-mail already exists.",
         )
+    email_changed = email != employee.email
+    if email_changed:
+        # A link already mailed to the old address must not keep working for
+        # the account under its new one; a mistyped address may have been
+        # somebody else's mailbox.
+        employee.password_reset_token = None
+        employee.password_reset_expires_at = None
+        employee.auth_token = None
+        employee.auth_token_expires_at = None
     employee.email = email
     employee.full_name = full_name
     db.commit()
     db.refresh(employee)
+    if email_changed and not employee.password_hash:
+        send_setup_link(db, employee)
     return EmployeeListResponse(
         user_id=employee.id, email=employee.email, full_name=employee.full_name
     )
