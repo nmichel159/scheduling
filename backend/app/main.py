@@ -25,7 +25,7 @@ from app.services.audit_service import install_audit_hooks
 from app.services.automatic_schedule_generation_service import (
     automatic_schedule_generation_loop,
 )
-from app.services.availability_window_service import check_and_send_reminder
+from app.services.availability_window_service import availability_reminder_loop
 
 # Register transactional audit hooks once for all application sessions.
 install_audit_hooks()
@@ -44,12 +44,9 @@ async def lifespan(_: FastAPI):
             )
         )
     if settings.AVAILABILITY_REMINDER_ENABLED:
-        # The same polling clock, checking a different thing.
         tasks.append(
             asyncio.create_task(
-                automatic_schedule_generation_loop(
-                    stop_event, check=check_and_send_reminder
-                ),
+                availability_reminder_loop(stop_event),
                 name="availability-reminder",
             )
         )

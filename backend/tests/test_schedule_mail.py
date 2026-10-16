@@ -288,12 +288,29 @@ if __name__ == "__main__":
     unittest.main()
 
 
-def test_fill_request_period_follows_the_deadline_day():
+def test_fill_request_period_follows_the_lock_day():
     from datetime import date
 
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from app.db.session import Base
+    from app.services.availability_window_service import save_window_days
     from app.services.schedule_mail_service import fill_request_period
 
-    assert fill_request_period(date(2026, 10, 5)) == (11, 2026, date(2026, 10, 20))
-    assert fill_request_period(date(2026, 10, 20)) == (11, 2026, date(2026, 10, 20))
-    assert fill_request_period(date(2026, 10, 21)) == (12, 2026, date(2026, 11, 20))
-    assert fill_request_period(date(2026, 12, 21)) == (2, 2027, date(2027, 1, 20))
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    db = sessionmaker(bind=engine)()
+    try:
+        # Defaults: closes on the 15th, so the 14th is the last day to fill in.
+        assert fill_request_period(db, date(2026, 10, 5)) == (11, 2026, date(2026, 10, 14))
+        assert fill_request_period(db, date(2026, 10, 14)) == (11, 2026, date(2026, 10, 14))
+        assert fill_request_period(db, date(2026, 10, 15)) == (12, 2026, date(2026, 11, 14))
+        assert fill_request_period(db, date(2026, 12, 21)) == (2, 2027, date(2027, 1, 14))
+
+        save_window_days(db, 18, 20)
+        assert fill_request_period(db, date(2026, 10, 19)) == (11, 2026, date(2026, 10, 19))
+        assert fill_request_period(db, date(2026, 10, 20)) == (12, 2026, date(2026, 11, 19))
+    finally:
+        db.close()
+        engine.dispose()

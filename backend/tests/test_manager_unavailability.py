@@ -105,6 +105,7 @@ class ManagerUnavailabilityTests(unittest.TestCase):
             self.session,
             selected.id,
             UnavailabilityCreate(date_absent=target_date, reason="UNAVAILABLE"),
+            enforce_month_lock=False,
         )
         self.assertEqual(record.user_id, self.employee.id)
         self.assertEqual(
@@ -117,6 +118,7 @@ class ManagerUnavailabilityTests(unittest.TestCase):
             record.id,
             selected.id,
             UnavailabilityUpdate(reason="PREFERRED"),
+            enforce_month_lock=False,
         )
         self.assertEqual(updated.reason, "PREFERRED")
 
@@ -126,10 +128,13 @@ class ManagerUnavailabilityTests(unittest.TestCase):
                 record.id,
                 self.outsider.id,
                 UnavailabilityUpdate(reason="UNAVAILABLE"),
+                enforce_month_lock=False,
             )
         self.assertEqual(raised.exception.status_code, 404)
 
-        delete_unavailability(self.session, record.id, selected.id)
+        delete_unavailability(
+            self.session, record.id, selected.id, enforce_month_lock=False
+        )
         self.assertEqual(get_unavailabilities(self.session, selected.id), [])
 
     def test_monthly_duty_wish_round_trips_and_clears(self) -> None:

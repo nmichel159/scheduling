@@ -14,6 +14,7 @@ months still being planned.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import date, datetime, timedelta, timezone
 import logging
 from zoneinfo import ZoneInfo
@@ -350,3 +351,20 @@ def check_and_send_reminder() -> str | None:
     """The server clock's entry point: one session per check."""
     with SessionLocal() as db:
         return send_due_reminder(db)
+
+
+async def availability_reminder_loop(
+    stop_event: asyncio.Event, poll_seconds: float | None = None
+) -> None:
+    """Poll the clock beside the generation clock and stop with FastAPI."""
+    interval = poll_seconds or settings.AUTOMATIC_SCHEDULE_GENERATION_POLL_SECONDS
+    while not stop_event.is_set():
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=interval)
+            continue
+        except asyncio.TimeoutError:
+            pass
+        try:
+            await asyncio.to_thread(check_and_send_reminder)
+        except Exception:  # pragma: no cover - keeps the server loop alive
+            logger.exception("Availability reminder check failed")
