@@ -42,7 +42,7 @@ class FreshDatabaseMigrationTests(unittest.TestCase):
             with engine.connect() as connection:
                 self.assertEqual(
                     connection.scalar(sa.text("SELECT version_num FROM alembic_version")),
-                    "20261017_01",
+                    "20261017_02",
                 )
         finally:
             engine.dispose()
@@ -94,6 +94,87 @@ class DayLimitsPerAmbulanceMigrationTests(unittest.TestCase):
                         sa.text("SELECT reason, max_per_day FROM availability_day_limits")
                     ).all()
                 self.assertEqual([tuple(row) for row in rows], [("VACATION", 2)])
+        finally:
+            engine.dispose()
+            path.unlink(missing_ok=True)
+
+
+class AvailabilityWindowPerAmbulanceMigrationTests(unittest.TestCase):
+    """The hospital-wide window and month records become every workplace's."""
+
+    def test_window_and_months_are_copied_to_every_workplace(self) -> None:
+        handle, database_path = tempfile.mkstemp(suffix=".sqlite3")
+        os.close(handle)
+        path = Path(database_path)
+        database_url = f"sqlite:///{path.as_posix()}"
+        engine = sa.create_engine(database_url)
+        config = Config(str(BACKEND_ROOT / "alembic.ini"))
+        config.set_main_option("sqlalchemy.url", database_url)
+        try:
+            with mock.patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("DATABASE_URL", None)
+                command.upgrade(config, "20261017_01")
+                with engine.begin() as connection:
+                    connection.execute(
+                        sa.text(
+                            "INSERT INTO ambulances (id, name, is_active) "
+                            "VALUES (1, 'A', 1), (2, 'B', 1)"
+                        )
+                    )
+                    connection.execute(
+                        sa.text(
+                            "INSERT INTO availability_settings (id, reminder_day, lock_day) "
+                            "VALUES (1, 18, 20)"
+                        )
+                    )
+                    connection.execute(
+                        sa.text(
+                            "INSERT INTO availability_periods "
+                            "(year, month, is_locked, reminder_status) "
+                            "VALUES (2026, 11, 1, 'sent')"
+                        )
+                    )
+                command.upgrade(config, "20261017_02")
+                with engine.connect() as connection:
+                    settings_rows = connection.execute(
+                        sa.text(
+                            "SELECT ambulance_id, reminder_day, lock_day "
+                            "FROM availability_settings ORDER BY ambulance_id"
+                        )
+                    ).all()
+                    period_rows = connection.execute(
+                        sa.text(
+                            "SELECT ambulance_id, year, month, is_locked, reminder_status "
+                            "FROM availability_periods ORDER BY ambulance_id"
+                        )
+                    ).all()
+                self.assertEqual(
+                    [tuple(row) for row in settings_rows], [(1, 18, 20), (2, 18, 20)]
+                )
+                self.assertEqual(
+                    [tuple(row) for row in period_rows],
+                    [(1, 2026, 11, 1, "sent"), (2, 2026, 11, 1, "sent")],
+                )
+                command.downgrade(config, "20261017_01")
+                with engine.connect() as connection:
+                    self.assertEqual(
+                        [
+                            tuple(row)
+                            for row in connection.execute(
+                                sa.text("SELECT reminder_day, lock_day FROM availability_settings")
+                            )
+                        ],
+                        [(18, 20)],
+                    )
+                    self.assertEqual(
+                        [
+                            tuple(row)
+                            for row in connection.execute(
+                                sa.text("SELECT year, month FROM availability_periods")
+                            )
+                        ],
+                        [(2026, 11)],
+                    )
         finally:
             engine.dispose()
             path.unlink(missing_ok=True)

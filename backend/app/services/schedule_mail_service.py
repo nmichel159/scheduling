@@ -461,19 +461,22 @@ def list_dispatches(
 # --------------------------------------------------------------------------
 
 
-def fill_request_period(db: Session, today: date | None = None) -> tuple[int, int, date]:
+def fill_request_period(
+    db: Session, ambulance_id: int | None = None, today: date | None = None
+) -> tuple[int, int, date]:
     """Which month the request is about and by when it is due.
 
     Sent before next month closes, it asks about next month; sent later,
     that month is already closed, so it asks about the month after. The due
-    date is the last day before the scheduler's lock day.
+    date is the last day before the workplace's lock day (the default lock
+    day without a workplace).
     """
     today = today or local_today()
     year, month = upcoming_month(today)
-    _reminder, lock_date = period_dates(db, year, month)
+    _reminder, lock_date = period_dates(db, ambulance_id, year, month)
     if today >= lock_date:
         year, month = year + month // 12, month % 12 + 1
-        _reminder, lock_date = period_dates(db, year, month)
+        _reminder, lock_date = period_dates(db, ambulance_id, year, month)
     return month, year, fill_deadline(lock_date)
 
 
@@ -505,15 +508,17 @@ def list_fill_request_groups(db: Session, manager: User) -> list[dict]:
     return groups
 
 
-def fill_request_template(db: Session, today: date | None = None) -> dict:
-    """The default message, dated for the month it asks about.
+def fill_request_template(
+    db: Session, ambulance_id: int | None = None, today: date | None = None
+) -> dict:
+    """The default message, dated for the month it asks about in the workplace.
 
     The scheduler edits this before sending, so it is a starting point,
     not a fixed format -- the only thing the send really needs is an
     address list.
     """
-    month, year, _deadline = fill_request_period(db, today)
-    return reminder_message(db, year, month)
+    month, year, _deadline = fill_request_period(db, ambulance_id, today)
+    return reminder_message(db, ambulance_id, year, month)
 
 
 def send_fill_request(

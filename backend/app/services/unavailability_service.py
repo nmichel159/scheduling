@@ -58,11 +58,13 @@ def _ensure_editable_date(target: date) -> None:
         )
 
 
-def _ensure_writable(db: Session, target: date, enforce_month_lock: bool) -> None:
+def _ensure_writable(
+    db: Session, user_id: int, target: date, enforce_month_lock: bool
+) -> None:
     """Both locks: the past month always, the closed month for the employee."""
     _ensure_editable_date(target)
     if enforce_month_lock:
-        ensure_month_open(db, target)
+        ensure_month_open(db, user_id, target)
 
 
 def _check_duplicate(db: Session, user_id: int, date_absent: date, exclude_id: Optional[int] = None) -> None:
@@ -109,7 +111,7 @@ def create_unavailability(
     Returns:
         The newly created :class:`Unavailability` instance.
     """
-    _ensure_writable(db, data.date_absent, enforce_month_lock)
+    _ensure_writable(db, user_id, data.date_absent, enforce_month_lock)
     _check_duplicate(db, user_id, data.date_absent)
     if enforce_month_lock:
         ensure_day_has_room(db, user_id, data.date_absent, data.reason)
@@ -247,14 +249,14 @@ def update_unavailability(
         HTTPException 400: If the record or target date is in a locked month.
     """
     record = get_unavailability(db, unavailability_id, user_id)
-    _ensure_writable(db, record.date_absent, enforce_month_lock)
+    _ensure_writable(db, user_id, record.date_absent, enforce_month_lock)
 
     update_data = data.model_dump(exclude_unset=True)
 
     # If date_absent is being changed, the target date must also be editable
     # and free of duplicates.
     if "date_absent" in update_data:
-        _ensure_writable(db, update_data["date_absent"], enforce_month_lock)
+        _ensure_writable(db, user_id, update_data["date_absent"], enforce_month_lock)
         _check_duplicate(db, user_id, update_data["date_absent"], exclude_id=unavailability_id)
 
     target = update_data.get("date_absent", record.date_absent)
@@ -297,7 +299,7 @@ def delete_unavailability(
         HTTPException 400: If the record belongs to a locked (past) month.
     """
     record = get_unavailability(db, unavailability_id, user_id)
-    _ensure_writable(db, record.date_absent, enforce_month_lock)
+    _ensure_writable(db, user_id, record.date_absent, enforce_month_lock)
     db.delete(record)
     db.commit()
 

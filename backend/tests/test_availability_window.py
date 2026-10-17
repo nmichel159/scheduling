@@ -40,13 +40,16 @@ class AvailabilityWindowTests(unittest.TestCase):
             self.addCleanup(patch.stop)
 
         ambulance = Ambulance(name="Ambulancia", is_active=True)
+        other = Ambulance(name="Iná", is_active=True)
         closed = Ambulance(name="Zatvorená", is_active=False)
-        self.db.add_all([ambulance, closed])
+        self.db.add_all([ambulance, other, closed])
         self.db.flush()
+        self.amb, self.other = ambulance.id, other.id
         for email, place in (
             ("a@nemocnica.sk", ambulance),
             ("b@nemocnica.sk", ambulance),
             ("c@nemocnica.sk", closed),
+            ("d@nemocnica.sk", other),
         ):
             user = User(email=email, full_name=email, is_active=True)
             self.db.add(user)
@@ -62,7 +65,7 @@ class AvailabilityWindowTests(unittest.TestCase):
         self.engine.dispose()
 
     def _status(self, year=2026, month=11):
-        return window.month_status(self.db, year, month, self.today)
+        return window.month_status(self.db, self.amb, year, month, self.today)
 
     def test_next_month_closes_on_the_lock_day(self) -> None:
         self.today = date(2026, 10, 14)
@@ -73,7 +76,7 @@ class AvailabilityWindowTests(unittest.TestCase):
         self.assertFalse(self._status(2026, 12)["locked"])
 
     def test_scheduler_days_move_the_lock(self) -> None:
-        window.save_window_days(self.db, 18, 20)
+        window.save_window_days(self.db, self.amb, 18, 20)
         self.today = date(2026, 10, 19)
         self.assertFalse(self._status()["locked"])
         self.assertEqual(self._status()["lock_date"], date(2026, 10, 20))
@@ -82,23 +85,23 @@ class AvailabilityWindowTests(unittest.TestCase):
     def test_reminder_must_come_before_the_lock(self) -> None:
         for reminder, lock in ((15, 15), (16, 15), (0, 10), (10, 29)):
             with self.assertRaises(HTTPException):
-                window.save_window_days(self.db, reminder, lock)
+                window.save_window_days(self.db, self.amb, reminder, lock)
 
     def test_hand_set_lock_wins_both_ways(self) -> None:
-        window.set_month_lock(self.db, 2026, 11, True)
+        window.set_month_lock(self.db, self.amb, 2026, 11, True)
         self.assertTrue(self._status()["locked"])
         self.today = date(2026, 10, 20)
-        window.set_month_lock(self.db, 2026, 11, False)
+        window.set_month_lock(self.db, self.amb, 2026, 11, False)
         self.assertFalse(self._status()["locked"])
         self.assertFalse(self._status()["manual"])
 
     def test_past_month_stays_closed(self) -> None:
         with self.assertRaises(HTTPException):
-            window.set_month_lock(self.db, 2026, 9, False)
+            window.set_month_lock(self.db, self.amb, 2026, 9, False)
         self.assertTrue(self._status(2026, 9)["locked"])
 
     def test_employee_is_refused_but_scheduler_is_not(self) -> None:
-        window.set_month_lock(self.db, 2026, 11, True)
+        window.set_month_lock(self.db, self.amb, 2026, 11, True)
         payload = UnavailabilityCreate(date_absent=date(2026, 11, 3), reason="VACATION")
         with mock.patch(
             "app.services.unavailability_service._first_day_of_current_month",
@@ -117,36 +120,67 @@ class AvailabilityWindowTests(unittest.TestCase):
         with mock.patch.object(
             window, "send_message", lambda message: sent.append(message["To"]) or "sent"
         ):
-            self.assertIsNone(
-                window.send_due_reminder(self.db, datetime(2026, 10, 13, 9, tzinfo=TZ))
+            self.assertEqual(
+                window.send_due_reminder(self.db, datetime(2026, 10, 13, 9, tzinfo=TZ)), {}
             )
-            self.assertIsNone(
-                window.send_due_reminder(self.db, datetime(2026, 10, 14, 7, tzinfo=TZ))
+            self.assertEqual(
+                window.send_due_reminder(self.db, datetime(2026, 10, 14, 7, tzinfo=TZ)), {}
             )
             self.assertEqual(
                 window.send_due_reminder(self.db, datetime(2026, 10, 14, 8, tzinfo=TZ)),
-                "sent",
+                {self.amb: "sent", self.other: "sent"},
             )
-            self.assertIsNone(
-                window.send_due_reminder(self.db, datetime(2026, 10, 14, 9, tzinfo=TZ))
+            self.assertEqual(
+                window.send_due_reminder(self.db, datetime(2026, 10, 14, 9, tzinfo=TZ)), {}
             )
         # One message each, and nobody from a closed workplace.
-        self.assertEqual(sent, ["a@nemocnica.sk", "b@nemocnica.sk"])
+        self.assertEqual(sent, ["a@nemocnica.sk", "b@nemocnica.sk", "d@nemocnica.sk"])
         status = self._status()
         self.assertEqual(status["reminder_status"], "sent")
         self.assertEqual(status["reminder_recipients"], 2)
 
     def test_closed_month_is_not_announced(self) -> None:
-        window.set_month_lock(self.db, 2026, 11, True)
+        window.set_month_lock(self.db, self.amb, 2026, 11, True)
         with mock.patch.object(window, "send_message") as send:
             outcome = window.send_due_reminder(
                 self.db, datetime(2026, 10, 14, 9, tzinfo=TZ)
             )
-        self.assertEqual(outcome, "skipped")
-        send.assert_not_called()
+        self.assertEqual(outcome[self.amb], "skipped")
+        self.assertEqual(outcome[self.other], "sent")
+        # Only the other workplace's one employee is mailed.
+        self.assertEqual(send.call_count, 1)
+
+    def test_each_workplace_has_its_own_window(self) -> None:
+        window.save_window_days(self.db, self.other, 18, 20)
+        window.set_month_lock(self.db, self.amb, 2026, 12, True)
+        self.today = date(2026, 10, 16)
+        self.assertTrue(self._status()["locked"])
+        other = window.month_status(self.db, self.other, 2026, 11, self.today)
+        self.assertFalse(other["locked"])
+        self.assertEqual(other["lock_date"], date(2026, 10, 20))
+        self.assertFalse(
+            window.month_status(self.db, self.other, 2026, 12, self.today)["locked"]
+        )
+
+    def test_employee_of_two_workplaces_is_closed_by_either(self) -> None:
+        self.db.add(
+            UserAmbulance(user_id=self.employee.id, ambulance_id=self.other, is_active=True)
+        )
+        self.db.commit()
+        status = window.employee_month_status(self.db, self.employee.id, 2026, 11, self.today)
+        self.assertFalse(status["locked"])
+        window.set_month_lock(self.db, self.other, 2026, 11, True)
+        status = window.employee_month_status(self.db, self.employee.id, 2026, 11, self.today)
+        self.assertTrue(status["locked"])
+        lonely = User(email="e@nemocnica.sk", is_active=True)
+        self.db.add(lonely)
+        self.db.commit()
+        self.assertFalse(
+            window.employee_month_status(self.db, lonely.id, 2026, 11, self.today)["locked"]
+        )
 
     def test_message_names_the_last_day_and_the_lock(self) -> None:
-        message = window.reminder_message(self.db, 2026, 11)
+        message = window.reminder_message(self.db, self.amb, 2026, 11)
         self.assertIn("november 2026", message["subject"])
         self.assertIn("14. 10. 2026", message["subject"])
         self.assertIn("Od 15. 10.", message["body"])

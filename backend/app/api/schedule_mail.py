@@ -13,6 +13,7 @@ from app.db.session import get_db
 from app.models.ambulance import Ambulance
 from app.models.schedule_mail import ScheduleMailDispatch
 from app.models.user import User
+from app.services.ambulance_employee_service import list_manager_ambulances
 from app.schemas.schedule_mail import (
     FillRequestGroup,
     FillRequestResult,
@@ -58,10 +59,16 @@ def list_fill_request_groups_endpoint(
     summary="The default wording of the fill-in request",
 )
 def fill_request_template_endpoint(
-    _current_user: User = Depends(get_current_user),
+    ambulance_id: int | None = Query(
+        None, description="Date it by this workplace's lock day; one the caller manages."
+    ),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> FillRequestTemplate:
-    return FillRequestTemplate(**fill_request_template(db))
+    managed = {ambulance.id for ambulance in list_manager_ambulances(db, current_user.id)}
+    return FillRequestTemplate(
+        **fill_request_template(db, ambulance_id if ambulance_id in managed else None)
+    )
 
 
 @router.post(

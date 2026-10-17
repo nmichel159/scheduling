@@ -295,6 +295,7 @@ def test_fill_request_period_follows_the_lock_day():
     from sqlalchemy.orm import sessionmaker
 
     from app.db.session import Base
+    from app.models.ambulance import Ambulance
     from app.services.availability_window_service import save_window_days
     from app.services.schedule_mail_service import fill_request_period
 
@@ -303,14 +304,19 @@ def test_fill_request_period_follows_the_lock_day():
     db = sessionmaker(bind=engine)()
     try:
         # Defaults: closes on the 15th, so the 14th is the last day to fill in.
-        assert fill_request_period(db, date(2026, 10, 5)) == (11, 2026, date(2026, 10, 14))
-        assert fill_request_period(db, date(2026, 10, 14)) == (11, 2026, date(2026, 10, 14))
-        assert fill_request_period(db, date(2026, 10, 15)) == (12, 2026, date(2026, 11, 14))
-        assert fill_request_period(db, date(2026, 12, 21)) == (2, 2027, date(2027, 1, 14))
+        assert fill_request_period(db, None, date(2026, 10, 5)) == (11, 2026, date(2026, 10, 14))
+        assert fill_request_period(db, None, date(2026, 10, 14)) == (11, 2026, date(2026, 10, 14))
+        assert fill_request_period(db, None, date(2026, 10, 15)) == (12, 2026, date(2026, 11, 14))
+        assert fill_request_period(db, None, date(2026, 12, 21)) == (2, 2027, date(2027, 1, 14))
 
-        save_window_days(db, 18, 20)
-        assert fill_request_period(db, date(2026, 10, 19)) == (11, 2026, date(2026, 10, 19))
-        assert fill_request_period(db, date(2026, 10, 20)) == (12, 2026, date(2026, 11, 19))
+        ambulance = Ambulance(name="A", is_active=True)
+        db.add(ambulance)
+        db.commit()
+        save_window_days(db, ambulance.id, 18, 20)
+        assert fill_request_period(db, ambulance.id, date(2026, 10, 19)) == (11, 2026, date(2026, 10, 19))
+        assert fill_request_period(db, ambulance.id, date(2026, 10, 20)) == (12, 2026, date(2026, 11, 19))
+        # Without a workplace the default days still apply.
+        assert fill_request_period(db, None, date(2026, 10, 15)) == (12, 2026, date(2026, 11, 14))
     finally:
         db.close()
         engine.dispose()

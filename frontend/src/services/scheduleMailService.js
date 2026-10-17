@@ -15,9 +15,11 @@ export async function fetchFillRequestGroups() {
   return data;
 }
 
-/** The default wording, which the scheduler edits before sending. */
-export async function fetchFillRequestTemplate() {
-  const { data } = await client.get('/ambulances/mail/fill-request-template');
+/** The default wording, dated by the workplace's lock day; edited before sending. */
+export async function fetchFillRequestTemplate(ambulanceId) {
+  const { data } = await client.get('/ambulances/mail/fill-request-template', {
+    params: ambulanceId == null ? {} : { ambulance_id: ambulanceId },
+  });
   return data;
 }
 

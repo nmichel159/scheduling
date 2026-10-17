@@ -14,15 +14,15 @@ const parseDay = (text) => {
 };
 
 /**
- * The window in which employees fill in next month: the day the server
- * reminds them and the day the month closes. Closing or opening a month by
+ * The window in which one workplace's employees fill in next month: the day
+ * the server reminds them and the day the month closes. Closing or opening a month by
  * hand is done on the overview calendar beside it, for whichever month it
  * shows.
  *
  * `onDaysSaved` lets the page refresh what follows the lock day.
  * `refreshKey` reloads the card when the page changed the month's state.
  */
-const AvailabilityWindowCard = ({ onDaysSaved, refreshKey }) => {
+const AvailabilityWindowCard = ({ ambulanceId, onDaysSaved, refreshKey }) => {
   const { t, i18n } = useTranslation();
   const [windowState, setWindowState] = useState(null);
   const [reminderDay, setReminderDay] = useState('');
@@ -37,10 +37,17 @@ const AvailabilityWindowCard = ({ onDaysSaved, refreshKey }) => {
   }, []);
 
   useEffect(() => {
-    fetchAvailabilityWindow()
-      .then(adopt)
-      .catch(() => setError(t('availability_window.load_error')));
-  }, [adopt, t, refreshKey]);
+    setWindowState(null);
+    setError(null);
+    if (ambulanceId == null) return undefined;
+    let current = true;
+    fetchAvailabilityWindow(ambulanceId)
+      .then((data) => current && adopt(data))
+      .catch(() => current && setError(t('availability_window.load_error')));
+    return () => {
+      current = false;
+    };
+  }, [ambulanceId, adopt, t, refreshKey]);
 
   const locale = localeFor(i18n.language);
   const formatDate = useCallback(
@@ -82,7 +89,7 @@ const AvailabilityWindowCard = ({ onDaysSaved, refreshKey }) => {
     setBusy(true);
     setError(null);
     try {
-      adopt(await saveAvailabilityWindow(reminderValue, lockValue));
+      adopt(await saveAvailabilityWindow(ambulanceId, reminderValue, lockValue));
       onDaysSaved?.();
     } catch {
       setError(t('availability_window.save_failed'));

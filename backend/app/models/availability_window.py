@@ -1,10 +1,9 @@
 """When employees may fill in their restrictions for a month.
 
-Restrictions are the employee's own, not a workplace's, so the window is one
-for the whole application: a single settings row with the two days of the
-month the scheduler chose, and one row per month for what happened to that
-month -- a lock or an unlock the scheduler pressed by hand, and the reminder
-the server sent.
+Each workplace's scheduler decides it for their own workplace: one settings
+row per workplace with the two days of the month the scheduler chose, and
+one row per workplace and month for what happened to that month -- a lock or
+an unlock the scheduler pressed by hand, and the reminder the server sent.
 """
 
 from sqlalchemy import (
@@ -23,13 +22,15 @@ from app.db.session import Base
 
 
 class AvailabilitySettings(Base):
-    """The days of the previous month on which a month is announced and closed.
+    """The days of the previous month on which a workplace's month is
+    announced and closed.
 
-    There is at most one row; without it the code defaults apply.
+    At most one row per workplace; without it the code defaults apply.
     """
 
     __tablename__ = "availability_settings"
     __table_args__ = (
+        UniqueConstraint("ambulance_id", name="uq_availability_settings_ambulance"),
         CheckConstraint(
             "reminder_day >= 1 AND reminder_day < lock_day AND lock_day <= 28",
             name="ck_availability_settings_days",
@@ -37,6 +38,7 @@ class AvailabilitySettings(Base):
     )
 
     id = Column(Integer, primary_key=True)
+    ambulance_id = Column(Integer, ForeignKey("ambulances.id"), nullable=False)
     #: Day of the previous month the employees are reminded to fill it in.
     reminder_day = Column(Integer, nullable=False)
     #: Day of the previous month from which the month is closed.
@@ -47,17 +49,20 @@ class AvailabilitySettings(Base):
 
 
 class AvailabilityPeriod(Base):
-    """What the scheduler and the server did about one month."""
+    """What the scheduler and the server did about one workplace's month."""
 
     __tablename__ = "availability_periods"
     __table_args__ = (
-        UniqueConstraint("year", "month", name="uq_availability_periods_month"),
+        UniqueConstraint(
+            "ambulance_id", "year", "month", name="uq_availability_periods_month"
+        ),
         CheckConstraint(
             "month >= 1 AND month <= 12", name="ck_availability_periods_month"
         ),
     )
 
     id = Column(Integer, primary_key=True)
+    ambulance_id = Column(Integer, ForeignKey("ambulances.id"), nullable=False)
     year = Column(Integer, nullable=False)
     month = Column(Integer, nullable=False)
     #: ``True``/``False`` when the scheduler closed or opened the month by

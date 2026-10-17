@@ -4,6 +4,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import Toast from '../components/Toast';
 import { ChevronDownIcon, MailIcon } from '../components/NavIcons';
 import { useToast } from '../hooks/useToast';
+import { useWorkplace } from '../hooks/workplaceContext';
 import {
   fetchFillRequestGroups,
   fetchFillRequestTemplate,
@@ -41,6 +42,8 @@ const memberKey = (group, employee) =>
  */
 const ScheduleMailView = () => {
   const { t } = useTranslation();
+  // The default wording is dated by the selected workplace's lock day.
+  const { activeId } = useWorkplace();
 
   const [groups, setGroups] = useState([]);
   const [openGroups, setOpenGroups] = useState([]);
@@ -59,12 +62,12 @@ const ScheduleMailView = () => {
   const load = useCallback(async () => {
     const [groupList, template] = await Promise.all([
       fetchFillRequestGroups(),
-      fetchFillRequestTemplate(),
+      fetchFillRequestTemplate(activeId),
     ]);
     setGroups(groupList);
     setSubject(template.subject);
     setBody(template.body);
-  }, []);
+  }, [activeId]);
 
   useEffect(() => {
     load()

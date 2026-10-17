@@ -4,36 +4,46 @@ import client from '../api/client';
  * Frontend service for when employees may fill in their restrictions.
  *
  * A month is filled in during the month before it: on the reminder day the
- * server mails everybody, from the lock day on the month is closed to the
- * employees. The scheduler sets both days and can close or open the month
- * being filled in by hand.
+ * server mails the workplace's people, from the lock day on the month is
+ * closed to them. Each workplace's scheduler sets both days and can close or
+ * open a month by hand; an employee of several workplaces is closed out as
+ * soon as any of them closes.
  */
 
-/** Whether one month (1-12) is closed to the employee. */
+/** Whether one month (1-12) is closed to the signed-in employee. */
 export async function fetchMonthStatus(year, month) {
   const { data } = await client.get(`/availability/months/${year}/${month}`);
   return data;
 }
 
-/** The scheduler's two days with the state of the month being filled in. */
-export async function fetchAvailabilityWindow() {
-  const { data } = await client.get('/availability/window');
+/** The workplace's two days with the state of the month being filled in. */
+export async function fetchAvailabilityWindow(ambulanceId) {
+  const { data } = await client.get(`/ambulances/${ambulanceId}/availability/window`);
   return data;
 }
 
-export async function saveAvailabilityWindow(reminderDay, lockDay) {
-  const { data } = await client.put('/availability/window', {
+export async function saveAvailabilityWindow(ambulanceId, reminderDay, lockDay) {
+  const { data } = await client.put(`/ambulances/${ambulanceId}/availability/window`, {
     reminder_day: reminderDay,
     lock_day: lockDay,
   });
   return data;
 }
 
-/** Close (`true`) or open (`false`) one month by hand. */
-export async function setMonthLock(year, month, locked) {
-  const { data } = await client.put(`/availability/months/${year}/${month}/lock`, {
-    locked,
-  });
+/** Whether one month (1-12) is closed in the workplace. */
+export async function fetchWorkplaceMonthStatus(ambulanceId, year, month) {
+  const { data } = await client.get(
+    `/ambulances/${ambulanceId}/availability/months/${year}/${month}`
+  );
+  return data;
+}
+
+/** Close (`true`) or open (`false`) one month of the workplace by hand. */
+export async function setMonthLock(ambulanceId, year, month, locked) {
+  const { data } = await client.put(
+    `/ambulances/${ambulanceId}/availability/months/${year}/${month}/lock`,
+    { locked }
+  );
   return data;
 }
 

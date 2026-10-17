@@ -12,7 +12,7 @@ import {
   fetchDayDetail,
   fetchDayLimits,
   fetchMonthOverview,
-  fetchMonthStatus,
+  fetchWorkplaceMonthStatus,
   saveDayLimits,
   setMonthLock,
 } from '../services/availabilityService';
@@ -67,7 +67,7 @@ const parseLimit = (text) => {
  *   of absence. An employee filling in a day that is full in any of their
  *   workplaces is refused; the scheduler entering it for them is not.
  * - The window in which a month is filled in: the reminder day and the lock
- *   day (AvailabilityWindowCard). This one is still hospital-wide.
+ *   day (AvailabilityWindowCard).
  * - An overview calendar of what the workplace's people entered, month by
  *   month, with the month's lock switch. A day opens the list of who entered
  *   it, per reason in the order it was entered -- the order in which a limit
@@ -128,7 +128,7 @@ const GlobalSettingsView = () => {
     try {
       const [monthOverview, monthStatus] = await Promise.all([
         fetchMonthOverview(ambulanceId, year, monthNumber),
-        fetchMonthStatus(year, monthNumber),
+        fetchWorkplaceMonthStatus(ambulanceId, year, monthNumber),
       ]);
       if (request !== requestRef.current) return;
       setOverview(monthOverview);
@@ -190,7 +190,7 @@ const GlobalSettingsView = () => {
   const toggleLock = async () => {
     setLockBusy(true);
     try {
-      setStatus(await setMonthLock(year, monthNumber, !status.locked));
+      setStatus(await setMonthLock(ambulanceId, year, monthNumber, !status.locked));
       if (isUpcoming) setWindowKey((key) => key + 1);
     } catch {
       notify(t('global_settings.save_error'));
@@ -336,9 +336,12 @@ const GlobalSettingsView = () => {
         </section>
 
         <AvailabilityWindowCard
+          ambulanceId={ambulanceId}
           refreshKey={windowKey}
           onDaysSaved={() => {
-            fetchMonthStatus(year, monthNumber).then(setStatus).catch(() => {});
+            fetchWorkplaceMonthStatus(ambulanceId, year, monthNumber)
+              .then(setStatus)
+              .catch(() => {});
           }}
         />
       </div>
