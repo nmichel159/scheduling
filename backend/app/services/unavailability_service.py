@@ -112,7 +112,7 @@ def create_unavailability(
     _ensure_writable(db, data.date_absent, enforce_month_lock)
     _check_duplicate(db, user_id, data.date_absent)
     if enforce_month_lock:
-        ensure_day_has_room(db, data.date_absent, data.reason)
+        ensure_day_has_room(db, user_id, data.date_absent, data.reason)
 
     record = Unavailability(
         user_id=user_id,
@@ -262,7 +262,7 @@ def update_unavailability(
     reason_changed = normalize_reason(reason) != normalize_reason(record.reason)
     moved = target != record.date_absent
     if enforce_month_lock and (reason_changed or moved):
-        ensure_day_has_room(db, target, reason, exclude_id=record.id)
+        ensure_day_has_room(db, user_id, target, reason, exclude_id=record.id)
 
     for field, value in update_data.items():
         setattr(record, field, value)

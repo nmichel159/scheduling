@@ -72,6 +72,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(unavailability.router, prefix="/unavailabilities", tags=["Unavailabilities"])
 app.include_router(availability_window.router, prefix="/availability", tags=["Availability Window"])
+app.include_router(availability_window.ambulance_router, prefix="/ambulances", tags=["Availability Window"])
 app.include_router(ambulance_employee.router, prefix="/ambulances", tags=["Ambulance Employees"])
 app.include_router(competence.router, prefix="/ambulances", tags=["Competences"])
 app.include_router(competence_scenario.router, prefix="/ambulances", tags=["Competence Scenarios"])

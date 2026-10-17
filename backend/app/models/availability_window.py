@@ -12,6 +12,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    ForeignKey,
     Integer,
     String,
     UniqueConstraint,
@@ -73,10 +74,10 @@ class AvailabilityPeriod(Base):
 
 
 class AvailabilityDayLimit(Base):
-    """How many people may have one kind of absence on the same day.
+    """How many people of one workplace may have one kind of absence a day.
 
-    One row per reason (``VACATION``, ``BUSINESS_TRIP``, ``UNAVAILABLE``),
-    for the whole hospital; a reason without a row has no limit.
+    One row per workplace and reason (``VACATION``, ``BUSINESS_TRIP``,
+    ``UNAVAILABLE``); a reason without a row has no limit there.
     """
 
     __tablename__ = "availability_day_limits"
@@ -84,6 +85,7 @@ class AvailabilityDayLimit(Base):
         CheckConstraint("max_per_day >= 0", name="ck_availability_day_limits_max"),
     )
 
+    ambulance_id = Column(Integer, ForeignKey("ambulances.id"), primary_key=True)
     reason = Column(String(32), primary_key=True)
     max_per_day = Column(Integer, nullable=False)
     updated_at = Column(

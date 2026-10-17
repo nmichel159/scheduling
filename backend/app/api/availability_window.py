@@ -1,8 +1,9 @@
 """FastAPI router for when employees may fill in their restrictions.
 
 Reading whether a month is closed is for everybody, because the employee's
-calendar needs it; the days, the switch, the day limits and the overview of
-who entered what belong to the scheduler.
+calendar needs it; the days and the switch belong to the scheduler. The day
+limits and the overview of who entered what belong to one workplace, so they
+sit under ``/ambulances/{id}`` for the scheduler who manages it.
 """
 
 from datetime import date
@@ -10,8 +11,13 @@ from datetime import date
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user, require_manager_role
+from app.core.dependencies import (
+    get_current_user,
+    get_manager_ambulance,
+    require_manager_role,
+)
 from app.db.session import get_db
+from app.models.ambulance import Ambulance
 from app.models.user import User
 from app.schemas.availability_window import (
     AvailabilityDayDetail,
@@ -105,53 +111,62 @@ def set_month_lock_endpoint(
     return AvailabilityMonthStatus(**set_month_lock(db, year, month, data.locked))
 
 
-@router.get(
-    "/day-limits",
+# --------------------------------------------------------------------------
+# One workplace: its day limits and the overview of what its people entered
+# --------------------------------------------------------------------------
+
+ambulance_router = APIRouter()
+
+
+@ambulance_router.get(
+    "/{ambulance_id}/availability/day-limits",
     response_model=AvailabilityDayLimits,
-    summary="How many people may be away on one day, per reason",
+    summary="How many of the workplace's people may be away on one day, per reason",
 )
 def get_day_limits_endpoint(
-    _manager: User = Depends(require_manager_role),
+    ambulance: Ambulance = Depends(get_manager_ambulance),
     db: Session = Depends(get_db),
 ) -> AvailabilityDayLimits:
-    return AvailabilityDayLimits(limits=day_limits(db))
+    return AvailabilityDayLimits(limits=day_limits(db, ambulance.id))
 
 
-@router.put(
-    "/day-limits",
+@ambulance_router.put(
+    "/{ambulance_id}/availability/day-limits",
     response_model=AvailabilityDayLimits,
-    summary="Set the per-day limits",
+    summary="Set the workplace's per-day limits",
 )
 def set_day_limits_endpoint(
     data: AvailabilityDayLimitsUpdate,
-    _manager: User = Depends(require_manager_role),
+    ambulance: Ambulance = Depends(get_manager_ambulance),
     db: Session = Depends(get_db),
 ) -> AvailabilityDayLimits:
-    return AvailabilityDayLimits(limits=save_day_limits(db, dict(data.limits)))
+    return AvailabilityDayLimits(
+        limits=save_day_limits(db, ambulance.id, dict(data.limits))
+    )
 
 
-@router.get(
-    "/overview/{year}/{month}",
+@ambulance_router.get(
+    "/{ambulance_id}/availability/overview/{year}/{month}",
     response_model=AvailabilityMonthOverview,
-    summary="How many people entered each reason on each day of a month",
+    summary="How many of the workplace's people entered each reason on each day",
 )
 def get_month_overview_endpoint(
     year: int,
     month: int,
-    _manager: User = Depends(require_manager_role),
+    ambulance: Ambulance = Depends(get_manager_ambulance),
     db: Session = Depends(get_db),
 ) -> AvailabilityMonthOverview:
-    return AvailabilityMonthOverview(**month_overview(db, year, month))
+    return AvailabilityMonthOverview(**month_overview(db, ambulance.id, year, month))
 
 
-@router.get(
-    "/days/{target}",
+@ambulance_router.get(
+    "/{ambulance_id}/availability/days/{target}",
     response_model=AvailabilityDayDetail,
-    summary="Who entered what on one day, in the order it was entered",
+    summary="Who of the workplace entered what on one day, in entry order",
 )
 def get_day_detail_endpoint(
     target: date,
-    _manager: User = Depends(require_manager_role),
+    ambulance: Ambulance = Depends(get_manager_ambulance),
     db: Session = Depends(get_db),
 ) -> AvailabilityDayDetail:
-    return AvailabilityDayDetail(**day_entries(db, target))
+    return AvailabilityDayDetail(**day_entries(db, ambulance.id, target))

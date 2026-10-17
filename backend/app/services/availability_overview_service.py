@@ -1,13 +1,14 @@
 """How many people are away on each day, and the limits on it.
 
-The scheduler sets, for the whole hospital, how many people may be on leave,
-on a business trip or otherwise unable to work on the same day. An employee
-filling in a day that is already full is refused; the scheduler entering it
-on their behalf is not, because the scheduler is the one who decides.
+Each workplace's scheduler sets how many of its people may be on leave, on
+a business trip or otherwise unable to work on the same day. An employee
+filling in a day that is already full in any of their workplaces is refused;
+the scheduler entering it on their behalf is not, because the scheduler is
+the one who decides.
 
-The overview counts every active restriction of every active account by
-day and reason, and lists one day's restrictions in the order they were
-entered, which is the order in which the limit was used up.
+The overview counts the active restrictions of one workplace's active
+members by day and reason, and lists one day's restrictions in the order
+they were entered, which is the order in which the limit was used up.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from calendar import monthrange
 from datetime import date
 
 from fastapi import HTTPException, status
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.ambulance import Ambulance
@@ -44,13 +45,20 @@ def normalize_reason(reason: str | None) -> str:
     return value if value in KNOWN_REASONS else UNAVAILABLE
 
 
-def day_limits(db: Session) -> dict[str, int | None]:
+def day_limits(db: Session, ambulance_id: int) -> dict[str, int | None]:
     """Every limited reason with its limit, ``None`` where there is none."""
-    stored = {row.reason: row.max_per_day for row in db.query(AvailabilityDayLimit)}
+    stored = {
+        row.reason: row.max_per_day
+        for row in db.query(AvailabilityDayLimit).filter(
+            AvailabilityDayLimit.ambulance_id == ambulance_id
+        )
+    }
     return {reason: stored.get(reason) for reason in LIMITED_REASONS}
 
 
-def save_day_limits(db: Session, limits: dict[str, int | None]) -> dict[str, int | None]:
+def save_day_limits(
+    db: Session, ambulance_id: int, limits: dict[str, int | None]
+) -> dict[str, int | None]:
     """Store the limits; a reason left out keeps its limit, ``None`` drops it.
 
     Raises:
@@ -66,28 +74,43 @@ def save_day_limits(db: Session, limits: dict[str, int | None]) -> dict[str, int
             },
         )
     for reason, value in limits.items():
-        row = db.get(AvailabilityDayLimit, reason)
+        row = db.get(AvailabilityDayLimit, (ambulance_id, reason))
         if value is None:
             if row is not None:
                 db.delete(row)
         elif row is None:
-            db.add(AvailabilityDayLimit(reason=reason, max_per_day=value))
+            db.add(
+                AvailabilityDayLimit(
+                    ambulance_id=ambulance_id, reason=reason, max_per_day=value
+                )
+            )
         else:
             row.max_per_day = value
     commit_or_conflict(db, "The day limits could not be saved.")
-    return day_limits(db)
+    return day_limits(db, ambulance_id)
 
 
-def _active_records():
-    """Restrictions that count: active, of an account that is still active."""
-    return Unavailability.is_active.is_(True), User.is_active.is_(True)
+def _active_records(ambulance_id: int):
+    """Restrictions that count: active, of an active member of the workplace."""
+    return (
+        Unavailability.is_active.is_(True),
+        User.is_active.is_(True),
+        Unavailability.user_id.in_(
+            select(UserAmbulance.user_id).where(
+                UserAmbulance.ambulance_id == ambulance_id,
+                UserAmbulance.is_active.is_(True),
+            )
+        ),
+    )
 
 
-def _count_on(db: Session, target: date, reason: str, exclude_id: int | None) -> int:
+def _count_on(
+    db: Session, ambulance_id: int, target: date, reason: str, exclude_id: int | None
+) -> int:
     query = (
         db.query(Unavailability.reason)
         .join(User, User.id == Unavailability.user_id)
-        .filter(Unavailability.date_absent == target, *_active_records())
+        .filter(Unavailability.date_absent == target, *_active_records(ambulance_id))
     )
     if exclude_id is not None:
         query = query.filter(Unavailability.id != exclude_id)
@@ -95,9 +118,14 @@ def _count_on(db: Session, target: date, reason: str, exclude_id: int | None) ->
 
 
 def ensure_day_has_room(
-    db: Session, target: date, reason: str | None, exclude_id: int | None = None
+    db: Session,
+    user_id: int,
+    target: date,
+    reason: str | None,
+    exclude_id: int | None = None,
 ) -> None:
-    """Refuse a restriction that would push its day over the limit.
+    """Refuse a restriction that would push its day over the limit of any of
+    the employee's active workplaces.
 
     Raises:
         HTTPException 409: With code ``day_limit_reached``.
@@ -105,10 +133,21 @@ def ensure_day_has_room(
     normalized = normalize_reason(reason)
     if normalized not in LIMITED_REASONS:
         return
-    row = db.get(AvailabilityDayLimit, normalized)
-    if row is None:
-        return
-    if _count_on(db, target, normalized, exclude_id) >= row.max_per_day:
+    limits = (
+        db.query(AvailabilityDayLimit)
+        .join(UserAmbulance, UserAmbulance.ambulance_id == AvailabilityDayLimit.ambulance_id)
+        .join(Ambulance, Ambulance.id == AvailabilityDayLimit.ambulance_id)
+        .filter(
+            AvailabilityDayLimit.reason == normalized,
+            UserAmbulance.user_id == user_id,
+            UserAmbulance.is_active.is_(True),
+            Ambulance.is_active.is_(True),
+        )
+        .all()
+    )
+    for row in limits:
+        if _count_on(db, row.ambulance_id, target, normalized, exclude_id) < row.max_per_day:
+            continue
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
@@ -129,8 +168,9 @@ def _month_bounds(year: int, month: int) -> tuple[date, date]:
     return date(year, month, 1), date(year, month, monthrange(year, month)[1])
 
 
-def month_overview(db: Session, year: int, month: int) -> dict:
-    """Per day of the month, how many people entered each reason."""
+def month_overview(db: Session, ambulance_id: int, year: int, month: int) -> dict:
+    """Per day of the month, how many of the workplace's people entered each
+    reason."""
     first, last = _month_bounds(year, month)
     rows = (
         db.query(Unavailability.date_absent, Unavailability.reason, func.count())
@@ -138,7 +178,7 @@ def month_overview(db: Session, year: int, month: int) -> dict:
         .filter(
             Unavailability.date_absent >= first,
             Unavailability.date_absent <= last,
-            *_active_records(),
+            *_active_records(ambulance_id),
         )
         .group_by(Unavailability.date_absent, Unavailability.reason)
         .all()
@@ -151,20 +191,20 @@ def month_overview(db: Session, year: int, month: int) -> dict:
     return {
         "year": year,
         "month": month,
-        "limits": day_limits(db),
+        "limits": day_limits(db, ambulance_id),
         "days": [
             {"date": day, "counts": counts[day]} for day in sorted(counts)
         ],
     }
 
 
-def day_entries(db: Session, target: date) -> dict:
-    """One day's restrictions in the order they were entered."""
+def day_entries(db: Session, ambulance_id: int, target: date) -> dict:
+    """One day's restrictions of the workplace's people, in entry order."""
     records = (
         db.query(Unavailability)
         .join(User, User.id == Unavailability.user_id)
         .options(joinedload(Unavailability.user), joinedload(Unavailability.entered_by))
-        .filter(Unavailability.date_absent == target, *_active_records())
+        .filter(Unavailability.date_absent == target, *_active_records(ambulance_id))
         .order_by(
             Unavailability.entered_at.is_(None),
             Unavailability.entered_at,
@@ -203,4 +243,4 @@ def day_entries(db: Session, target: date) -> dict:
                 "entered_by_name": (by.full_name or by.email) if by else None,
             }
         )
-    return {"date": target, "limits": day_limits(db), "entries": entries}
+    return {"date": target, "limits": day_limits(db, ambulance_id), "entries": entries}

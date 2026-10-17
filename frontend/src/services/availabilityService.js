@@ -45,27 +45,31 @@ export function isMonthLockedError(error) {
 /** The reasons a day can be limited on, in the order the screens show them. */
 export const LIMITED_REASONS = ['VACATION', 'BUSINESS_TRIP', 'UNAVAILABLE'];
 
-/** How many people may have each absence on one day; `null` is no limit. */
-export async function fetchDayLimits() {
-  const { data } = await client.get('/availability/day-limits');
+/** How many of a workplace's people may have each absence on one day; `null` is no limit. */
+export async function fetchDayLimits(ambulanceId) {
+  const { data } = await client.get(`/ambulances/${ambulanceId}/availability/day-limits`);
   return data.limits;
 }
 
 /** Store the limits; a reason left out keeps its limit, `null` drops it. */
-export async function saveDayLimits(limits) {
-  const { data } = await client.put('/availability/day-limits', { limits });
+export async function saveDayLimits(ambulanceId, limits) {
+  const { data } = await client.put(`/ambulances/${ambulanceId}/availability/day-limits`, {
+    limits,
+  });
   return data.limits;
 }
 
-/** Per day of one month (1-12), how many people entered each reason. */
-export async function fetchMonthOverview(year, month) {
-  const { data } = await client.get(`/availability/overview/${year}/${month}`);
+/** Per day of one month (1-12), how many of a workplace's people entered each reason. */
+export async function fetchMonthOverview(ambulanceId, year, month) {
+  const { data } = await client.get(
+    `/ambulances/${ambulanceId}/availability/overview/${year}/${month}`
+  );
   return data;
 }
 
-/** One day's (`YYYY-MM-DD`) restrictions in the order they were entered. */
-export async function fetchDayDetail(day) {
-  const { data } = await client.get(`/availability/days/${day}`);
+/** One day's (`YYYY-MM-DD`) restrictions of a workplace's people, in entry order. */
+export async function fetchDayDetail(ambulanceId, day) {
+  const { data } = await client.get(`/ambulances/${ambulanceId}/availability/days/${day}`);
   return data;
 }
 

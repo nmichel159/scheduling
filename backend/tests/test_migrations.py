@@ -42,8 +42,58 @@ class FreshDatabaseMigrationTests(unittest.TestCase):
             with engine.connect() as connection:
                 self.assertEqual(
                     connection.scalar(sa.text("SELECT version_num FROM alembic_version")),
-                    "20261016_05",
+                    "20261017_01",
                 )
+        finally:
+            engine.dispose()
+            path.unlink(missing_ok=True)
+
+
+class DayLimitsPerAmbulanceMigrationTests(unittest.TestCase):
+    """A hospital-wide limit becomes every workplace's own limit."""
+
+    def test_existing_limits_are_copied_to_every_workplace(self) -> None:
+        handle, database_path = tempfile.mkstemp(suffix=".sqlite3")
+        os.close(handle)
+        path = Path(database_path)
+        database_url = f"sqlite:///{path.as_posix()}"
+        engine = sa.create_engine(database_url)
+        config = Config(str(BACKEND_ROOT / "alembic.ini"))
+        config.set_main_option("sqlalchemy.url", database_url)
+        try:
+            with mock.patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("DATABASE_URL", None)
+                command.upgrade(config, "20261016_06")
+                with engine.begin() as connection:
+                    connection.execute(
+                        sa.text(
+                            "INSERT INTO ambulances (id, name, is_active) "
+                            "VALUES (1, 'A', 1), (2, 'B', 1)"
+                        )
+                    )
+                    connection.execute(
+                        sa.text(
+                            "INSERT INTO availability_day_limits (reason, max_per_day) "
+                            "VALUES ('VACATION', 2)"
+                        )
+                    )
+                command.upgrade(config, "20261017_01")
+                with engine.connect() as connection:
+                    rows = connection.execute(
+                        sa.text(
+                            "SELECT ambulance_id, reason, max_per_day "
+                            "FROM availability_day_limits ORDER BY ambulance_id"
+                        )
+                    ).all()
+                self.assertEqual(
+                    [tuple(row) for row in rows], [(1, "VACATION", 2), (2, "VACATION", 2)]
+                )
+                command.downgrade(config, "20261016_06")
+                with engine.connect() as connection:
+                    rows = connection.execute(
+                        sa.text("SELECT reason, max_per_day FROM availability_day_limits")
+                    ).all()
+                self.assertEqual([tuple(row) for row in rows], [("VACATION", 2)])
         finally:
             engine.dispose()
             path.unlink(missing_ok=True)

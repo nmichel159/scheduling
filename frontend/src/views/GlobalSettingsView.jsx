@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AvailabilityWindowCard from '../components/AvailabilityWindowCard';
 import { CloseIcon } from '../components/NavIcons';
+import PageSkeleton from '../components/Skeleton';
 import PeriodStepper from '../components/PeriodStepper';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
+import { useWorkplace } from '../hooks/workplaceContext';
 import {
   LIMITED_REASONS,
   fetchDayDetail,
@@ -59,21 +61,28 @@ const parseLimit = (text) => {
 };
 
 /**
- * Settings that are the same for the whole hospital, not for one workplace.
+ * How the people of the selected workplace fill in their restrictions.
  *
- * - How many people may be away on the same day, per kind of absence. An
- *   employee filling in a day that is full is refused; the scheduler
- *   entering it for them is not.
+ * - How many of the workplace's people may be away on the same day, per kind
+ *   of absence. An employee filling in a day that is full in any of their
+ *   workplaces is refused; the scheduler entering it for them is not.
  * - The window in which a month is filled in: the reminder day and the lock
- *   day (AvailabilityWindowCard).
- * - An overview calendar of what everybody entered, month by month, with the
- *   month's lock switch. A day opens the list of who entered it, per reason
- *   in the order it was entered -- the order in which a limit was used up.
+ *   day (AvailabilityWindowCard). This one is still hospital-wide.
+ * - An overview calendar of what the workplace's people entered, month by
+ *   month, with the month's lock switch. A day opens the list of who entered
+ *   it, per reason in the order it was entered -- the order in which a limit
+ *   was used up.
  */
 const GlobalSettingsView = () => {
   const { t, i18n } = useTranslation();
   const locale = localeFor(i18n.language);
   const [toast, notify] = useToast(3200);
+  const {
+    workplaces,
+    activeId: ambulanceId,
+    loading: workplacesLoading,
+    forbidden,
+  } = useWorkplace();
 
   const [limits, setLimits] = useState(null);
   const [limitDraft, setLimitDraft] = useState(limitText(null));
@@ -94,22 +103,31 @@ const GlobalSettingsView = () => {
   const monthNumber = month.getMonth() + 1;
 
   useEffect(() => {
-    fetchDayLimits()
+    setLimits(null);
+    setLimitDraft(limitText(null));
+    if (ambulanceId == null) return undefined;
+    let current = true;
+    fetchDayLimits(ambulanceId)
       .then((data) => {
+        if (!current) return;
         setLimits(data);
         setLimitDraft(limitText(data));
       })
-      .catch(() => setLoadError(true));
-  }, []);
+      .catch(() => current && setLoadError(true));
+    return () => {
+      current = false;
+    };
+  }, [ambulanceId]);
 
   // Only the answer for the month still on screen is kept.
   const requestRef = useRef(0);
   const loadMonth = useCallback(async () => {
+    if (ambulanceId == null) return;
     const request = ++requestRef.current;
     setLoadError(false);
     try {
       const [monthOverview, monthStatus] = await Promise.all([
-        fetchMonthOverview(year, monthNumber),
+        fetchMonthOverview(ambulanceId, year, monthNumber),
         fetchMonthStatus(year, monthNumber),
       ]);
       if (request !== requestRef.current) return;
@@ -118,9 +136,10 @@ const GlobalSettingsView = () => {
     } catch {
       if (request === requestRef.current) setLoadError(true);
     }
-  }, [year, monthNumber]);
+  }, [ambulanceId, year, monthNumber]);
 
   useEffect(() => {
+    setOpenDay(null);
     setOverview(null);
     setStatus(null);
     loadMonth();
@@ -154,7 +173,7 @@ const GlobalSettingsView = () => {
   const saveLimits = async () => {
     setSavingLimits(true);
     try {
-      const saved = await saveDayLimits(parsedLimits);
+      const saved = await saveDayLimits(ambulanceId, parsedLimits);
       setLimits(saved);
       setLimitDraft(limitText(saved));
       setOverview((current) => (current ? { ...current, limits: saved } : current));
@@ -187,7 +206,7 @@ const GlobalSettingsView = () => {
     setDetail(null);
     setDetailError(false);
     try {
-      setDetail(await fetchDayDetail(day));
+      setDetail(await fetchDayDetail(ambulanceId, day));
     } catch {
       setDetailError(true);
     }
@@ -231,6 +250,30 @@ const GlobalSettingsView = () => {
           minute: '2-digit',
         }).format(new Date(iso))
       : '—';
+
+  if (workplacesLoading) {
+    return (
+      <PageSkeleton
+        className="page gset"
+        title={t('global_settings.title')}
+        variant="grid"
+        label={t('departments.loading')}
+      />
+    );
+  }
+
+  if (forbidden || workplaces.length === 0) {
+    return (
+      <div className="page gset">
+        <header className="page-header">
+          <h1 className="page-title">{t('global_settings.title')}</h1>
+        </header>
+        <div className="alert alert-warning">
+          {forbidden ? t('departments.forbidden') : t('departments.no_ambulances')}
+        </div>
+      </div>
+    );
+  }
 
   const cells = buildMonthCells(year, month.getMonth());
   const todayIso = (() => {
