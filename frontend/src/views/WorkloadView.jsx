@@ -25,8 +25,8 @@ const WorkloadView = () => {
   );
   const updateEntry = useCallback((id, reason) => updateUnavailability(id, reason), []);
   const deleteEntry = useCallback((id) => deleteUnavailability(id), []);
-  const loadWish = useCallback(() => fetchMonthlyWish(), []);
-  const storeWish = useCallback((value) => saveMonthlyWish(value), []);
+  const loadWish = useCallback((period) => fetchMonthlyWish(period), []);
+  const storeWish = useCallback((value, period) => saveMonthlyWish(value, period), []);
 
   return (
     <div className="page workload">

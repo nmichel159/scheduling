@@ -30,8 +30,10 @@ What each pass is made of, from the strongest term to the weakest:
    placement outranks all the others: the manager may put anybody anywhere,
    even one person into two roles on one day, and the solver keeps it and
    plans only the rest of the month around it.
+   The scheduler's cap on an employee's duties a month is always hard.
 2. The penalized rules of the first pass: a duty past what an employee said
-   they want, a person more than a role asks for, and -- where the
+   they want (their wish for the month, else their standing one, never
+   above the cap), a person more than a role asks for, and -- where the
    workplace made them penalties -- a duty on an absence or inside another
    duty's rest. Each costs its weight, far above any balance step by
    default, so it happens only when the month cannot be staffed otherwise.
@@ -45,7 +47,9 @@ What each pass is made of, from the strongest term to the weakest:
 Then, under the balance the first pass reached:
 
 4. The day wishes. A day somebody asked for is rewarded, a day they would
-   rather not work is penalized.
+   rather not work is penalized. A weekday wanted or avoided -- by the
+   scheduler, else by the employee -- counts the same on every such day the
+   calendar left unmarked.
 5. The spread. Every pair of duties a little way apart costs something,
    and the closer the pair the steeper the cost -- so widening a one-day gap
    to two is worth several times what widening eight to nine is. The whole
@@ -104,6 +108,7 @@ from app.services.constraint_setting_service import (
     load_constraint_policy,
 )
 from app.services.special_day_service import rest_days_between
+from app.services.shift_wish_service import shift_limits, weekday_dates
 from app.models.schedule import Schedule
 from app.models.unavailability import Unavailability
 from app.models.user import User
@@ -298,7 +303,10 @@ class SchedulingEmployee:
     #: Days the employee would rather not work, but can if needed.
     soft_declined_dates: frozenset[date] = frozenset()
     #: The most duties a month the employee wants; None means no opinion.
+    #: Already held under ``max_shifts_cap``.
     max_shifts_per_month: int | None = None
+    #: The most duties a month the scheduler allows; None means no cap. Hard.
+    max_shifts_cap: int | None = None
     #: The most surcharged duties a month; None means no opinion and zero
     #: asks for none at all.
     max_surcharge_shifts_per_month: int | None = None
@@ -1290,6 +1298,15 @@ def solve_monthly_schedule(
                     )
                     spread_terms.append((spread_unit / gap) * close)
 
+        # The scheduler's cap is hard whatever the workplace made of the
+        # wish below; it too keeps every duty placed by hand.
+        if employee.max_shifts_cap is not None:
+            problem += (
+                lpSum(employee_variables)
+                <= max(employee.max_shifts_cap, placed_by_user[employee.id]),
+                f"cap_{employee.id}",
+            )
+
         # Zero or nothing entered means no limit. A strict limit still keeps
         # every duty the manager placed by hand, however many there are.
         if employee.max_shifts_per_month:
@@ -1624,6 +1641,27 @@ def generate_ambulance_monthly_schedule(
             else:
                 preferred_dates[user_id].add(unavailable_date)
 
+    # A weekday the employee (or the scheduler for them) wants or avoids
+    # counts as that day wished or "rather not" -- except on a day marked in
+    # the calendar, whose own mark is the more particular answer.
+    marked_dates: dict[int, set[date]] = {user_id: set() for user_id in user_ids}
+    if user_ids:
+        for user_id, marked_date in (
+            db.query(Unavailability.user_id, Unavailability.date_absent)
+            .filter(
+                Unavailability.user_id.in_(user_ids),
+                Unavailability.date_absent.between(start, end),
+                Unavailability.is_active.is_(True),
+            )
+            .all()
+        ):
+            marked_dates[user_id].add(marked_date)
+    for user in user_rows:
+        wanted, avoided = weekday_dates(user, year, month)
+        preferred_dates[user.id] |= wanted - marked_dates[user.id]
+        soft_declined_dates[user.id] |= avoided - marked_dates[user.id]
+    limits = shift_limits(db, user_rows, year, month)
+
     externally_scheduled_dates: dict[int, set[date]] = {
         user_id: set() for user_id in user_ids
     }
@@ -1687,7 +1725,8 @@ def generate_ambulance_monthly_schedule(
             externally_scheduled_dates=frozenset(externally_scheduled_dates[user.id]),
             preferred_dates=frozenset(preferred_dates[user.id]),
             soft_declined_dates=frozenset(soft_declined_dates[user.id]),
-            max_shifts_per_month=user.max_shifts_per_month,
+            max_shifts_per_month=limits[user.id].wish,
+            max_shifts_cap=limits[user.id].cap,
             max_surcharge_shifts_per_month=user.max_surcharge_shifts_per_month,
             shift_preference=user.shift_preference or ANY_PREFERENCE,
             external_commitments=tuple(external_commitments[user.id]),

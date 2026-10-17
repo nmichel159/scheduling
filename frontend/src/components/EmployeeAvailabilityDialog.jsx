@@ -56,11 +56,11 @@ const EmployeeAvailabilityDialog = ({ employee, ambulanceId, onClose }) => {
     [ambulanceId, userId]
   );
   const loadWish = useCallback(
-    () => fetchEmployeeMonthlyWish(ambulanceId, userId),
+    (period) => fetchEmployeeMonthlyWish(ambulanceId, userId, period),
     [ambulanceId, userId]
   );
   const storeWish = useCallback(
-    (value) => saveEmployeeMonthlyWish(ambulanceId, userId, value),
+    (value, period) => saveEmployeeMonthlyWish(ambulanceId, userId, value, period),
     [ambulanceId, userId]
   );
 

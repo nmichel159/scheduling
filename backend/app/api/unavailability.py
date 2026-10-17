@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.schemas.ambulance_employee import EmployeeConditions
 from app.schemas.unavailability import (
     MonthlyDutyWish,
     UnavailabilityCreate,
@@ -24,11 +25,14 @@ from app.schemas.unavailability import (
 from app.services.unavailability_service import (
     create_unavailability,
     delete_unavailability,
+    get_employee_conditions,
     get_monthly_duty_wish,
     get_unavailabilities,
     get_unavailability,
+    set_employee_conditions,
     set_monthly_duty_wish,
     update_unavailability,
+    wish_period,
 )
 
 router = APIRouter()
@@ -100,11 +104,16 @@ def list_unavailabilities_endpoint(
     summary="Get the monthly duty wish",
 )
 def get_monthly_duty_wish_endpoint(
+    year: Optional[int] = Query(None, ge=2000, le=2100),
+    month: Optional[int] = Query(None, ge=1, le=12),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MonthlyDutyWish:
-    """Return how many duties a month the authenticated user wants at most."""
-    return get_monthly_duty_wish(db, current_user.id)
+    """Return how many duties a month the authenticated user wants at most.
+
+    With ``year`` and ``month`` the duty wish is that month's own.
+    """
+    return get_monthly_duty_wish(db, current_user.id, wish_period(year, month))
 
 
 @router.put(
@@ -114,11 +123,40 @@ def get_monthly_duty_wish_endpoint(
 )
 def set_monthly_duty_wish_endpoint(
     data: MonthlyDutyWish,
+    year: Optional[int] = Query(None, ge=2000, le=2100),
+    month: Optional[int] = Query(None, ge=1, le=12),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MonthlyDutyWish:
     """Store the authenticated user's monthly duty wish (null clears it)."""
-    return set_monthly_duty_wish(db, current_user.id, data)
+    return set_monthly_duty_wish(db, current_user.id, data, wish_period(year, month))
+
+
+@router.get(
+    "/conditions",
+    response_model=EmployeeConditions,
+    summary="Get the employee's standing conditions",
+)
+def get_conditions_endpoint(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> EmployeeConditions:
+    """The authenticated user's conditions for every month."""
+    return get_employee_conditions(db, current_user.id)
+
+
+@router.put(
+    "/conditions",
+    response_model=EmployeeConditions,
+    summary="Set the employee's standing conditions",
+)
+def set_conditions_endpoint(
+    data: EmployeeConditions,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> EmployeeConditions:
+    """Store the authenticated user's own conditions."""
+    return set_employee_conditions(db, current_user.id, data)
 
 
 @router.get(

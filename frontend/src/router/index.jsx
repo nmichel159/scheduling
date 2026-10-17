@@ -3,6 +3,7 @@ import LoginView from '../views/LoginView';
 import ResetPasswordView from '../views/ResetPasswordView';
 import DashboardView from '../views/DashboardView';
 import WorkloadView from '../views/WorkloadView';
+import ConditionsView from '../views/ConditionsView';
 import ScheduleView from '../views/ScheduleView';
 import AmbulanceScheduleEditView from '../views/AmbulanceScheduleEditView';
 import SchedulePrintView from '../views/SchedulePrintView';
@@ -51,6 +52,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole flag="hasEmployee">
             <WorkloadView />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "/conditions",
+        element: (
+          <RequireRole flag="hasEmployee">
+            <ConditionsView />
           </RequireRole>
         ),
       },

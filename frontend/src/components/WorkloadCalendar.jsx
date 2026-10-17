@@ -53,9 +53,17 @@ const MARK_BY_STATE = {
 /** The order one day walks through, one click at a time. */
 const STATE_CYCLE = [DAY_STATE.NONE, ...MARKABLE_STATES];
 
-/* Both wishes as the inputs hold them: an empty string is "no opinion". */
-const EMPTY_WISH = { max_shifts_per_month: '', max_surcharge_shifts_per_month: '' };
+/* Both wishes as the inputs hold them: an empty string is "no opinion".
+   The standing wish and the scheduler's cap ride along for display. */
+const EMPTY_WISH = {
+  max_shifts_per_month: '',
+  max_surcharge_shifts_per_month: '',
+  standing: null,
+  cap: null,
+};
 const wishText = (wish) => ({
+  standing: wish?.standing_max_shifts_per_month ?? null,
+  cap: wish?.scheduler_max_shifts_per_month ?? null,
   max_shifts_per_month:
     wish?.max_shifts_per_month == null ? '' : String(wish.max_shifts_per_month),
   max_surcharge_shifts_per_month:
@@ -172,14 +180,16 @@ const WorkloadCalendar = ({
     };
   }, [fetchMonthStatus, view]);
 
-  // The wish belongs to the employee, not to the month on screen, so it is
-  // loaded once per calendar rather than again with every month change.
+  // The duty wish is the month's own (it falls back to the standing one
+  // from the conditions screen), so it is loaded again with every month.
+  const period = useMemo(() => ({ year: view.y, month: view.m + 1 }), [view]);
   useEffect(() => {
     if (!fetchMonthlyWish) return undefined;
     let cancelled = false;
+    setWish(EMPTY_WISH);
     (async () => {
       try {
-        const value = await fetchMonthlyWish();
+        const value = await fetchMonthlyWish(period);
         if (!cancelled) setWish(wishText(value));
       } catch {
         // A wish that cannot be read must not hide the calendar.
@@ -188,7 +198,7 @@ const WorkloadCalendar = ({
     return () => {
       cancelled = true;
     };
-  }, [fetchMonthlyWish]);
+  }, [fetchMonthlyWish, period]);
 
   const shiftMonth = (delta) => {
     setView(({ y, m }) => {
@@ -299,13 +309,13 @@ const WorkloadCalendar = ({
       return;
     }
     try {
-      setWish(wishText(await saveMonthlyWish({ [field]: value })));
+      setWish(wishText(await saveMonthlyWish({ [field]: value }, period)));
     } catch {
       notify(t('workload.save_error'));
     }
   };
 
-  const wishField = (field, inputId, labelKey) => (
+  const wishField = (field, inputId, labelKey, placeholder) => (
     <div className="workload-wish">
       <label className="workload-wish-label" htmlFor={inputId}>
         {t(labelKey)}
@@ -317,7 +327,7 @@ const WorkloadCalendar = ({
         min="0"
         max="31"
         inputMode="numeric"
-        placeholder={t('workload.wish_placeholder')}
+        placeholder={placeholder ?? t('workload.wish_placeholder')}
         value={wish[field]}
         onChange={(event) => {
           const { value } = event.target;
@@ -387,11 +397,22 @@ const WorkloadCalendar = ({
             </span>
           </div>
 
-          {/* The wish is about the employee rather than this month, but it is
-              set about as often as the days are marked, so it rides along. */}
+          {/* The duty wish is this month's; the surcharge wish is the
+              employee's standing one, set about as often, so it rides along. */}
           {saveMonthlyWish && (
             <div className="workload-wishes">
-              {wishField('max_shifts_per_month', wishInputId, 'workload.wish_label')}
+              {wishField(
+                'max_shifts_per_month',
+                wishInputId,
+                'workload.wish_label',
+                wish.standing != null ? String(wish.standing) : undefined
+              )}
+              {wish.cap != null && (
+                <div className="workload-wish">
+                  <span className="workload-wish-label">{t('workload.scheduler_cap')}</span>
+                  <span className="workload-wish-cap">{wish.cap}</span>
+                </div>
+              )}
               {wishField(
                 'max_surcharge_shifts_per_month',
                 surchargeWishInputId,

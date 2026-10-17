@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import WeekdayPicker from '../components/WeekdayPicker';
 import {
   fetchCompetences,
   fetchEmployeeCompetenceTable,
@@ -11,7 +12,12 @@ import {
   saveEmployeeSettings,
   updateEmployeeProfile,
 } from '../services/employeeService';
-import { MARKABLE_STATES, stateOfRecord } from '../services/unavailabilityService';
+import {
+  MARKABLE_STATES,
+  stateOfRecord,
+  WEEKDAY_ANSWER,
+  weekdaysOf,
+} from '../services/unavailabilityService';
 import { useWorkplace } from '../hooks/workplaceContext';
 import EmployeeDetailDialog from '../components/EmployeeDetailDialog';
 import EmployeeCreateDialog from '../components/EmployeeCreateDialog';
@@ -174,7 +180,9 @@ const EmployeesView = () => {
       const shifts = row.shift_count || 0;
       const surcharge = row.surcharge_shift_count || 0;
       const hours = row.total_hours || 0;
-      const max = row.max_shifts_per_month;
+      // The limit that holds this month: the scheduler's cap over the
+      // employee's month or standing wish.
+      const max = row.effective_max_shifts ?? null;
 
       const weekend = days.filter((d) => {
         const day = new Date(`${d.work_date}T00:00:00`).getDay();
@@ -212,6 +220,12 @@ const EmployeesView = () => {
         preferred: row.preferred_days || 0,
         declined: row.declined_days || 0,
         blocked: row.blocked_days || 0,
+        // Per weekday the scheduler's answer where they gave one, else the
+        // employee's -- what the generator works with.
+        weekdays: weekdaysOf(row.weekday_preferences).map((own, index) => {
+          const scheduler = weekdaysOf(row.scheduler_weekday_preferences)[index];
+          return scheduler !== WEEKDAY_ANSWER.ANY ? scheduler : own;
+        }),
       };
     },
     [load]
@@ -652,6 +666,13 @@ const EmployeesView = () => {
                         </span>
 
                         <span className="employees-marked">
+                          {stats.weekdays.some((answer) => answer !== WEEKDAY_ANSWER.ANY) && (
+                            <WeekdayPicker
+                              compact
+                              label={t('conditions.weekdays')}
+                              value={stats.weekdays}
+                            />
+                          )}
                           {marked.length === 0 ? (
                             <span className="employees-tag is-empty">
                               {t('employees.no_marked_dates')}

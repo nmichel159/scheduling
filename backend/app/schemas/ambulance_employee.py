@@ -75,6 +75,12 @@ class AmbulanceListResponse(BaseModel):
 #: of the other two.
 SHIFT_PREFERENCES = ("surcharge", "standard", "any")
 
+#: One weekday's answer: wanted, rather avoided, or no opinion.
+WeekdayAnswer = Literal["want", "avoid", "any"]
+#: Seven answers, Monday first.
+WeekdayAnswers = list[WeekdayAnswer]
+_WEEKDAYS = dict(min_length=7, max_length=7)
+
 
 class EmployeeSchedulingSettings(BaseModel):
     """What the scheduler may set on one employee.
@@ -107,6 +113,39 @@ class EmployeeSchedulingSettings(BaseModel):
     is_vip: bool = Field(
         False,
         description="Whether the employee is marked as a VIP.",
+    )
+    scheduler_max_shifts_per_month: Optional[int] = Field(
+        None,
+        ge=0,
+        le=31,
+        description="The scheduler's cap on duties a month; it outranks every wish.",
+    )
+    weekday_preferences: Optional[WeekdayAnswers] = Field(
+        None, **_WEEKDAYS, description="The employee's own answer per weekday, Monday first."
+    )
+    scheduler_weekday_preferences: Optional[WeekdayAnswers] = Field(
+        None,
+        **_WEEKDAYS,
+        description="The scheduler's answer per weekday; it outranks the employee's.",
+    )
+
+
+class EmployeeConditions(BaseModel):
+    """What an employee fills in about themselves for every month.
+
+    The two ``scheduler_`` fields are read-only here: they show the employee
+    what the scheduler decided above their own answers.
+    """
+
+    max_shifts_per_month: Optional[int] = Field(None, ge=0, le=31)
+    max_surcharge_shifts_per_month: Optional[int] = Field(None, ge=0, le=31)
+    shift_preference: Literal["surcharge", "standard", "any"] = "any"
+    weekday_preferences: WeekdayAnswers = Field(
+        default_factory=lambda: ["any"] * 7, **_WEEKDAYS
+    )
+    scheduler_max_shifts_per_month: Optional[int] = None
+    scheduler_weekday_preferences: WeekdayAnswers = Field(
+        default_factory=lambda: ["any"] * 7, **_WEEKDAYS
     )
 
 
@@ -147,6 +186,16 @@ class EmployeeMonthlyLoad(BaseModel):
     shift_preference: str = "any"
     scheduling_active: bool = True
     is_vip: bool = False
+    # The duty limits of the month: the scheduler's cap, the employee's own
+    # wish for this month, and the wish that holds once the cap and the
+    # standing wish are folded in.
+    scheduler_max_shifts_per_month: Optional[int] = None
+    month_max_shifts: Optional[int] = None
+    effective_max_shifts: Optional[int] = None
+    weekday_preferences: WeekdayAnswers = Field(default_factory=lambda: ["any"] * 7)
+    scheduler_weekday_preferences: WeekdayAnswers = Field(
+        default_factory=lambda: ["any"] * 7
+    )
     days: list[EmployeeDutyDay] = Field(default_factory=list)
 
     # How the employee filled their availability calendar for this month.

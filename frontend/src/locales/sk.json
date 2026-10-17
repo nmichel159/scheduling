@@ -101,7 +101,8 @@
     "schedule_mail": "Výzva mailom",
     "schedule_print": "Tlač rozvrhu",
     "constraints": "Ohraničenia",
-    "global_settings": "Globálne nastavenia"
+    "global_settings": "Globálne nastavenia",
+    "conditions": "Moje podmienky"
   },
   "workplace": {
     "loading": "Načítavam pracoviská...",
@@ -157,7 +158,8 @@
       "none": "Bez označenia"
     },
     "locked_month": "Obmedzenia na tento mesiac sú uzavreté.",
-    "day_full": "V tento deň je už plné: {{states}}."
+    "day_full": "V tento deň je už plné: {{states}}.",
+    "scheduler_cap": "Limit rozvrhára"
   },
   "departments": {
     "col_max_shifts": "Max. služieb",
@@ -191,7 +193,10 @@
     "unsaved": "Neuložené zmeny",
     "unsaved_warning": "Máte neuložené zmeny, naozaj chcete odísť?",
     "leave_anyway": "Odísť bez uloženia",
-    "stay": "Zostať"
+    "stay": "Zostať",
+    "col_cap": "Limit rozvrhára",
+    "col_weekdays_own": "Dni (zamestnanec)",
+    "col_weekdays_scheduler": "Dni (rozvrhár)"
   },
   "admin": {
     "title": "Administrácia pracovísk",
@@ -817,6 +822,28 @@
       "UNAVAILABLE": "Nemôže",
       "SOFT_DECLINE": "Nechce slúžiť",
       "PREFERRED": "Chce slúžiť"
+    }
+  },
+  "conditions": {
+    "title": "Moje podmienky",
+    "load_error": "Nepodarilo sa načítať podmienky.",
+    "saved": "Podmienky sú uložené.",
+    "save": "Uložiť",
+    "discard": "Zahodiť zmeny",
+    "duties": "Služby",
+    "shift_preference": "Druh služieb",
+    "preference": {
+      "surcharge": "Príplatkové",
+      "standard": "Štandardné",
+      "any": "Je mi to jedno"
+    },
+    "weekdays": "Dni v týždni",
+    "mine": "Moje",
+    "scheduler": "Rozvrhár",
+    "answer": {
+      "want": "Chcem",
+      "avoid": "Nechcem",
+      "any": "Je mi to jedno"
     }
   }
 }

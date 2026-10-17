@@ -33,7 +33,15 @@ from app.services.availability_overview_service import (
     normalize_reason,
 )
 from app.services.availability_window_service import ensure_month_open
+from app.schemas.ambulance_employee import EmployeeConditions
 from app.services.database_conflict import commit_or_conflict
+from app.services.shift_wish_service import (
+    encode_weekdays,
+    get_month_wish,
+    scheduler_weekday_preferences_of,
+    set_month_wish,
+    weekday_preferences_of,
+)
 
 
 def _first_day_of_current_month() -> date:
@@ -304,44 +312,104 @@ def delete_unavailability(
     db.commit()
 
 
-def _duty_wish_of(user: User) -> MonthlyDutyWish:
-    """Both monthly wishes of one user, as the API returns them."""
+def wish_period(year: int | None, month: int | None) -> tuple[int, int] | None:
+    """The month a duty wish is about, or None for the standing wish."""
+    if year is None and month is None:
+        return None
+    if year is None or month is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Give both year and month, or neither.",
+        )
+    return year, month
+
+
+def _duty_wish_of(
+    db: Session, user: User, period: tuple[int, int] | None = None
+) -> MonthlyDutyWish:
+    """Both wishes of one user, as the API returns them.
+
+    With a ``period`` the duty wish is that month's own, and the standing
+    wish and the scheduler's cap come along beside it.
+    """
+    if period is None:
+        return MonthlyDutyWish(
+            max_shifts_per_month=user.max_shifts_per_month,
+            max_surcharge_shifts_per_month=user.max_surcharge_shifts_per_month,
+        )
+    year, month = period
     return MonthlyDutyWish(
-        max_shifts_per_month=user.max_shifts_per_month,
+        max_shifts_per_month=get_month_wish(db, user.id, year, month),
         max_surcharge_shifts_per_month=user.max_surcharge_shifts_per_month,
+        standing_max_shifts_per_month=user.max_shifts_per_month,
+        scheduler_max_shifts_per_month=user.scheduler_max_shifts_per_month,
     )
 
 
-def get_monthly_duty_wish(db: Session, user_id: int) -> MonthlyDutyWish:
-    """Return how many duties a month the user wants at most."""
+def _user_or_404(db: Session, user_id: int) -> User:
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found.",
         )
-    return _duty_wish_of(user)
+    return user
+
+
+def get_monthly_duty_wish(
+    db: Session, user_id: int, period: tuple[int, int] | None = None
+) -> MonthlyDutyWish:
+    """Return how many duties a month the user wants at most."""
+    return _duty_wish_of(db, _user_or_404(db, user_id), period)
 
 
 def set_monthly_duty_wish(
-    db: Session, user_id: int, data: MonthlyDutyWish
+    db: Session,
+    user_id: int,
+    data: MonthlyDutyWish,
+    period: tuple[int, int] | None = None,
 ) -> MonthlyDutyWish:
     """Store the user's monthly duty wishes; ``None`` clears one.
 
     Only the fields the request names are written, so the calendar can save
-    either wish on its own without touching the other.
+    either wish on its own without touching the other. With a ``period`` the
+    duty wish is stored for that month alone.
     """
-    user = db.query(User).filter(User.id == user_id).first()
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found.",
-        )
+    user = _user_or_404(db, user_id)
     sent = data.model_fields_set
     if "max_shifts_per_month" in sent:
-        user.max_shifts_per_month = data.max_shifts_per_month
+        if period is None:
+            user.max_shifts_per_month = data.max_shifts_per_month
+        else:
+            set_month_wish(db, user.id, *period, data.max_shifts_per_month)
     if "max_surcharge_shifts_per_month" in sent:
         user.max_surcharge_shifts_per_month = data.max_surcharge_shifts_per_month
     commit_or_conflict(db, "Could not save the monthly duty wish.")
     db.refresh(user)
-    return _duty_wish_of(user)
+    return _duty_wish_of(db, user, period)
+
+
+def get_employee_conditions(db: Session, user_id: int) -> EmployeeConditions:
+    """What the employee filled in for every month, and the scheduler's word."""
+    user = _user_or_404(db, user_id)
+    return EmployeeConditions(
+        max_shifts_per_month=user.max_shifts_per_month,
+        max_surcharge_shifts_per_month=user.max_surcharge_shifts_per_month,
+        shift_preference=user.shift_preference or "any",
+        weekday_preferences=weekday_preferences_of(user),
+        scheduler_max_shifts_per_month=user.scheduler_max_shifts_per_month,
+        scheduler_weekday_preferences=scheduler_weekday_preferences_of(user),
+    )
+
+
+def set_employee_conditions(
+    db: Session, user_id: int, data: EmployeeConditions
+) -> EmployeeConditions:
+    """Store the employee's own conditions; the scheduler's fields are ignored."""
+    user = _user_or_404(db, user_id)
+    user.max_shifts_per_month = data.max_shifts_per_month
+    user.max_surcharge_shifts_per_month = data.max_surcharge_shifts_per_month
+    user.shift_preference = data.shift_preference
+    user.weekday_preferences = encode_weekdays(data.weekday_preferences)
+    commit_or_conflict(db, "Could not save the conditions.")
+    return get_employee_conditions(db, user_id)

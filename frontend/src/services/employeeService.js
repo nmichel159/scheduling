@@ -47,6 +47,9 @@ export async function saveEmployeeSettings(ambulanceId, userId, settings) {
       shift_preference: settings.shift_preference,
       scheduling_active: settings.scheduling_active,
       is_vip: settings.is_vip,
+      // Left out when undefined, so a caller that does not edit them keeps them.
+      scheduler_max_shifts_per_month: settings.scheduler_max_shifts_per_month,
+      scheduler_weekday_preferences: settings.scheduler_weekday_preferences,
     }
   );
   return data;

@@ -65,6 +65,7 @@ const SECTIONS = [
     items: [
       { to: '/schedule', labelKey: 'sidebar.schedule', Icon: MyScheduleIcon },
       { to: '/workload', labelKey: 'sidebar.workload', Icon: LimitsIcon },
+      { to: '/conditions', labelKey: 'sidebar.conditions', Icon: ConstraintsIcon },
     ],
   },
   {

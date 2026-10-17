@@ -101,7 +101,8 @@
     "schedule_mail": "Fill-in request",
     "schedule_print": "Print schedule",
     "constraints": "Constraints",
-    "global_settings": "Global settings"
+    "global_settings": "Global settings",
+    "conditions": "My conditions"
   },
   "workplace": {
     "loading": "Loading workplaces...",
@@ -157,7 +158,8 @@
       "none": "Unmarked"
     },
     "locked_month": "Restrictions for this month are closed.",
-    "day_full": "Already full on this day: {{states}}."
+    "day_full": "Already full on this day: {{states}}.",
+    "scheduler_cap": "Scheduler's limit"
   },
   "departments": {
     "col_max_shifts": "Max. duties",
@@ -191,7 +193,10 @@
     "unsaved": "Unsaved changes",
     "unsaved_warning": "You have unsaved changes, do you really want to leave?",
     "leave_anyway": "Leave without saving",
-    "stay": "Stay"
+    "stay": "Stay",
+    "col_cap": "Scheduler's limit",
+    "col_weekdays_own": "Days (employee)",
+    "col_weekdays_scheduler": "Days (scheduler)"
   },
   "admin": {
     "title": "Workplace administration",
@@ -813,6 +818,28 @@
       "UNAVAILABLE": "Cannot",
       "SOFT_DECLINE": "Would rather not",
       "PREFERRED": "Wants to"
+    }
+  },
+  "conditions": {
+    "title": "My conditions",
+    "load_error": "Could not load the conditions.",
+    "saved": "Conditions saved.",
+    "save": "Save",
+    "discard": "Discard changes",
+    "duties": "Duties",
+    "shift_preference": "Kind of duties",
+    "preference": {
+      "surcharge": "Surcharged",
+      "standard": "Standard",
+      "any": "I don't mind"
+    },
+    "weekdays": "Weekdays",
+    "mine": "Mine",
+    "scheduler": "Scheduler",
+    "answer": {
+      "want": "Want",
+      "avoid": "Don't want",
+      "any": "Don't mind"
     }
   }
 }

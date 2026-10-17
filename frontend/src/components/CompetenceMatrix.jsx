@@ -8,10 +8,11 @@ import {
   requiredCountForGroup,
 } from '../utils/competenceRequirements';
 import { SHIFT_PREFERENCE } from '../services/employeeService';
+import WeekdayPicker from './WeekdayPicker';
 import './CompetenceMatrix.css';
 
 /** Active, two monthly limits and the duty-kind preference. */
-const SETTING_COLUMNS = 5;
+const SETTING_COLUMNS = 8;
 
 const PREFERENCE_ORDER = [
   SHIFT_PREFERENCE.SURCHARGE,
@@ -467,7 +468,24 @@ const CompetenceMatrix = ({
             aria-label={`${name} — ${t('employees.max_surcharge_shifts')}`}
           />
         </td>
-        <td className="cmatrix-cell-td cmatrix-setting-td is-group-end">
+        <td className="cmatrix-cell-td cmatrix-setting-td">
+          <input
+            type="number"
+            min={0}
+            max={31}
+            inputMode="numeric"
+            className="input input-sm cmatrix-number"
+            value={limitValue(settings.scheduler_max_shifts_per_month)}
+            placeholder="—"
+            onChange={(e) =>
+              onChangeSettings(r.user_id, {
+                scheduler_max_shifts_per_month: parseLimit(e.target.value),
+              })
+            }
+            aria-label={`${name} — ${t('departments.col_cap')}`}
+          />
+        </td>
+        <td className="cmatrix-cell-td cmatrix-setting-td">
           <select
             className="select input-sm cmatrix-select"
             value={settings.shift_preference || SHIFT_PREFERENCE.ANY}
@@ -482,6 +500,25 @@ const CompetenceMatrix = ({
               </option>
             ))}
           </select>
+        </td>
+        {/* The employee's own weekdays are theirs to fill in; the scheduler
+            sees them here and answers above them in the next column. */}
+        <td className="cmatrix-cell-td cmatrix-setting-td">
+          <WeekdayPicker
+            compact
+            label={`${name} — ${t('departments.col_weekdays_own')}`}
+            value={settings.weekday_preferences}
+          />
+        </td>
+        <td className="cmatrix-cell-td cmatrix-setting-td is-group-end">
+          <WeekdayPicker
+            compact
+            label={`${name} — ${t('departments.col_weekdays_scheduler')}`}
+            value={settings.scheduler_weekday_preferences}
+            onChange={(value) =>
+              onChangeSettings(r.user_id, { scheduler_weekday_preferences: value })
+            }
+          />
         </td>
       </>
     );
@@ -588,12 +625,21 @@ const CompetenceMatrix = ({
               >
                 {t('departments.col_max_surcharge')}
               </th>
+              <th className="cmatrix-col cmatrix-setting-col" scope="col" rowSpan={headRowSpan}>
+                {t('departments.col_cap')}
+              </th>
+              <th className="cmatrix-col cmatrix-setting-col" scope="col" rowSpan={headRowSpan}>
+                {t('employees.preference')}
+              </th>
+              <th className="cmatrix-col cmatrix-setting-col" scope="col" rowSpan={headRowSpan}>
+                {t('departments.col_weekdays_own')}
+              </th>
               <th
                 className="cmatrix-col cmatrix-setting-col is-group-end"
                 scope="col"
                 rowSpan={headRowSpan}
               >
-                {t('employees.preference')}
+                {t('departments.col_weekdays_scheduler')}
               </th>
               {columns.map((c) => (
                 <th

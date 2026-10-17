@@ -52,6 +52,16 @@ class User(Base):
     # A VIP employee, marked by the scheduler. Only a label for now; the
     # generator plans a VIP like anyone else.
     is_vip = Column(Boolean, nullable=False, default=False, server_default=sa_false())
+    # For each weekday, Monday first, one character: "w" the employee wants
+    # the day, "a" they would rather avoid it, "-" they do not mind. NULL is
+    # "-" every day. A day marked in the availability calendar outranks it.
+    weekday_preferences = Column(String(7), nullable=True)
+    # The same seven answers set by the scheduler. Where the scheduler
+    # answered anything but "-", their answer replaces the employee's.
+    scheduler_weekday_preferences = Column(String(7), nullable=True)
+    # The most duties a month the scheduler allows. Unlike the employee's
+    # wish it is a cap: whatever the employee asked for, they get no more.
+    scheduler_max_shifts_per_month = Column(Integer, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())

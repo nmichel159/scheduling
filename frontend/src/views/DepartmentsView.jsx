@@ -29,6 +29,7 @@ import {
   normalizeWeekdayRequirements,
 } from '../utils/competenceRequirements';
 import PageSkeleton from '../components/Skeleton';
+import { NO_WEEKDAYS, weekdaysOf } from '../services/unavailabilityService';
 import './DepartmentsView.css';
 
 /** The scheduling record of somebody nothing is stored for yet. */
@@ -38,6 +39,9 @@ const DEFAULT_SETTINGS = {
   max_shifts_per_month: null,
   max_surcharge_shifts_per_month: null,
   shift_preference: SHIFT_PREFERENCE.ANY,
+  scheduler_max_shifts_per_month: null,
+  weekday_preferences: NO_WEEKDAYS,
+  scheduler_weekday_preferences: NO_WEEKDAYS,
 };
 
 /** One person's scheduling record, read off a load row. */
@@ -47,6 +51,9 @@ const settingsOf = (row) => ({
   max_shifts_per_month: row?.max_shifts_per_month ?? null,
   max_surcharge_shifts_per_month: row?.max_surcharge_shifts_per_month ?? null,
   shift_preference: row?.shift_preference || SHIFT_PREFERENCE.ANY,
+  scheduler_max_shifts_per_month: row?.scheduler_max_shifts_per_month ?? null,
+  weekday_preferences: weekdaysOf(row?.weekday_preferences),
+  scheduler_weekday_preferences: weekdaysOf(row?.scheduler_weekday_preferences),
 });
 
 const fingerprintSettings = (settings) =>
@@ -56,6 +63,8 @@ const fingerprintSettings = (settings) =>
     settings.max_shifts_per_month,
     settings.max_surcharge_shifts_per_month,
     settings.shift_preference,
+    settings.scheduler_max_shifts_per_month,
+    settings.scheduler_weekday_preferences,
   ]);
 
 /** Deep-copies rows so edits to the draft never mutate the loaded snapshot.
@@ -466,6 +475,7 @@ const DepartmentsView = () => {
         ? {
             ...row,
             settings: {
+              ...row.settings,
               scheduling_active: schedulingActive,
               is_vip: isVip,
               max_shifts_per_month: maxShifts,

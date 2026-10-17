@@ -31,6 +31,7 @@ from app.schemas.schedule import (
     ScheduleContextMark,
     ScheduleContextResponse,
 )
+from app.services.shift_wish_service import shift_limits
 from app.services.schedule_generation_service import (
     REST_CALENDAR_MARGIN_DAYS,
     foreign_recovery_reader,
@@ -139,6 +140,8 @@ def get_schedule_context(
                 )
             )
 
+    limits = shift_limits(db, employees, year, month)
+
     return ScheduleContextResponse(
         ambulance_id=ambulance_id,
         month=month,
@@ -146,7 +149,9 @@ def get_schedule_context(
         employees=[
             EmployeeScheduleContext(
                 user_id=employee.id,
-                max_shifts_per_month=employee.max_shifts_per_month,
+                # The wish that holds this month: the employee's month or
+                # standing wish, never above the scheduler's cap.
+                max_shifts_per_month=limits[employee.id].wish,
                 max_surcharge_shifts_per_month=employee.max_surcharge_shifts_per_month,
                 marks=marks[employee.id],
                 duties=duties[employee.id],

@@ -75,3 +75,7 @@ class MonthlyDutyWish(BaseModel):
         le=31,
         description="Preferred maximum number of surcharged duties per month.",
     )
+    # Filled in on the way out only when a month was asked for: the wish
+    # every month falls back to, and the scheduler's cap above them both.
+    standing_max_shifts_per_month: Optional[int] = None
+    scheduler_max_shifts_per_month: Optional[int] = None

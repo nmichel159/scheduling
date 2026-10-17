@@ -102,18 +102,48 @@ export async function deleteUnavailability(id) {
 const wishOf = (data) => ({
   max_shifts_per_month: data.max_shifts_per_month ?? null,
   max_surcharge_shifts_per_month: data.max_surcharge_shifts_per_month ?? null,
+  standing_max_shifts_per_month: data.standing_max_shifts_per_month ?? null,
+  scheduler_max_shifts_per_month: data.scheduler_max_shifts_per_month ?? null,
 });
 
-/** How many duties, and how many surcharged ones, the user wants at most. */
-export async function fetchMonthlyWish() {
-  const { data } = await client.get('/unavailabilities/monthly-wish');
+/**
+ * How many duties, and how many surcharged ones, the user wants at most.
+ * With a `period` ({ year, month }, month 1-12) the duty wish is that
+ * month's own, and the standing wish and the scheduler's cap come along.
+ */
+export async function fetchMonthlyWish(period) {
+  const { data } = await client.get('/unavailabilities/monthly-wish', { params: period });
   return wishOf(data);
 }
 
 /** Store the wishes named in `changes`; the others keep their value. */
-export async function saveMonthlyWish(changes) {
-  const { data } = await client.put('/unavailabilities/monthly-wish', changes);
+export async function saveMonthlyWish(changes, period) {
+  const { data } = await client.put('/unavailabilities/monthly-wish', changes, {
+    params: period,
+  });
   return wishOf(data);
+}
+
+/* ---------- standing conditions ---------- */
+
+/** Weekday answers, Monday first. */
+export const WEEKDAY_ANSWER = { WANT: 'want', AVOID: 'avoid', ANY: 'any' };
+
+export const NO_WEEKDAYS = Object.freeze(Array(7).fill(WEEKDAY_ANSWER.ANY));
+
+/** Seven answers, Monday first, whatever the server sent. */
+export const weekdaysOf = (value) =>
+  Array.from({ length: 7 }, (_, index) => value?.[index] ?? WEEKDAY_ANSWER.ANY);
+
+/** The employee's own conditions for every month, with the scheduler's word. */
+export async function fetchConditions() {
+  const { data } = await client.get('/unavailabilities/conditions');
+  return data;
+}
+
+export async function saveConditions(conditions) {
+  const { data } = await client.put('/unavailabilities/conditions', conditions);
+  return data;
 }
 
 /* ---------- the same calendar, read and written by a manager ----------
@@ -174,17 +204,19 @@ export async function deleteEmployeeUnavailability(ambulanceId, userId, id) {
 }
 
 /** One employee's monthly duty wishes (null = no opinion). */
-export async function fetchEmployeeMonthlyWish(ambulanceId, userId) {
+export async function fetchEmployeeMonthlyWish(ambulanceId, userId, period) {
   const { data } = await client.get(
-    `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities/monthly-wish`
+    `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities/monthly-wish`,
+    { params: period }
   );
   return wishOf(data);
 }
 
-export async function saveEmployeeMonthlyWish(ambulanceId, userId, changes) {
+export async function saveEmployeeMonthlyWish(ambulanceId, userId, changes, period) {
   const { data } = await client.put(
     `/ambulances/${ambulanceId}/employees/${userId}/unavailabilities/monthly-wish`,
-    changes
+    changes,
+    { params: period }
   );
   return wishOf(data);
 }

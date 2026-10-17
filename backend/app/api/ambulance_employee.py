@@ -60,6 +60,7 @@ from app.services.unavailability_service import (
     get_monthly_duty_wish,
     get_unavailabilities,
     set_monthly_duty_wish,
+    wish_period,
     update_unavailability,
 )
 
@@ -261,11 +262,13 @@ def list_employee_unavailabilities_endpoint(
     summary="Get an employee's monthly duty wish",
 )
 def get_employee_monthly_duty_wish_endpoint(
+    year: Optional[int] = Query(None, ge=2000, le=2100),
+    month: Optional[int] = Query(None, ge=1, le=12),
     employee: User = Depends(get_managed_employee),
     db: Session = Depends(get_db),
 ) -> MonthlyDutyWish:
     """Return the monthly duty wish of an employee of the managed ambulance."""
-    return get_monthly_duty_wish(db, employee.id)
+    return get_monthly_duty_wish(db, employee.id, wish_period(year, month))
 
 
 @router.put(
@@ -275,11 +278,13 @@ def get_employee_monthly_duty_wish_endpoint(
 )
 def set_employee_monthly_duty_wish_endpoint(
     data: MonthlyDutyWish,
+    year: Optional[int] = Query(None, ge=2000, le=2100),
+    month: Optional[int] = Query(None, ge=1, le=12),
     employee: User = Depends(get_managed_employee),
     db: Session = Depends(get_db),
 ) -> MonthlyDutyWish:
     """Store the monthly duty wish of an employee of the managed ambulance."""
-    return set_monthly_duty_wish(db, employee.id, data)
+    return set_monthly_duty_wish(db, employee.id, data, wish_period(year, month))
 
 
 @router.post(

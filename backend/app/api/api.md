@@ -313,10 +313,24 @@ PUT je uloženie plánovača, preto odmietne len zamestnanca, ktorý na pracovis
 - `DELETE /unavailabilities/{unavailability_id}`
 - `GET /unavailabilities/monthly-wish`
 - `PUT /unavailabilities/monthly-wish`
+- `GET /unavailabilities/conditions`
+- `PUT /unavailabilities/conditions`
 
 Všetky endpointy vyžadujú prihlásenie a povoľujú prácu len nad vlastnými záznamami. POST/PUT prijímajú schému nedostupnosti s dátumom, časom a dôvodom. Úspech: `200`, `201` alebo `204`; chyby `400`, `401`, `403`, `404`, `422`.
 
 Pole `reason` nesie stav dňa: `PREFERRED` (chcem) a `SOFT_DECLINE` (nechcem) sú len želania a službu neblokujú, `UNAVAILABLE` (nemôžem), `VACATION` (dovolenka) a `BUSINESS_TRIP` (služobná cesta) deň zo generovania vylučujú úplne. Neznámy alebo prázdny dôvod sa číta ako `UNAVAILABLE`.
 
 `monthly-wish` drží želaný maximálny počet služieb za mesiac (`max_shifts_per_month`, `null` = bez limitu). Je to želanie, nie tvrdý strop: generátor ho prekročí len vtedy, ak sa mesiac inak nedá pokryť. Manažér vie to isté nastaviť zamestnancovi cez `GET`/`PUT /ambulances/{ambulance_id}/employees/{user_id}/unavailabilities/monthly-wish`.
+
+S parametrami `year` a `month` sa `max_shifts_per_month` týka len daného mesiaca (tabuľka `monthly_shift_wishes`) a odpoveď pridá `standing_max_shifts_per_month` (stále želanie) a `scheduler_max_shifts_per_month` (limit rozvrhára). Bez nich endpoint číta a píše stále želanie ako doteraz.
+
+Platný limit služieb v mesiaci má tri úrovne, silnejšia prvá:
+
+1. **Limit rozvrhára** (`users.scheduler_max_shifts_per_month`) — tvrdý strop, generátor ho neprekročí (okrem služieb vložených ručne).
+2. **Želanie zamestnanca na daný mesiac** (`monthly_shift_wishes`).
+3. **Stále želanie zamestnanca** (`users.max_shifts_per_month`).
+
+Želanie (2, inak 3) sa vždy oreže na limit rozvrhára: kto chce 10 služieb pri limite 4, dostane najviac 4.
+
+`conditions` sú stále podmienky zamestnanca: stále želanie služieb, príplatkových služieb, druh služieb a `weekday_preferences` — sedem odpovedí od pondelka (`want` / `avoid` / `any`). Polia `scheduler_max_shifts_per_month` a `scheduler_weekday_preferences` sú tu len na čítanie; rozvrhár ich nastavuje cez `PUT /ambulances/{ambulance_id}/employees/{user_id}/settings`. Pre každý deň v týždni platí odpoveď rozvrhára, ak nejakú dal, inak zamestnancova. Generátor číta chcený deň v týždni ako deň „chcem“ a nechcený ako „nechcem“ (rovnaké váhy), a to v každom dni mesiaca, ktorý zamestnanec v kalendári neoznačil — označený deň má prednosť.
 </details>

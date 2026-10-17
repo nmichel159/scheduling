@@ -44,6 +44,12 @@ from app.schemas.ambulance_employee import (
 from app.services.competence_scenario_service import get_selected_scenario
 from app.services.database_conflict import commit_or_conflict
 from app.services.special_day_service import rest_days_between
+from app.services.shift_wish_service import (
+    encode_weekdays,
+    scheduler_weekday_preferences_of,
+    shift_limits,
+    weekday_preferences_of,
+)
 
 
 def _slot_parameters(
@@ -230,6 +236,8 @@ def get_monthly_employee_load(
             )
         )
 
+    limits = shift_limits(db, employees, year, month)
+
     return AmbulanceMonthlyLoad(
         ambulance_id=ambulance_id,
         month=month,
@@ -247,6 +255,11 @@ def get_monthly_employee_load(
                 shift_preference=employee.shift_preference or "any",
                 scheduling_active=employee.scheduling_active is not False,
                 is_vip=bool(employee.is_vip),
+                scheduler_max_shifts_per_month=employee.scheduler_max_shifts_per_month,
+                month_max_shifts=limits[employee.id].month_wish,
+                effective_max_shifts=limits[employee.id].wish,
+                weekday_preferences=weekday_preferences_of(employee),
+                scheduler_weekday_preferences=scheduler_weekday_preferences_of(employee),
                 days=days[employee.id],
                 marked_days=availability[employee.id]["marked"],
                 preferred_days=availability[employee.id]["preferred"],
@@ -267,6 +280,9 @@ def get_scheduling_settings(db: Session, user: User) -> EmployeeSchedulingSettin
         shift_preference=user.shift_preference or "any",
         scheduling_active=user.scheduling_active is not False,
         is_vip=bool(user.is_vip),
+        scheduler_max_shifts_per_month=user.scheduler_max_shifts_per_month,
+        weekday_preferences=weekday_preferences_of(user),
+        scheduler_weekday_preferences=scheduler_weekday_preferences_of(user),
     )
 
 
@@ -286,6 +302,14 @@ def set_scheduling_settings(
         user.scheduling_active = data.scheduling_active
     if "is_vip" in data.model_fields_set:
         user.is_vip = data.is_vip
+    if "scheduler_max_shifts_per_month" in data.model_fields_set:
+        user.scheduler_max_shifts_per_month = data.scheduler_max_shifts_per_month
+    if data.weekday_preferences is not None:
+        user.weekday_preferences = encode_weekdays(data.weekday_preferences)
+    if data.scheduler_weekday_preferences is not None:
+        user.scheduler_weekday_preferences = encode_weekdays(
+            data.scheduler_weekday_preferences
+        )
     commit_or_conflict(db, "Could not save the employee settings.")
     db.refresh(user)
     return get_scheduling_settings(db, user)
