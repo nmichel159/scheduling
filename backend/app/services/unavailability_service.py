@@ -368,6 +368,7 @@ def set_monthly_duty_wish(
     user_id: int,
     data: MonthlyDutyWish,
     period: tuple[int, int] | None = None,
+    enforce_month_lock: bool = True,
 ) -> MonthlyDutyWish:
     """Store the user's monthly duty wishes; ``None`` clears one.
 
@@ -381,6 +382,8 @@ def set_monthly_duty_wish(
         if period is None:
             user.max_shifts_per_month = data.max_shifts_per_month
         else:
+            # A month's own wish locks with the month, like its marked days.
+            _ensure_writable(db, user.id, date(*period, 1), enforce_month_lock)
             set_month_wish(db, user.id, *period, data.max_shifts_per_month)
     if "max_surcharge_shifts_per_month" in sent:
         user.max_surcharge_shifts_per_month = data.max_surcharge_shifts_per_month

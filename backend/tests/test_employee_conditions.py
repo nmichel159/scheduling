@@ -15,9 +15,12 @@ from app.models.unavailability import Unavailability
 from app.schemas.ambulance_employee import EmployeeConditions
 from app.schemas.unavailability import MonthlyDutyWish
 from app.services.schedule_generation_service import generate_ambulance_monthly_schedule
+from fastapi import HTTPException
+
 from app.services.shift_wish_service import (
     effective_weekday_preferences,
     encode_weekdays,
+    set_month_wish,
     shift_limits,
 )
 from app.services.unavailability_service import (
@@ -28,6 +31,8 @@ from app.services.unavailability_service import (
 )
 
 YEAR, MONTH = 2026, 11
+#: A month far enough ahead that no lock closes it while the tests live.
+OPEN = (2099, 11)
 ANY7 = ["any"] * 7
 
 
@@ -107,9 +112,8 @@ class EmployeeConditionsTests(unittest.TestCase):
         month_wisher.max_shifts_per_month = 2
         standing.max_shifts_per_month = 6
         self.db.commit()
-        set_monthly_duty_wish(
-            self.db, month_wisher.id, MonthlyDutyWish(max_shifts_per_month=9), (YEAR, MONTH)
-        )
+        set_month_wish(self.db, month_wisher.id, YEAR, MONTH, 9)
+        self.db.commit()
 
         limits = shift_limits(self.db, self.users, YEAR, MONTH)
         self.assertEqual((limits[capped.id].cap, limits[capped.id].wish), (4, 4))
@@ -127,23 +131,35 @@ class EmployeeConditionsTests(unittest.TestCase):
         user.max_shifts_per_month = 5
         user.scheduler_max_shifts_per_month = 3
         self.db.commit()
-        wish = get_monthly_duty_wish(self.db, user.id, (YEAR, MONTH))
+        wish = get_monthly_duty_wish(self.db, user.id, OPEN)
         self.assertIsNone(wish.max_shifts_per_month)
         self.assertEqual(wish.standing_max_shifts_per_month, 5)
         self.assertEqual(wish.scheduler_max_shifts_per_month, 3)
         set_monthly_duty_wish(
-            self.db, user.id, MonthlyDutyWish(max_shifts_per_month=7), (YEAR, MONTH)
+            self.db, user.id, MonthlyDutyWish(max_shifts_per_month=7), OPEN
         )
         self.assertEqual(
-            get_monthly_duty_wish(self.db, user.id, (YEAR, MONTH)).max_shifts_per_month, 7
+            get_monthly_duty_wish(self.db, user.id, OPEN).max_shifts_per_month, 7
         )
         set_monthly_duty_wish(
-            self.db, user.id, MonthlyDutyWish(max_shifts_per_month=None), (YEAR, MONTH)
+            self.db, user.id, MonthlyDutyWish(max_shifts_per_month=None), OPEN
         )
         self.assertIsNone(
-            get_monthly_duty_wish(self.db, user.id, (YEAR, MONTH)).max_shifts_per_month
+            get_monthly_duty_wish(self.db, user.id, OPEN).max_shifts_per_month
         )
         self.assertEqual(self.db.get(User, user.id).max_shifts_per_month, 5)
+
+    def test_a_past_month_wish_is_refused(self) -> None:
+        user = self.users[0]
+        for enforce in (True, False):
+            with self.assertRaises(HTTPException):
+                set_monthly_duty_wish(
+                    self.db,
+                    user.id,
+                    MonthlyDutyWish(max_shifts_per_month=3),
+                    (2020, 1),
+                    enforce_month_lock=enforce,
+                )
 
     def test_the_employee_cannot_write_the_scheduler_fields(self) -> None:
         user = self.users[0]

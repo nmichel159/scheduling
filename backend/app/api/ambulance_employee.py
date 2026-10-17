@@ -284,7 +284,9 @@ def set_employee_monthly_duty_wish_endpoint(
     db: Session = Depends(get_db),
 ) -> MonthlyDutyWish:
     """Store the monthly duty wish of an employee of the managed ambulance."""
-    return set_monthly_duty_wish(db, employee.id, data, wish_period(year, month))
+    return set_monthly_duty_wish(
+        db, employee.id, data, wish_period(year, month), enforce_month_lock=False
+    )
 
 
 @router.post(
