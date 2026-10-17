@@ -112,6 +112,21 @@ const buildShifts = () => {
   return out;
 };
 
+// dovolenky, „chcem“, „nechcem“ a mesačné stropy, aby bolo čo plniť
+const REASONS = ['VACATION', 'PREFERRED', 'SOFT_DECLINE', 'UNAVAILABLE'];
+const context = {
+  employees: employees.map((e, i) => ({
+    user_id: e.user_id,
+    max_shifts_per_month: i % 4 === 0 ? 6 : null,
+    max_surcharge_shifts_per_month: i % 5 === 0 ? 2 : null,
+    marks: [3, 11, 19, 27].map((day, n) => ({
+      work_date: iso(((day + i * 2) % days) + 1),
+      reason: REASONS[(i + n) % REASONS.length],
+    })),
+    duties: [],
+  })),
+};
+
 const Preview = () => {
   const [shifts, setShifts] = useState(buildShifts);
   const [budget, setBudget] = useState(30);
@@ -135,7 +150,7 @@ const Preview = () => {
         employees,
         competences,
         restDays: new Set(),
-        context: null,
+        context,
       }),
     [shifts]
   );

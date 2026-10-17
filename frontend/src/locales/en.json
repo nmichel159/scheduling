@@ -379,6 +379,8 @@
     "planner_missing": "Unstaffed: {{missing}}",
     "planner_missing_none": "Fully staffed",
     "planner_missing_hint": "How many duties are still missing against the workplace's required staffing.",
+    "planner_fulfilment": "Conditions met: {{percent}} %",
+    "planner_fulfilment_count": "{{met}} of {{total}}",
     "planner_cell_title": "{{date}} – {{competence}}: {{filled}} of {{required}} staffed",
     "planner_dot_title": "{{name}} – {{date}}: {{competence}}",
     "planner_picker_title": "Who covers {{competence}}",

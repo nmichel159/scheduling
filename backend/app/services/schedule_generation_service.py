@@ -197,6 +197,10 @@ SPREAD_HORIZON_DAYS = 7
 #: between a pass that ends in seconds and one that spends its whole budget
 #: proving that a barely better arrangement of gaps does not exist.
 WISH_TOLERANCE_SHARE = 0.1
+#: How many times more a VIP's wishes weigh -- the days they want or would
+#: rather not work and the monthly limits they entered. It only ever
+#: multiplies, so a VIP's wish still never outbids the balance or a rule.
+VIP_WISH_FACTOR = 2
 
 
 @dataclass(frozen=True)
@@ -308,6 +312,8 @@ class SchedulingEmployee:
     #: Which rule each of ``unavailable_dates`` falls under -- a vacation, a
     #: business trip, or a plain "cannot". A date missing here is the last.
     absence_rules: tuple[tuple[date, str], ...] = ()
+    #: A VIP's wishes weigh VIP_WISH_FACTOR times as much as anyone else's.
+    is_vip: bool = False
 
 
 @dataclass(frozen=True)
@@ -1003,6 +1009,10 @@ def solve_monthly_schedule(
         for employee in employees
         if employee.soft_declined_dates
     }
+    wish_factor_by_employee = {
+        employee.id: VIP_WISH_FACTOR if employee.is_vip else 1
+        for employee in employees
+    }
     capacity_issues = _detect_capacity_issues(
         variables,
         competences,
@@ -1296,7 +1306,9 @@ def solve_monthly_schedule(
                     >= lpSum(employee_variables) - employee.max_shifts_per_month,
                     f"wish_{employee.id}",
                 )
-                objective_terms.append(max_shifts_weight * over_wish)
+                objective_terms.append(
+                    max_shifts_weight * wish_factor_by_employee[employee.id] * over_wish
+                )
 
         # The surcharge wish follows the same rule as the duty wish, except
         # that zero is a real answer here: no surcharged duty at all.
@@ -1316,17 +1328,22 @@ def solve_monthly_schedule(
                     over_surcharge >= lpSum(surcharge_variables) - surcharge_wish,
                     f"surcharge_wish_{employee.id}",
                 )
-                objective_terms.append(max_shifts_weight * over_surcharge)
+                objective_terms.append(
+                    max_shifts_weight
+                    * wish_factor_by_employee[employee.id]
+                    * over_surcharge
+                )
 
     balance = lpSum(objective_terms) + lpSum(overstaff_terms) + lpSum(breach_terms)
 
+    # Each day wish counts once, or VIP_WISH_FACTOR times for a VIP.
     preferred_variables = [
-        variable
+        wish_factor_by_employee.get(user_id, 1) * variable
         for (user_id, _competence_id, work_date), variable in variables.items()
         if work_date in preferred_dates_by_employee.get(user_id, frozenset())
     ]
     soft_declined_variables = [
-        variable
+        wish_factor_by_employee.get(user_id, 1) * variable
         for (user_id, _competence_id, work_date), variable in variables.items()
         if work_date in soft_declined_dates_by_employee.get(user_id, frozenset())
     ]
@@ -1675,6 +1692,7 @@ def generate_ambulance_monthly_schedule(
             shift_preference=user.shift_preference or ANY_PREFERENCE,
             external_commitments=tuple(external_commitments[user.id]),
             absence_rules=tuple(sorted(absence_rules[user.id].items())),
+            is_vip=bool(user.is_vip),
         )
         for user in user_rows
     ]

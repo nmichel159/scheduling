@@ -1366,6 +1366,22 @@ const SchedulePlannerView = ({
                     : t('schedule_edit.planner_missing', { missing: missingTotal })}
                 </span>
               )}
+              {conflictReport.fulfilment.total > 0 && (
+                <span
+                  className="planner-fulfilment"
+                  title={t('schedule_edit.planner_fulfilment_count', {
+                    met: conflictReport.fulfilment.met,
+                    total: conflictReport.fulfilment.total,
+                  })}
+                >
+                  {t('schedule_edit.planner_fulfilment', {
+                    percent: Math.round(
+                      (100 * conflictReport.fulfilment.met) /
+                        conflictReport.fulfilment.total
+                    ),
+                  })}
+                </span>
+              )}
               {conflicts.length > 0 && (
                 <ChevronDownIcon
                   className={`planner-conflicts-chevron ${conflictsOpen ? 'is-open' : ''}`}

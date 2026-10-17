@@ -379,6 +379,8 @@
     "planner_missing": "Neobsadené: {{missing}}",
     "planner_missing_none": "Všetko obsadené",
     "planner_missing_hint": "Koľko služieb ešte chýba oproti potrebnej obsadenosti pracoviska.",
+    "planner_fulfilment": "Splnené podmienky: {{percent}} %",
+    "planner_fulfilment_count": "{{met}} z {{total}}",
     "planner_cell_title": "{{date}} – {{competence}}: obsadené {{filled}} z {{required}}",
     "planner_dot_title": "{{name}} – {{date}}: {{competence}}",
     "planner_picker_title": "Kto zastane kompetenciu {{competence}}",

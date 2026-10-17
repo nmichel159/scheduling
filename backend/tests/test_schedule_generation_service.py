@@ -41,6 +41,7 @@ def _employee(
     max_shifts_per_month: int | None = None,
     shift_preference: str = "any",
     max_surcharge_shifts_per_month: int | None = None,
+    is_vip: bool = False,
 ) -> SchedulingEmployee:
     """Build a concise employee fixture for solver tests."""
     return SchedulingEmployee(
@@ -55,6 +56,7 @@ def _employee(
         max_shifts_per_month=max_shifts_per_month,
         max_surcharge_shifts_per_month=max_surcharge_shifts_per_month,
         shift_preference=shift_preference,
+        is_vip=is_vip,
     )
 
 
@@ -342,6 +344,32 @@ class ScheduleGenerationSolverTests(unittest.TestCase):
             {item.work_date for item in assignments if item.user_id == 4},
             set(requested),
         )
+
+    def test_a_vip_wins_a_day_wish_both_employees_share(self) -> None:
+        """Two equal wishes on the same day go the VIP's way, both ways round."""
+        wanted = date(2026, 8, 10)
+        rather_not = date(2026, 8, 21)
+        for vip_id in (1, 2):
+            with self.subTest(vip=vip_id):
+                employees = [
+                    _employee(
+                        user_id,
+                        competence_ids=frozenset({1}),
+                        preferred_dates=frozenset({wanted}),
+                        soft_declined_dates=frozenset({rather_not}),
+                        is_vip=user_id == vip_id,
+                    )
+                    for user_id in (1, 2)
+                ]
+                assignments = solve_monthly_schedule(
+                    employees,
+                    [SchedulingCompetence(id=1, name="Triage", required_count=1)],
+                    month=8,
+                    year=2026,
+                )
+                worker = {item.work_date: item.user_id for item in assignments}
+                self.assertEqual(worker[wanted], vip_id)
+                self.assertNotEqual(worker[rather_not], vip_id)
 
     def test_requests_never_buy_a_less_balanced_roster(self) -> None:
         """One employee asking for the whole month still gets an even share."""

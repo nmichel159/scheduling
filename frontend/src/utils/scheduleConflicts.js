@@ -336,6 +336,33 @@ export function analyzeScheduleConflicts({
     }
   });
 
+  /* ---------- how much of what people asked for the month keeps ---------- */
+
+  /* Every mark is one condition -- an absence or a "rather not" is kept by a
+     free day, a "wants to" by a duty -- and so is each monthly limit someone
+     entered. Counted over the whole month, worked days included. */
+  const isSurchargeOn = (competenceId, dateStr) =>
+    Boolean(slotsById.get(competenceId)?.[slotOf(dateStr)]?.is_surcharge);
+  const fulfilment = { met: 0, total: 0 };
+  const tally = (kept) => {
+    fulfilment.total += 1;
+    if (kept) fulfilment.met += 1;
+  };
+  contextByUser.forEach((entry, userId) => {
+    (entry.marks || []).forEach((mark) => {
+      const works = shiftsByUserDate.has(personCellKey(userId, mark.work_date));
+      tally(mark.reason === PREFERRED_REASON ? works : !works);
+    });
+    const own = shifts.filter((shift) => shift.user_id === userId);
+    if (entry.max_shifts_per_month) tally(own.length <= entry.max_shifts_per_month);
+    if (entry.max_surcharge_shifts_per_month != null) {
+      const surcharged = own.filter((shift) =>
+        isSurchargeOn(shift.competence_id, shift.work_date)
+      ).length;
+      tally(surcharged <= entry.max_surcharge_shifts_per_month);
+    }
+  });
+
   /* ---------- per day and competence ---------- */
 
   const filledByCell = new Map();
@@ -496,6 +523,7 @@ export function analyzeScheduleConflicts({
     byUser,
     notesByCell,
     counts,
+    fulfilment,
     errorCount: conflicts.filter((conflict) => conflict.severity === 'error').length,
     warningCount: conflicts.filter((conflict) => conflict.severity === 'warning').length,
     forCandidate,

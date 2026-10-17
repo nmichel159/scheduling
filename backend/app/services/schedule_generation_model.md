@@ -140,6 +140,14 @@ cena:  1000 · over_wish[z]
 nad každým krokom vyrovnanosti — takže sa to stane len vtedy, keď sa mesiac
 inak obsadiť nedá.
 
+Rovnako sa ráta strop príplatkových služieb, len nula je tu skutočná
+odpoveď — žiadna príplatková služba:
+
+```
+over_surcharge_wish[z] ≥ Σ x[z, ·, d príplatkový] − z.max_surcharge_shifts_per_month
+cena:  1000 · over_surcharge_wish[z]
+```
+
 #### 3.2 Vyrovnanosť: štyri konvexné rebríky na zamestnanca
 
 Toto je hlavný člen. Záťaž `L` sa rozloží na stupne po jednom:
@@ -213,6 +221,14 @@ spravodlivosti proti zlomku niečieho želania.
 Symetricky: deň, ktorý si niekto vypýtal, sa odmení; deň, ktorý by radšej
 nemal, sa potrestá. „Radšej nie" nie je neprítomnosť — je to cena, nie
 zákaz.
+
+#### VIP
+
+Želania VIP zamestnanca vážia `VIP_WISH_FACTOR` = 2-krát viac: denné
+želania (3.3) aj prekročenie mesačného želania a stropu príplatkových (3.1).
+Je to len násobok ceny, takže poradie síl sa nemení — VIP želanie stále
+nekúpi menej vyrovnaný rozpis ani neporuší tvrdú podmienku; rozhoduje,
+čie želanie vyhrá, keď sa dve navzájom vylučujú.
 
 #### 3.4 Rozptyl
 

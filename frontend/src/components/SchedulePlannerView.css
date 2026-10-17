@@ -151,6 +151,25 @@
   color: var(--success);
 }
 
+/* How many of the absences, wishes and monthly limits people entered the
+   month keeps, as one share. */
+.planner-fulfilment {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0 11px;
+  height: 28px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
+  color: var(--text-h);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .planner-missing svg {
   flex: none;
   width: 15px;
