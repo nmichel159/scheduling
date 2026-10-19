@@ -248,10 +248,15 @@ const SchedulePrintView = () => {
     });
   }, [year, month, restDays, weekdayShort]);
 
-  const orderedCompetences = useMemo(
-    () => [...competences].sort((a, b) => a.id - b.id),
-    [competences]
-  );
+  /* Only the competences somebody holds a duty on this month: a column that
+     stays blank from the first day to the last says nothing. A month with no
+     duties at all keeps every column, so the sheet can still go out blank. */
+  const orderedCompetences = useMemo(() => {
+    const staffed = new Set(shifts.map((shift) => shift.competence_id));
+    const sorted = [...competences].sort((a, b) => a.id - b.id);
+    const used = sorted.filter((competence) => staffed.has(competence.id));
+    return used.length ? used : sorted;
+  }, [competences, shifts]);
 
   const shiftsByDate = useMemo(() => {
     const map = new Map();
@@ -284,7 +289,11 @@ const SchedulePrintView = () => {
         map.set(shift.user_id, shift.user_full_name || shift.user_email || '');
       }
     });
+    /* Somebody without a single duty would be a row of blank squares; with
+       no duties in the month at all, the whole roster stays. */
+    const onDuty = new Set(shifts.map((shift) => shift.user_id));
     return [...map.entries()]
+      .filter(([userId]) => onDuty.size === 0 || onDuty.has(userId))
       .map(([userId, fullName]) => ({ userId, fullName }))
       .sort((a, b) => compareNames(a.fullName, b.fullName, locale));
   }, [employees, shifts, locale]);

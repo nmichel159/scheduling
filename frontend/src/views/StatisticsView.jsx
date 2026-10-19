@@ -122,6 +122,12 @@ const StatisticsView = () => {
       : 0;
 
   const workplaces = report?.workplaces || [];
+  /* A year nothing of has been worked yet would show a column of zeros, and
+     with a single workplace chosen every person's workplace count is one. */
+  const hasWorked = (report?.worked_shift_count ?? 0) > 0;
+  const showWorkplaceCount =
+    ambulanceId === null &&
+    (report?.employees || []).some((item) => item.ambulance_count > 1);
   // The busiest workplace sets the width of every load bar, so the rows are
   // comparable to each other rather than each filling its own cell.
   const peakWorkplace = workplaces.reduce(
@@ -223,10 +229,12 @@ const StatisticsView = () => {
             <header className="card-header">
               <h2 className="card-title">{t('statistics.by_month_title')}</h2>
               <p className="stats-legend">
-                <span className="stats-legend-item">
-                  <span className="stats-swatch is-worked" />
-                  {t('statistics.legend_worked')}
-                </span>
+                {hasWorked && (
+                  <span className="stats-legend-item">
+                    <span className="stats-swatch is-worked" />
+                    {t('statistics.legend_worked')}
+                  </span>
+                )}
                 <span className="stats-legend-item">
                   <span className="stats-swatch is-planned" />
                   {t('statistics.legend_planned')}
@@ -294,9 +302,11 @@ const StatisticsView = () => {
                   <thead>
                     <tr>
                       <th scope="col">{t('statistics.workplace')}</th>
-                      <th scope="col" className="stats-num">
-                        {t('statistics.worked')}
-                      </th>
+                      {hasWorked && (
+                        <th scope="col" className="stats-num">
+                          {t('statistics.worked')}
+                        </th>
+                      )}
                       <th scope="col" className="stats-num">
                         {t('statistics.planned')}
                       </th>
@@ -309,7 +319,9 @@ const StatisticsView = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {workplaces.map((item) => (
+                    {workplaces
+                      .filter((item) => item.shift_count > 0 || item.worked_shift_count > 0)
+                      .map((item) => (
                       <tr
                         key={item.ambulance_id}
                         className={item.shift_count === 0 ? 'is-idle' : ''}
@@ -317,7 +329,9 @@ const StatisticsView = () => {
                         <th scope="row" className="stats-name">
                           {item.ambulance_name}
                         </th>
-                        <td className="stats-num">{number(item.worked_shift_count)}</td>
+                        {hasWorked && (
+                          <td className="stats-num">{number(item.worked_shift_count)}</td>
+                        )}
                         <td className="stats-num">{number(item.shift_count)}</td>
                         <td className="stats-num">{number(item.employee_count)}</td>
                         <td className="stats-load">
@@ -349,15 +363,19 @@ const StatisticsView = () => {
                   <thead>
                     <tr>
                       <th scope="col">{t('statistics.employee')}</th>
-                      <th scope="col" className="stats-num">
-                        {t('statistics.worked')}
-                      </th>
+                      {hasWorked && (
+                        <th scope="col" className="stats-num">
+                          {t('statistics.worked')}
+                        </th>
+                      )}
                       <th scope="col" className="stats-num">
                         {t('statistics.planned')}
                       </th>
-                      <th scope="col" className="stats-num">
-                        {t('statistics.workplaces')}
-                      </th>
+                      {showWorkplaceCount && (
+                        <th scope="col" className="stats-num">
+                          {t('statistics.workplaces')}
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -366,9 +384,13 @@ const StatisticsView = () => {
                         <th scope="row" className="stats-name" title={item.email}>
                           {formatShortName(item.full_name) || item.email}
                         </th>
-                        <td className="stats-num">{number(item.worked_shift_count)}</td>
+                        {hasWorked && (
+                          <td className="stats-num">{number(item.worked_shift_count)}</td>
+                        )}
                         <td className="stats-num">{number(item.shift_count)}</td>
-                        <td className="stats-num">{number(item.ambulance_count)}</td>
+                        {showWorkplaceCount && (
+                          <td className="stats-num">{number(item.ambulance_count)}</td>
+                        )}
                       </tr>
                     ))}
                   </tbody>

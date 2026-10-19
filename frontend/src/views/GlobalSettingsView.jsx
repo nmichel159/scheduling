@@ -392,7 +392,9 @@ const GlobalSettingsView = () => {
 
         <div className="card-pad">
           <ul className="gset-legend">
-            {REASONS.map((reason) => (
+            {REASONS.filter((reason) =>
+              (overview?.days ?? []).some((day) => day.counts?.[reason] > 0)
+            ).map((reason) => (
               <li key={reason}>
                 <span className={`gset-dot is-${STATE_OF_REASON[reason]}`} aria-hidden="true" />
                 {reasonLabel(reason)}

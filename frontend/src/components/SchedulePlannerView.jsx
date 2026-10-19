@@ -302,6 +302,21 @@ const SchedulePlannerView = ({
   const assignedOn = (dateStr, competenceId) =>
     (shiftsByDate[dateStr] || []).filter((s) => s.competence_id === competenceId);
 
+  /* The competences the month asks for or already has somebody on. One
+     nobody is needed for on any day is a column of empty squares. */
+  const shownCompetences = useMemo(
+    () =>
+      competences.filter((competence) =>
+        days.some(
+          (dayInfo) =>
+            requiredFor(competence.id, dayInfo) > 0 ||
+            assignedOn(dayInfo.dateStr, competence.id).length > 0
+        )
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [days, competences, slotsByCompetence, shiftsByDate]
+  );
+
   /* Duties per employee for the whole month, split the way the payroll splits
      them. The surcharged count is what the choice between two equally able
      people is actually made on, so it is carried next to every name the
@@ -500,7 +515,7 @@ const SchedulePlannerView = ({
       observer.disconnect();
       window.removeEventListener('resize', measure);
     };
-  }, [daysInMonth, competences]);
+  }, [daysInMonth, shownCompetences]);
 
   const dateFormatter = useMemo(
     () => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }),
@@ -878,7 +893,7 @@ const SchedulePlannerView = ({
 
   /* ---------- render ---------- */
 
-  const hasCompetences = competences.length > 0;
+  const hasCompetences = shownCompetences.length > 0;
 
   return (
     <div
@@ -917,7 +932,7 @@ const SchedulePlannerView = ({
                         {t('schedule_edit.planner_day')}
                       </span>
                     </th>
-                    {competences.map((competence) => (
+                    {shownCompetences.map((competence) => (
                       <th
                         key={competence.id}
                         scope="col"
@@ -959,7 +974,7 @@ const SchedulePlannerView = ({
                               {weekdayLabels[dayInfo.weekday]}
                             </span>
                           </th>
-                          {competences.map((competence) => {
+                          {shownCompetences.map((competence) => {
                             const required = requiredFor(competence.id, dayInfo);
                             const filled = assignedOn(
                               dayInfo.dateStr,
@@ -1135,7 +1150,7 @@ const SchedulePlannerView = ({
             </div>
             {hasCompetences && (
               <ul className="planner-legend">
-                {competences.map((competence) => (
+                {shownCompetences.map((competence) => (
                   <li key={competence.id} className="planner-legend-item">
                     <span
                       className="planner-legend-swatch"

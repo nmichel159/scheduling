@@ -271,6 +271,22 @@ const EmployeesView = () => {
     return rows;
   }, [employees, filter, competenceFilter, sort, statsOf, locale]);
 
+  /* Columns nobody on the list has anything in -- no VIP, no surcharged or
+   * weekend duty, no hours, no marked day -- are left out rather than shown
+   * as a column of zeros. */
+  const shownColumns = useMemo(() => {
+    const all = visible.map((e) => statsOf(e.user_id));
+    return {
+      vip: visible.some((e) => load[e.user_id]?.is_vip === true),
+      surcharge: all.some((stats) => stats.surcharge > 0),
+      weekend: all.some((stats) => stats.weekend > 0),
+      hours: all.some((stats) => stats.hours > 0),
+      marked: all.some((stats) => stats.marked > 0),
+    };
+  }, [visible, statsOf, load]);
+  const statCount =
+    1 + ['surcharge', 'weekend', 'hours', 'marked'].filter((key) => shownColumns[key]).length;
+
   const monthLabel = useMemo(() => {
     const formatter = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' });
     return formatter.format(new Date(view.y, view.m, 1));
@@ -538,7 +554,12 @@ const EmployeesView = () => {
           </div>
         </div>
 
-        <div className={`employees-list ${loading ? 'is-loading' : ''}`.trim()}>
+        <div
+          className={`employees-list ${loading ? 'is-loading' : ''} ${
+            shownColumns.vip ? '' : 'is-no-vip'
+          }`.trim()}
+          style={{ '--stat-count': statCount }}
+        >
           {visible.length === 0 && loading ? (
             <SkeletonRows label={t('departments.loading')} />
           ) : visible.length === 0 ? (
@@ -554,15 +575,25 @@ const EmployeesView = () => {
               <div className="employees-legend" aria-hidden="true">
                 <span className="employees-legend-person">{t('competences.employee')}</span>
                 <span className="employees-legend-status">{t('employees.status')}</span>
-                <span className="employees-legend-vip">{t('employees.vip')}</span>
+                {shownColumns.vip && (
+                  <span className="employees-legend-vip">{t('employees.vip')}</span>
+                )}
                 <span className="employees-legend-tags">{t('competences.title')}</span>
                 <span className="employees-legend-marked">{t('employees.marked_dates')}</span>
                 <span className="employees-stats">
                   <span className="employees-cell">{t('employees.stat_shifts')}</span>
-                  <span className="employees-cell">{t('employees.stat_surcharge')}</span>
-                  <span className="employees-cell">{t('employees.stat_weekend')}</span>
-                  <span className="employees-cell">{t('employees.stat_hours')}</span>
-                  <span className="employees-cell">{t('employees.stat_marked')}</span>
+                  {shownColumns.surcharge && (
+                    <span className="employees-cell">{t('employees.stat_surcharge')}</span>
+                  )}
+                  {shownColumns.weekend && (
+                    <span className="employees-cell">{t('employees.stat_weekend')}</span>
+                  )}
+                  {shownColumns.hours && (
+                    <span className="employees-cell">{t('employees.stat_hours')}</span>
+                  )}
+                  {shownColumns.marked && (
+                    <span className="employees-cell">{t('employees.stat_marked')}</span>
+                  )}
                 </span>
               </div>
               <ul className="employees-rows">
@@ -625,11 +656,13 @@ const EmployeesView = () => {
                           </span>
                         </span>
 
-                        <span className="employees-vip">
-                          {isVip && (
-                            <span className="badge badge-warning">{t('employees.vip')}</span>
-                          )}
-                        </span>
+                        {shownColumns.vip && (
+                          <span className="employees-vip">
+                            {isVip && (
+                              <span className="badge badge-warning">{t('employees.vip')}</span>
+                            )}
+                          </span>
+                        )}
 
                         <span className="employees-tags">
                           {e.competences.length === 0 ? (
@@ -720,40 +753,48 @@ const EmployeesView = () => {
                             </span>
                           </span>
 
-                          <span
-                            className={`employees-cell ${
-                              stats.surcharge > 0 ? 'is-accent' : 'is-muted'
-                            }`}
-                            title={t('employees.stat_surcharge_full')}
-                            data-label={t('employees.stat_surcharge')}
-                          >
-                            {stats.surcharge}
-                          </span>
-                          <span
-                            className={`employees-cell ${stats.weekend === 0 ? 'is-muted' : ''}`.trim()}
-                            title={t('employees.stat_weekend_full')}
-                            data-label={t('employees.stat_weekend')}
-                          >
-                            {stats.weekend}
-                          </span>
-                          <span
-                            className={`employees-cell ${stats.hours === 0 ? 'is-muted' : ''}`.trim()}
-                            title={t('employees.stat_hours_full')}
-                            data-label={t('employees.stat_hours')}
-                          >
-                            {stats.hours}
-                          </span>
-                          <span
-                            className={`employees-cell ${stats.marked === 0 ? 'is-muted' : ''}`.trim()}
-                            title={t('employees.stat_marked_breakdown', {
-                              preferred: stats.preferred,
-                              declined: stats.declined,
-                              blocked: stats.blocked,
-                            })}
-                            data-label={t('employees.stat_marked')}
-                          >
-                            {stats.marked}
-                          </span>
+                          {shownColumns.surcharge && (
+                            <span
+                              className={`employees-cell ${
+                                stats.surcharge > 0 ? 'is-accent' : 'is-muted'
+                              }`}
+                              title={t('employees.stat_surcharge_full')}
+                              data-label={t('employees.stat_surcharge')}
+                            >
+                              {stats.surcharge}
+                            </span>
+                          )}
+                          {shownColumns.weekend && (
+                            <span
+                              className={`employees-cell ${stats.weekend === 0 ? 'is-muted' : ''}`.trim()}
+                              title={t('employees.stat_weekend_full')}
+                              data-label={t('employees.stat_weekend')}
+                            >
+                              {stats.weekend}
+                            </span>
+                          )}
+                          {shownColumns.hours && (
+                            <span
+                              className={`employees-cell ${stats.hours === 0 ? 'is-muted' : ''}`.trim()}
+                              title={t('employees.stat_hours_full')}
+                              data-label={t('employees.stat_hours')}
+                            >
+                              {stats.hours}
+                            </span>
+                          )}
+                          {shownColumns.marked && (
+                            <span
+                              className={`employees-cell ${stats.marked === 0 ? 'is-muted' : ''}`.trim()}
+                              title={t('employees.stat_marked_breakdown', {
+                                preferred: stats.preferred,
+                                declined: stats.declined,
+                                blocked: stats.blocked,
+                              })}
+                              data-label={t('employees.stat_marked')}
+                            >
+                              {stats.marked}
+                            </span>
+                          )}
                         </span>
 
                         {/* Its own button rather than a second click

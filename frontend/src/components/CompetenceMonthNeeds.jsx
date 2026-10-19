@@ -279,6 +279,8 @@ const CompetenceMonthNeeds = ({
             )}
             {competences.map((competence) => {
               const total = totals.byCompetence.get(competence.id) || { duties: 0, hours: 0 };
+              // Nobody needed on any day of the month: a row of dots.
+              if (total.duties === 0) return null;
               return (
                 <tr key={competence.id}>
                   <th scope="row" className="cneeds-col-name" title={competence.name}>

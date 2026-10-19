@@ -45,7 +45,9 @@ const CompetenceCoverage = ({ competences, emptyLabel }) => {
         counts: normalizeWeekdayRequirements(competence).map(
           (item) => item.required_count
         ),
-      })),
+      }))
+        // A competence nobody is needed for on any weekday is a row of dashes.
+        .filter((row) => ISO_WEEKDAYS.some((weekday) => row.counts[weekday] > 0)),
     [competences]
   );
 
@@ -56,6 +58,9 @@ const CompetenceCoverage = ({ competences, emptyLabel }) => {
       ),
     [rows]
   );
+
+  // Weekdays nothing is staffed on are left out the same way.
+  const shownDays = ISO_WEEKDAYS.filter((weekday) => totals[weekday] > 0);
 
   const dayName = (weekday) => t(`workload.days.${weekday}`);
 
@@ -79,7 +84,7 @@ const CompetenceCoverage = ({ competences, emptyLabel }) => {
                   {t('schedule_edit.coverage_competence')}
                 </span>
               </th>
-              {ISO_WEEKDAYS.map((weekday) => (
+              {shownDays.map((weekday) => (
                 <th
                   key={weekday}
                   scope="col"
@@ -113,7 +118,7 @@ const CompetenceCoverage = ({ competences, emptyLabel }) => {
                     </span>
                   </span>
                 </th>
-                {ISO_WEEKDAYS.map((weekday) => {
+                {shownDays.map((weekday) => {
                   const count = row.counts[weekday];
                   return (
                     <td
@@ -147,7 +152,7 @@ const CompetenceCoverage = ({ competences, emptyLabel }) => {
               <th scope="row" className="coverage-name coverage-total-name">
                 {t('schedule_edit.coverage_total')}
               </th>
-              {ISO_WEEKDAYS.map((weekday) => (
+              {shownDays.map((weekday) => (
                 <td
                   key={weekday}
                   className={`coverage-cell coverage-total-cell ${
