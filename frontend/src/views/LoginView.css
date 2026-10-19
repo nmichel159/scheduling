@@ -49,18 +49,10 @@
 }
 
 .login-title {
-  margin: 0;
+  margin: 0 0 28px;
   font-size: var(--fs-2xl);
   font-weight: 650;
   letter-spacing: -0.025em;
-}
-
-.login-subtitle {
-  margin: 8px auto 28px;
-  max-width: 32ch;
-  color: var(--text-p);
-  font-size: var(--fs-base);
-  line-height: 1.5;
 }
 
 .login-error {

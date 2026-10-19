@@ -106,7 +106,6 @@ const SettingsDialog = ({ open, onClose }) => {
               </button>
             ))}
           </div>
-          <p className="settings-group-hint">{t('settings.theme_system_hint')}</p>
         </section>
         </div>
       </div>

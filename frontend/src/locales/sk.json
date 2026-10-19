@@ -10,10 +10,8 @@
     "reload": "Načítať znova"
   },
   "login_title": "Prihlásenie",
-  "login_subtitle": "Plánovanie služieb a rozpisov pracovísk na jednom mieste.",
   "login_google": "Pokračovať cez Google",
   "login_heading": "Vitajte späť",
-  "login_hint": "Prihláste sa svojím pracovným účtom Google.",
   "login_error_backend": "Server je nedostupný alebo sa overenie nepodarilo. Skúste to znova o chvíľu.",
   "login_error_google": "Prihlásenie cez Google sa nepodarilo. Skúste to znova.",
   "login_signing_in": "Prihlasujem…",
@@ -52,7 +50,6 @@
     }
   },
   "dashboard": {
-    "overview": "Osobný prehľad",
     "greeting": "Ahoj, {{name}}",
     "greeting_anonymous": "Ahoj!",
     "open_schedule": "Celý rozpis",
@@ -63,7 +60,6 @@
     "this_month": "v tomto mesiaci",
     "until_today": "do dnešného dňa",
     "schedule_title": "Môj rozpis",
-    "schedule_subtitle": "Prehľad služieb v aktuálnom mesiaci.",
     "load_error": "Nepodarilo sa načítať domovskú stránku.",
     "retry": "Skúsiť znova",
     "login_needed": "Prosím, prihláste sa."
@@ -124,8 +120,7 @@
     "appearance": "Vzhľad",
     "theme_light": "Svetlý",
     "theme_dark": "Tmavý",
-    "theme_system": "Systémový",
-    "theme_system_hint": "Systémový režim sa riadi nastavením vášho zariadenia."
+    "theme_system": "Systémový"
   },
   "workload": {
     "title": "Obmedzenia",
@@ -165,7 +160,6 @@
     "col_max_shifts": "Max. služieb",
     "col_max_surcharge": "Max. príplatkových",
     "title": "Moje pracoviská",
-    "subtitle": "Spravujte zamestnancov pracovísk, ktoré vediete. Zamestnanca môžete kedykoľvek pridať alebo odobrať.",
     "loading": "Načítavam...",
     "load_error": "Nepodarilo sa načítať dáta.",
     "action_error": "Akcia zlyhala, skús to znova.",
@@ -200,7 +194,6 @@
   },
   "admin": {
     "title": "Administrácia pracovísk",
-    "subtitle": "Spravujte všetky pracoviská a priraďujte im rozvrhárov.",
     "loading": "Načítavam...",
     "load_error": "Nepodarilo sa načítať pracoviská.",
     "forbidden": "Nemáte oprávnenie administrátora.",
@@ -225,7 +218,7 @@
     "manager_placeholder": "Vyhľadajte rozvrhára podľa mena alebo emailu...",
     "manager_no_results": "Žiadny rozvrhár nevyhovuje hľadaniu.",
     "manager_clear": "Zrušiť výber rozvrhára",
-    "manager_empty": "Žiadny používateľ nemá rolu rozvrhára (LEADER / AMBULANCE_OVERSEER / ANALYST).",
+    "manager_empty": "Žiadny používateľ nemá rolu rozvrhára.",
     "create": "Vytvoriť",
     "created": "Pracovisko vytvorené",
     "cancel": "Zrušiť",
@@ -243,7 +236,6 @@
   },
   "role_management": {
     "title": "Správa rolí",
-    "subtitle": "Priraďujte alebo odoberajte používateľom roly 1, 2 a 3.",
     "search": "Hľadať podľa mena alebo e-mailu...",
     "loading": "Načítavam používateľov...",
     "load_error": "Používateľov a roly sa nepodarilo načítať.",
@@ -287,7 +279,6 @@
   },
   "schedule": {
     "title": "Môj rozpis",
-    "subtitle": "Prehľad vašich služieb v aktuálnom mesiaci.",
     "load_error": "Nepodarilo sa načítať rozpis.",
     "retry": "Skúsiť znova",
     "empty": "V tomto mesiaci nemáte naplánovanú žiadnu službu.",
@@ -312,7 +303,7 @@
     "approve_warning": "Schválením sa tento rozvrh sprístupní zamestnancom. Pokračovať?",
     "approve_success": "Rozvrh bol schválený a je viditeľný zamestnancom.",
     "approve_error": "Rozvrh sa nepodarilo schváliť.",
-    "approve_empty_error": "Rozvrh sa nepodarilo schváliť: pre tento mesiac nie sú uložené žiadne služby. Zobrazenie bolo obnovené.",
+    "approve_empty_error": "Rozvrh sa nepodarilo schváliť: pre tento mesiac nie sú uložené žiadne služby.",
     "previous_month": "Predchádzajúci mesiac",
     "next_month": "Nasledujúci mesiac",
     "current_month": "Aktuálny mesiac",
@@ -324,10 +315,10 @@
     "generating_elapsed": "Uplynulo: {{duration}}",
     "duration_seconds": "{{value}} s",
     "duration_minutes": "{{value}} min",
-    "generate_hint": "Vytvorí optimalizovaný návrh. Uloží sa až po kontrole tlačidlom Uložiť.",
+    "generate_hint": "Návrh sa uloží až tlačidlom Uložiť.",
     "clear": "Vyčistiť rozvrh",
     "clear_confirm": "Vyčistí sa rozvrh pracoviska {{ambulance}} za {{month}} od zajtrajšieho dňa. Dnešný a starší deň zostane.",
-    "generate_success": "Vygenerovaný návrh obsahuje {{count}} služieb. Skontrolujte ho a potom ho uložte.",
+    "generate_success": "Vygenerovaný návrh obsahuje {{count}} služieb.",
     "generate_error": "Rozvrh sa nepodarilo vygenerovať.",
     "generate_confirm": "Generovanie doplní rozvrh pracoviska {{ambulance}} za {{month}} od zajtrajšieho dňa a ponechá už nahodené služby.",
     "generate_confirm_unsaved": "Stratíte aj svoje neuložené zmeny.",
@@ -356,7 +347,7 @@
     "no_competences": "Zamestnanec nemá priradené žiadne kompetencie.",
     "legend_empty": "Pracovisko nemá definované kompetencie.",
     "coverage_title": "Potrebná obsadenosť",
-    "coverage_hint": "Koľko ľudí s danou kompetenciou má pracovisko mať v jednotlivé dni týždňa. Počty sa upravujú v Pracoviskách.",
+    "coverage_hint": "Potrebný počet ľudí podľa dňa",
     "coverage_competence": "Kompetencia",
     "coverage_total": "Spolu",
     "coverage_cell": "Potrebný počet pre {{competence}} v deň {{day}}: {{people}}",
@@ -367,7 +358,7 @@
     "pick_competence": "Vyberte rolu…",
     "pick_competence_first": "Najprv vyberte rolu…",
     "pick_user": "Vyberte osobu…",
-    "no_eligible_users": "Túto rolu na tomto pracovisku nemá zatiaľ nikto. Priraďte ju najprv v Pracoviskách.",
+    "no_eligible_users": "Túto rolu tu zatiaľ nemá nikto.",
     "delete_shift": "Zmazať službu",
     "editor_cancel": "Zrušiť",
     "editor_apply": "Uložiť",
@@ -383,7 +374,7 @@
     "planner_people_empty": "Pracovisko nemá zamestnancov.",
     "planner_missing": "Neobsadené: {{missing}}",
     "planner_missing_none": "Všetko obsadené",
-    "planner_missing_hint": "Koľko služieb ešte chýba oproti potrebnej obsadenosti pracoviska.",
+    "planner_missing_hint": "Chýbajúce služby",
     "planner_fulfilment": "Splnené podmienky: {{percent}} %",
     "planner_fulfilment_count": "{{met}} z {{total}}",
     "planner_cell_title": "{{date}} – {{competence}}: obsadené {{filled}} z {{required}}",
@@ -499,7 +490,7 @@
     "approve_confirm": "Schválením sa rozvrh pracoviska {{ambulance}} na {{month}} sprístupní zamestnancom. Pokračovať?",
     "approve_success": "{{ambulance}}: rozvrh je schválený a viditeľný pre zamestnancov.",
     "approve_error": "{{ambulance}}: rozvrh sa nepodarilo schváliť.",
-    "approve_empty_error": "{{ambulance}}: rozvrh sa nepodarilo schváliť, na tento mesiac nie sú uložené žiadne služby. Prehľad bol obnovený.",
+    "approve_empty_error": "{{ambulance}}: rozvrh sa nepodarilo schváliť, na tento mesiac nie sú uložené žiadne služby.",
     "cancel": "Zrušiť"
   },
   "statistics": {
@@ -574,7 +565,6 @@
     "copy_name": "{{name}} (kópia)",
     "hours_column": "Hodiny",
     "surcharge_row": "Príplatok",
-    "surcharge_hint": "Zakrúžkované dni sú príplatkové",
     "surcharge_day_hint": "Príplatkový deň",
     "week_title": "Potrební ľudia, hodiny a príplatok",
     "same_every_day": "Rovnaké každý deň",
@@ -670,7 +660,7 @@
     "own_removed": "odobraný deň pracovného pokoja",
     "reset": "Vrátiť na knižnicu",
     "column_short": "Sv",
-    "column_hint": "Deň pracovného pokoja: takto sa obsadzuje sviatok bez ohľadu na to, na ktorý deň týždňa padne. Ktoré dni to sú, sa nastavuje na obrazovke Špeciálne dni.",
+    "column_hint": "Deň pracovného pokoja",
     "legend": "Deň pracovného pokoja (sviatok)",
     "recovery_hint": "Dni voľna po službe v deň pracovného pokoja",
     "months": {
@@ -703,7 +693,6 @@
     "body": "Text správy",
     "send_confirm_title": "Odoslať výzvu?",
     "selected_count": "Vybraní: {{people}}",
-    "pick_hint": "Vyberte príjemcov zo zoznamu pracovísk.",
     "show_members": "Zobraziť zamestnancov",
     "hide_members": "Skryť zamestnancov",
     "load_error": "Nepodarilo sa načítať dáta."

@@ -385,9 +385,7 @@ const CompetenceEditorDialog = ({ open, competence, saving, onSave, onCancel }) 
                     />
                   </label>
                 ))}
-                <span className="ceditor-grid-tie ceditor-grid-hint">
-                  {t('scenarios.surcharge_hint')}
-                </span>
+                <span className="ceditor-grid-tie" />
               </div>
             </div>
           </section>

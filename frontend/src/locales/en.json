@@ -10,10 +10,8 @@
     "reload": "Reload"
   },
   "login_title": "Sign in",
-  "login_subtitle": "Shift planning and workplace schedules in one place.",
   "login_google": "Continue with Google",
   "login_heading": "Welcome back",
-  "login_hint": "Sign in with your work Google account.",
   "login_error_backend": "The server is unavailable or sign-in could not be verified. Please try again in a moment.",
   "login_error_google": "Google sign-in failed. Please try again.",
   "login_signing_in": "Signing in…",
@@ -52,7 +50,6 @@
     }
   },
   "dashboard": {
-    "overview": "Personal overview",
     "greeting": "Hello, {{name}}",
     "greeting_anonymous": "Hello!",
     "open_schedule": "Full schedule",
@@ -63,7 +60,6 @@
     "this_month": "this month",
     "until_today": "up to today",
     "schedule_title": "My schedule",
-    "schedule_subtitle": "Overview of duties in the current month.",
     "load_error": "Unable to load the home page.",
     "retry": "Try again",
     "login_needed": "Please sign in."
@@ -124,8 +120,7 @@
     "appearance": "Appearance",
     "theme_light": "Light",
     "theme_dark": "Dark",
-    "theme_system": "System",
-    "theme_system_hint": "System mode follows your device setting."
+    "theme_system": "System"
   },
   "workload": {
     "title": "Restrictions",
@@ -165,7 +160,6 @@
     "col_max_shifts": "Max. duties",
     "col_max_surcharge": "Max. surcharged",
     "title": "My workplaces",
-    "subtitle": "Manage employees of the workplaces you lead. You can add or remove an employee at any time.",
     "loading": "Loading...",
     "load_error": "Failed to load data.",
     "action_error": "Action failed, please try again.",
@@ -200,7 +194,6 @@
   },
   "admin": {
     "title": "Workplace administration",
-    "subtitle": "Manage all workplaces and assign their schedulers.",
     "loading": "Loading...",
     "load_error": "Failed to load workplaces.",
     "forbidden": "You don't have administrator permissions.",
@@ -225,7 +218,7 @@
     "manager_placeholder": "Search a scheduler by name or email...",
     "manager_no_results": "No scheduler matches your search.",
     "manager_clear": "Clear scheduler selection",
-    "manager_empty": "No user holds a scheduler role (LEADER / AMBULANCE_OVERSEER / ANALYST).",
+    "manager_empty": "No user holds a scheduler role.",
     "create": "Create",
     "created": "Workplace created",
     "cancel": "Cancel",
@@ -243,7 +236,6 @@
   },
   "role_management": {
     "title": "Role management",
-    "subtitle": "Assign or remove roles 1, 2 and 3 for users.",
     "search": "Search by name or email...",
     "loading": "Loading users...",
     "load_error": "Users and roles could not be loaded.",
@@ -287,7 +279,6 @@
   },
   "schedule": {
     "title": "My schedule",
-    "subtitle": "Overview of your shifts in the current month.",
     "load_error": "Failed to load the schedule.",
     "retry": "Try again",
     "empty": "You have no shifts scheduled this month.",
@@ -312,7 +303,7 @@
     "approve_warning": "Approving makes this schedule visible to employees. Continue?",
     "approve_success": "The schedule is approved and visible to employees.",
     "approve_error": "The schedule could not be approved.",
-    "approve_empty_error": "The schedule could not be approved: no shifts are saved for this month. The view has been refreshed.",
+    "approve_empty_error": "The schedule could not be approved: no shifts are saved for this month.",
     "previous_month": "Previous month",
     "next_month": "Next month",
     "current_month": "Current month",
@@ -324,10 +315,10 @@
     "generating_elapsed": "Elapsed: {{duration}}",
     "duration_seconds": "{{value}} s",
     "duration_minutes": "{{value}} min",
-    "generate_hint": "Creates an optimized draft. It is saved only after review with Save.",
+    "generate_hint": "The draft is saved only with Save.",
     "clear": "Clear schedule",
     "clear_confirm": "Clears the schedule for {{ambulance}} in {{month}} from tomorrow onwards. Today and earlier stay as they are.",
-    "generate_success": "The generated draft contains {{count}} duties. Review it, then save it.",
+    "generate_success": "The generated draft contains {{count}} duties.",
     "generate_error": "The schedule could not be generated.",
     "generate_confirm": "Generating fills the schedule for {{ambulance}} in {{month}} from tomorrow onwards and keeps every duty already placed.",
     "generate_confirm_unsaved": "Your unsaved changes will be lost too.",
@@ -356,7 +347,7 @@
     "no_competences": "This employee has no assigned competences.",
     "legend_empty": "This workplace has no competences defined.",
     "coverage_title": "Required staffing",
-    "coverage_hint": "How many people with each competence the workplace needs on each day of the week. The counts are edited in Workplaces.",
+    "coverage_hint": "Required people per day",
     "coverage_competence": "Competence",
     "coverage_total": "Total",
     "coverage_cell": "People required for {{competence}} on {{day}}: {{people}}",
@@ -367,7 +358,7 @@
     "pick_competence": "Pick a role…",
     "pick_competence_first": "Pick a role first…",
     "pick_user": "Pick a person…",
-    "no_eligible_users": "Nobody in this workplace has this role yet. Assign it first in Workplaces.",
+    "no_eligible_users": "Nobody here has this role yet.",
     "delete_shift": "Delete shift",
     "editor_cancel": "Cancel",
     "editor_apply": "Save",
@@ -383,7 +374,7 @@
     "planner_people_empty": "This workplace has no employees.",
     "planner_missing": "Unstaffed: {{missing}}",
     "planner_missing_none": "Fully staffed",
-    "planner_missing_hint": "How many duties are still missing against the workplace's required staffing.",
+    "planner_missing_hint": "Missing duties",
     "planner_fulfilment": "Conditions met: {{percent}} %",
     "planner_fulfilment_count": "{{met}} of {{total}}",
     "planner_cell_title": "{{date}} – {{competence}}: {{filled}} of {{required}} staffed",
@@ -498,7 +489,7 @@
     "approve_confirm": "Approving makes the schedule of {{ambulance}} for {{month}} visible to employees. Continue?",
     "approve_success": "{{ambulance}}: the schedule is approved and visible to employees.",
     "approve_error": "{{ambulance}}: the schedule could not be approved.",
-    "approve_empty_error": "{{ambulance}}: the schedule could not be approved, no duties are saved for this month. The overview has been refreshed.",
+    "approve_empty_error": "{{ambulance}}: the schedule could not be approved, no duties are saved for this month.",
     "cancel": "Cancel"
   },
   "statistics": {
@@ -572,7 +563,6 @@
     "copy_name": "{{name}} (copy)",
     "hours_column": "Hours",
     "surcharge_row": "Surcharge",
-    "surcharge_hint": "Circled days are paid with a surcharge",
     "surcharge_day_hint": "Surcharged day",
     "week_title": "People needed, hours and surcharge",
     "same_every_day": "Same every day",
@@ -667,7 +657,7 @@
     "own_removed": "day of rest removed",
     "reset": "Back to the library",
     "column_short": "Hol",
-    "column_hint": "Day of rest: this is how a public holiday is staffed, whatever weekday it falls on. Which dates count is set on the Special days screen.",
+    "column_hint": "Day of rest",
     "legend": "Day of rest (public holiday)",
     "recovery_hint": "Days off after a duty on a day of rest",
     "months": {
@@ -700,7 +690,6 @@
     "body": "Message text",
     "send_confirm_title": "Send the request?",
     "selected_count": "Selected: {{people}}",
-    "pick_hint": "Pick the recipients from the list of workplaces.",
     "show_members": "Show employees",
     "hide_members": "Hide employees",
     "load_error": "Could not load the data."

@@ -178,11 +178,6 @@
   margin: 0;
 }
 
-.ceditor-grid-hint {
-  color: var(--text-p);
-  cursor: default;
-}
-
 /* ---------- recovery ---------- */
 
 .ceditor-recovery {

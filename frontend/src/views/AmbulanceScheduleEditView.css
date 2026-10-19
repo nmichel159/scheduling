@@ -64,12 +64,6 @@
   box-shadow: var(--shadow-sm);
 }
 
-.schedule-edit-generate-hint {
-  color: var(--text-p);
-  font-size: var(--fs-xs);
-  line-height: 1.4;
-}
-
 .schedule-edit-detail {
   display: flex;
   flex-direction: column;

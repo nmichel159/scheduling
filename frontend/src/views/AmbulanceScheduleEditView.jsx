@@ -1096,9 +1096,6 @@ const AmbulanceScheduleEditView = () => {
             >
               {t('schedule_edit.clear')}
             </button>
-            <span className="schedule-edit-generate-hint">
-              {t('schedule_edit.generate_hint')}
-            </span>
           </div>
 
           {/* Doubles as the colour -> competence map the legend used to be:

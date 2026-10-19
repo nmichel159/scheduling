@@ -120,7 +120,6 @@ const DashboardView = () => {
     <div className="page dashboard">
       <header className="page-header">
         <div>
-          <p className="page-eyebrow">{t('dashboard.overview')}</p>
           <h1 className="page-title">
             {name ? t('dashboard.greeting', { name }) : t('dashboard.greeting_anonymous')}
           </h1>

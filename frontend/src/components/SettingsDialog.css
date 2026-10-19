@@ -17,13 +17,6 @@
   color: var(--text-h);
 }
 
-.settings-group-hint {
-  margin: 8px 0 0;
-  font-size: var(--fs-xs);
-  line-height: 1.4;
-  color: var(--text-p);
-}
-
 /* auto-fit: dlaždice sú vždy rovnako široké a prázdne stĺpce zaniknú, takže
    dva jazyky aj tri motívy vyplnia riadok. Na úzkom mobile sa riadok zalomí. */
 .settings-options {

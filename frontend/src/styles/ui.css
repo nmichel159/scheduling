@@ -4,7 +4,7 @@
  * every page. All colours come from the tokens in src/index.css.
  *
  *   Page       .page, .page-wide, .page-header, .page-title, .page-subtitle,
- *              .page-eyebrow, .page-actions
+ *              .page-actions
  *   Buttons    .btn + .btn-primary | .btn-secondary | .btn-ghost | .btn-danger
  *              | .btn-danger-outline | .btn-success; sizes .btn-sm | .btn-lg;
  *              .btn-icon (square, icon only); .btn-block
@@ -42,15 +42,6 @@
   justify-content: space-between;
   gap: 12px 20px;
   margin-bottom: 20px;
-}
-
-.page-eyebrow {
-  margin: 0 0 4px;
-  color: var(--primary);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .page-title {

@@ -34,8 +34,13 @@ const LoginView = () => {
   const [signingIn, setSigningIn] = useState(false);
   // 'login' = e-mail + heslo a Google, 'forgot' = žiadosť o odkaz na nové heslo.
   const [mode, setMode] = useState('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  // V dev režime predvyplní lokálny testovací účet z frontend/.env.
+  const [email, setEmail] = useState(
+    (import.meta.env.DEV && import.meta.env.VITE_DEV_LOGIN_EMAIL) || ''
+  );
+  const [password, setPassword] = useState(
+    (import.meta.env.DEV && import.meta.env.VITE_DEV_LOGIN_PASSWORD) || ''
+  );
 
   useEffect(() => {
     if (localStorage.getItem('user')) {
@@ -160,7 +165,6 @@ const LoginView = () => {
         <h1 id="login-title" className="login-title">
           {mode === 'forgot' ? t('password.forgot_title') : t('login_heading')}
         </h1>
-        {mode === 'login' && <p className="login-subtitle">{t('login_subtitle')}</p>}
 
         {error && (
           <div className="alert alert-danger login-error" role="alert">

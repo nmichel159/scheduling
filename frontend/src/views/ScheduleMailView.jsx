@@ -314,9 +314,7 @@ const ScheduleMailView = () => {
 
           <div className="smail-footer">
             <p className="smail-summary">
-              {selectedPeople.length > 0
-                ? selectedPeople.map((person) => person.name).join(', ')
-                : t('schedule_mail.pick_hint')}
+              {selectedPeople.map((person) => person.name).join(', ')}
             </p>
             <button
               type="button"
