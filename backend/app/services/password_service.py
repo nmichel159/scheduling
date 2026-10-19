@@ -232,7 +232,7 @@ def _send_link(db: Session, user: User, *, setup: bool, ttl: timedelta) -> None:
         validity = f"{days} dní" if days >= 2 else "jednu hodinu"
         text = (
             "Dobrý deň,\n\n"
-            "v aplikácii Rozpisy vám bol vytvorený účet. "
+            "v aplikácii Službička vám bol vytvorený účet. "
             "Prihlasovacie meno je tento e-mail. Heslo si nastavíte cez tento odkaz:\n"
             f"{link}\n\n"
             f"Odkaz platí {validity}. Neskôr si nový odkaz vypýtate cez "

@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Pydantic automaticky hľadá premenné s týmito názvami v systéme
-    PROJECT_NAME: str = "Scheduling Project"
+    PROJECT_NAME: str = "Službička"
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@db:5432/scheduling")
     SECRET_KEY: str = os.getenv("SECRET_KEY", "fallback_secret_for_dev")
     VITE_API_URL: str = os.getenv("VITE_API_URL", "http://localhost:8000")
@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     SMTP_USE_SSL: bool = os.getenv("SMTP_USE_SSL", "false").lower() == "true"
     SMTP_TIMEOUT_SECONDS: int = max(1, int(os.getenv("SMTP_TIMEOUT_SECONDS", "20")))
     MAIL_FROM: str = os.getenv("MAIL_FROM", "")
-    MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "Rozpisy")
+    MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "Službička")
     MAIL_DRY_RUN: bool = os.getenv("MAIL_DRY_RUN", "false").lower() == "true"
     # Where an invited employee signs in. Defaults to the first configured
     # frontend origin, which is the address the application already runs on.

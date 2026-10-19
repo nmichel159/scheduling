@@ -59,7 +59,7 @@ async def lifespan(_: FastAPI):
             await task
 
 
-app = FastAPI(title="Scheduling API", lifespan=lifespan)
+app = FastAPI(title="Službička API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
