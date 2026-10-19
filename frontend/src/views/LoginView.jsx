@@ -275,6 +275,7 @@ const LoginView = () => {
       <p className="login-footer">
         {t('need_help')} <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
       </p>
+      <p className="login-copyright">© 2026 UPJŠ</p>
     </main>
   );
 };

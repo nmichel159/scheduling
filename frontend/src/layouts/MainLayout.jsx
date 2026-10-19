@@ -58,6 +58,7 @@ const MainLayout = () => {
           <main className="content">
             <Outlet />
           </main>
+          <footer className="app-footer">© 2026 UPJŠ</footer>
         </div>
       </div>
     </WorkplaceProvider>

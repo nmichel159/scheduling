@@ -28,6 +28,13 @@
   text-align: left;
 }
 
+.app-footer {
+  padding: 0 32px 20px;
+  color: var(--secondary);
+  font-size: var(--fs-xs);
+  text-align: center;
+}
+
 .backdrop {
   display: none;
 }
