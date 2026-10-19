@@ -64,6 +64,7 @@ from calendar import monthrange
 from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from functools import cached_property
 from datetime import date, timedelta
 from math import ceil
 from time import perf_counter
@@ -107,6 +108,7 @@ from app.services.constraint_setting_service import (
     ConstraintPolicy,
     load_constraint_policy,
 )
+from app.services.custom_day_service import UNSTAFFED, custom_parameters_between
 from app.services.special_day_service import rest_days_between
 from app.services.shift_wish_service import shift_limits, weekday_dates
 from app.models.schedule import Schedule
@@ -243,6 +245,15 @@ class SchedulingCompetence:
     #: a new competence starts out with.
     weekday_shift_hours: tuple[float, ...] | None = None
     special_day_shift_hours: float | None = None
+    #: Dates the workplace placed on one of its custom days, each with that
+    #: day's parameters for this competence: (date, required count,
+    #: surcharge, recovery days, hours). Such a date answers from here
+    #: before the day of rest and the weekday are asked.
+    custom_days: tuple[tuple[date, int, bool, int, float], ...] = ()
+
+    @cached_property
+    def _custom(self) -> dict[date, tuple[int, bool, int, float]]:
+        return {entry[0]: entry[1:] for entry in self.custom_days}
 
     def _slot(self, work_date: date) -> int:
         """Which of the eight day slots answers for a concrete date."""
@@ -252,6 +263,9 @@ class SchedulingCompetence:
 
     def required_on(self, work_date: date) -> int:
         """Return the configured demand for a concrete calendar date."""
+        custom = self._custom.get(work_date)
+        if custom is not None:
+            return custom[0]
         if (
             self.special_day_required_count is not None
             and work_date in self.special_dates
@@ -263,6 +277,9 @@ class SchedulingCompetence:
 
     def is_surcharge_on(self, work_date: date) -> bool:
         """Whether a duty on this date is paid with a surcharge."""
+        custom = self._custom.get(work_date)
+        if custom is not None:
+            return custom[1]
         slot = self._slot(work_date)
         if slot == SPECIAL_DAY_SLOT and self.special_day_is_surcharge is not None:
             return self.special_day_is_surcharge
@@ -272,6 +289,9 @@ class SchedulingCompetence:
 
     def recovery_days_on(self, work_date: date) -> int:
         """Days off a duty on this date costs before the next one may fall."""
+        custom = self._custom.get(work_date)
+        if custom is not None:
+            return custom[2]
         slot = self._slot(work_date)
         if slot == SPECIAL_DAY_SLOT and self.special_day_recovery_days is not None:
             return self.special_day_recovery_days
@@ -281,6 +301,9 @@ class SchedulingCompetence:
 
     def shift_hours_on(self, work_date: date) -> float:
         """How long a duty on this date lasts."""
+        custom = self._custom.get(work_date)
+        if custom is not None:
+            return custom[3]
         slot = self._slot(work_date)
         if slot == SPECIAL_DAY_SLOT and self.special_day_shift_hours is not None:
             return self.special_day_shift_hours
@@ -1492,8 +1515,12 @@ def foreign_recovery_reader(
     """
     slots_by_competence: dict[int, dict[int, CompetenceWeekdayRequirement]] = {}
     rest_days_by_ambulance: dict[int, set[date]] = {}
+    custom_by_ambulance: dict[int, dict] = {}
     for other_id in sorted(ambulance_ids):
         rest_days_by_ambulance[other_id] = rest_days_between(db, other_id, first, last)
+        custom_by_ambulance[other_id] = custom_parameters_between(
+            db, other_id, first, last
+        )
         scenario = get_selected_scenario(db, other_id)
         if scenario is None:
             continue
@@ -1515,6 +1542,9 @@ def foreign_recovery_reader(
     def recovery_days(
         ambulance_id: int, competence_id: int, work_date: date
     ) -> int:
+        custom = custom_by_ambulance.get(ambulance_id, {}).get(work_date)
+        if custom is not None:
+            return custom.get(competence_id, UNSTAFFED).recovery_days
         slot = (
             SPECIAL_DAY_SLOT
             if work_date in rest_days_by_ambulance.get(ambulance_id, set())
@@ -1596,6 +1626,11 @@ def generate_ambulance_monthly_schedule(
     # duty just outside it is read from the right slot too.
     special_dates = frozenset(
         rest_days_between(db, ambulance_id, start - margin, end + margin)
+    )
+    # A date the workplace placed on one of its custom days is staffed from
+    # that day's parameters, ahead of both the day of rest and the weekday.
+    custom_dates = custom_parameters_between(
+        db, ambulance_id, start - margin, end + margin
     )
     user_ids = [user.id for user in user_rows]
     competence_ids = [competence.id for competence in competence_rows]
@@ -1788,6 +1823,10 @@ def generate_ambulance_monthly_schedule(
                     SPECIAL_DAY_SLOT,
                     "shift_hours",
                     DEFAULT_SHIFT_HOURS,
+                ),
+                custom_days=tuple(
+                    (custom_date, *parameters.get(competence.id, UNSTAFFED))
+                    for custom_date, parameters in sorted(custom_dates.items())
                 ),
             )
         )

@@ -1,18 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  createCustomDay,
   createScenario,
   createScenarioCompetence,
+  deleteCustomDay,
   deleteScenario,
   deleteScenarioCompetence,
+  fetchCustomDays,
   fetchScenarioCompetences,
   fetchScenarios,
+  updateCustomDay,
   updateScenario,
   updateScenarioCompetence,
 } from '../services/competenceService';
 import { useWorkplace } from '../hooks/workplaceContext';
 import ConfirmDialog from '../components/ConfirmDialog';
 import CompetenceEditorDialog from '../components/CompetenceEditorDialog';
+import CompetenceMonthNeeds from '../components/CompetenceMonthNeeds';
+import CustomDayDialog from '../components/CustomDayDialog';
+import { customDayHues, hueStyle } from '../utils/customDays';
 import { ChevronLeftIcon, PlusIcon, TrashIcon } from '../components/NavIcons';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
@@ -122,6 +129,15 @@ const CompetenceManagerView = () => {
   // pointer is away from the table.
   const [legendAt, setLegendAt] = useState(null);
   const [viewedId, setViewedId] = useState(null);
+  // Bumped after every edit of the numbers, so the month below re-reads them.
+  const [needsVersion, setNeedsVersion] = useState(0);
+  // The workplace's custom days, and the one shown in the table on the
+  // right instead of a scenario (null while a scenario is shown).
+  const [customDays, setCustomDays] = useState([]);
+  const [viewedCustomId, setViewedCustomId] = useState(null);
+  const [customEditor, setCustomEditor] = useState(null); // { customDay } | { customDay: null }
+  const [savingCustom, setSavingCustom] = useState(false);
+  const [deleteCustomTarget, setDeleteCustomTarget] = useState(null);
 
   const [toast, notify] = useToast();
   const [creatingScenario, setCreatingScenario] = useState(false);
@@ -149,6 +165,20 @@ const CompetenceManagerView = () => {
     loadScenarios();
   }, [loadScenarios]);
 
+  const loadCustomDays = useCallback(async () => {
+    if (selectedId == null) return;
+    try {
+      setCustomDays(await fetchCustomDays(selectedId));
+    } catch {
+      setCustomDays([]);
+      notify(t('custom_days.load_error'));
+    }
+  }, [selectedId, t, notify]);
+
+  useEffect(() => {
+    loadCustomDays();
+  }, [loadCustomDays, needsVersion]);
+
   // Switching workplace mid-edit would apply the change to the wrong row.
   useEffect(() => {
     setOpenScenarioId(null);
@@ -158,6 +188,9 @@ const CompetenceManagerView = () => {
     setDeleteScenarioTarget(null);
     setDeleteCompetenceTarget(null);
     setViewedId(null);
+    setViewedCustomId(null);
+    setCustomEditor(null);
+    setDeleteCustomTarget(null);
   }, [selectedId]);
 
   const loadCompetences = useCallback(
@@ -191,6 +224,55 @@ const CompetenceManagerView = () => {
   );
 
   const viewedScenarioId = viewedScenario?.id ?? null;
+
+  const viewedCustom = useMemo(
+    () => customDays.find((item) => item.id === viewedCustomId) || null,
+    [customDays, viewedCustomId]
+  );
+
+  const customHues = useMemo(() => customDayHues(customDays), [customDays]);
+
+  /** First free name of the form "Vlastný deň N". */
+  const nextCustomDayName = () => {
+    const used = new Set(customDays.map((item) => item.name));
+    let index = customDays.length + 1;
+    while (used.has(t('custom_days.default_name', { index }))) index += 1;
+    return t('custom_days.default_name', { index });
+  };
+
+  const handleSaveCustomDay = async (payload) => {
+    if (savingCustom || !customEditor || selectedId == null) return;
+    setSavingCustom(true);
+    try {
+      if (customEditor.customDay) {
+        await updateCustomDay(selectedId, customEditor.customDay.id, payload);
+      } else {
+        const created = await createCustomDay(selectedId, payload);
+        setViewedCustomId(created.id);
+      }
+      setCustomEditor(null);
+      notify(t('custom_days.saved'));
+      setNeedsVersion((value) => value + 1);
+    } catch {
+      notify(t('custom_days.save_error'));
+    } finally {
+      setSavingCustom(false);
+    }
+  };
+
+  const handleDeleteCustomDay = async () => {
+    const target = deleteCustomTarget;
+    setDeleteCustomTarget(null);
+    setCustomEditor(null);
+    try {
+      await deleteCustomDay(selectedId, target.id);
+      if (viewedCustomId === target.id) setViewedCustomId(null);
+      notify(t('custom_days.deleted'));
+      setNeedsVersion((value) => value + 1);
+    } catch {
+      notify(t('custom_days.save_error'));
+    }
+  };
 
   // Clicking through the scenario list fires one request per click; only
   // the last one may fill the table, or a slow answer for the scenario
@@ -331,6 +413,7 @@ const CompetenceManagerView = () => {
     if (isOwnControl(event)) return;
     if (renaming?.id === scenario.id) return;
     setViewedId(scenario.id);
+    setViewedCustomId(null);
     scheduleOpen(scenario);
   };
 
@@ -447,6 +530,7 @@ const CompetenceManagerView = () => {
       }
       setEditorTarget(null);
       loadOverview();
+      setNeedsVersion((value) => value + 1);
     } catch {
       notify(t('competences.action_error'));
     } finally {
@@ -463,6 +547,7 @@ const CompetenceManagerView = () => {
       notify(t('competences.deleted'));
       loadScenarios();
       loadOverview();
+      setNeedsVersion((value) => value + 1);
     } catch {
       notify(t('competences.action_error'));
     }
@@ -717,7 +802,7 @@ const CompetenceManagerView = () => {
                 <tbody>
                   {scenarios.map((scenario) => {
                     const isRenaming = renaming?.id === scenario.id;
-                    const isViewed = scenario.id === viewedScenario?.id;
+                    const isViewed = !viewedCustom && scenario.id === viewedScenario?.id;
                     return (
                       <tr
                         key={scenario.id}
@@ -802,17 +887,170 @@ const CompetenceManagerView = () => {
             )}
           </section>
 
-          {viewedScenario && (
+          <section className="card cmanager-scenarios cmanager-customs">
+            <header className="card-header">
+              <h2 className="card-title">{t('custom_days.title')}</h2>
+              <button
+                type="button"
+                className="btn btn-sm btn-secondary"
+                onClick={() => setCustomEditor({ customDay: null })}
+              >
+                <PlusIcon />
+                {t('custom_days.add')}
+              </button>
+            </header>
+            {customDays.length === 0 ? (
+              <p className="cmanager-note">{t('custom_days.empty')}</p>
+            ) : (
+              <table className="data-table cmanager-table cmanager-scenario-table">
+                <thead>
+                  <tr>
+                    <th className="cmanager-col-name">{t('custom_days.name')}</th>
+                    <th className="cmanager-col-actions">
+                      <span className="visually-hidden">{t('competences.delete')}</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customDays.map((item) => {
+                    const isViewed = item.id === viewedCustom?.id;
+                    return (
+                      <tr
+                        key={item.id}
+                        className={`cmanager-row is-openable ${isViewed ? 'is-viewed' : ''}`.trim()}
+                        aria-current={isViewed || undefined}
+                        onClick={(e) => {
+                          if (isOwnControl(e)) return;
+                          setViewedCustomId(item.id);
+                        }}
+                        onDoubleClick={(e) => {
+                          if (isOwnControl(e)) return;
+                          setCustomEditor({ customDay: item });
+                        }}
+                      >
+                        <td className="cmanager-col-name">
+                          <button
+                            type="button"
+                            className="cmanager-name cmanager-custom-name"
+                            aria-pressed={isViewed}
+                            style={hueStyle(customHues.get(item.id))}
+                          >
+                            <i className="cneeds-swatch" aria-hidden="true" />
+                            {item.name}
+                          </button>
+                        </td>
+                        <td className="cmanager-col-actions">
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-ghost btn-icon cmanager-delete"
+                            aria-label={`${t('custom_days.delete_hint')}: ${item.name}`}
+                            title={t('custom_days.delete_hint')}
+                            onClick={() => setDeleteCustomTarget(item)}
+                          >
+                            <TrashIcon />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </section>
+
+          {viewedCustom ? (
+            <section className="card cmanager-summary">
+              <header className="card-header">
+                <div className="cmanager-summary-heading" key={`custom-${viewedCustom.id}`}>
+                  <i
+                    className="cneeds-swatch"
+                    aria-hidden="true"
+                    style={hueStyle(customHues.get(viewedCustom.id))}
+                  />
+                  <h2 className="card-title">{viewedCustom.name}</h2>
+                  <span className="badge">{t('custom_days.badge')}</span>
+                </div>
+                <div className="cmanager-summary-actions">
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={() => setCustomEditor({ customDay: viewedCustom })}
+                  >
+                    {t('competence_manager.edit')}
+                  </button>
+                </div>
+              </header>
+              <div className="cmanager-summary-scroll">
+                <table className="cmanager-summary-table cmanager-custom-table">
+                  <thead>
+                    <tr>
+                      <th className="cmanager-col-name">{t('competence_manager.name')}</th>
+                      <th>{t('custom_days.people')}</th>
+                      <th>{t('scenarios.hours_column')}</th>
+                      <th>{t('scenarios.recovery_title')}</th>
+                      <th>{t('scenarios.surcharge_row')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {overviewRows.length === 0 && (
+                      <tr>
+                        <td className="cmanager-empty-row" colSpan={5}>
+                          {t('competences.empty')}
+                        </td>
+                      </tr>
+                    )}
+                    {overviewRows.map((row) => {
+                      const need =
+                        viewedCustom.requirements.find((item) => item.competence_id === row.id) || {};
+                      return (
+                        <tr
+                          key={row.id}
+                          className="cmanager-row is-openable"
+                          onClick={() => setCustomEditor({ customDay: viewedCustom })}
+                        >
+                          <td className="cmanager-col-name">
+                            <button type="button" className="cmanager-link">
+                              {row.name}
+                            </button>
+                          </td>
+                          <td
+                            className={`cmanager-summary-cell ${need.is_surcharge ? 'is-surcharge' : ''}`.trim()}
+                          >
+                            <span className="cmanager-summary-figures">
+                              <b>{need.required_count ?? 0}</b>
+                            </span>
+                          </td>
+                          <td className="cmanager-summary-cell">
+                            {t('scenarios.hours_short', {
+                              hours: clampShiftHours(need.shift_hours ?? 0),
+                            })}
+                          </td>
+                          <td className="cmanager-summary-cell">
+                            {t('scenarios.recovery_short', {
+                              days: clampRecoveryDays(need.recovery_days ?? 0),
+                            })}
+                          </td>
+                          <td className="cmanager-summary-cell">
+                            {need.is_surcharge ? t('custom_days.yes') : '–'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : viewedScenario && (
             <section className="card cmanager-summary">
               <header className="card-header">
                 {/* Keyed by scenario so the heading replays its entrance on
                     every switch -- the one cue that the table changed. */}
                 <div className="cmanager-summary-heading" key={viewedScenario.id}>
                   <h2 className="card-title">{viewedScenario.name}</h2>
-                  {viewedScenario.is_selected ? (
+                  {/* An inactive scenario says so through its "make active"
+                      button; a badge beside it would only crowd the name. */}
+                  {viewedScenario.is_selected && (
                     <span className="badge badge-primary">{t('scenarios.active_badge')}</span>
-                  ) : (
-                    <span className="badge">{t('scenarios.inactive_badge')}</span>
                   )}
                 </div>
                 <div className="cmanager-summary-actions">
@@ -958,6 +1196,41 @@ const CompetenceManagerView = () => {
           )}
         </div>
       )}
+
+      {!openScenarioRecord && viewedScenario && (
+        <CompetenceMonthNeeds
+          ambulanceId={selectedId}
+          scenario={viewedCustom ? activeScenario : viewedScenario}
+          competences={overviewRows}
+          customDays={customDays}
+          reloadKey={needsVersion}
+          onDatesChanged={loadCustomDays}
+          notify={notify}
+        />
+      )}
+
+      <CustomDayDialog
+        key={customEditor ? (customEditor.customDay?.id ?? 'new') : 'closed'}
+        open={!!customEditor}
+        saving={savingCustom}
+        customDay={customEditor?.customDay ?? null}
+        initialName={customEditor?.customDay ? null : nextCustomDayName()}
+        competences={overviewRows}
+        onSave={handleSaveCustomDay}
+        onDelete={() => setDeleteCustomTarget(customEditor?.customDay)}
+        onCancel={() => setCustomEditor(null)}
+      />
+
+      <ConfirmDialog
+        open={!!deleteCustomTarget}
+        title={t('custom_days.delete_hint')}
+        message={t('custom_days.confirm_delete', { name: deleteCustomTarget?.name })}
+        confirmLabel={t('competences.delete')}
+        cancelLabel={t('departments.cancel')}
+        tone="danger"
+        onConfirm={handleDeleteCustomDay}
+        onCancel={() => setDeleteCustomTarget(null)}
+      />
 
       <Toast message={toast} />
 

@@ -1,0 +1,404 @@
+/* --- The month's needs on the competences screen ---
+ * One column per date, one row per competence. A date placed on a custom
+ * day is tinted with that day's hue (--cday-hue), set inline. */
+
+.cneeds {
+  margin-top: 16px;
+  min-width: 0;
+}
+
+.cneeds-head {
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+/* Which scenario the weekdays and days of rest are read from. */
+.cneeds-scenario {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-p);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.cneeds-swatch {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: hsl(var(--cday-hue, 0) 65% 52%);
+}
+
+/* ---------- the month table ---------- */
+
+/* The whole month fits the card: the date columns share what the name and
+   total columns leave. Only a window too narrow for 18px a day scrolls. */
+.cneeds-scroll {
+  overflow-x: auto;
+  border-top: 1px solid var(--border);
+  transition: opacity var(--duration) var(--ease);
+}
+
+.cneeds-scroll.is-loading {
+  opacity: 0.55;
+}
+
+.cneeds-table {
+  width: 100%;
+  min-width: calc(136px + 84px + 31 * 18px);
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--fs-sm);
+}
+
+.cneeds-table th,
+.cneeds-table td {
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.cneeds-table .cneeds-col-name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: 136px;
+  padding: 6px 10px;
+  background: var(--surface);
+  color: var(--text-h);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: inset -1px 0 0 var(--border);
+}
+
+.cneeds-table thead .cneeds-col-name {
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  vertical-align: bottom;
+}
+
+.cneeds-table .cneeds-col-total {
+  width: 84px;
+  padding: 4px 6px;
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: inset 1px 0 0 var(--border);
+}
+
+.cneeds-table td.cneeds-col-total {
+  display: table-cell;
+}
+
+.cneeds-col-total b {
+  color: var(--text-h);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+
+.cneeds-col-total em {
+  margin-left: 4px;
+  font-style: normal;
+}
+
+.cneeds-table .is-week-start {
+  box-shadow: inset 1px 0 0 var(--border-strong);
+}
+
+.cneeds-table .is-weekend {
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+}
+
+.cneeds-table .is-rest {
+  background: var(--warning-background);
+}
+
+.cneeds-table .is-custom {
+  background: hsl(var(--cday-hue, 0) 70% 50% / 0.13);
+}
+
+.cneeds-day-head {
+  min-width: 0;
+}
+
+.cneeds-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: 100%;
+  padding: 5px 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--text-h);
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease);
+}
+
+.cneeds-day:hover,
+.cneeds-day.is-open {
+  background: var(--primary-background);
+}
+
+.cneeds-day:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+}
+
+.cneeds-day em {
+  color: var(--text-p);
+  font-size: 0.6875rem;
+  font-style: normal;
+}
+
+.cneeds-day b {
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+
+/* What the date is staffed as, when it is not its weekday: the day of rest
+   or a custom day's name, cut to the column. */
+.cneeds-tag {
+  display: block;
+  max-width: 100%;
+  min-height: 14px;
+  overflow: hidden;
+  color: var(--text-p);
+  font-size: 0.625rem;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 14px;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.cneeds-day-head.is-custom .cneeds-tag {
+  color: hsl(var(--cday-hue, 0) 60% 38%);
+}
+
+.cneeds-day-head.is-custom {
+  box-shadow: inset 0 3px 0 hsl(var(--cday-hue, 0) 65% 52%);
+}
+
+.cneeds-day-head.is-custom.is-week-start {
+  box-shadow:
+    inset 0 3px 0 hsl(var(--cday-hue, 0) 65% 52%),
+    inset 1px 0 0 var(--border-strong);
+}
+
+.cneeds-cell {
+  height: 30px;
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.cneeds-cell.is-zero {
+  color: var(--border-strong);
+  font-weight: 400;
+}
+
+/* A surcharged duty is ringed, as in the scenario table above. */
+.cneeds-cell.is-surcharge {
+  background-image: radial-gradient(
+    circle at center,
+    var(--primary-background-strong) 0 9px,
+    transparent 10px
+  );
+}
+
+.cneeds-table tfoot th,
+.cneeds-table tfoot td {
+  border-bottom: 0;
+  color: var(--text-p);
+}
+
+.cneeds-table tbody tr:hover > td,
+.cneeds-table tbody tr:hover > th {
+  background-color: var(--primary-background);
+}
+
+/* ---------- the date picker ---------- */
+
+.cneeds-picker {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.cneeds-picker-title {
+  padding: 6px 8px 8px;
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.cneeds-picker-title::first-letter {
+  text-transform: uppercase;
+}
+
+.cneeds-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-h);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cneeds-option:hover,
+.cneeds-option:focus-visible {
+  outline: none;
+  background: var(--surface-2);
+}
+
+.cneeds-option-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--primary);
+}
+
+.cneeds-option-mark svg {
+  width: 14px;
+  height: 14px;
+}
+
+.cneeds-option-meta {
+  margin-left: auto;
+  color: var(--text-p);
+  font-size: var(--fs-xs);
+}
+
+/* ---------- the custom day editor ---------- */
+
+.cday-dialog .dialog-body {
+  overflow-x: auto;
+}
+
+.cday-table {
+  margin-top: 16px;
+}
+
+.cday-table th,
+.cday-table td {
+  vertical-align: middle;
+}
+
+.cday-number {
+  width: 68px;
+}
+
+.cday-check {
+  text-align: center;
+}
+
+.cday-check input {
+  width: 16px;
+  height: 16px;
+}
+
+.cday-delete {
+  margin-right: auto;
+}
+
+:root[data-theme='dark'] .cneeds-day-head.is-custom .cneeds-tag {
+  color: hsl(var(--cday-hue, 0) 70% 72%);
+}
+
+/* A narrow window drops to smaller type rather than to a scrollbar. */
+@media (max-width: 1100px) {
+  .cneeds-table {
+    font-size: var(--fs-xs);
+  }
+
+  .cneeds-table {
+    min-width: calc(104px + 76px + 31 * 18px);
+  }
+
+  .cneeds-table .cneeds-col-name {
+    width: 104px;
+    padding: 4px 6px;
+  }
+
+  .cneeds-table .cneeds-col-total {
+    width: 76px;
+  }
+
+  .cneeds-day em {
+    font-size: 0.5625rem;
+  }
+
+  .cneeds-day b {
+    font-size: var(--fs-xs);
+  }
+}
+
+/* A narrow window: smaller still, so the month keeps fitting. */
+@media (max-width: 1000px) {
+  .cneeds-table {
+    min-width: calc(88px + 56px + 31 * 12px);
+    font-size: 0.6875rem;
+  }
+
+  .cneeds-table .cneeds-col-name {
+    width: 88px;
+    padding: 4px;
+  }
+
+  .cneeds-table .cneeds-col-total {
+    width: 56px;
+    padding: 2px;
+  }
+
+  .cneeds-col-total b {
+    font-size: 0.6875rem;
+  }
+
+  .cneeds-col-total em {
+    display: block;
+    margin-left: 0;
+  }
+
+  .cneeds-day em,
+  .cneeds-tag {
+    font-size: 0.5rem;
+  }
+
+  .cneeds-day b {
+    font-size: 0.6875rem;
+  }
+
+  .cneeds-cell.is-surcharge {
+    background-image: radial-gradient(
+      circle at center,
+      var(--primary-background-strong) 0 6px,
+      transparent 7px
+    );
+  }
+}

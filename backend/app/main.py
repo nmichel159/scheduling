@@ -10,6 +10,7 @@ from app.api import ambulance_employee
 from app.api import competence
 from app.api import competence_scenario
 from app.api import constraint_settings
+from app.api import custom_days
 from app.api import user_competence
 from app.api import users
 from app.api import roles, ambulances
@@ -86,6 +87,7 @@ app.include_router(schedules.router, prefix="/schedules", tags=["Schedules"])
 app.include_router(statistics.router, prefix="/statistics", tags=["Statistics"])
 app.include_router(schedules.ambulance_router, prefix="/ambulances", tags=["Schedules"])
 app.include_router(special_days.router, prefix="/ambulances", tags=["Special Days"])
+app.include_router(custom_days.router, prefix="/ambulances", tags=["Custom Days"])
 app.include_router(schedule_mail.router, prefix="/ambulances", tags=["Schedule Mail"])
 app.include_router(constraint_settings.router, prefix="/ambulances", tags=["Constraint Settings"])
 

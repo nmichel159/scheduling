@@ -188,3 +188,51 @@ export async function deleteScenarioCompetence(ambulanceId, scenarioId, competen
     `/ambulances/${ambulanceId}/competence-scenarios/${scenarioId}/competences/${competenceId}`
   );
 }
+
+/**
+ * Custom days: a workplace's own kinds of day with their own staffing,
+ * placed on chosen dates. A placed date is staffed from its custom day
+ * instead of from its weekday or the day of rest.
+ */
+
+/** List the workplace's custom days, each with a row per competence. */
+export async function fetchCustomDays(ambulanceId) {
+  const { data } = await client.get(`/ambulances/${ambulanceId}/custom-days`);
+  return data;
+}
+
+/** Create a custom day: { name, requirements: [{ competence_id, ... }] }. */
+export async function createCustomDay(ambulanceId, payload) {
+  const { data } = await client.post(`/ambulances/${ambulanceId}/custom-days`, payload);
+  return data;
+}
+
+/** Rename a custom day and/or replace what it needs. */
+export async function updateCustomDay(ambulanceId, customDayId, payload) {
+  const { data } = await client.put(
+    `/ambulances/${ambulanceId}/custom-days/${customDayId}`,
+    payload
+  );
+  return data;
+}
+
+/** Delete a custom day; the dates it was placed on return to the calendar. */
+export async function deleteCustomDay(ambulanceId, customDayId) {
+  await client.delete(`/ambulances/${ambulanceId}/custom-days/${customDayId}`);
+}
+
+/** Staff `day` (YYYY-MM-DD) as a custom day, or by the calendar with null. */
+export async function setCustomDayDate(ambulanceId, day, customDayId) {
+  await client.put(`/ambulances/${ambulanceId}/custom-day-dates`, {
+    day,
+    custom_day_id: customDayId,
+  });
+}
+
+/** What every competence needs on every date of a month (month is 1-12). */
+export async function fetchCompetenceNeeds(ambulanceId, year, month, scenarioId = null) {
+  const { data } = await client.get(`/ambulances/${ambulanceId}/competence-needs`, {
+    params: { year, month, scenario_id: scenarioId ?? undefined },
+  });
+  return data;
+}

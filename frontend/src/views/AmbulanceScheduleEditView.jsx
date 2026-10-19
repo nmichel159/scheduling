@@ -13,6 +13,7 @@ import {
   updateAmbulanceSchedule,
 } from '../services/scheduleService';
 import { fetchSpecialDays } from '../services/specialDayService';
+import { fetchCompetenceNeeds } from '../services/competenceService';
 import { useWorkplace, useWorkplaceSwitchGuard } from '../hooks/workplaceContext';
 import ScheduleListView from '../components/ScheduleListView';
 import SchedulePlannerView from '../components/SchedulePlannerView';
@@ -136,6 +137,8 @@ const AmbulanceScheduleEditView = () => {
   // rather than from the weekday it lands on, which is how the generator
   // reads it -- so the planner has to know them to agree with the solver.
   const [restDays, setRestDays] = useState(() => new Set());
+  // ISO date -> Map(competenceId -> need) for the month's custom days.
+  const [customDates, setCustomDates] = useState(() => new Map());
   // What the month is checked against beyond its own duties: absences,
   // duties elsewhere and just outside the month, the monthly wishes. Null
   // until it arrives, or when it could not be read -- the checks that need
@@ -228,6 +231,37 @@ const AmbulanceScheduleEditView = () => {
       active = false;
     };
   }, [selectedId, view.y]);
+
+  /* Dates placed on a custom day are staffed from it, as the generator
+     reads them. Like the special days, a failure only falls back to the
+     calendar. */
+  useEffect(() => {
+    if (!selectedId) {
+      setCustomDates(new Map());
+      return undefined;
+    }
+    let active = true;
+    fetchCompetenceNeeds(selectedId, view.y, view.m + 1)
+      .then((data) => {
+        if (!active) return;
+        setCustomDates(
+          new Map(
+            (data.days || [])
+              .filter((day) => day.kind === 'custom')
+              .map((day) => [
+                day.day,
+                new Map(day.needs.map((need) => [need.competence_id, need])),
+              ])
+          )
+        );
+      })
+      .catch(() => {
+        if (active) setCustomDates(new Map());
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedId, view.y, view.m]);
 
   /* --- Competence map: order + colors by competence id --- */
 
@@ -384,6 +418,7 @@ const AmbulanceScheduleEditView = () => {
         employees,
         competences: legend,
         restDays,
+        customDates,
         context: scheduleContext,
         fromDate: firstEditableDate,
         editedDates,
@@ -396,6 +431,7 @@ const AmbulanceScheduleEditView = () => {
       employees,
       legend,
       restDays,
+      customDates,
       scheduleContext,
       firstEditableDate,
       editedDates,
@@ -1188,6 +1224,7 @@ const AmbulanceScheduleEditView = () => {
               employees={employees}
               shiftsByDate={shiftsByDate}
               restDays={restDays}
+              customDates={customDates}
               competenceColor={competenceColor}
               conflictReport={conflictReport}
               loading={loading}

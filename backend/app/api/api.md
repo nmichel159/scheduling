@@ -151,6 +151,24 @@ obsadzuje z neho bez ohľadu na to, na ktorý deň týždňa padne.
 </details>
 
 <details>
+<summary><strong>Vlastné dni a potreba v mesiaci</strong></summary>
+
+Vlastný deň je pomenovaná sada parametrov pracoviska — pre každú kompetenciu
+`required_count`, `shift_hours`, `recovery_days` a `is_surcharge`. Nepatrí
+scenáru. Dátum zaradený na vlastný deň sa obsadzuje z neho namiesto dňa
+v týždni aj sviatku.
+
+- `GET /ambulances/{ambulance_id}/custom-days`
+- `POST /ambulances/{ambulance_id}/custom-days` s body `{"name":"Inšpekcia","requirements":[{"competence_id":1,"required_count":2}]}`
+- `PUT /ambulances/{ambulance_id}/custom-days/{id}` (názov a/alebo `requirements`)
+- `DELETE /ambulances/{ambulance_id}/custom-days/{id}` — jeho dátumy sa vrátia kalendáru
+- `PUT /ambulances/{ambulance_id}/custom-day-dates` s body `{"day":"2026-11-12","custom_day_id":3}`; `null` vráti dátum kalendáru
+- `GET /ambulances/{ambulance_id}/competence-needs?year=2026&month=11[&scenario_id=]` — pre každý dátum `kind` (`weekday`/`rest`/`custom`) a potreba každej kompetencie
+
+Oprávnenie: rola 2 pre vlastné pracovisko alebo rola 3.
+</details>
+
+<details>
 <summary><strong>Kompetencie ambulancie</strong></summary>
 
 Kompetencia obsahuje `id`, `name`, `description`, `ambulance_id`, `required_count` a kompatibilné `count`.

@@ -8,6 +8,7 @@ from app.models.competence_weekday_requirement import CompetenceWeekdayRequireme
 from app.models.unavailability import Unavailability
 from app.models.schedule import Schedule
 from app.models.special_day import SpecialDay
+from app.models.custom_day import CustomDay, CustomDayDate, CustomDayRequirement
 from app.models.schedule_mail import ScheduleMailDispatch, ScheduleMailRecipient
 from app.models.constraint_setting import ConstraintSetting
 from app.models.audit import AuditLog
@@ -30,6 +31,9 @@ __all__ = [
     "Unavailability",
     "Schedule",
     "SpecialDay",
+    "CustomDay",
+    "CustomDayDate",
+    "CustomDayRequirement",
     "ScheduleMailRecipient",
     "ScheduleMailDispatch",
     "ConstraintSetting",

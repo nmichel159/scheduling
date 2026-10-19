@@ -43,6 +43,7 @@ from app.schemas.ambulance_employee import (
 )
 from app.services.competence_scenario_service import get_selected_scenario
 from app.services.database_conflict import commit_or_conflict
+from app.services.custom_day_service import UNSTAFFED, custom_parameters_between
 from app.services.special_day_service import rest_days_between
 from app.services.shift_wish_service import (
     encode_weekdays,
@@ -190,6 +191,7 @@ def get_monthly_employee_load(
 
     parameters = _slot_parameters(db, ambulance_id)
     rest_days = rest_days_between(db, ambulance_id, first, last)
+    custom_dates = custom_parameters_between(db, ambulance_id, first, last)
 
     availability = _availability_counts(db, list(totals), first, last)
 
@@ -221,7 +223,13 @@ def get_monthly_employee_load(
             if shift.work_date in rest_days
             else shift.work_date.weekday()
         )
-        is_surcharge, hours = _parameters_for(parameters, shift.competence_id, slot)
+        if shift.work_date in custom_dates:
+            custom = custom_dates[shift.work_date].get(shift.competence_id, UNSTAFFED)
+            is_surcharge, hours = custom.is_surcharge, custom.shift_hours
+        else:
+            is_surcharge, hours = _parameters_for(
+                parameters, shift.competence_id, slot
+            )
         bucket["shifts"] += 1
         bucket["hours"] += hours
         if is_surcharge:

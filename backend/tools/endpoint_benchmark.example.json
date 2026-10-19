@@ -127,6 +127,22 @@
       "expected_status": 200
     },
     {
+      "name": "ambulance_custom_days",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/custom-days",
+      "expected_status": 200
+    },
+    {
+      "name": "ambulance_competence_needs",
+      "method": "GET",
+      "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/competence-needs",
+      "params": {
+        "year": 2026,
+        "month": 11
+      },
+      "expected_status": 200
+    },
+    {
       "name": "ambulance_constraints",
       "method": "GET",
       "path": "/ambulances/${BENCHMARK_AMBULANCE_ID}/constraints",

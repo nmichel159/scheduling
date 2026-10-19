@@ -174,6 +174,8 @@ const NO_CONFLICTS = [];
  * - restDays: Set of ISO dates the workplace rests on. A duty there is staffed
  *   and paid from the competence's day-of-rest slot rather than from the
  *   weekday it happens to fall on, exactly as the solver reads it.
+ * - customDates: Map of ISO date -> Map(competenceId -> need) for the dates
+ *   placed on a custom day, which outrank both the weekday and the day of rest.
  * - conflictReport: analyzeScheduleConflicts() over the same shifts — every
  *   conflict, indexed by the cells it marks, plus forCandidate() for what a
  *   pick would break.
@@ -202,6 +204,7 @@ const SchedulePlannerView = ({
   employees,
   shiftsByDate,
   restDays,
+  customDates,
   competenceColor,
   conflictReport,
   loading,
@@ -260,6 +263,7 @@ const SchedulePlannerView = ({
              date. A public holiday on a Tuesday is a day of rest, not a
              Tuesday, and the generator reads it that way too. */
           slot: isRestDay ? SPECIAL_DAY_SLOT : weekday,
+          custom: customDates?.get(dateStr) ?? null,
           isWeekend: weekday >= 5,
           isRestDay,
           isToday:
@@ -268,7 +272,7 @@ const SchedulePlannerView = ({
             year === today.getFullYear(),
         };
       }),
-    [daysInMonth, year, month, today, restDays]
+    [daysInMonth, year, month, today, restDays, customDates]
   );
 
   /* Complete slot definitions per competence. normalizeWeekdayRequirements
@@ -281,12 +285,18 @@ const SchedulePlannerView = ({
     return map;
   }, [competences]);
 
-  const requiredFor = (competenceId, slot) =>
-    slotsByCompetence.get(competenceId)?.[slot]?.required_count ?? 0;
+  /* A date placed on a custom day answers from that day; a competence the
+     custom day does not list is not staffed on it. */
+  const requiredFor = (competenceId, day) =>
+    day.custom
+      ? day.custom.get(competenceId)?.required_count ?? 0
+      : slotsByCompetence.get(competenceId)?.[day.slot]?.required_count ?? 0;
 
-  const isSurchargeFor = (competenceId, slot) =>
-    slotsByCompetence.get(competenceId)?.[slot]?.is_surcharge ??
-    defaultIsSurcharge(slot);
+  const isSurchargeFor = (competenceId, day) =>
+    day.custom
+      ? Boolean(day.custom.get(competenceId)?.is_surcharge)
+      : slotsByCompetence.get(competenceId)?.[day.slot]?.is_surcharge ??
+        defaultIsSurcharge(day.slot);
 
   /** Everyone assigned to one competence on one day. */
   const assignedOn = (dateStr, competenceId) =>
@@ -306,7 +316,7 @@ const SchedulePlannerView = ({
           standard: 0,
         };
         stats.total += 1;
-        if (isSurchargeFor(shift.competence_id, dayInfo.slot)) stats.surcharge += 1;
+        if (isSurchargeFor(shift.competence_id, dayInfo)) stats.surcharge += 1;
         else stats.standard += 1;
         map.set(shift.user_id, stats);
       });
@@ -356,7 +366,7 @@ const SchedulePlannerView = ({
         (sum, dayInfo) =>
           sum +
           competences.reduce((daySum, competence) => {
-            const required = requiredFor(competence.id, dayInfo.slot);
+            const required = requiredFor(competence.id, dayInfo);
             const filled = assignedOn(dayInfo.dateStr, competence.id).length;
             return daySum + Math.max(0, required - filled);
           }, 0),
@@ -814,7 +824,7 @@ const SchedulePlannerView = ({
         shift: mine || null,
         warnings,
         filled: dayShifts.filter((s) => s.competence_id === competence.id).length,
-        required: requiredFor(competence.id, openPerson.day.slot),
+        required: requiredFor(competence.id, openPerson.day),
       }];
     });
     // Shared means said the same way on every row: "already on" names the
@@ -950,7 +960,7 @@ const SchedulePlannerView = ({
                             </span>
                           </th>
                           {competences.map((competence) => {
-                            const required = requiredFor(competence.id, dayInfo.slot);
+                            const required = requiredFor(competence.id, dayInfo);
                             const filled = assignedOn(
                               dayInfo.dateStr,
                               competence.id
@@ -1494,10 +1504,7 @@ const SchedulePlannerView = ({
                 {t('schedule_edit.planner_picker_filled', {
                   filled: assignedOn(openDemand.dateStr, openDemand.competenceId)
                     .length,
-                  required: requiredFor(
-                    openDemand.competenceId,
-                    openDemand.day.slot
-                  ),
+                  required: requiredFor(openDemand.competenceId, openDemand.day),
                 })}
               </span>
             </div>

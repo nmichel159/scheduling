@@ -539,7 +539,7 @@
     "edit": "Upraviť"
   },
   "scenarios": {
-    "title": "Scenáre kompetencií",
+    "title": "Scenáre",
     "name": "Scenár",
     "add": "Nový scenár",
     "default_name": "Scenár {{index}}",
@@ -845,5 +845,27 @@
       "avoid": "Nechcem",
       "any": "Je mi to jedno"
     }
+  },
+  "custom_days": {
+    "title": "Vlastné dni",
+    "month_title": "Potreba v mesiaci",
+    "add": "Vlastný deň",
+    "new_title": "Nový vlastný deň",
+    "edit_title": "Vlastný deň",
+    "name": "Názov",
+    "people": "Ľudia",
+    "total": "Spolu",
+    "people_total": "Spolu ľudí",
+    "saved": "Vlastný deň uložený",
+    "deleted": "Vlastný deň zmazaný",
+    "save_error": "Zmenu sa nepodarilo uložiť.",
+    "load_error": "Potrebu v mesiaci sa nepodarilo načítať.",
+    "by_calendar": "Podľa kalendára",
+    "default_name": "Vlastný deň {{index}}",
+    "empty": "Zatiaľ žiadny vlastný deň.",
+    "badge": "Vlastný deň",
+    "delete_hint": "Zmazať vlastný deň",
+    "confirm_delete": "Zmazať vlastný deň {{name}}? Dni, na ktoré je priradený, sa vrátia ku kalendáru.",
+    "yes": "Áno"
   }
 }

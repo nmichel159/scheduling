@@ -73,6 +73,10 @@ Pre každú kompetenciu a každý deň generovacieho okna:
 Rovnosť, nie nerovnosť — presne toľko ľudí, koľko je nastavené. Počet je
 per-weekday a deň odpočinku (sviatok) má vlastný, ôsmy slot mimo pondelka
 až nedele.
+Dátum, ktorý pracovisko zaradilo na **vlastný deň**, sa obsadzuje z parametrov
+toho vlastného dňa (počet, hodiny, regenerácia, príplatok) — má prednosť pred
+sviatkom aj pred dňom v týždni. Kompetencia, ktorú vlastný deň neuvádza, sa
+v ten deň neobsadzuje.
 
 Keď rozvrhár ručne vložil viac ľudí, než deň žiada, pravá strana je ich
 počet: `max(required_on(d), ručne vložené)`. Vložení ostanú a nik ďalší

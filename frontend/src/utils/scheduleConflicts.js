@@ -97,6 +97,8 @@ export const severityOf = (conflicts) =>
  * @param {Array} input.employees [{ user_id, competences: [{ id }] }]
  * @param {Array} input.competences the workplace's competences with their slots
  * @param {Set<string>} input.restDays ISO dates the workplace rests on
+ * @param {Map<string, Map<number, object>>} input.customDates ISO dates placed
+ *   on a custom day, each with that day's need per competence
  * @param {object|null} input.context GET .../schedule/context, or null
  */
 export function analyzeScheduleConflicts({
@@ -107,6 +109,7 @@ export function analyzeScheduleConflicts({
   employees,
   competences,
   restDays,
+  customDates = null,
   context,
   fromDate = null,
   editedDates = null,
@@ -119,11 +122,17 @@ export function analyzeScheduleConflicts({
   );
   const slotOf = (dateStr) =>
     restDays?.has(dateStr) ? SPECIAL_DAY_SLOT : isoWeekday(dateStr);
+  /* A date placed on a custom day answers from that day before the weekday
+     or the day of rest is asked; a competence it does not list needs nobody. */
+  const paramsOf = (competenceId, dateStr) => {
+    const custom = customDates?.get(dateStr);
+    if (custom) return custom.get(competenceId) ?? { required_count: 0 };
+    return slotsById.get(competenceId)?.[slotOf(dateStr)];
+  };
   const recoveryOf = (competenceId, dateStr) =>
-    slotsById.get(competenceId)?.[slotOf(dateStr)]?.recovery_days ??
-    DEFAULT_RECOVERY_DAYS;
+    paramsOf(competenceId, dateStr)?.recovery_days ?? DEFAULT_RECOVERY_DAYS;
   const requiredOf = (competenceId, dateStr) =>
-    slotsById.get(competenceId)?.[slotOf(dateStr)]?.required_count ?? 0;
+    paramsOf(competenceId, dateStr)?.required_count ?? 0;
 
   const heldBy = new Map(
     employees.map((employee) => [
@@ -342,7 +351,7 @@ export function analyzeScheduleConflicts({
      free day, a "wants to" by a duty -- and so is each monthly limit someone
      entered. Counted over the whole month, worked days included. */
   const isSurchargeOn = (competenceId, dateStr) =>
-    Boolean(slotsById.get(competenceId)?.[slotOf(dateStr)]?.is_surcharge);
+    Boolean(paramsOf(competenceId, dateStr)?.is_surcharge);
   const fulfilment = { met: 0, total: 0 };
   const tally = (kept) => {
     fulfilment.total += 1;

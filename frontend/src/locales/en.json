@@ -538,7 +538,7 @@
     "edit": "Edit"
   },
   "scenarios": {
-    "title": "Competence scenarios",
+    "title": "Scenarios",
     "name": "Scenario",
     "add": "New scenario",
     "default_name": "Scenario {{index}}",
@@ -841,5 +841,27 @@
       "avoid": "Don't want",
       "any": "Don't mind"
     }
+  },
+  "custom_days": {
+    "title": "Custom days",
+    "month_title": "Needs this month",
+    "add": "Custom day",
+    "new_title": "New custom day",
+    "edit_title": "Custom day",
+    "name": "Name",
+    "people": "People",
+    "total": "Total",
+    "people_total": "People in total",
+    "saved": "Custom day saved",
+    "deleted": "Custom day deleted",
+    "save_error": "The change could not be saved.",
+    "load_error": "The month's needs could not be loaded.",
+    "by_calendar": "By the calendar",
+    "default_name": "Custom day {{index}}",
+    "empty": "No custom day yet.",
+    "badge": "Custom day",
+    "delete_hint": "Delete custom day",
+    "confirm_delete": "Delete custom day {{name}}? The dates it is placed on return to the calendar.",
+    "yes": "Yes"
   }
 }

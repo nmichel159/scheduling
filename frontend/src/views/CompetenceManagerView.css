@@ -22,20 +22,87 @@
   font-size: var(--fs-base);
 }
 
-/* ---------- two columns: scenarios | the viewed scenario's week ---------- */
+/* ---------- three columns: scenarios | custom days | the viewed one ---------- */
 
-/* The scenario list keeps to a narrow column; the summary takes the rest,
-   since it is the one with eight day columns to fit. */
+/* The two lists keep to narrow columns; the summary takes the rest, since
+   it is the one with eight day columns to fit. */
 .cmanager-columns {
   display: grid;
-  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  grid-template-columns: minmax(240px, 300px) minmax(220px, 280px) minmax(0, 1fr);
+  grid-template-areas: 'scenarios customs summary';
   align-items: start;
   gap: 16px;
+}
+
+.cmanager-scenarios {
+  grid-area: scenarios;
+}
+
+.cmanager-customs {
+  grid-area: customs;
+}
+
+.cmanager-summary {
+  grid-area: summary;
 }
 
 .cmanager-scenarios,
 .cmanager-summary {
   min-width: 0;
+}
+
+/* The three cards stand side by side, so their parts line up across them:
+   one header height, one column-heading height, one row height. A header
+   keeps its title and its button on one line; the title gives way first. */
+.cmanager-columns > .card > .card-header {
+  flex-wrap: nowrap;
+  box-sizing: border-box;
+  min-height: 64px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.cmanager-columns > .card > .card-header .card-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmanager-columns > .card > .card-header > .btn,
+.cmanager-columns .cmanager-summary-actions {
+  flex: none;
+}
+
+.cmanager-columns .cmanager-summary-heading {
+  flex-wrap: nowrap;
+}
+
+.cmanager-columns thead th {
+  box-sizing: border-box;
+  height: 40px;
+  padding-top: 0;
+  padding-bottom: 0;
+  vertical-align: middle;
+}
+
+.cmanager-table.cmanager-scenario-table td {
+  box-sizing: border-box;
+  height: 48px;
+}
+
+
+/* A custom day is named beside its colour, the one its dates wear in the
+   month below. */
+.cmanager-custom-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cmanager-custom-table th:not(.cmanager-col-name),
+.cmanager-custom-table td:not(.cmanager-col-name) {
+  text-align: center;
 }
 
 /* ---------- scenario list ---------- */
@@ -169,15 +236,18 @@
   overflow-x: auto;
 }
 
+/* The week shares the card's width rather than demanding its own: the day
+   columns split what the name leaves, so the card never needs to scroll. */
 .cmanager-summary-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   font-size: var(--fs-sm);
 }
 
 .cmanager-summary-table th {
-  padding: 9px 6px;
+  padding: 9px 2px;
   border-bottom: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--text-p);
@@ -190,7 +260,7 @@
 }
 
 .cmanager-summary-table td {
-  padding: 4px;
+  padding: 4px 2px;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
@@ -200,9 +270,10 @@
 }
 
 .cmanager-summary-table .cmanager-col-name {
-  min-width: 150px;
-  padding-left: 20px;
+  width: 132px;
+  padding-left: 14px;
   text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .cmanager-summary-table tbody tr:hover > td {
@@ -252,8 +323,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 38px;
-  padding: 5px 2px;
+  min-width: 0;
+  padding: 5px 0;
   border-radius: var(--radius);
   line-height: 1.2;
   /* "4 h" breaking into two lines would turn the cell into a column of
@@ -496,9 +567,20 @@
   font-size: var(--fs-sm);
 }
 
+/* Without room for three columns the two lists stack on the left. */
+@media (max-width: 1400px) {
+  .cmanager-columns {
+    grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+    grid-template-areas:
+      'scenarios summary'
+      'customs summary';
+  }
+}
+
 @media (max-width: 1100px) {
   .cmanager-columns {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'scenarios' 'customs' 'summary';
   }
 }
 
@@ -513,7 +595,7 @@
   }
 
   .cmanager-summary-figures {
-    min-width: 30px;
+    min-width: 0;
   }
 }
 
@@ -589,4 +671,16 @@
     min-width: 112px;
     padding-left: 12px;
   }
+}
+
+/* A custom day has one figure per column, so its headings may wrap and its
+   rows keep the lists' height beside it. */
+.cmanager-custom-table th {
+  white-space: normal;
+  line-height: 1.15;
+}
+
+.cmanager-custom-table td {
+  box-sizing: border-box;
+  height: 48px;
 }
