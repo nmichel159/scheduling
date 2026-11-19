@@ -1737,13 +1737,22 @@
     align-items: stretch;
   }
 
+  /* The floor matters when the matrix is short or empty (no competences, a
+     short message in its place): without it the people card is squeezed to a
+     sliver and its title runs out of the card. */
   .planner-right {
     contain: size;
+    min-height: min(560px, calc(100dvh - 120px));
+  }
+
+  /* The matrix card keeps its own height instead of stretching to the floor. */
+  .planner-pane-demand {
+    align-self: start;
   }
 
   .planner-pane-people {
     flex: 1 1 0;
-    min-height: 0;
+    min-height: 200px;
   }
 
   .planner-scroll-people {
